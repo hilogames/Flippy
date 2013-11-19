@@ -13,11 +13,9 @@
 		CBB4B7FF183C00E1003C3444 /* SpriteKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B7FE183C00E1003C3444 /* SpriteKit.framework */; };
 		CBB4B805183C00E1003C3444 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = CBB4B803183C00E1003C3444 /* InfoPlist.strings */; };
 		CBB4B807183C00E1003C3444 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = CBB4B806183C00E1003C3444 /* main.m */; };
-		CBB4B80B183C00E1003C3444 /* FLAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = CBB4B80A183C00E1003C3444 /* FLAppDelegate.m */; };
-		CBB4B80E183C00E1003C3444 /* Main_iPhone.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = CBB4B80C183C00E1003C3444 /* Main_iPhone.storyboard */; };
-		CBB4B811183C00E1003C3444 /* Main_iPad.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = CBB4B80F183C00E1003C3444 /* Main_iPad.storyboard */; };
-		CBB4B814183C00E1003C3444 /* FLViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = CBB4B813183C00E1003C3444 /* FLViewController.m */; };
-		CBB4B817183C00E1003C3444 /* FLMyScene.m in Sources */ = {isa = PBXBuildFile; fileRef = CBB4B816183C00E1003C3444 /* FLMyScene.m */; };
+		CBB4B80B183C00E1003C3444 /* FLAppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = CBB4B80A183C00E1003C3444 /* FLAppDelegate.mm */; };
+		CBB4B814183C00E1003C3444 /* FLViewController.mm in Sources */ = {isa = PBXBuildFile; fileRef = CBB4B813183C00E1003C3444 /* FLViewController.mm */; };
+		CBB4B817183C00E1003C3444 /* FLMyScene.mm in Sources */ = {isa = PBXBuildFile; fileRef = CBB4B816183C00E1003C3444 /* FLMyScene.mm */; };
 		CBB4B819183C00E1003C3444 /* Spaceship.png in Resources */ = {isa = PBXBuildFile; fileRef = CBB4B818183C00E1003C3444 /* Spaceship.png */; };
 		CBB4B81B183C00E1003C3444 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CBB4B81A183C00E1003C3444 /* Images.xcassets */; };
 		CBB4B822183C00E1003C3444 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B821183C00E1003C3444 /* XCTest.framework */; };
@@ -48,13 +46,11 @@
 		CBB4B806183C00E1003C3444 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		CBB4B808183C00E1003C3444 /* Flippy-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Flippy-Prefix.pch"; sourceTree = "<group>"; };
 		CBB4B809183C00E1003C3444 /* FLAppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FLAppDelegate.h; sourceTree = "<group>"; };
-		CBB4B80A183C00E1003C3444 /* FLAppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FLAppDelegate.m; sourceTree = "<group>"; };
-		CBB4B80D183C00E1003C3444 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main_iPhone.storyboard; sourceTree = "<group>"; };
-		CBB4B810183C00E1003C3444 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main_iPad.storyboard; sourceTree = "<group>"; };
+		CBB4B80A183C00E1003C3444 /* FLAppDelegate.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = FLAppDelegate.mm; sourceTree = "<group>"; };
 		CBB4B812183C00E1003C3444 /* FLViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FLViewController.h; sourceTree = "<group>"; };
-		CBB4B813183C00E1003C3444 /* FLViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FLViewController.m; sourceTree = "<group>"; };
+		CBB4B813183C00E1003C3444 /* FLViewController.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = FLViewController.mm; sourceTree = "<group>"; };
 		CBB4B815183C00E1003C3444 /* FLMyScene.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FLMyScene.h; sourceTree = "<group>"; };
-		CBB4B816183C00E1003C3444 /* FLMyScene.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FLMyScene.m; sourceTree = "<group>"; };
+		CBB4B816183C00E1003C3444 /* FLMyScene.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = FLMyScene.mm; sourceTree = "<group>"; };
 		CBB4B818183C00E1003C3444 /* Spaceship.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Spaceship.png; sourceTree = "<group>"; };
 		CBB4B81A183C00E1003C3444 /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Images.xcassets; sourceTree = "<group>"; };
 		CBB4B820183C00E1003C3444 /* FlippyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FlippyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -124,13 +120,11 @@
 			isa = PBXGroup;
 			children = (
 				CBB4B809183C00E1003C3444 /* FLAppDelegate.h */,
-				CBB4B80A183C00E1003C3444 /* FLAppDelegate.m */,
-				CBB4B80C183C00E1003C3444 /* Main_iPhone.storyboard */,
-				CBB4B80F183C00E1003C3444 /* Main_iPad.storyboard */,
+				CBB4B80A183C00E1003C3444 /* FLAppDelegate.mm */,
 				CBB4B812183C00E1003C3444 /* FLViewController.h */,
-				CBB4B813183C00E1003C3444 /* FLViewController.m */,
+				CBB4B813183C00E1003C3444 /* FLViewController.mm */,
 				CBB4B815183C00E1003C3444 /* FLMyScene.h */,
-				CBB4B816183C00E1003C3444 /* FLMyScene.m */,
+				CBB4B816183C00E1003C3444 /* FLMyScene.mm */,
 				CBB4B818183C00E1003C3444 /* Spaceship.png */,
 				CBB4B81A183C00E1003C3444 /* Images.xcassets */,
 				CBB4B801183C00E1003C3444 /* Supporting Files */,
@@ -246,8 +240,6 @@
 			files = (
 				CBB4B819183C00E1003C3444 /* Spaceship.png in Resources */,
 				CBB4B81B183C00E1003C3444 /* Images.xcassets in Resources */,
-				CBB4B811183C00E1003C3444 /* Main_iPad.storyboard in Resources */,
-				CBB4B80E183C00E1003C3444 /* Main_iPhone.storyboard in Resources */,
 				CBB4B805183C00E1003C3444 /* InfoPlist.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -267,10 +259,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CBB4B817183C00E1003C3444 /* FLMyScene.m in Sources */,
-				CBB4B80B183C00E1003C3444 /* FLAppDelegate.m in Sources */,
+				CBB4B817183C00E1003C3444 /* FLMyScene.mm in Sources */,
+				CBB4B80B183C00E1003C3444 /* FLAppDelegate.mm in Sources */,
 				CBB4B807183C00E1003C3444 /* main.m in Sources */,
-				CBB4B814183C00E1003C3444 /* FLViewController.m in Sources */,
+				CBB4B814183C00E1003C3444 /* FLViewController.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -299,22 +291,6 @@
 				CBB4B804183C00E1003C3444 /* en */,
 			);
 			name = InfoPlist.strings;
-			sourceTree = "<group>";
-		};
-		CBB4B80C183C00E1003C3444 /* Main_iPhone.storyboard */ = {
-			isa = PBXVariantGroup;
-			children = (
-				CBB4B80D183C00E1003C3444 /* Base */,
-			);
-			name = Main_iPhone.storyboard;
-			sourceTree = "<group>";
-		};
-		CBB4B80F183C00E1003C3444 /* Main_iPad.storyboard */ = {
-			isa = PBXVariantGroup;
-			children = (
-				CBB4B810183C00E1003C3444 /* Base */,
-			);
-			name = Main_iPad.storyboard;
 			sourceTree = "<group>";
 		};
 		CBB4B82A183C00E1003C3444 /* InfoPlist.strings */ = {
@@ -491,6 +467,7 @@
 				CBB4B833183C00E1003C3444 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		CBB4B834183C00E1003C3444 /* Build configuration list for PBXNativeTarget "FlippyTests" */ = {
 			isa = XCConfigurationList;
@@ -499,6 +476,7 @@
 				CBB4B836183C00E1003C3444 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
