@@ -1,0 +1,506 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		CBB4B7F9183C00E1003C3444 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B7F8183C00E1003C3444 /* Foundation.framework */; };
+		CBB4B7FB183C00E1003C3444 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B7FA183C00E1003C3444 /* CoreGraphics.framework */; };
+		CBB4B7FD183C00E1003C3444 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B7FC183C00E1003C3444 /* UIKit.framework */; };
+		CBB4B7FF183C00E1003C3444 /* SpriteKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B7FE183C00E1003C3444 /* SpriteKit.framework */; };
+		CBB4B805183C00E1003C3444 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = CBB4B803183C00E1003C3444 /* InfoPlist.strings */; };
+		CBB4B807183C00E1003C3444 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = CBB4B806183C00E1003C3444 /* main.m */; };
+		CBB4B80B183C00E1003C3444 /* FLAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = CBB4B80A183C00E1003C3444 /* FLAppDelegate.m */; };
+		CBB4B80E183C00E1003C3444 /* Main_iPhone.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = CBB4B80C183C00E1003C3444 /* Main_iPhone.storyboard */; };
+		CBB4B811183C00E1003C3444 /* Main_iPad.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = CBB4B80F183C00E1003C3444 /* Main_iPad.storyboard */; };
+		CBB4B814183C00E1003C3444 /* FLViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = CBB4B813183C00E1003C3444 /* FLViewController.m */; };
+		CBB4B817183C00E1003C3444 /* FLMyScene.m in Sources */ = {isa = PBXBuildFile; fileRef = CBB4B816183C00E1003C3444 /* FLMyScene.m */; };
+		CBB4B819183C00E1003C3444 /* Spaceship.png in Resources */ = {isa = PBXBuildFile; fileRef = CBB4B818183C00E1003C3444 /* Spaceship.png */; };
+		CBB4B81B183C00E1003C3444 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CBB4B81A183C00E1003C3444 /* Images.xcassets */; };
+		CBB4B822183C00E1003C3444 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B821183C00E1003C3444 /* XCTest.framework */; };
+		CBB4B823183C00E1003C3444 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B7F8183C00E1003C3444 /* Foundation.framework */; };
+		CBB4B824183C00E1003C3444 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B7FC183C00E1003C3444 /* UIKit.framework */; };
+		CBB4B82C183C00E1003C3444 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = CBB4B82A183C00E1003C3444 /* InfoPlist.strings */; };
+		CBB4B82E183C00E1003C3444 /* FlippyTests.m in Sources */ = {isa = PBXBuildFile; fileRef = CBB4B82D183C00E1003C3444 /* FlippyTests.m */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		CBB4B825183C00E1003C3444 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CBB4B7ED183C00E1003C3444 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CBB4B7F4183C00E1003C3444;
+			remoteInfo = Flippy;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		CBB4B7F5183C00E1003C3444 /* Flippy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Flippy.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CBB4B7F8183C00E1003C3444 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		CBB4B7FA183C00E1003C3444 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
+		CBB4B7FC183C00E1003C3444 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		CBB4B7FE183C00E1003C3444 /* SpriteKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SpriteKit.framework; path = System/Library/Frameworks/SpriteKit.framework; sourceTree = SDKROOT; };
+		CBB4B802183C00E1003C3444 /* Flippy-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Flippy-Info.plist"; sourceTree = "<group>"; };
+		CBB4B804183C00E1003C3444 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		CBB4B806183C00E1003C3444 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		CBB4B808183C00E1003C3444 /* Flippy-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Flippy-Prefix.pch"; sourceTree = "<group>"; };
+		CBB4B809183C00E1003C3444 /* FLAppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FLAppDelegate.h; sourceTree = "<group>"; };
+		CBB4B80A183C00E1003C3444 /* FLAppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FLAppDelegate.m; sourceTree = "<group>"; };
+		CBB4B80D183C00E1003C3444 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main_iPhone.storyboard; sourceTree = "<group>"; };
+		CBB4B810183C00E1003C3444 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main_iPad.storyboard; sourceTree = "<group>"; };
+		CBB4B812183C00E1003C3444 /* FLViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FLViewController.h; sourceTree = "<group>"; };
+		CBB4B813183C00E1003C3444 /* FLViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FLViewController.m; sourceTree = "<group>"; };
+		CBB4B815183C00E1003C3444 /* FLMyScene.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FLMyScene.h; sourceTree = "<group>"; };
+		CBB4B816183C00E1003C3444 /* FLMyScene.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FLMyScene.m; sourceTree = "<group>"; };
+		CBB4B818183C00E1003C3444 /* Spaceship.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Spaceship.png; sourceTree = "<group>"; };
+		CBB4B81A183C00E1003C3444 /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Images.xcassets; sourceTree = "<group>"; };
+		CBB4B820183C00E1003C3444 /* FlippyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FlippyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		CBB4B821183C00E1003C3444 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = Library/Frameworks/XCTest.framework; sourceTree = DEVELOPER_DIR; };
+		CBB4B829183C00E1003C3444 /* FlippyTests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "FlippyTests-Info.plist"; sourceTree = "<group>"; };
+		CBB4B82B183C00E1003C3444 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		CBB4B82D183C00E1003C3444 /* FlippyTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FlippyTests.m; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		CBB4B7F2183C00E1003C3444 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CBB4B7FB183C00E1003C3444 /* CoreGraphics.framework in Frameworks */,
+				CBB4B7FD183C00E1003C3444 /* UIKit.framework in Frameworks */,
+				CBB4B7FF183C00E1003C3444 /* SpriteKit.framework in Frameworks */,
+				CBB4B7F9183C00E1003C3444 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CBB4B81D183C00E1003C3444 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CBB4B822183C00E1003C3444 /* XCTest.framework in Frameworks */,
+				CBB4B824183C00E1003C3444 /* UIKit.framework in Frameworks */,
+				CBB4B823183C00E1003C3444 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		CBB4B7EC183C00E1003C3444 = {
+			isa = PBXGroup;
+			children = (
+				CBB4B800183C00E1003C3444 /* Flippy */,
+				CBB4B827183C00E1003C3444 /* FlippyTests */,
+				CBB4B7F7183C00E1003C3444 /* Frameworks */,
+				CBB4B7F6183C00E1003C3444 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		CBB4B7F6183C00E1003C3444 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				CBB4B7F5183C00E1003C3444 /* Flippy.app */,
+				CBB4B820183C00E1003C3444 /* FlippyTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		CBB4B7F7183C00E1003C3444 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				CBB4B7F8183C00E1003C3444 /* Foundation.framework */,
+				CBB4B7FA183C00E1003C3444 /* CoreGraphics.framework */,
+				CBB4B7FC183C00E1003C3444 /* UIKit.framework */,
+				CBB4B7FE183C00E1003C3444 /* SpriteKit.framework */,
+				CBB4B821183C00E1003C3444 /* XCTest.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		CBB4B800183C00E1003C3444 /* Flippy */ = {
+			isa = PBXGroup;
+			children = (
+				CBB4B809183C00E1003C3444 /* FLAppDelegate.h */,
+				CBB4B80A183C00E1003C3444 /* FLAppDelegate.m */,
+				CBB4B80C183C00E1003C3444 /* Main_iPhone.storyboard */,
+				CBB4B80F183C00E1003C3444 /* Main_iPad.storyboard */,
+				CBB4B812183C00E1003C3444 /* FLViewController.h */,
+				CBB4B813183C00E1003C3444 /* FLViewController.m */,
+				CBB4B815183C00E1003C3444 /* FLMyScene.h */,
+				CBB4B816183C00E1003C3444 /* FLMyScene.m */,
+				CBB4B818183C00E1003C3444 /* Spaceship.png */,
+				CBB4B81A183C00E1003C3444 /* Images.xcassets */,
+				CBB4B801183C00E1003C3444 /* Supporting Files */,
+			);
+			path = Flippy;
+			sourceTree = "<group>";
+		};
+		CBB4B801183C00E1003C3444 /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				CBB4B802183C00E1003C3444 /* Flippy-Info.plist */,
+				CBB4B803183C00E1003C3444 /* InfoPlist.strings */,
+				CBB4B806183C00E1003C3444 /* main.m */,
+				CBB4B808183C00E1003C3444 /* Flippy-Prefix.pch */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+		CBB4B827183C00E1003C3444 /* FlippyTests */ = {
+			isa = PBXGroup;
+			children = (
+				CBB4B82D183C00E1003C3444 /* FlippyTests.m */,
+				CBB4B828183C00E1003C3444 /* Supporting Files */,
+			);
+			path = FlippyTests;
+			sourceTree = "<group>";
+		};
+		CBB4B828183C00E1003C3444 /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				CBB4B829183C00E1003C3444 /* FlippyTests-Info.plist */,
+				CBB4B82A183C00E1003C3444 /* InfoPlist.strings */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		CBB4B7F4183C00E1003C3444 /* Flippy */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CBB4B831183C00E1003C3444 /* Build configuration list for PBXNativeTarget "Flippy" */;
+			buildPhases = (
+				CBB4B7F1183C00E1003C3444 /* Sources */,
+				CBB4B7F2183C00E1003C3444 /* Frameworks */,
+				CBB4B7F3183C00E1003C3444 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Flippy;
+			productName = Flippy;
+			productReference = CBB4B7F5183C00E1003C3444 /* Flippy.app */;
+			productType = "com.apple.product-type.application";
+		};
+		CBB4B81F183C00E1003C3444 /* FlippyTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CBB4B834183C00E1003C3444 /* Build configuration list for PBXNativeTarget "FlippyTests" */;
+			buildPhases = (
+				CBB4B81C183C00E1003C3444 /* Sources */,
+				CBB4B81D183C00E1003C3444 /* Frameworks */,
+				CBB4B81E183C00E1003C3444 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				CBB4B826183C00E1003C3444 /* PBXTargetDependency */,
+			);
+			name = FlippyTests;
+			productName = FlippyTests;
+			productReference = CBB4B820183C00E1003C3444 /* FlippyTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		CBB4B7ED183C00E1003C3444 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				CLASSPREFIX = FL;
+				LastUpgradeCheck = 0500;
+				ORGANIZATIONNAME = Hilo;
+				TargetAttributes = {
+					CBB4B81F183C00E1003C3444 = {
+						TestTargetID = CBB4B7F4183C00E1003C3444;
+					};
+				};
+			};
+			buildConfigurationList = CBB4B7F0183C00E1003C3444 /* Build configuration list for PBXProject "Flippy" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = CBB4B7EC183C00E1003C3444;
+			productRefGroup = CBB4B7F6183C00E1003C3444 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				CBB4B7F4183C00E1003C3444 /* Flippy */,
+				CBB4B81F183C00E1003C3444 /* FlippyTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		CBB4B7F3183C00E1003C3444 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CBB4B819183C00E1003C3444 /* Spaceship.png in Resources */,
+				CBB4B81B183C00E1003C3444 /* Images.xcassets in Resources */,
+				CBB4B811183C00E1003C3444 /* Main_iPad.storyboard in Resources */,
+				CBB4B80E183C00E1003C3444 /* Main_iPhone.storyboard in Resources */,
+				CBB4B805183C00E1003C3444 /* InfoPlist.strings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CBB4B81E183C00E1003C3444 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CBB4B82C183C00E1003C3444 /* InfoPlist.strings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		CBB4B7F1183C00E1003C3444 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CBB4B817183C00E1003C3444 /* FLMyScene.m in Sources */,
+				CBB4B80B183C00E1003C3444 /* FLAppDelegate.m in Sources */,
+				CBB4B807183C00E1003C3444 /* main.m in Sources */,
+				CBB4B814183C00E1003C3444 /* FLViewController.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CBB4B81C183C00E1003C3444 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CBB4B82E183C00E1003C3444 /* FlippyTests.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		CBB4B826183C00E1003C3444 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CBB4B7F4183C00E1003C3444 /* Flippy */;
+			targetProxy = CBB4B825183C00E1003C3444 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		CBB4B803183C00E1003C3444 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				CBB4B804183C00E1003C3444 /* en */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+		CBB4B80C183C00E1003C3444 /* Main_iPhone.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				CBB4B80D183C00E1003C3444 /* Base */,
+			);
+			name = Main_iPhone.storyboard;
+			sourceTree = "<group>";
+		};
+		CBB4B80F183C00E1003C3444 /* Main_iPad.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				CBB4B810183C00E1003C3444 /* Base */,
+			);
+			name = Main_iPad.storyboard;
+			sourceTree = "<group>";
+		};
+		CBB4B82A183C00E1003C3444 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				CBB4B82B183C00E1003C3444 /* en */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		CBB4B82F183C00E1003C3444 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD_INCLUDING_64_BIT)";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				COPY_PHASE_STRIP = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 7.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		CBB4B830183C00E1003C3444 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD_INCLUDING_64_BIT)";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				COPY_PHASE_STRIP = YES;
+				ENABLE_NS_ASSERTIONS = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 7.0;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		CBB4B832183C00E1003C3444 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "Flippy/Flippy-Prefix.pch";
+				INFOPLIST_FILE = "Flippy/Flippy-Info.plist";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SPRITEKIT_TEXTURE_ATLAS_OUTPUT = YES;
+				WRAPPER_EXTENSION = app;
+			};
+			name = Debug;
+		};
+		CBB4B833183C00E1003C3444 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "Flippy/Flippy-Prefix.pch";
+				INFOPLIST_FILE = "Flippy/Flippy-Info.plist";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SPRITEKIT_TEXTURE_ATLAS_OUTPUT = YES;
+				WRAPPER_EXTENSION = app;
+			};
+			name = Release;
+		};
+		CBB4B835183C00E1003C3444 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(ARCHS_STANDARD_INCLUDING_64_BIT)";
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/Flippy.app/Flippy";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(SDKROOT)/Developer/Library/Frameworks",
+					"$(inherited)",
+					"$(DEVELOPER_FRAMEWORKS_DIR)",
+				);
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "Flippy/Flippy-Prefix.pch";
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				INFOPLIST_FILE = "FlippyTests/FlippyTests-Info.plist";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_HOST = "$(BUNDLE_LOADER)";
+				WRAPPER_EXTENSION = xctest;
+			};
+			name = Debug;
+		};
+		CBB4B836183C00E1003C3444 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(ARCHS_STANDARD_INCLUDING_64_BIT)";
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/Flippy.app/Flippy";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(SDKROOT)/Developer/Library/Frameworks",
+					"$(inherited)",
+					"$(DEVELOPER_FRAMEWORKS_DIR)",
+				);
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "Flippy/Flippy-Prefix.pch";
+				INFOPLIST_FILE = "FlippyTests/FlippyTests-Info.plist";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_HOST = "$(BUNDLE_LOADER)";
+				WRAPPER_EXTENSION = xctest;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		CBB4B7F0183C00E1003C3444 /* Build configuration list for PBXProject "Flippy" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CBB4B82F183C00E1003C3444 /* Debug */,
+				CBB4B830183C00E1003C3444 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CBB4B831183C00E1003C3444 /* Build configuration list for PBXNativeTarget "Flippy" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CBB4B832183C00E1003C3444 /* Debug */,
+				CBB4B833183C00E1003C3444 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+		};
+		CBB4B834183C00E1003C3444 /* Build configuration list for PBXNativeTarget "FlippyTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CBB4B835183C00E1003C3444 /* Debug */,
+				CBB4B836183C00E1003C3444 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = CBB4B7ED183C00E1003C3444 /* Project object */;
+}
