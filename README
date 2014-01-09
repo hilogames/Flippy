@@ -1,3 +1,57 @@
 README
 
-iOS port of Flippy the Train.
+Flippy the Train is a train simulation that can be used to model logic
+circuits.
+
+
+
+Current
+
+. Make toolbar to create track pieces; show grid snap without outline;
+  snap to grid when deselected.  (See below.)
+
+. Track composition tools: Simple grid, rather than hierarchy of
+  subtracks, I guess, since that's how I did it originally.
+
+    TODO:  How does selection/deselection work?
+
+    . Add segments or subtracks:
+
+      . Drag a segment or subtrack from a toolbar, after which it is
+        selected and can be rotated/mirrored/deleted/moved.  Only
+        written into track once unselected, but can be manipulated
+        before it is written in.
+
+      . Draw a line with your finger, segments created automatically.
+        Better: A special "auto connect" path subtrack which
+        calculates a path between two specified segments and maintains
+        the connection following moves and rotations of those
+        segments.  (This might be out of the scope of the project.)
+
+    . A rotate/mirror/delete/move popup toolbar shows (at bottom of
+      screen?  at bottom of selection?  in a circle around the
+      selection?  probably at bottom of screen, for better support of
+      non-contiguous selection?) whenever something is selected, but
+      gestures can be used instead of tapping on buttons.
+
+    . Undo stack.
+
+    . Selection should be a mode?  When you add something it is
+      selected.  If you , but you can't change the selection without entering
+      selection mode.  A separate selection tool that allows selection
+      of segments by coloring them (and/or fast tapping, if it's too
+      hard to distinguish coloring from scroll/zoom actions).
+
+      . Rotate
+
+      . Delete
+
+      . Transpose
+
+  include adding entire other tracks, though.  Also: undo stack.
+  Also: Multiple selection (both rectangle and shift-click type) which
+  can then rotate all Decide whether subtracks can be rotated and
+  movedThis time around, make the track model a hierarchy of
+  subtracks, the smallest of which can be 1x1, so that
+
+. Draw a train.  (Orient to the right!)

@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		CB251207184E7DEB003DD411 /* earth-map.jpg in Resources */ = {isa = PBXBuildFile; fileRef = CB251206184E7DEB003DD411 /* earth-map.jpg */; };
+		CB657E9A1843E8DB00399E34 /* track.atlas in Resources */ = {isa = PBXBuildFile; fileRef = CB657E991843E8DB00399E34 /* track.atlas */; };
 		CBB4B7F9183C00E1003C3444 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B7F8183C00E1003C3444 /* Foundation.framework */; };
 		CBB4B7FB183C00E1003C3444 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B7FA183C00E1003C3444 /* CoreGraphics.framework */; };
 		CBB4B7FD183C00E1003C3444 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B7FC183C00E1003C3444 /* UIKit.framework */; };
@@ -15,14 +17,15 @@
 		CBB4B807183C00E1003C3444 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = CBB4B806183C00E1003C3444 /* main.m */; };
 		CBB4B80B183C00E1003C3444 /* FLAppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = CBB4B80A183C00E1003C3444 /* FLAppDelegate.mm */; };
 		CBB4B814183C00E1003C3444 /* FLViewController.mm in Sources */ = {isa = PBXBuildFile; fileRef = CBB4B813183C00E1003C3444 /* FLViewController.mm */; };
-		CBB4B817183C00E1003C3444 /* FLMyScene.mm in Sources */ = {isa = PBXBuildFile; fileRef = CBB4B816183C00E1003C3444 /* FLMyScene.mm */; };
-		CBB4B819183C00E1003C3444 /* Spaceship.png in Resources */ = {isa = PBXBuildFile; fileRef = CBB4B818183C00E1003C3444 /* Spaceship.png */; };
+		CBB4B817183C00E1003C3444 /* FLTrackScene.mm in Sources */ = {isa = PBXBuildFile; fileRef = CBB4B816183C00E1003C3444 /* FLTrackScene.mm */; };
 		CBB4B81B183C00E1003C3444 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CBB4B81A183C00E1003C3444 /* Images.xcassets */; };
 		CBB4B822183C00E1003C3444 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B821183C00E1003C3444 /* XCTest.framework */; };
 		CBB4B823183C00E1003C3444 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B7F8183C00E1003C3444 /* Foundation.framework */; };
 		CBB4B824183C00E1003C3444 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B7FC183C00E1003C3444 /* UIKit.framework */; };
 		CBB4B82C183C00E1003C3444 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = CBB4B82A183C00E1003C3444 /* InfoPlist.strings */; };
 		CBB4B82E183C00E1003C3444 /* FlippyTests.m in Sources */ = {isa = PBXBuildFile; fileRef = CBB4B82D183C00E1003C3444 /* FlippyTests.m */; };
+		CBE5A5E9185A0CAB00DC86B3 /* FLTextureStore.m in Sources */ = {isa = PBXBuildFile; fileRef = CBE5A5E8185A0CAB00DC86B3 /* FLTextureStore.m */; };
+		CBE5A5EC185A128100DC86B3 /* FLToolbarNode.m in Sources */ = {isa = PBXBuildFile; fileRef = CBE5A5EB185A128100DC86B3 /* FLToolbarNode.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -36,6 +39,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		CB251206184E7DEB003DD411 /* earth-map.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "earth-map.jpg"; sourceTree = "<group>"; };
+		CB657E991843E8DB00399E34 /* track.atlas */ = {isa = PBXFileReference; lastKnownFileType = folder.skatlas; path = track.atlas; sourceTree = "<group>"; };
 		CBB4B7F5183C00E1003C3444 /* Flippy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Flippy.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CBB4B7F8183C00E1003C3444 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		CBB4B7FA183C00E1003C3444 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
@@ -49,15 +54,18 @@
 		CBB4B80A183C00E1003C3444 /* FLAppDelegate.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = FLAppDelegate.mm; sourceTree = "<group>"; };
 		CBB4B812183C00E1003C3444 /* FLViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FLViewController.h; sourceTree = "<group>"; };
 		CBB4B813183C00E1003C3444 /* FLViewController.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = FLViewController.mm; sourceTree = "<group>"; };
-		CBB4B815183C00E1003C3444 /* FLMyScene.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FLMyScene.h; sourceTree = "<group>"; };
-		CBB4B816183C00E1003C3444 /* FLMyScene.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = FLMyScene.mm; sourceTree = "<group>"; };
-		CBB4B818183C00E1003C3444 /* Spaceship.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Spaceship.png; sourceTree = "<group>"; };
+		CBB4B815183C00E1003C3444 /* FLTrackScene.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FLTrackScene.h; sourceTree = "<group>"; };
+		CBB4B816183C00E1003C3444 /* FLTrackScene.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = FLTrackScene.mm; sourceTree = "<group>"; };
 		CBB4B81A183C00E1003C3444 /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Images.xcassets; sourceTree = "<group>"; };
 		CBB4B820183C00E1003C3444 /* FlippyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FlippyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CBB4B821183C00E1003C3444 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = Library/Frameworks/XCTest.framework; sourceTree = DEVELOPER_DIR; };
 		CBB4B829183C00E1003C3444 /* FlippyTests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "FlippyTests-Info.plist"; sourceTree = "<group>"; };
 		CBB4B82B183C00E1003C3444 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		CBB4B82D183C00E1003C3444 /* FlippyTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FlippyTests.m; sourceTree = "<group>"; };
+		CBE5A5E7185A0CAB00DC86B3 /* FLTextureStore.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTextureStore.h; sourceTree = "<group>"; };
+		CBE5A5E8185A0CAB00DC86B3 /* FLTextureStore.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FLTextureStore.m; sourceTree = "<group>"; };
+		CBE5A5EA185A128100DC86B3 /* FLToolbarNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLToolbarNode.h; sourceTree = "<group>"; };
+		CBE5A5EB185A128100DC86B3 /* FLToolbarNode.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FLToolbarNode.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -119,14 +127,19 @@
 		CBB4B800183C00E1003C3444 /* Flippy */ = {
 			isa = PBXGroup;
 			children = (
+				CB251206184E7DEB003DD411 /* earth-map.jpg */,
 				CBB4B809183C00E1003C3444 /* FLAppDelegate.h */,
 				CBB4B80A183C00E1003C3444 /* FLAppDelegate.mm */,
+				CBB4B815183C00E1003C3444 /* FLTrackScene.h */,
+				CBB4B816183C00E1003C3444 /* FLTrackScene.mm */,
+				CBE5A5EA185A128100DC86B3 /* FLToolbarNode.h */,
+				CBE5A5EB185A128100DC86B3 /* FLToolbarNode.m */,
+				CBE5A5E7185A0CAB00DC86B3 /* FLTextureStore.h */,
+				CBE5A5E8185A0CAB00DC86B3 /* FLTextureStore.m */,
 				CBB4B812183C00E1003C3444 /* FLViewController.h */,
 				CBB4B813183C00E1003C3444 /* FLViewController.mm */,
-				CBB4B815183C00E1003C3444 /* FLMyScene.h */,
-				CBB4B816183C00E1003C3444 /* FLMyScene.mm */,
-				CBB4B818183C00E1003C3444 /* Spaceship.png */,
 				CBB4B81A183C00E1003C3444 /* Images.xcassets */,
+				CB657E991843E8DB00399E34 /* track.atlas */,
 				CBB4B801183C00E1003C3444 /* Supporting Files */,
 			);
 			path = Flippy;
@@ -238,9 +251,10 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CBB4B819183C00E1003C3444 /* Spaceship.png in Resources */,
 				CBB4B81B183C00E1003C3444 /* Images.xcassets in Resources */,
 				CBB4B805183C00E1003C3444 /* InfoPlist.strings in Resources */,
+				CB657E9A1843E8DB00399E34 /* track.atlas in Resources */,
+				CB251207184E7DEB003DD411 /* earth-map.jpg in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -259,8 +273,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CBB4B817183C00E1003C3444 /* FLMyScene.mm in Sources */,
+				CBE5A5E9185A0CAB00DC86B3 /* FLTextureStore.m in Sources */,
+				CBB4B817183C00E1003C3444 /* FLTrackScene.mm in Sources */,
 				CBB4B80B183C00E1003C3444 /* FLAppDelegate.mm in Sources */,
+				CBE5A5EC185A128100DC86B3 /* FLToolbarNode.m in Sources */,
 				CBB4B807183C00E1003C3444 /* main.m in Sources */,
 				CBB4B814183C00E1003C3444 /* FLViewController.mm in Sources */,
 			);
@@ -340,6 +356,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 7.0;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				SPRITEKIT_TEXTURE_ATLAS_OUTPUT = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -373,6 +390,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 7.0;
 				SDKROOT = iphoneos;
+				SPRITEKIT_TEXTURE_ATLAS_OUTPUT = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALIDATE_PRODUCT = YES;
 			};

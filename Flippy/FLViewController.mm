@@ -8,7 +8,7 @@
 
 #import "FLViewController.h"
 
-#import "FLMyScene.h"
+#import "FLTrackScene.h"
 
 @implementation FLViewController
 
@@ -17,11 +17,13 @@
   SKView *skView = [[SKView alloc] init];
   skView.showsFPS = YES;
   skView.showsNodeCount = YES;
+  skView.showsDrawCount = YES;
+  skView.ignoresSiblingOrder = YES;
   self.view = skView;
 
   // noob: Initialize with empty size and use autolayout to fill screen?
-  SKScene *scene = [FLMyScene sceneWithSize:[UIScreen mainScreen].bounds.size];
-  scene.scaleMode = SKSceneScaleModeAspectFill;
+  SKScene *scene = [FLTrackScene sceneWithSize:[UIScreen mainScreen].bounds.size];
+  scene.scaleMode = SKSceneScaleModeResizeFill;
   [skView presentScene:scene];
 }
 

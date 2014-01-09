@@ -1,5 +1,5 @@
 //
-//  FLMyScene.h
+//  FLTrackScene.h
 //  Flippy
 //
 //  Created by Karl Voskuil on 11/19/13.
@@ -8,6 +8,6 @@
 
 #import <SpriteKit/SpriteKit.h>
 
-@interface FLMyScene : SKScene
+@interface FLTrackScene : SKScene
 
 @end
