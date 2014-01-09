@@ -12,15 +12,19 @@
 
 static const CGFloat FLToolbarBorderSize = 3.0f;
 static const CGFloat FLToolbarToolSeparatorSize = 3.0f;
-static const CGFloat FLToolbarToolPadSize = 1.0f;
+static const CGFloat FLToolbarToolPadSize = -1.0f;
 
 @implementation FLToolbarNode
+{
+  NSMutableArray *_toolButtonNodes;
+}
 
 - (id)init
 {
   CGSize emptySize = CGSizeMake(FLToolbarBorderSize * 2, FLToolbarBorderSize * 2);
   self = [super initWithColor:[UIColor colorWithWhite:0.0f alpha:0.2f] size:emptySize];
   if (self) {
+    self.userInteractionEnabled = YES;
   }
   return self;
 }
@@ -32,6 +36,7 @@ static const CGFloat FLToolbarToolPadSize = 1.0f;
   // should be determined by the owner, and we should always set our children relative.
   
   [self removeAllChildren];
+  _toolButtonNodes = [NSMutableArray array];
   
   NSMutableArray *toolNodes = [NSMutableArray array];
   CGFloat toolsWidth = 0.0f;
@@ -59,6 +64,7 @@ static const CGFloat FLToolbarToolPadSize = 1.0f;
   CGFloat x = self.anchorPoint.x * toolbarWidth * -1 + FLToolbarBorderSize;
   CGFloat y = self.anchorPoint.y * toolbarHeight * -1 + FLToolbarBorderSize;
   for (int i = 0; i < [toolNodes count]; ++i) {
+    NSString *key = [keys objectAtIndex:i];
     SKSpriteNode *toolNode = [toolNodes objectAtIndex:i];
     CGFloat rotation = [[rotations objectAtIndex:i] floatValue];
     CGPoint offset = CGPointZero;
@@ -69,10 +75,12 @@ static const CGFloat FLToolbarToolPadSize = 1.0f;
     SKSpriteNode *toolButtonNode = [SKSpriteNode spriteNodeWithColor:[UIColor colorWithWhite:1.0f alpha:0.2f]
                                                                 size:CGSizeMake(toolNode.size.width + FLToolbarToolPadSize * 2,
                                                                                 toolsHeight + FLToolbarToolPadSize * 2)];
+    toolButtonNode.name = key;
     toolButtonNode.zPosition = self.zPosition + 1.0f;
     toolButtonNode.anchorPoint = CGPointMake(0.0f, 0.0f);
     toolButtonNode.position = CGPointMake(x, y);
     [self addChild:toolButtonNode];
+    [_toolButtonNodes addObject:toolButtonNode];
 
     toolNode.zPosition = self.zPosition + 2.0f;
     toolNode.anchorPoint = CGPointMake(0.5f, 0.5f);
@@ -82,6 +90,28 @@ static const CGFloat FLToolbarToolPadSize = 1.0f;
     [self addChild:toolNode];
 
     x += toolNode.size.width + FLToolbarToolPadSize * 2 + FLToolbarToolSeparatorSize;
+  }
+}
+
+- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event
+{
+  if (!self.delegate) {
+    return;
+  }
+
+  UITouch *touch = [touches anyObject];
+  // noob: I was confused by doing the [child containsPoint] test using
+  // a locationInNode:child, which didn't work.  But I think it makes
+  // sense that the contains test is in the parent's coordinates; after
+  // all, the child always thinks of itself in terms of position, which
+  // is in the parent's coordinate system.
+  CGPoint location = [touch locationInNode:self];
+  // note: If tool buttons were uniform width, then could easily avoid linear
+  // search.  Can certainly change to binary search if this proves too slow.
+  for (SKSpriteNode *toolButtonNode in _toolButtonNodes) {
+    if ([toolButtonNode containsPoint:location]) {
+      [self.delegate toolBarNode:self tapsTool:toolButtonNode.name];
+    }
   }
 }
 
