@@ -12,7 +12,11 @@
 
 int main(int argc, char * argv[])
 {
-  @autoreleasepool {
-    return UIApplicationMain(argc, argv, nil, NSStringFromClass([FLAppDelegate class]));
+  @try {
+    @autoreleasepool {
+      return UIApplicationMain(argc, argv, nil, NSStringFromClass([FLAppDelegate class]));
+    }
+  } @catch (NSException *e) {
+    NSLog(@"Uncaught exception in main: %@", e);
   }
 }

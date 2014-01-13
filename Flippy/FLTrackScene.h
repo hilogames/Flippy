@@ -7,7 +7,8 @@
 //
 
 #import <SpriteKit/SpriteKit.h>
+#import "FLToolbarNode.h"
 
-@interface FLTrackScene : SKScene
+@interface FLTrackScene : SKScene <FLToolbarNodeDelegate>
 
 @end

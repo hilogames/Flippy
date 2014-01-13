@@ -17,6 +17,7 @@ static const CGFloat FLToolbarToolPadSize = -1.0f;
 @implementation FLToolbarNode
 {
   NSMutableArray *_toolButtonNodes;
+  NSString *_toolMoving;
 }
 
 - (id)init
@@ -72,7 +73,7 @@ static const CGFloat FLToolbarToolPadSize = -1.0f;
       [[offsets objectAtIndex:i] getValue:&offset];
     }
     
-    SKSpriteNode *toolButtonNode = [SKSpriteNode spriteNodeWithColor:[UIColor colorWithWhite:1.0f alpha:0.2f]
+    SKSpriteNode *toolButtonNode = [SKSpriteNode spriteNodeWithColor:[UIColor colorWithWhite:1.0f alpha:0.3f]
                                                                 size:CGSizeMake(toolNode.size.width + FLToolbarToolPadSize * 2,
                                                                                 toolsHeight + FLToolbarToolPadSize * 2)];
     toolButtonNode.name = key;
@@ -99,6 +100,8 @@ static const CGFloat FLToolbarToolPadSize = -1.0f;
     return;
   }
 
+  _toolMoving = nil;
+
   UITouch *touch = [touches anyObject];
   // noob: I was confused by doing the [child containsPoint] test using
   // a locationInNode:child, which didn't work.  But I think it makes
@@ -110,9 +113,52 @@ static const CGFloat FLToolbarToolPadSize = -1.0f;
   // search.  Can certainly change to binary search if this proves too slow.
   for (SKSpriteNode *toolButtonNode in _toolButtonNodes) {
     if ([toolButtonNode containsPoint:location]) {
-      [self.delegate toolBarNode:self tapsTool:toolButtonNode.name];
+      _toolMoving = toolButtonNode.name;
+      [self.delegate toolBarNode:self toolBegan:toolButtonNode.name location:location];
+      break;
     }
   }
+}
+
+- (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event
+{
+  if (!self.delegate) {
+    return;
+  }
+  if (!_toolMoving) {
+    return;
+  }
+  UITouch *touch = [touches anyObject];
+  CGPoint location = [touch locationInNode:self];
+  [self.delegate toolBarNode:self toolMoved:_toolMoving location:location];
+}
+
+- (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event
+{
+  if (!self.delegate) {
+    return;
+  }
+  if (!_toolMoving) {
+    return;
+  }
+  UITouch *touch = [touches anyObject];
+  CGPoint location = [touch locationInNode:self];
+  [self.delegate toolBarNode:self toolEnded:_toolMoving location:location];
+  _toolMoving = nil;
+}
+
+- (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event
+{
+  if (!self.delegate) {
+    return;
+  }
+  if (!_toolMoving) {
+    return;
+  }
+  UITouch *touch = [touches anyObject];
+  CGPoint location = [touch locationInNode:self];
+  [self.delegate toolBarNode:self toolCancelled:_toolMoving location:location];
+  _toolMoving = nil;
 }
 
 @end
