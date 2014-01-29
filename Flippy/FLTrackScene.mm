@@ -14,15 +14,16 @@
 
 using namespace HLCommon;
 
+static const CGFloat FLWorldScaleMin = 0.25f;
+static const CGFloat FLWorldScaleMax = 4.0f;
+
 // Main layers.
 static const CGFloat FLZPositionWorld = 0.0f;
 static const CGFloat FLZPositionHud = 10.0f;
-
 // World sublayers.
 static const CGFloat FLZPositionTerrain = 0.0f;
 static const CGFloat FLZPositionTrack = 1.0f;
 static const CGFloat FLZPositionTrain = 2.0f;
-
 // World-Track sublayers.
 static const CGFloat FLZPositionTrackSelect = 0.0f;
 static const CGFloat FLZPositionTrackPlaced = 0.1f;
@@ -50,19 +51,26 @@ struct FLGestureRecognizerState
   FLGestureRecognizerState() : panType(FLPanTypeNone) {}
   FLPanType panType;
   CGPoint panFirstTouchLocation;
+  CGPoint pinchZoomCenter;
 };
+
+enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
 @implementation FLTrackScene
 {
   BOOL _contentCreated;
+
   UITapGestureRecognizer *_tapRecognizer;
   UIPanGestureRecognizer *_panRecognizer;
+  UIPinchGestureRecognizer *_pinchRecognizer;
   FLGestureRecognizerState _gestureRecognizerState;
 
   CGFloat _artSegmentSizeFull;
   CGFloat _artSegmentSizeBasic;
   CGFloat _gridSize;
   CGFloat _artScale;
+
+  FLCameraMode _cameraMode;
 
   QuadTree<SKSpriteNode *> _trackGrid;
 
@@ -78,6 +86,7 @@ struct FLGestureRecognizerState
     _artSegmentSizeBasic = 36.0f;
     _artScale = 2.0f;
     _gridSize = _artSegmentSizeBasic * _artScale;
+    _cameraMode = FLCameraModeFollowTrain;
   }
   return self;
 }
@@ -91,6 +100,7 @@ struct FLGestureRecognizerState
 
   _tapRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTap:)];
   _tapRecognizer.delegate = self;
+  _tapRecognizer.cancelsTouchesInView = NO;
   [view addGestureRecognizer:_tapRecognizer];
   
   _panRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handlePan:)];
@@ -98,6 +108,11 @@ struct FLGestureRecognizerState
   _panRecognizer.maximumNumberOfTouches = 1;
   _panRecognizer.cancelsTouchesInView = NO;
   [view addGestureRecognizer:_panRecognizer];
+  
+  _pinchRecognizer = [[UIPinchGestureRecognizer alloc] initWithTarget:self action:@selector(handlePinch:)];
+  _pinchRecognizer.delegate = self;
+  _pinchRecognizer.cancelsTouchesInView = NO;
+  [view addGestureRecognizer:_pinchRecognizer];
 }
 
 - (void)willMoveFromView:(SKView *)view
@@ -108,20 +123,28 @@ struct FLGestureRecognizerState
 
 - (void)FL_createSceneContents
 {
-  self.backgroundColor = [SKColor colorWithRed:0.2 green:0.5 blue:0.2 alpha:1.0];
+  self.backgroundColor = [SKColor colorWithRed:0.4 green:0.6 blue:0.4 alpha:1.0];
   self.anchorPoint = CGPointMake(0.5f, 0.5f);
 
   // Create basic layers.
 
-  // The large world is moved around within the scene, which acts
-  // as a window into the world.
+  // The large world is moved around within the scene; the scene acts as a window
+  // into the world.  The scene always fits the view/screen, and it is centered at
+  // in the middle of the screen; the coordinate system goes positive up and to the
+  // right.  So, for example, if we want to show the portion of the world around
+  // the point (100,-50) in world coordinates, then we set the worldNode.position
+  // to (-100,50) in scene coordinates.
   //
-  // noob: Consider tiling the world so that distant parts
-  // of the world need not be tracked at all by the game engine.
-  // Using a single large image in a single terrain node might not affect
-  // rendering time, but it would at least require more memory than necessary,
-  // right?  And then once you tiled it to reduce memory, then removing
-  // nodes from the node tree is a good idea to improve engine performance.
+  // noob: Consider using our QuadTree not just for the track but for the whole
+  // world, and remove from the game engine (node tree) any nodes which are far
+  // away.  Our QuadTree implementation should have an interface to easily identify
+  // the eight "tiles" or "cells" surrounding a given tile (given a certain tile
+  // size, which we can proscribe based on memory/performance).  This is marked
+  // "noob" because I'm not sure how effective this would be for different kinds
+  // of resources.  For instance, I'm pretty sure that removing lots of distant
+  // SKNodes from the tree would improve speed and memory usage.  I'm guessing that
+  // breaking up a single large SKSpriteNode with a big image would save on memory,
+  // but perhaps not make anything much faster.
   SKNode *worldNode = [SKNode node];
   worldNode.name = @"world";
   worldNode.zPosition = FLZPositionWorld;
@@ -132,17 +155,26 @@ struct FLGestureRecognizerState
   // JPGs don't have an alpha channel in the source, does this really do anything?
   terrainNode.zPosition = FLZPositionTerrain;
   terrainNode.blendMode = SKBlendModeReplace;
-  terrainNode.scale = 4.0f;
+  terrainNode.scale = 2.0f;
   [worldNode addChild:terrainNode];
 
+  // noob: See note near worldNode above: We will probaly want to add/remove near/distant
+  // child nodes based on our current camera location in the world.  Use our QuadTree
+  // to implement, I expect.
   SKNode *trackNode = [SKNode node];
   trackNode.name = @"track";
   trackNode.zPosition = FLZPositionTrack;
   [worldNode addChild:trackNode];
 
-  SKNode *trainNode = [SKNode node];
+  SKNode *trainNode = [SKSpriteNode spriteNodeWithColor:[UIColor redColor] size:CGSizeMake(20.0f, 20.0f)];
   trainNode.name = @"train";
   trainNode.zPosition = FLZPositionTrain;
+  SKAction *trainMove1 = [SKAction moveByX:200.0f y:0.0f duration:8.0];
+  SKAction *trainMove2 = [SKAction moveByX:0.0f y:200.0f duration:8.0];
+  SKAction *trainMove3 = [SKAction moveByX:-200.0f y:0.0f duration:8.0];
+  SKAction *trainMove4 = [SKAction moveByX:0.0f y:-200.0f duration:8.0];
+  SKAction *trainLap = [SKAction sequence:@[ trainMove1, trainMove2, trainMove3, trainMove4 ]];
+  [trainNode runAction:[SKAction repeatActionForever:trainLap]];
   [worldNode addChild:trainNode];
 
   // The HUD node contains everything pinned to the scene window, outside the world.
@@ -152,15 +184,6 @@ struct FLGestureRecognizerState
   [self addChild:hudNode];
 
   // Populate main layers with content.
-
-  // The camera node represents the future position of the world within the scene; rather
-  // than move the world around, we move the camera around and then sync the world
-  // position to it as needed.  Future: Perhaps have train-camera and user-camera nodes
-  // created at all times, and sync to one or the other based on whether the simulation is
-  // running or not.
-  SKNode *cameraNode = [SKNode node];
-  cameraNode.name = @"camera";
-  [worldNode addChild:cameraNode];
 
   FLToolbarNode *toolbarNode = [[FLToolbarNode alloc] init];
   toolbarNode.delegate = self;
@@ -182,7 +205,23 @@ struct FLGestureRecognizerState
 
 - (void)didSimulatePhysics
 {
-  // noob: If camera is following train constantly, then do FL_centerWorldOnCamera here.
+  switch (_cameraMode) {
+    case FLCameraModeFollowTrain: {
+      SKNode *worldNode = [self childNodeWithName:@"world"];
+      SKNode *trainNode = [worldNode childNodeWithName:@"train"];
+      // note: Set world position based on train position.  Note that the
+      // train is in the world, but the world is in the scene, so convert.
+      CGPoint trainSceneLocation = [self convertPoint:trainNode.position fromNode:worldNode];
+      worldNode.position = CGPointMake(worldNode.position.x - trainSceneLocation.x,
+                                       worldNode.position.y - trainSceneLocation.y);
+      break;
+    }
+    case FLCameraModeManual:
+      break;
+    default:
+      break;
+  }
+  // noob: For If camera is following train constantly, then do FL_centerWorldOnCamera here.
 }
 
 - (void)update:(CFTimeInterval)currentTime
@@ -220,6 +259,8 @@ struct FLGestureRecognizerState
 
 - (void)handlePan:(UIPanGestureRecognizer *)gestureRecognizer
 {
+  _cameraMode = FLCameraModeManual;
+  
   SKNode *worldNode = [self childNodeWithName:@"world"];
 
   if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
@@ -262,8 +303,7 @@ struct FLGestureRecognizerState
   } else if (gestureRecognizer.state == UIGestureRecognizerStateChanged) {
 
     switch (_gestureRecognizerState.panType) {
-      case FLPanTypeTrackMove:
-      {
+      case FLPanTypeTrackMove: {
         CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
         CGPoint sceneLocation = [self convertPointFromView:viewLocation];
         SKNode *trackNode = [worldNode childNodeWithName:@"track"];
@@ -273,17 +313,12 @@ struct FLGestureRecognizerState
         [self FL_trackMoveContinuedWithGridX:gridX gridY:gridY];
         break;
       }
-      case FLPanTypeWorld:
-      {
-        SKNode *cameraNode = [worldNode childNodeWithName:@"camera"];
-        // note: Zooming might change this calculation.  We'll see.
+      case FLPanTypeWorld: {
         CGPoint translation = [gestureRecognizer translationInView:self.view];
-        CGPoint cameraPosition = cameraNode.position;
-        cameraPosition.x -= translation.x;
-        cameraPosition.y += translation.y;
-        cameraNode.position = cameraPosition;
+        CGPoint worldPosition = CGPointMake(worldNode.position.x + translation.x / self.xScale,
+                                            worldNode.position.y - translation.y / self.yScale);
+        worldNode.position = worldPosition;
         [gestureRecognizer setTranslation:CGPointZero inView:self.view];
-        [self FL_centerWorldOnCamera];
         break;
       }
       default:
@@ -295,8 +330,7 @@ struct FLGestureRecognizerState
   } else if (gestureRecognizer.state == UIGestureRecognizerStateEnded) {
     
     switch (_gestureRecognizerState.panType) {
-      case FLPanTypeTrackMove:
-      {
+      case FLPanTypeTrackMove: {
         CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
         CGPoint sceneLocation = [self convertPointFromView:viewLocation];
         SKNode *trackNode = [worldNode childNodeWithName:@"track"];
@@ -318,8 +352,7 @@ struct FLGestureRecognizerState
   } else if (gestureRecognizer.state == UIGestureRecognizerStateCancelled) {
   
     switch (_gestureRecognizerState.panType) {
-      case FLPanTypeTrackMove:
-      {
+      case FLPanTypeTrackMove: {
         CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
         CGPoint sceneLocation = [self convertPointFromView:viewLocation];
         SKNode *trackNode = [worldNode childNodeWithName:@"track"];
@@ -338,6 +371,70 @@ struct FLGestureRecognizerState
         break;
     }
   }
+}
+
+- (void)handlePinch:(UIPinchGestureRecognizer *)gestureRecognizer
+{
+  static CGFloat handlePinchWorldScaleBegin;
+  static CGPoint handlePinchWorldPositionBegin;
+
+  // noob: Pinch gesture continues for the recognizer until both fingers have
+  // been lifted.  Seems like after one finger is up, we could be done.  But
+  // for now, do it their way, and see if anything is weird.
+  //if (gestureRecognizer.numberOfTouches != 2) {
+  //  return;
+  //}
+
+  SKNode *worldNode = [self childNodeWithName:@"world"];
+  
+  if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
+    handlePinchWorldScaleBegin = worldNode.xScale;
+    handlePinchWorldPositionBegin = worldNode.position;
+    // Choose a fixed point at the center of the zoom.
+    //
+    // note: The zoom happens centered on a particular point within the scene, which remains
+    // fixed in the scene as the rest of the points scale around it.  Choose our fixed
+    // point based on camera mode: If we're following something, then we should zoom
+    // around that thing (assume at center of scene, e.g. 0,0 in scene coordinates).  If
+    // not, then it's more pleasing and intuitive to zoom on the center of the pinch
+    // gesture.
+    //
+    // noob: I experimented with recalculating the center of the pinch while the pinch changed,
+    // so that the pinch gesture could do some panning while pinching.  But as the code is written,
+    // the result was the opposite of, say, Google Maps app, and I found it a bit disorienting
+    // anyway.  I like choosing my zoom center and then being able to move my fingers around on the
+    // screen if I need more room for the gesture.  But probably there's a human interface guideline for
+    // this which I should follow.
+    _gestureRecognizerState.pinchZoomCenter = CGPointZero;
+    // noob: First test this assumption that we have two touches.
+    if (gestureRecognizer.numberOfTouches != 2) {
+      [NSException raise:@"FLHandlePinchUnexpected" format:@"Code assumes pinch gesture can only begin with two touches."];
+    }
+    if (_cameraMode == FLCameraModeManual) {
+      CGPoint touch1ViewLocation = [gestureRecognizer locationOfTouch:0 inView:self.view];
+      CGPoint touch2ViewLocation = [gestureRecognizer locationOfTouch:1 inView:self.view];
+      CGPoint centerViewLocation = CGPointMake((touch1ViewLocation.x + touch2ViewLocation.x) / 2.0f,
+                                               (touch1ViewLocation.y + touch2ViewLocation.y) / 2.0f);
+      _gestureRecognizerState.pinchZoomCenter = [self convertPointFromView:centerViewLocation];
+    }
+    return;
+  }
+
+  CGFloat worldScaleCurrent = handlePinchWorldScaleBegin * gestureRecognizer.scale;
+  if (worldScaleCurrent > FLWorldScaleMax) {
+    worldScaleCurrent = FLWorldScaleMax;
+  } else if (worldScaleCurrent < FLWorldScaleMin) {
+    worldScaleCurrent = FLWorldScaleMin;
+  }
+  worldNode.xScale = worldScaleCurrent;
+  worldNode.yScale = worldScaleCurrent;
+  CGFloat scaleFactor = worldScaleCurrent / handlePinchWorldScaleBegin;
+
+  // Zoom around previously-chosen center point.
+  CGPoint worldPosition;
+  worldPosition.x = (handlePinchWorldPositionBegin.x - _gestureRecognizerState.pinchZoomCenter.x) * scaleFactor + _gestureRecognizerState.pinchZoomCenter.x;
+  worldPosition.y = (handlePinchWorldPositionBegin.y - _gestureRecognizerState.pinchZoomCenter.y) * scaleFactor + _gestureRecognizerState.pinchZoomCenter.y;
+  worldNode.position = worldPosition;
 }
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer
@@ -487,21 +584,6 @@ struct FLGestureRecognizerState
   sprite.scale = _artScale;
   [parent addChild:sprite];
   return sprite;
-}
-
-- (void)FL_centerWorldOnCamera
-{
-  SKNode *worldNode = [self childNodeWithName:@"world"];
-  if (!worldNode) {
-    return;
-  }
-  SKNode *cameraNode = [worldNode childNodeWithName:@"camera"];
-  if (!cameraNode) {
-    return;
-  }
-  CGPoint cameraPositionInScene = [self convertPoint:cameraNode.position fromNode:worldNode];
-  worldNode.position = CGPointMake(worldNode.position.x - cameraPositionInScene.x,
-                                   worldNode.position.y - cameraPositionInScene.y);
 }
 
 - (void)FL_trackSelectGridX:(int)gridX gridY:(int)gridY
