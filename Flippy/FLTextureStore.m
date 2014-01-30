@@ -18,9 +18,16 @@
   static FLTextureStore *sharedStore = nil;
   if (!sharedStore) {
     sharedStore = [[FLTextureStore alloc] init];
+
+    // Segments.
     [sharedStore loadTextureForKey:@"straight" filteringMode:SKTextureFilteringNearest];
     [sharedStore loadTextureForKey:@"curve" filteringMode:SKTextureFilteringNearest];
     [sharedStore loadTextureForKey:@"join" filteringMode:SKTextureFilteringNearest];
+
+    // Tools.
+    [sharedStore loadTextureForKey:@"delete" filteringMode:SKTextureFilteringLinear];
+    [sharedStore loadTextureForKey:@"rotate-cw" filteringMode:SKTextureFilteringLinear];
+    [sharedStore loadTextureForKey:@"rotate-ccw" filteringMode:SKTextureFilteringLinear];
   }
   return sharedStore;
 }

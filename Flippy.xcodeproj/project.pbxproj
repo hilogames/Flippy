@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		CB251207184E7DEB003DD411 /* earth-map.jpg in Resources */ = {isa = PBXBuildFile; fileRef = CB251206184E7DEB003DD411 /* earth-map.jpg */; };
+		CB3E96BE189AB85900D0D567 /* tools.atlas in Resources */ = {isa = PBXBuildFile; fileRef = CB3E96BD189AB85900D0D567 /* tools.atlas */; };
 		CB3FBDCD1889860A00CE5BBD /* QuadTree.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */; };
 		CB657E9A1843E8DB00399E34 /* track.atlas in Resources */ = {isa = PBXBuildFile; fileRef = CB657E991843E8DB00399E34 /* track.atlas */; };
 		CBB4B7F9183C00E1003C3444 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B7F8183C00E1003C3444 /* Foundation.framework */; };
@@ -41,6 +42,7 @@
 
 /* Begin PBXFileReference section */
 		CB251206184E7DEB003DD411 /* earth-map.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "earth-map.jpg"; sourceTree = "<group>"; };
+		CB3E96BD189AB85900D0D567 /* tools.atlas */ = {isa = PBXFileReference; lastKnownFileType = folder.skatlas; path = tools.atlas; sourceTree = "<group>"; };
 		CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = QuadTree.cpp; sourceTree = "<group>"; };
 		CB3FBDCC1889860A00CE5BBD /* QuadTree.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = QuadTree.h; sourceTree = "<group>"; };
 		CB657E991843E8DB00399E34 /* track.atlas */ = {isa = PBXFileReference; lastKnownFileType = folder.skatlas; path = track.atlas; sourceTree = "<group>"; };
@@ -144,6 +146,7 @@
 				CBB4B812183C00E1003C3444 /* FLViewController.h */,
 				CBB4B813183C00E1003C3444 /* FLViewController.mm */,
 				CBB4B81A183C00E1003C3444 /* Images.xcassets */,
+				CB3E96BD189AB85900D0D567 /* tools.atlas */,
 				CB657E991843E8DB00399E34 /* track.atlas */,
 				CBB4B801183C00E1003C3444 /* Supporting Files */,
 			);
@@ -260,6 +263,7 @@
 				CBB4B805183C00E1003C3444 /* InfoPlist.strings in Resources */,
 				CB657E9A1843E8DB00399E34 /* track.atlas in Resources */,
 				CB251207184E7DEB003DD411 /* earth-map.jpg in Resources */,
+				CB3E96BE189AB85900D0D567 /* tools.atlas in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

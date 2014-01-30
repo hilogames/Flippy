@@ -28,6 +28,12 @@ static const CGFloat FLZPositionTrain = 2.0f;
 static const CGFloat FLZPositionTrackSelect = 0.0f;
 static const CGFloat FLZPositionTrackPlaced = 0.1f;
 
+struct FLMainToolbarState
+{
+  FLMainToolbarState() : toolbarNode(nil) {}
+  FLToolbarNode *toolbarNode;
+};
+
 struct FLTrackSelectState
 {
   FLTrackSelectState() : visualSelectionNode(nil), selected(NO) {}
@@ -35,6 +41,12 @@ struct FLTrackSelectState
   BOOL selected;
   int gridX;
   int gridY;
+};
+
+struct FLTrackEditMenuState
+{
+  FLTrackEditMenuState() : editMenuNode(nil) {}
+  FLToolbarNode *editMenuNode;
 };
 
 struct FLTrackMoveState
@@ -73,6 +85,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
   CGFloat _artSegmentSizeFull;
   CGFloat _artSegmentSizeBasic;
+  CGFloat _artSegmentDrawnTrackNormalWidth;
   CGFloat _gridSize;
   CGFloat _artScale;
 
@@ -80,7 +93,9 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
   QuadTree<SKSpriteNode *> _trackGrid;
 
+  FLMainToolbarState _mainToolbarState;
   FLTrackSelectState _trackSelectState;
+  FLTrackEditMenuState _trackEditMenuState;
   FLTrackMoveState _trackMoveState;
 }
 
@@ -90,6 +105,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   if (self) {
     _artSegmentSizeFull = 54.0f;
     _artSegmentSizeBasic = 36.0f;
+    _artSegmentDrawnTrackNormalWidth = 14.0f;  // the pixel width of the drawn tracks (widest: sleepers) when orthagonal
     _artScale = 2.0f;
     _gridSize = _artSegmentSizeBasic * _artScale;
     _cameraMode = FLCameraModeFollowTrain;
@@ -195,25 +211,10 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   _hudNode.name = @"hud";
   _hudNode.zPosition = FLZPositionHud;
   [self addChild:_hudNode];
-
-  // Populate main layers with content.
-
-  FLToolbarNode *toolbarNode = [[FLToolbarNode alloc] init];
-  toolbarNode.delegate = self;
-  toolbarNode.anchorPoint = CGPointMake(0.5f, 0.0f);
-  toolbarNode.position = CGPointMake(0.0f, 20.0f - self.size.height / 2.0f);
-  // note: Offset calculation for segments: The center points of the drawn tracks start
-  // inset nine pixels from the outer edge of the texture.  So shifting that point to the
-  // middle means offsetting it half of the texture size (54 / 2 = 27) and subtracting the
-  // nine already shifted (27 - 9 = 18).  In the other dimension, the drawn track edge
-  // starts 2 pixels inset from the texture (meaning a normal track width of 14 pixels).
-  // So shifting ((9 - 2) / 2 = 3.5 ~= 3.0) pixels gives a visual center in some cases.
-  [toolbarNode setToolsWithTextureKeys:@[ @"straight", @"curve", @"join" ]
-                             rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2 ]
-                               offsets:@[ [NSValue valueWithCGPoint:CGPointMake(18.0f, 0.0f)],
-                                          [NSValue valueWithCGPoint:CGPointMake(3.0f, -3.0f)],
-                                          [NSValue valueWithCGPoint:CGPointMake(3.0f, -3.0f)] ]];
-  [_hudNode addChild:toolbarNode];
+  
+  // Create other content.
+  
+  [self FL_mainToolbarSetVisible:YES];
 }
 
 - (void)didSimulatePhysics
@@ -261,8 +262,15 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
       && selectedGridX == gridX
       && selectedGridY == gridY) {
     [self FL_trackSelectClear];
+    [self FL_trackEditMenuHideAnimated:YES];
   } else {
     [self FL_trackSelectGridX:gridX gridY:gridY];
+    SKSpriteNode *segmentNode = _trackGrid.get(gridX, gridY, nil);
+    if (segmentNode) {
+      [self FL_trackEditMenuShowAtSegment:segmentNode animated:YES];
+    } else {
+      [self FL_trackEditMenuHideAnimated:YES];
+    }
   }
 }
 
@@ -274,7 +282,14 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   
   int gridX = int(floorf(trackLocation.x / _gridSize + 0.5f));
   int gridY = int(floorf(trackLocation.y / _gridSize + 0.5f));
-  [self FL_trackSelectGridX:gridX gridY:gridY];
+
+  if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
+    [self FL_trackSelectGridX:gridX gridY:gridY];
+    SKSpriteNode *segmentNode = _trackGrid.get(gridX, gridY, nil);
+    if (segmentNode) {
+      [self FL_trackEditMenuShowAtSegment:segmentNode animated:YES];
+    }
+  }
 }
 
 - (void)handlePan:(UIPanGestureRecognizer *)gestureRecognizer
@@ -585,6 +600,47 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   return sprite;
 }
 
+- (void)FL_mainToolbarSetVisible:(BOOL)visible
+{
+  if (!_mainToolbarState.toolbarNode) {
+    const CGFloat FLMainToolbarBottomPad = 20.0f;
+    
+    _mainToolbarState.toolbarNode = [[FLToolbarNode alloc] init];
+    _mainToolbarState.toolbarNode.delegate = self;
+    _mainToolbarState.toolbarNode.anchorPoint = CGPointMake(0.5f, 0.0f);
+    _mainToolbarState.toolbarNode.position = CGPointMake(0.0f, FLMainToolbarBottomPad - self.size.height / 2.0f);
+
+    CGFloat artSegmentBasicInset = (_artSegmentSizeFull - _artSegmentSizeBasic) / 2.0f;
+    // note: The straight segment runs along the visual edge of a square; we'd like to shift
+    // it to the visual center of the tool image.  Half the full texture size is the middle,
+    // but need to subtract out the amount that the (centerpoint of the) drawn tracks are already
+    // inset from the edge of the texture.
+    CGFloat straightShift = (_artSegmentSizeFull / 2.0f) - artSegmentBasicInset;
+    // note: For the curves: The track textures don't appear visually centered because the
+    // drawn track is a full inset away from any perpendicular edge and only a small pad away
+    // from any parallel edge.  The pad is the difference between the drawn track centerpoint
+    // inset and half the width of the normal drawn track width.  So shift it inwards by half
+    // the difference between the edges.  The math simplifies down a bit.  Rounded to prevent
+    // aliasing (?).
+    CGFloat curveShift = floorf(_artSegmentDrawnTrackNormalWidth / 4.0f);
+    [_mainToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"straight", @"curve", @"join" ]
+                                                 rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2 ]
+                                                   offsets:@[ [NSValue valueWithCGPoint:CGPointMake(straightShift, 0.0f)],
+                                                              [NSValue valueWithCGPoint:CGPointMake(curveShift, -curveShift)],
+                                                              [NSValue valueWithCGPoint:CGPointMake(curveShift, -curveShift)] ]];
+  }
+  
+  if (visible) {
+    if (!_mainToolbarState.toolbarNode.parent) {
+      [_hudNode addChild:_mainToolbarState.toolbarNode];
+    }
+  } else {
+    if (_mainToolbarState.toolbarNode.parent) {
+      [_mainToolbarState.toolbarNode removeFromParent];
+    }
+  }
+}
+
 - (void)FL_trackSelectGridX:(int)gridX gridY:(int)gridY
 {
   NSLog(@"selected %d,%d", gridX, gridY);
@@ -644,6 +700,35 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   return NO;
 }
 
+- (void)FL_trackEditMenuShowAtSegment:(SKSpriteNode *)segmentNode animated:(BOOL)animated
+{
+  // TODO: Animated.
+  if (!_trackEditMenuState.editMenuNode) {
+    _trackEditMenuState.editMenuNode = [[FLToolbarNode alloc] init];
+    //_trackEditMenuState.editMenuNode.delegate = self;
+    _trackEditMenuState.editMenuNode.anchorPoint = CGPointMake(0.5f, 0.0f);
+    [_trackEditMenuState.editMenuNode setToolsWithTextureKeys:@[ @"rotate-ccw", @"delete", @"rotate-cw" ]
+                                                    rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2 ]
+                                                      offsets:nil];
+  }
+
+  const CGFloat FLTrackEditMenuBottomPad = 0.0f;
+  CGPoint trackLocation = CGPointMake(segmentNode.position.x, segmentNode.position.y + segmentNode.size.height / 2.0f + FLTrackEditMenuBottomPad);
+  _trackEditMenuState.editMenuNode.position = [_hudNode convertPoint:trackLocation fromNode:_trackNode];
+  if (!_trackEditMenuState.editMenuNode.parent) {
+    [_hudNode addChild:_trackEditMenuState.editMenuNode];
+  }
+}
+
+- (void)FL_trackEditMenuHideAnimated:(BOOL)animated
+{
+  // TODO: Animated.
+  if (!_trackEditMenuState.editMenuNode.parent) {
+    return;
+  }
+  [_trackEditMenuState.editMenuNode removeFromParent];
+}
+
 /**
  * Begins a move of a track segment sprite.
  *
@@ -665,6 +750,8 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   }
 
   _trackMoveState.segmentMoving = segmentMovingNode;
+  
+  [self FL_trackEditMenuHideAnimated:YES];
 
   // note: The update call will detect no parent and know that the segmentMovingNode has
   // not yet been added to the grid.
@@ -692,9 +779,10 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   // location?
   [self FL_trackMoveUpdateWithGridX:gridX gridY:gridY];
 
+  // note: Current selection unchanged.
+  [self FL_trackEditMenuShowAtSegment:_trackMoveState.segmentMoving animated:YES];
   _trackMoveState.segmentMoving = nil;
   _trackMoveState.segmentRemoving = nil;
-  // note: Current selection unchanged.
   
   [self FL_dumpTrackGrid];
 }
