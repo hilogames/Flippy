@@ -27,6 +27,7 @@ static const CGFloat FLZPositionTrain = 2.0f;
 // World-Track sublayers.
 static const CGFloat FLZPositionTrackSelect = 0.0f;
 static const CGFloat FLZPositionTrackPlaced = 0.1f;
+static const CGFloat FLZPositionTrackOverlay = 0.2f;
 
 struct FLMainToolbarState
 {
@@ -702,10 +703,10 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
 - (void)FL_trackEditMenuShowAtSegment:(SKSpriteNode *)segmentNode animated:(BOOL)animated
 {
-  // TODO: Animated.
   if (!_trackEditMenuState.editMenuNode) {
     _trackEditMenuState.editMenuNode = [[FLToolbarNode alloc] init];
     //_trackEditMenuState.editMenuNode.delegate = self;
+    _trackEditMenuState.editMenuNode.zPosition = FLZPositionTrackOverlay;
     _trackEditMenuState.editMenuNode.anchorPoint = CGPointMake(0.5f, 0.0f);
     [_trackEditMenuState.editMenuNode setToolsWithTextureKeys:@[ @"rotate-ccw", @"delete", @"rotate-cw" ]
                                                     rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2 ]
@@ -713,10 +714,12 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   }
 
   const CGFloat FLTrackEditMenuBottomPad = 0.0f;
+
+  // TODO: Animated.
   CGPoint trackLocation = CGPointMake(segmentNode.position.x, segmentNode.position.y + segmentNode.size.height / 2.0f + FLTrackEditMenuBottomPad);
-  _trackEditMenuState.editMenuNode.position = [_hudNode convertPoint:trackLocation fromNode:_trackNode];
+  _trackEditMenuState.editMenuNode.position = trackLocation;
   if (!_trackEditMenuState.editMenuNode.parent) {
-    [_hudNode addChild:_trackEditMenuState.editMenuNode];
+    [_trackNode addChild:_trackEditMenuState.editMenuNode];
   }
 }
 
