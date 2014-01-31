@@ -14,8 +14,8 @@
 
 using namespace HLCommon;
 
-static const CGFloat FLWorldScaleMin = 0.25f;
-static const CGFloat FLWorldScaleMax = 4.0f;
+static const CGFloat FLWorldScaleMin = 0.125f;
+static const CGFloat FLWorldScaleMax = 2.0f;
 
 // Main layers.
 static const CGFloat FLZPositionWorld = 0.0f;
@@ -234,7 +234,8 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     default:
       break;
   }
-  // noob: For If camera is following train constantly, then do FL_centerWorldOnCamera here.
+
+  [self FL_trackEditMenuScaleToWorld];
 }
 
 - (void)update:(CFTimeInterval)currentTime
@@ -625,6 +626,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     // aliasing (?).
     CGFloat curveShift = floorf(_artSegmentDrawnTrackNormalWidth / 4.0f);
     [_mainToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"straight", @"curve", @"join" ]
+                                                     sizes:nil
                                                  rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2 ]
                                                    offsets:@[ [NSValue valueWithCGPoint:CGPointMake(straightShift, 0.0f)],
                                                               [NSValue valueWithCGPoint:CGPointMake(curveShift, -curveShift)],
@@ -709,6 +711,9 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     _trackEditMenuState.editMenuNode.zPosition = FLZPositionTrackOverlay;
     _trackEditMenuState.editMenuNode.anchorPoint = CGPointMake(0.5f, 0.0f);
     [_trackEditMenuState.editMenuNode setToolsWithTextureKeys:@[ @"rotate-ccw", @"delete", @"rotate-cw" ]
+                                                        sizes:@[ [NSValue valueWithCGSize:CGSizeMake(48.0f, 48.0f)],
+                                                                 [NSValue valueWithCGSize:CGSizeMake(48.0f, 48.0f)],
+                                                                 [NSValue valueWithCGSize:CGSizeMake(48.0f, 48.0f)] ]
                                                     rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2 ]
                                                       offsets:nil];
   }
@@ -730,6 +735,23 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     return;
   }
   [_trackEditMenuState.editMenuNode removeFromParent];
+}
+
+- (void)FL_trackEditMenuScaleToWorld
+{
+  if (!_trackEditMenuState.editMenuNode) {
+    return;
+  }
+
+  // note: The track edit menu scales inversely to the world, but perhaps at a different rate.
+  // A value of 1.0f means the edit menu will always maintain the same screen size no matter
+  // what the scale of the world.  Values less than one mean less-dramatic scaling than
+  // the world, and vice versa.
+  const CGFloat FLTrackEditMenuScaleFactor = 0.5f;
+
+  CGFloat editMenuScale = 1.0f / powf(_worldNode.xScale, FLTrackEditMenuScaleFactor);
+  _trackEditMenuState.editMenuNode.xScale = editMenuScale;
+  _trackEditMenuState.editMenuNode.yScale = editMenuScale;
 }
 
 /**

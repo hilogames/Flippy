@@ -30,7 +30,7 @@ static const CGFloat FLToolbarToolPadSize = -1.0f;
   return self;
 }
 
-- (void)setToolsWithTextureKeys:(NSArray *)keys rotations:(NSArray *)rotations offsets:(NSArray *)offsets
+- (void)setToolsWithTextureKeys:(NSArray *)keys sizes:(NSArray *)sizes rotations:(NSArray *)rotations offsets:(NSArray *)offsets
 {
   // noob: If we can assume properties of the toolbar node, like anchorPoint and zPosition,
   // then we could use simpler calculations here.  But no, for now assume those properties
@@ -42,9 +42,14 @@ static const CGFloat FLToolbarToolPadSize = -1.0f;
   NSMutableArray *toolNodes = [NSMutableArray array];
   CGFloat toolsWidth = 0.0f;
   CGFloat toolsHeight = 0.0f;
-  for (NSString *key in keys) {
+  for (int i = 0; i < [keys count]; ++i) {
+    NSString *key = [keys objectAtIndex:i];
     SKTexture *toolTexture = [[FLTextureStore sharedStore] textureForKey:key];
-    SKSpriteNode *toolNode = [SKSpriteNode spriteNodeWithTexture:toolTexture];
+    CGSize size = toolTexture.size;
+    if (sizes) {
+      [[sizes objectAtIndex:i] getValue:&size];
+    }
+    SKSpriteNode *toolNode = [SKSpriteNode spriteNodeWithTexture:toolTexture size:size];
     [toolNodes addObject:toolNode];
     toolsWidth += toolNode.size.width;
     if (toolNode.size.height > toolsHeight) {

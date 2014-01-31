@@ -20,7 +20,7 @@
  * with CGPoints) are used to rotate and offset the textures within their
  * allotted toolbar spaces.
  */
-- (void)setToolsWithTextureKeys:(NSArray *)keys rotations:(NSArray *)rotations offsets:(NSArray *)offsets;
+- (void)setToolsWithTextureKeys:(NSArray *)keys sizes:(NSArray *)sizes rotations:(NSArray *)rotations offsets:(NSArray *)offsets;
 
 @end
 
