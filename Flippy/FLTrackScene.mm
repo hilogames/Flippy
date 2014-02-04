@@ -29,6 +29,27 @@ static const CGFloat FLZPositionTrackSelect = 0.0f;
 static const CGFloat FLZPositionTrackPlaced = 0.1f;
 static const CGFloat FLZPositionTrackOverlay = 0.2f;
 
+#pragma mark -
+#pragma mark Helpers
+
+// Helpers are functional components of the scene split into classes;
+// these are considered to have private access to the scene.
+
+@interface FLTrackEditMenuHelper : NSObject <FLToolbarNodeDelegate>
+@property (nonatomic, strong) FLToolbarNode *editMenuNode;
+- (id)initWithScene:(SKScene *)scene;
+- (void)showOnTrack:(SKNode *)trackNode atSegment:(SKSpriteNode *)segmentNode animated:(BOOL)animated;
+- (void)hideAnimated:(BOOL)animated;
+- (void)scaleToWorld:(SKNode *)worldNode;
+@end
+
+#pragma mark -
+#pragma mark States
+
+// States are functional components of the scene; the data is encapsulated in
+// a simple public struct, and the associated functionality is implemented in
+// private methods of the scene.
+
 struct FLMainToolbarState
 {
   FLMainToolbarState() : toolbarNode(nil) {}
@@ -42,12 +63,6 @@ struct FLTrackSelectState
   BOOL selected;
   int gridX;
   int gridY;
-};
-
-struct FLTrackEditMenuState
-{
-  FLTrackEditMenuState() : editMenuNode(nil) {}
-  FLToolbarNode *editMenuNode;
 };
 
 struct FLTrackMoveState
@@ -68,6 +83,9 @@ struct FLGestureRecognizerState
 };
 
 enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
+
+#pragma mark -
+#pragma mark Scene
 
 @implementation FLTrackScene
 {
@@ -96,8 +114,9 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
   FLMainToolbarState _mainToolbarState;
   FLTrackSelectState _trackSelectState;
-  FLTrackEditMenuState _trackEditMenuState;
   FLTrackMoveState _trackMoveState;
+
+  FLTrackEditMenuHelper *_trackEditMenuHelper;
 }
 
 - (id)initWithSize:(CGSize)size
@@ -110,6 +129,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     _artScale = 2.0f;
     _gridSize = _artSegmentSizeBasic * _artScale;
     _cameraMode = FLCameraModeFollowTrain;
+    _trackEditMenuHelper = [[FLTrackEditMenuHelper alloc] initWithScene:self];
   }
   return self;
 }
@@ -235,7 +255,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
       break;
   }
 
-  [self FL_trackEditMenuScaleToWorld];
+  [_trackEditMenuHelper scaleToWorld:_worldNode];
 }
 
 - (void)update:(CFTimeInterval)currentTime
@@ -264,14 +284,14 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
       && selectedGridX == gridX
       && selectedGridY == gridY) {
     [self FL_trackSelectClear];
-    [self FL_trackEditMenuHideAnimated:YES];
+    [_trackEditMenuHelper hideAnimated:YES];
   } else {
     [self FL_trackSelectGridX:gridX gridY:gridY];
     SKSpriteNode *segmentNode = _trackGrid.get(gridX, gridY, nil);
     if (segmentNode) {
-      [self FL_trackEditMenuShowAtSegment:segmentNode animated:YES];
+      [_trackEditMenuHelper showOnTrack:_trackNode atSegment:segmentNode animated:YES];
     } else {
-      [self FL_trackEditMenuHideAnimated:YES];
+      [_trackEditMenuHelper hideAnimated:YES];
     }
   }
 }
@@ -289,7 +309,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     [self FL_trackSelectGridX:gridX gridY:gridY];
     SKSpriteNode *segmentNode = _trackGrid.get(gridX, gridY, nil);
     if (segmentNode) {
-      [self FL_trackEditMenuShowAtSegment:segmentNode animated:YES];
+      [_trackEditMenuHelper showOnTrack:_trackNode atSegment:segmentNode animated:YES];
     }
   }
 }
@@ -480,11 +500,9 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 {
   // noob: From the UIGestureRecognizer class reference:
   //
-  //     A window delivers touch events to a gesture recognizer before it delivers them to the
-  //     hit-tested view attached to the gesture recognizer. Generally, if a gesture recognizer
-  //     analyzes the stream of touches in a multi-touch sequence and doesn’t recognize its
-  //     gesture, the view receives the full complement of touches. If a gesture recognizer
-  //     recognizes its gesture, the remaining touches for the view are cancelled.
+  //     A gesture recognizer operates on touches hit-tested to a specific view and all of that
+  //     view's subviews. ... A window delivers touch events to a gesture recognizer before it
+  //     delivers them to the hit-tested view attached to the gesture recognizer.
   //
   // So if we're using gesture recognizers in this scene, then we need to explicitly exclude regions
   // that should block the gesture from starting (or continuing, or whatever).  For us, that's anything
@@ -513,9 +531,9 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 }
 
 #pragma mark -
-#pragma mark FLToolbarNodeDelegate
+#pragma mark FLToolbarNodeDelegate (for main toolbar)
 
-- (void)toolBarNode:(FLToolbarNode *)toolbarNode toolBegan:(NSString *)tool location:(CGPoint)location
+- (void)toolbarNode:(FLToolbarNode *)toolbarNode toolMoveBegan:(NSString *)tool location:(CGPoint)location
 {
   SKNode *toolInUse = [_hudNode childNodeWithName:@"toolInUse"];
   if (toolInUse) {
@@ -537,7 +555,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   [self FL_trackMoveBeganWithNode:newSegmentNode gridX:gridX gridY:gridY];
 }
 
-- (void)toolBarNode:(FLToolbarNode *)toolbarNode toolMoved:(NSString *)tool location:(CGPoint)location
+- (void)toolbarNode:(FLToolbarNode *)toolbarNode toolMoveChanged:(NSString *)tool location:(CGPoint)location
 {
   SKNode *toolInUse = [_hudNode childNodeWithName:@"toolInUse"];
   if (!toolInUse) {
@@ -552,7 +570,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   [self FL_trackMoveContinuedWithGridX:gridX gridY:gridY];
 }
 
-- (void)toolBarNode:(FLToolbarNode *)toolbarNode toolEnded:(NSString *)tool location:(CGPoint)location
+- (void)toolbarNode:(FLToolbarNode *)toolbarNode toolMoveEnded:(NSString *)tool location:(CGPoint)location
 {
   SKNode *toolInUse = [_hudNode childNodeWithName:@"toolInUse"];
   if (!toolInUse) {
@@ -567,7 +585,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   [self FL_trackMoveEndedWithGridX:gridX gridY:gridY];
 }
 
-- (void)toolBarNode:(FLToolbarNode *)toolbarNode toolCancelled:(NSString *)tool location:(CGPoint)location
+- (void)toolbarNode:(FLToolbarNode *)toolbarNode toolMoveCancelled:(NSString *)tool location:(CGPoint)location
 {
   SKNode *toolInUse = [_hudNode childNodeWithName:@"toolInUse"];
   if (!toolInUse) {
@@ -703,57 +721,6 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   return NO;
 }
 
-- (void)FL_trackEditMenuShowAtSegment:(SKSpriteNode *)segmentNode animated:(BOOL)animated
-{
-  if (!_trackEditMenuState.editMenuNode) {
-    _trackEditMenuState.editMenuNode = [[FLToolbarNode alloc] init];
-    //_trackEditMenuState.editMenuNode.delegate = self;
-    _trackEditMenuState.editMenuNode.zPosition = FLZPositionTrackOverlay;
-    _trackEditMenuState.editMenuNode.anchorPoint = CGPointMake(0.5f, 0.0f);
-    [_trackEditMenuState.editMenuNode setToolsWithTextureKeys:@[ @"rotate-ccw", @"delete", @"rotate-cw" ]
-                                                        sizes:@[ [NSValue valueWithCGSize:CGSizeMake(48.0f, 48.0f)],
-                                                                 [NSValue valueWithCGSize:CGSizeMake(48.0f, 48.0f)],
-                                                                 [NSValue valueWithCGSize:CGSizeMake(48.0f, 48.0f)] ]
-                                                    rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2 ]
-                                                      offsets:nil];
-  }
-
-  const CGFloat FLTrackEditMenuBottomPad = 0.0f;
-
-  // TODO: Animated.
-  CGPoint trackLocation = CGPointMake(segmentNode.position.x, segmentNode.position.y + segmentNode.size.height / 2.0f + FLTrackEditMenuBottomPad);
-  _trackEditMenuState.editMenuNode.position = trackLocation;
-  if (!_trackEditMenuState.editMenuNode.parent) {
-    [_trackNode addChild:_trackEditMenuState.editMenuNode];
-  }
-}
-
-- (void)FL_trackEditMenuHideAnimated:(BOOL)animated
-{
-  // TODO: Animated.
-  if (!_trackEditMenuState.editMenuNode.parent) {
-    return;
-  }
-  [_trackEditMenuState.editMenuNode removeFromParent];
-}
-
-- (void)FL_trackEditMenuScaleToWorld
-{
-  if (!_trackEditMenuState.editMenuNode) {
-    return;
-  }
-
-  // note: The track edit menu scales inversely to the world, but perhaps at a different rate.
-  // A value of 1.0f means the edit menu will always maintain the same screen size no matter
-  // what the scale of the world.  Values less than one mean less-dramatic scaling than
-  // the world, and vice versa.
-  const CGFloat FLTrackEditMenuScaleFactor = 0.5f;
-
-  CGFloat editMenuScale = 1.0f / powf(_worldNode.xScale, FLTrackEditMenuScaleFactor);
-  _trackEditMenuState.editMenuNode.xScale = editMenuScale;
-  _trackEditMenuState.editMenuNode.yScale = editMenuScale;
-}
-
 /**
  * Begins a move of a track segment sprite.
  *
@@ -776,7 +743,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
   _trackMoveState.segmentMoving = segmentMovingNode;
   
-  [self FL_trackEditMenuHideAnimated:YES];
+  [_trackEditMenuHelper hideAnimated:YES];
 
   // note: The update call will detect no parent and know that the segmentMovingNode has
   // not yet been added to the grid.
@@ -805,7 +772,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   [self FL_trackMoveUpdateWithGridX:gridX gridY:gridY];
 
   // note: Current selection unchanged.
-  [self FL_trackEditMenuShowAtSegment:_trackMoveState.segmentMoving animated:YES];
+  [_trackEditMenuHelper showOnTrack:_trackNode atSegment:_trackMoveState.segmentMoving animated:YES];
   _trackMoveState.segmentMoving = nil;
   _trackMoveState.segmentRemoving = nil;
   
@@ -924,6 +891,74 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     }
     std::cout << std::endl;
   }
+}
+
+@end
+
+#pragma mark -
+#pragma mark FLTrackEditMenuHelper
+
+@implementation FLTrackEditMenuHelper
+{
+  __weak SKScene *_scene;
+}
+
+- (id)initWithScene:(SKScene *)scene
+{
+  self = [super init];
+  if (self) {
+    _scene = scene;
+    CGSize FLTrackEditMenuToolSize = { 48.0f, 48.0f };
+    _editMenuNode = [[FLToolbarNode alloc] init];
+    _editMenuNode.delegate = self;
+    _editMenuNode.zPosition = FLZPositionTrackOverlay;
+    _editMenuNode.anchorPoint = CGPointMake(0.5f, 0.0f);
+    NSValue *toolSize = [NSValue valueWithCGSize:FLTrackEditMenuToolSize];
+    [_editMenuNode setToolsWithTextureKeys:@[ @"rotate-ccw", @"delete", @"rotate-cw" ]
+                                     sizes:@[ toolSize, toolSize, toolSize ]
+                                 rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2 ]
+                                   offsets:nil];
+  }
+  return self;
+}
+
+- (void)showOnTrack:(SKNode *)trackNode atSegment:(SKSpriteNode *)segmentNode animated:(BOOL)animated
+{
+  const CGFloat FLTrackEditMenuBottomPad = 0.0f;
+  
+  // TODO: Animated.
+  CGPoint trackLocation = CGPointMake(segmentNode.position.x, segmentNode.position.y + segmentNode.size.height / 2.0f + FLTrackEditMenuBottomPad);
+  _editMenuNode.position = trackLocation;
+  if (!_editMenuNode.parent) {
+    [trackNode addChild:_editMenuNode];
+  }
+}
+
+- (void)hideAnimated:(BOOL)animated
+{
+  // TODO: Animated.
+  if (!_editMenuNode.parent) {
+    return;
+  }
+  [_editMenuNode removeFromParent];
+}
+
+- (void)scaleToWorld:(SKNode *)worldNode
+{
+  // note: The track edit menu scales inversely to the world, but perhaps at a different rate.
+  // A value of 1.0f means the edit menu will always maintain the same screen size no matter
+  // what the scale of the world.  Values less than one mean less-dramatic scaling than
+  // the world, and vice versa.
+  const CGFloat FLTrackEditMenuScaleFactor = 0.5f;
+  
+  CGFloat editMenuScale = 1.0f / powf(worldNode.xScale, FLTrackEditMenuScaleFactor);
+  _editMenuNode.xScale = editMenuScale;
+  _editMenuNode.yScale = editMenuScale;
+}
+
+- (void)toolbarNode:(FLToolbarNode *)toolbarNode toolTapped:(NSString *)tool
+{
+  NSLog(@"tool %@ tapped", tool);
 }
 
 @end

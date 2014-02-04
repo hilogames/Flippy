@@ -26,12 +26,16 @@
 
 @protocol FLToolbarNodeDelegate <NSObject>
 
-- (void)toolBarNode:(FLToolbarNode *)toolbarNode toolBegan:(NSString *)tool location:(CGPoint)location;
+@optional
 
-- (void)toolBarNode:(FLToolbarNode *)toolbarNode toolMoved:(NSString *)tool location:(CGPoint)location;
+- (void)toolbarNode:(FLToolbarNode *)toolbarNode toolTapped:(NSString *)tool;
 
-- (void)toolBarNode:(FLToolbarNode *)toolbarNode toolEnded:(NSString *)tool location:(CGPoint)location;
+- (void)toolbarNode:(FLToolbarNode *)toolbarNode toolMoveBegan:(NSString *)tool location:(CGPoint)location;
 
-- (void)toolBarNode:(FLToolbarNode *)toolbarNode toolCancelled:(NSString *)tool location:(CGPoint)location;
+- (void)toolbarNode:(FLToolbarNode *)toolbarNode toolMoveChanged:(NSString *)tool location:(CGPoint)location;
+
+- (void)toolbarNode:(FLToolbarNode *)toolbarNode toolMoveEnded:(NSString *)tool location:(CGPoint)location;
+
+- (void)toolbarNode:(FLToolbarNode *)toolbarNode toolMoveCancelled:(NSString *)tool location:(CGPoint)location;
 
 @end

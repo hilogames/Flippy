@@ -105,6 +105,17 @@ static const CGFloat FLToolbarToolPadSize = -1.0f;
     return;
   }
 
+  // noob: Hacking my own tap vs. pan gesture recognizers here, because we're just an SKNode, and don't
+  // control our scene's view.  Other possible (better?) solution: This class (and classes like it)
+  // could have gestures routed to them from the main SKScene gesture recognizer delegates; either the
+  // scene could explicitly and temporarily set us as the delegate when the gesture starts in our
+  // domain, or it could forward each particular gesture callback to us.  Or: This class perhaps cannot
+  // be separated completely from the scene because of this kind of thing; it should be implemented as
+  // a private subclass (what I'm calling a "Helper") with private access to the scene.  Or: Maybe
+  // gesture recognizers need to be rewritten so they can work on an SKNode, not just on a UIView.
+  // After all, apparently the view and scene know how to forward touchesBegan for us; why not make
+  // it their job to forward gesture recognizers, too?  Check future iOS releases.
+
   _toolMoving = nil;
 
   UITouch *touch = [touches anyObject];
@@ -119,7 +130,9 @@ static const CGFloat FLToolbarToolPadSize = -1.0f;
   for (SKSpriteNode *toolButtonNode in _toolButtonNodes) {
     if ([toolButtonNode containsPoint:location]) {
       _toolMoving = toolButtonNode.name;
-      [self.delegate toolBarNode:self toolBegan:toolButtonNode.name location:location];
+      if (_delegate && [_delegate respondsToSelector:@selector(toolbarNode:toolMoveBegan:location:)]) {
+        [_delegate toolbarNode:self toolMoveBegan:toolButtonNode.name location:location];
+      }
       break;
     }
   }
@@ -135,7 +148,9 @@ static const CGFloat FLToolbarToolPadSize = -1.0f;
   }
   UITouch *touch = [touches anyObject];
   CGPoint location = [touch locationInNode:self];
-  [self.delegate toolBarNode:self toolMoved:_toolMoving location:location];
+  if (_delegate && [_delegate respondsToSelector:@selector(toolbarNode:toolMoveChanged:location:)]) {
+    [_delegate toolbarNode:self toolMoveChanged:_toolMoving location:location];
+  }
 }
 
 - (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event
@@ -148,7 +163,9 @@ static const CGFloat FLToolbarToolPadSize = -1.0f;
   }
   UITouch *touch = [touches anyObject];
   CGPoint location = [touch locationInNode:self];
-  [self.delegate toolBarNode:self toolEnded:_toolMoving location:location];
+  if (_delegate && [_delegate respondsToSelector:@selector(toolbarNode:toolMoveEnded:location:)]) {
+    [_delegate toolbarNode:self toolMoveEnded:_toolMoving location:location];
+  }
   _toolMoving = nil;
 }
 
@@ -162,7 +179,9 @@ static const CGFloat FLToolbarToolPadSize = -1.0f;
   }
   UITouch *touch = [touches anyObject];
   CGPoint location = [touch locationInNode:self];
-  [self.delegate toolBarNode:self toolCancelled:_toolMoving location:location];
+  if (_delegate && [_delegate respondsToSelector:@selector(toolbarNode:toolMoveCancelled:location:)]) {
+    [_delegate toolbarNode:self toolMoveCancelled:_toolMoving location:location];
+  }
   _toolMoving = nil;
 }
 
