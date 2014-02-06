@@ -7,12 +7,15 @@
 //
 
 #import <SpriteKit/SpriteKit.h>
-
-@protocol FLToolbarNodeDelegate;
+#include "FLGestureTarget.h"
 
 @interface FLToolbarNode : SKSpriteNode
 
-@property (nonatomic, weak) id <FLToolbarNodeDelegate> delegate;
+/**
+ * The extra space added between the edge of the box (made for the tool) and the tool sprite.
+ * Negative values mean the box will be drawn smaller than the tool sprite.
+ */
+@property (nonatomic) CGFloat toolPad;
 
 /**
  * Sets toolbar with tools from the textures specified by the passed keys.
@@ -22,20 +25,14 @@
  */
 - (void)setToolsWithTextureKeys:(NSArray *)keys sizes:(NSArray *)sizes rotations:(NSArray *)rotations offsets:(NSArray *)offsets;
 
-@end
+/**
+ * Returns the key of the tool at the passed location, or nil for none.  The
+ * location is expected to be in the coordinate system of this toolbar node.
+ */
+- (NSString *)toolAtLocation:(CGPoint)location;
 
-@protocol FLToolbarNodeDelegate <NSObject>
+- (void)runShowWithOrigin:(CGPoint)origin;
 
-@optional
-
-- (void)toolbarNode:(FLToolbarNode *)toolbarNode toolTapped:(NSString *)tool;
-
-- (void)toolbarNode:(FLToolbarNode *)toolbarNode toolMoveBegan:(NSString *)tool location:(CGPoint)location;
-
-- (void)toolbarNode:(FLToolbarNode *)toolbarNode toolMoveChanged:(NSString *)tool location:(CGPoint)location;
-
-- (void)toolbarNode:(FLToolbarNode *)toolbarNode toolMoveEnded:(NSString *)tool location:(CGPoint)location;
-
-- (void)toolbarNode:(FLToolbarNode *)toolbarNode toolMoveCancelled:(NSString *)tool location:(CGPoint)location;
+- (void)runHideWithOrigin:(CGPoint)origin removeFromParent:(BOOL)removeFromParent;
 
 @end

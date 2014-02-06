@@ -71,6 +71,7 @@
 		CBE5A5E8185A0CAB00DC86B3 /* FLTextureStore.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FLTextureStore.m; sourceTree = "<group>"; };
 		CBE5A5EA185A128100DC86B3 /* FLToolbarNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLToolbarNode.h; sourceTree = "<group>"; };
 		CBE5A5EB185A128100DC86B3 /* FLToolbarNode.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FLToolbarNode.m; sourceTree = "<group>"; };
+		CBF959E418A1913F005F01A6 /* FLGestureTarget.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FLGestureTarget.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -141,6 +142,7 @@
 				CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */,
 				CBE5A5EA185A128100DC86B3 /* FLToolbarNode.h */,
 				CBE5A5EB185A128100DC86B3 /* FLToolbarNode.m */,
+				CBF959E418A1913F005F01A6 /* FLGestureTarget.h */,
 				CBE5A5E7185A0CAB00DC86B3 /* FLTextureStore.h */,
 				CBE5A5E8185A0CAB00DC86B3 /* FLTextureStore.m */,
 				CBB4B812183C00E1003C3444 /* FLViewController.h */,

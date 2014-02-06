@@ -9,6 +9,6 @@
 #import <SpriteKit/SpriteKit.h>
 #import "FLToolbarNode.h"
 
-@interface FLTrackScene : SKScene <UIGestureRecognizerDelegate, FLToolbarNodeDelegate>
+@interface FLTrackScene : SKScene <UIGestureRecognizerDelegate, FLGestureTarget>
 
 @end

@@ -6,18 +6,20 @@
 //  Copyright (c) 2013 Hilo. All rights reserved.
 //
 
+// noob: See notes in notes/objective-c.txt.  I spent time thinking about how this
+// SKNode subclass should detect and respond to gestures from gesture recognizers.
+// Seems a bit awkward and tightly-coupled.
+
 #import "FLToolbarNode.h"
 
 #import "FLTextureStore.h"
 
 static const CGFloat FLToolbarBorderSize = 3.0f;
 static const CGFloat FLToolbarToolSeparatorSize = 3.0f;
-static const CGFloat FLToolbarToolPadSize = -1.0f;
 
 @implementation FLToolbarNode
 {
   NSMutableArray *_toolButtonNodes;
-  NSString *_toolMoving;
 }
 
 - (id)init
@@ -25,7 +27,7 @@ static const CGFloat FLToolbarToolPadSize = -1.0f;
   CGSize emptySize = CGSizeMake(FLToolbarBorderSize * 2, FLToolbarBorderSize * 2);
   self = [super initWithColor:[UIColor colorWithWhite:0.0f alpha:0.2f] size:emptySize];
   if (self) {
-    self.userInteractionEnabled = YES;
+    _toolPad = 0.0f;
   }
   return self;
 }
@@ -60,10 +62,10 @@ static const CGFloat FLToolbarToolPadSize = -1.0f;
   NSUInteger toolsCount = [toolNodes count];
   CGFloat toolbarWidth = toolsWidth
     + FLToolbarToolSeparatorSize * (toolsCount - 1)
-    + FLToolbarToolPadSize * (toolsCount * 2)
+    + _toolPad * (toolsCount * 2)
     + FLToolbarBorderSize * 2;
   CGFloat toolbarHeight = toolsHeight
-    + FLToolbarToolPadSize * 2
+    + _toolPad * 2
     + FLToolbarBorderSize * 2;
   self.size = CGSizeMake(toolbarWidth, toolbarHeight);
 
@@ -79,8 +81,8 @@ static const CGFloat FLToolbarToolPadSize = -1.0f;
     }
     
     SKSpriteNode *toolButtonNode = [SKSpriteNode spriteNodeWithColor:[UIColor colorWithWhite:1.0f alpha:0.3f]
-                                                                size:CGSizeMake(toolNode.size.width + FLToolbarToolPadSize * 2,
-                                                                                toolsHeight + FLToolbarToolPadSize * 2)];
+                                                                size:CGSizeMake(toolNode.size.width + _toolPad * 2,
+                                                                                toolsHeight + _toolPad * 2)];
     toolButtonNode.name = key;
     toolButtonNode.zPosition = self.zPosition + 1.0f;
     toolButtonNode.anchorPoint = CGPointMake(0.0f, 0.0f);
@@ -90,99 +92,35 @@ static const CGFloat FLToolbarToolPadSize = -1.0f;
 
     toolNode.zPosition = self.zPosition + 2.0f;
     toolNode.anchorPoint = CGPointMake(0.5f, 0.5f);
-    toolNode.position = CGPointMake(x + toolNode.size.width / 2.0f + FLToolbarToolPadSize + offset.x,
-                                    y + toolNode.size.height / 2.0f + FLToolbarToolPadSize + offset.y);
+    toolNode.position = CGPointMake(x + toolNode.size.width / 2.0f + _toolPad + offset.x,
+                                    y + toolNode.size.height / 2.0f + _toolPad + offset.y);
     toolNode.zRotation = rotation;
     [self addChild:toolNode];
 
-    x += toolNode.size.width + FLToolbarToolPadSize * 2 + FLToolbarToolSeparatorSize;
+    x += toolNode.size.width + _toolPad * 2 + FLToolbarToolSeparatorSize;
   }
 }
 
-- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event
+- (NSString *)toolAtLocation:(CGPoint)location
 {
-  if (!self.delegate) {
-    return;
-  }
-
-  // noob: Hacking my own tap vs. pan gesture recognizers here, because we're just an SKNode, and don't
-  // control our scene's view.  Other possible (better?) solution: This class (and classes like it)
-  // could have gestures routed to them from the main SKScene gesture recognizer delegates; either the
-  // scene could explicitly and temporarily set us as the delegate when the gesture starts in our
-  // domain, or it could forward each particular gesture callback to us.  Or: This class perhaps cannot
-  // be separated completely from the scene because of this kind of thing; it should be implemented as
-  // a private subclass (what I'm calling a "Helper") with private access to the scene.  Or: Maybe
-  // gesture recognizers need to be rewritten so they can work on an SKNode, not just on a UIView.
-  // After all, apparently the view and scene know how to forward touchesBegan for us; why not make
-  // it their job to forward gesture recognizers, too?  Check future iOS releases.
-
-  _toolMoving = nil;
-
-  UITouch *touch = [touches anyObject];
-  // noob: I was confused by doing the [child containsPoint] test using
-  // a locationInNode:child, which didn't work.  But I think it makes
-  // sense that the contains test is in the parent's coordinates; after
-  // all, the child always thinks of itself in terms of position, which
-  // is in the parent's coordinate system.
-  CGPoint location = [touch locationInNode:self];
-  // note: If tool buttons were uniform width, then could easily avoid linear
-  // search.  Can certainly change to binary search if this proves too slow.
   for (SKSpriteNode *toolButtonNode in _toolButtonNodes) {
     if ([toolButtonNode containsPoint:location]) {
-      _toolMoving = toolButtonNode.name;
-      if (_delegate && [_delegate respondsToSelector:@selector(toolbarNode:toolMoveBegan:location:)]) {
-        [_delegate toolbarNode:self toolMoveBegan:toolButtonNode.name location:location];
-      }
-      break;
+      return toolButtonNode.name;
     }
   }
+  return nil;
 }
 
-- (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event
+- (void)runShowWithOrigin:(CGPoint)origin fullScale:(CGFloat)fullScale
 {
-  if (!self.delegate) {
-    return;
-  }
-  if (!_toolMoving) {
-    return;
-  }
-  UITouch *touch = [touches anyObject];
-  CGPoint location = [touch locationInNode:self];
-  if (_delegate && [_delegate respondsToSelector:@selector(toolbarNode:toolMoveChanged:location:)]) {
-    [_delegate toolbarNode:self toolMoveChanged:_toolMoving location:location];
-  }
 }
 
-- (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event
+- (void)runHideWithOrigin:(CGPoint)origin removeFromParent:(BOOL)removeFromParent
 {
-  if (!self.delegate) {
-    return;
-  }
-  if (!_toolMoving) {
-    return;
-  }
-  UITouch *touch = [touches anyObject];
-  CGPoint location = [touch locationInNode:self];
-  if (_delegate && [_delegate respondsToSelector:@selector(toolbarNode:toolMoveEnded:location:)]) {
-    [_delegate toolbarNode:self toolMoveEnded:_toolMoving location:location];
-  }
-  _toolMoving = nil;
-}
-
-- (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event
-{
-  if (!self.delegate) {
-    return;
-  }
-  if (!_toolMoving) {
-    return;
-  }
-  UITouch *touch = [touches anyObject];
-  CGPoint location = [touch locationInNode:self];
-  if (_delegate && [_delegate respondsToSelector:@selector(toolbarNode:toolMoveCancelled:location:)]) {
-    [_delegate toolbarNode:self toolMoveCancelled:_toolMoving location:location];
-  }
-  _toolMoving = nil;
+  SKAction *fadeOut = [SKAction fadeOutWithDuration:0.2f];
+  SKAction *remove = [SKAction removeFromParent];
+  SKAction *hideSequence = [SKAction sequence:@[ fadeOut, remove ]];
+  [self runAction:hideSequence completion:^{ self.alpha = 1.0f; }];
 }
 
 @end

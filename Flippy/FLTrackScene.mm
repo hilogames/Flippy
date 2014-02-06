@@ -35,12 +35,17 @@ static const CGFloat FLZPositionTrackOverlay = 0.2f;
 // Helpers are functional components of the scene split into classes;
 // these are considered to have private access to the scene.
 
-@interface FLTrackEditMenuHelper : NSObject <FLToolbarNodeDelegate>
+@interface FLTrackScene (Helper)
+- (void)FL_trackGridEraseGridX:(int)gridX gridY:(int)gridY animated:(BOOL)animated;
+@end
+
+@interface FLTrackEditMenuHelper : NSObject
 @property (nonatomic, strong) FLToolbarNode *editMenuNode;
 - (id)initWithScene:(SKScene *)scene;
-- (void)showOnTrack:(SKNode *)trackNode atSegment:(SKSpriteNode *)segmentNode animated:(BOOL)animated;
+- (void)showOnTrack:(SKNode *)trackNode atSegment:(SKSpriteNode *)segmentNode gridX:(int)gridX gridY:(int)gridY animated:(BOOL)animated;
 - (void)hideAnimated:(BOOL)animated;
 - (void)scaleToWorld:(SKNode *)worldNode;
+- (void)handleTap:(UIGestureRecognizer *)gestureRecognizer;
 @end
 
 #pragma mark -
@@ -52,8 +57,9 @@ static const CGFloat FLZPositionTrackOverlay = 0.2f;
 
 struct FLMainToolbarState
 {
-  FLMainToolbarState() : toolbarNode(nil) {}
+  FLMainToolbarState() : toolbarNode(nil), toolInUseNode(nil) {}
   FLToolbarNode *toolbarNode;
+  SKSpriteNode *toolInUseNode;
 };
 
 struct FLTrackSelectState
@@ -76,9 +82,9 @@ enum FLPanType { FLPanTypeNone, FLPanTypeWorld, FLPanTypeTrackMove };
 
 struct FLGestureRecognizerState
 {
-  FLGestureRecognizerState() : panType(FLPanTypeNone) {}
+  FLGestureRecognizerState() {}
+  CGPoint gestureFirstTouchLocation;
   FLPanType panType;
-  CGPoint panFirstTouchLocation;
   CGPoint pinchZoomCenter;
 };
 
@@ -90,7 +96,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 @implementation FLTrackScene
 {
   BOOL _contentCreated;
-  
+
   SKNode *_worldNode;
   SKNode *_trackNode;
   SKSpriteNode *_trainNode;
@@ -141,23 +147,23 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     _contentCreated = YES;
   }
 
-  _tapRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTap:)];
+  _tapRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleWorldTap:)];
   _tapRecognizer.delegate = self;
   _tapRecognizer.cancelsTouchesInView = NO;
   [view addGestureRecognizer:_tapRecognizer];
-  
-  _longPressRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleLongPress:)];
+
+  _longPressRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleWorldLongPress:)];
   _longPressRecognizer.delegate = self;
   _longPressRecognizer.cancelsTouchesInView = NO;
   [view addGestureRecognizer:_longPressRecognizer];
-  
-  _panRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handlePan:)];
+
+  _panRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handleWorldPan:)];
   _panRecognizer.delegate = self;
   _panRecognizer.maximumNumberOfTouches = 1;
   _panRecognizer.cancelsTouchesInView = NO;
   [view addGestureRecognizer:_panRecognizer];
-  
-  _pinchRecognizer = [[UIPinchGestureRecognizer alloc] initWithTarget:self action:@selector(handlePinch:)];
+
+  _pinchRecognizer = [[UIPinchGestureRecognizer alloc] initWithTarget:self action:@selector(handleWorldPinch:)];
   _pinchRecognizer.delegate = self;
   _pinchRecognizer.cancelsTouchesInView = NO;
   [view addGestureRecognizer:_pinchRecognizer];
@@ -232,9 +238,9 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   _hudNode.name = @"hud";
   _hudNode.zPosition = FLZPositionHud;
   [self addChild:_hudNode];
-  
+
   // Create other content.
-  
+
   [self FL_mainToolbarSetVisible:YES];
 }
 
@@ -254,8 +260,6 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     default:
       break;
   }
-
-  [_trackEditMenuHelper scaleToWorld:_worldNode];
 }
 
 - (void)update:(CFTimeInterval)currentTime
@@ -269,12 +273,12 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 #pragma mark -
 #pragma mark UIGestureRecognizerDelegate
 
-- (void)handleTap:(UIGestureRecognizer *)gestureRecognizer
+- (void)handleWorldTap:(UIGestureRecognizer *)gestureRecognizer
 {
   CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
   CGPoint sceneLocation = [self convertPointFromView:viewLocation];
   CGPoint trackLocation = [_trackNode convertPoint:sceneLocation fromNode:self];
-  
+
   int gridX = int(floorf(trackLocation.x / _gridSize + 0.5f));
   int gridY = int(floorf(trackLocation.y / _gridSize + 0.5f));
 
@@ -289,19 +293,19 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     [self FL_trackSelectGridX:gridX gridY:gridY];
     SKSpriteNode *segmentNode = _trackGrid.get(gridX, gridY, nil);
     if (segmentNode) {
-      [_trackEditMenuHelper showOnTrack:_trackNode atSegment:segmentNode animated:YES];
+      [_trackEditMenuHelper showOnTrack:_trackNode atSegment:segmentNode gridX:gridX gridY:gridY animated:YES];
     } else {
       [_trackEditMenuHelper hideAnimated:YES];
     }
   }
 }
 
-- (void)handleLongPress:(UILongPressGestureRecognizer *)gestureRecognizer
+- (void)handleWorldLongPress:(UILongPressGestureRecognizer *)gestureRecognizer
 {
   CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
   CGPoint sceneLocation = [self convertPointFromView:viewLocation];
   CGPoint trackLocation = [_trackNode convertPoint:sceneLocation fromNode:self];
-  
+
   int gridX = int(floorf(trackLocation.x / _gridSize + 0.5f));
   int gridY = int(floorf(trackLocation.y / _gridSize + 0.5f));
 
@@ -309,15 +313,15 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     [self FL_trackSelectGridX:gridX gridY:gridY];
     SKSpriteNode *segmentNode = _trackGrid.get(gridX, gridY, nil);
     if (segmentNode) {
-      [_trackEditMenuHelper showOnTrack:_trackNode atSegment:segmentNode animated:YES];
+      [_trackEditMenuHelper showOnTrack:_trackNode atSegment:segmentNode gridX:gridX gridY:gridY animated:YES];
     }
   }
 }
 
-- (void)handlePan:(UIPanGestureRecognizer *)gestureRecognizer
+- (void)handleWorldPan:(UIPanGestureRecognizer *)gestureRecognizer
 {
   _cameraMode = FLCameraModeManual;
-  
+
   if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
 
     // Determine type of pan.
@@ -326,7 +330,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     // current location (when the gesture is fully identified); they can be quite different.
     // (We could also set the initial translation of the pan based on the former, but instead we
     // let the gesture recognizer do its thing, assuming that's the interface standard.)
-    CGPoint viewLocation = _gestureRecognizerState.panFirstTouchLocation;
+    CGPoint viewLocation = _gestureRecognizerState.gestureFirstTouchLocation;
     CGPoint sceneLocation = [self convertPointFromView:viewLocation];
     CGPoint trackLocation = [_trackNode convertPoint:sceneLocation fromNode:self];
     int gridX = int(floorf(trackLocation.x / _gridSize + 0.5f));
@@ -379,9 +383,9 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
         // but was allowed to continue.
         break;
     }
-    
+
   } else if (gestureRecognizer.state == UIGestureRecognizerStateEnded) {
-    
+
     switch (_gestureRecognizerState.panType) {
       case FLPanTypeTrackMove: {
         CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
@@ -400,9 +404,9 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
         // but was allowed to continue.
         break;
     }
-    
+
   } else if (gestureRecognizer.state == UIGestureRecognizerStateCancelled) {
-  
+
     switch (_gestureRecognizerState.panType) {
       case FLPanTypeTrackMove: {
         CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
@@ -424,7 +428,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   }
 }
 
-- (void)handlePinch:(UIPinchGestureRecognizer *)gestureRecognizer
+- (void)handleWorldPinch:(UIPinchGestureRecognizer *)gestureRecognizer
 {
   static CGFloat handlePinchWorldScaleBegin;
   static CGPoint handlePinchWorldPositionBegin;
@@ -455,15 +459,8 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     // screen if I need more room for the gesture.  But probably there's a human interface guideline for
     // this which I should follow.
     _gestureRecognizerState.pinchZoomCenter = CGPointZero;
-    // noob: First test my coding assumption that we have two touches on gesture begin.
-    if (gestureRecognizer.numberOfTouches != 2) {
-      [NSException raise:@"FLHandlePinchUnexpected" format:@"Code assumes pinch gesture can only begin with two touches."];
-    }
     if (_cameraMode == FLCameraModeManual) {
-      CGPoint touch1ViewLocation = [gestureRecognizer locationOfTouch:0 inView:self.view];
-      CGPoint touch2ViewLocation = [gestureRecognizer locationOfTouch:1 inView:self.view];
-      CGPoint centerViewLocation = CGPointMake((touch1ViewLocation.x + touch2ViewLocation.x) / 2.0f,
-                                               (touch1ViewLocation.y + touch2ViewLocation.y) / 2.0f);
+      CGPoint centerViewLocation = [gestureRecognizer locationInView:self.view];
       _gestureRecognizerState.pinchZoomCenter = [self convertPointFromView:centerViewLocation];
     }
     return;
@@ -484,6 +481,56 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   worldPosition.x = (handlePinchWorldPositionBegin.x - _gestureRecognizerState.pinchZoomCenter.x) * scaleFactor + _gestureRecognizerState.pinchZoomCenter.x;
   worldPosition.y = (handlePinchWorldPositionBegin.y - _gestureRecognizerState.pinchZoomCenter.y) * scaleFactor + _gestureRecognizerState.pinchZoomCenter.y;
   _worldNode.position = worldPosition;
+  
+  [_trackEditMenuHelper scaleToWorld:_worldNode];
+}
+
+- (void)handleMainToolbarPan:(UIGestureRecognizer *)gestureRecognizer
+{
+  CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
+  CGPoint sceneLocation = [self convertPointFromView:viewLocation];
+  CGPoint trackLocation = [_trackNode convertPoint:sceneLocation fromNode:self];
+  int gridX = int(floorf(trackLocation.x / _gridSize + 0.5f));
+  int gridY = int(floorf(trackLocation.y / _gridSize + 0.5f));
+
+  if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
+
+    CGPoint firstTouchSceneLocation = [self convertPointFromView:_gestureRecognizerState.gestureFirstTouchLocation];
+    CGPoint firstTouchToolbarLocation = [_mainToolbarState.toolbarNode convertPoint:firstTouchSceneLocation fromNode:self];
+    NSString *tool = [_mainToolbarState.toolbarNode toolAtLocation:firstTouchToolbarLocation];
+    _mainToolbarState.toolInUseNode = [self FL_createSprite:nil withTexture:tool parent:_hudNode];
+    _mainToolbarState.toolInUseNode.zRotation = M_PI_2;
+    _mainToolbarState.toolInUseNode.alpha = 0.5f;
+    _mainToolbarState.toolInUseNode.position = sceneLocation;
+    
+    SKSpriteNode *newSegmentNode = [self FL_createSprite:nil withTexture:tool parent:nil];
+    newSegmentNode.zPosition = FLZPositionTrackPlaced;
+    newSegmentNode.zRotation = M_PI_2;
+    [self FL_trackMoveBeganWithNode:newSegmentNode gridX:gridX gridY:gridY];
+
+    // note: This isn't really used for anything during a main toolbar pan, since all pans are track moves,
+    // but I'm still trying to figure out the relationship between gestureRecognizerState and mainToolbarState,
+    // so I'm setting it for consistency.
+    _gestureRecognizerState.panType = FLPanTypeTrackMove;
+    
+  } else if (gestureRecognizer.state == UIGestureRecognizerStateChanged) {
+
+    _mainToolbarState.toolInUseNode.position = sceneLocation;
+    [self FL_trackMoveContinuedWithGridX:gridX gridY:gridY];
+
+  } else if (gestureRecognizer.state == UIGestureRecognizerStateEnded) {
+
+    [_mainToolbarState.toolInUseNode removeFromParent];
+    _mainToolbarState.toolInUseNode = nil;
+    [self FL_trackMoveEndedWithGridX:gridX gridY:gridY];
+    
+  } else if (gestureRecognizer.state == UIGestureRecognizerStateCancelled) {
+
+    [_mainToolbarState.toolInUseNode removeFromParent];
+    _mainToolbarState.toolInUseNode = nil;
+    [self FL_trackMoveCancelledWithGridX:gridX gridY:gridY];
+
+  }
 }
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer
@@ -493,112 +540,152 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   if (gestureRecognizer == _panRecognizer && otherGestureRecognizer == _longPressRecognizer) {
     return YES;
   }
+  // I think this helps.  Otherwise it seems my pinch gesture sometimes gets interpreted as a pan.
+  // I think.
+  if (gestureRecognizer == _panRecognizer && otherGestureRecognizer == _pinchRecognizer) {
+    return YES;
+  }
   return NO;
 }
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch
 {
-  // noob: From the UIGestureRecognizer class reference:
-  //
-  //     A gesture recognizer operates on touches hit-tested to a specific view and all of that
-  //     view's subviews. ... A window delivers touch events to a gesture recognizer before it
-  //     delivers them to the hit-tested view attached to the gesture recognizer.
-  //
-  // So if we're using gesture recognizers in this scene, then we need to explicitly exclude regions
-  // that should block the gesture from starting (or continuing, or whatever).  For us, that's anything
-  // in the HUD layer.
+  CGPoint viewLocation = [touch locationInView:self.view];
+  CGPoint sceneLocation = [self convertPointFromView:viewLocation];
+  CGPoint trackLocation = [_trackNode convertPoint:sceneLocation fromNode:self];
 
-  // noob: It appears that this is only called for initial touches, and not for continued touches that
-  // the gesture recognizer has already started recognizing.  So, for example, a pan begun on one side
-  // of the toolbar, and continuing through it, continues to be recognized by the pan gesture
-  // recognizer.  This is good.  Otherwise, I suppose I would be doing explicit checks of the
-  // recognizer's state here.
+  // note: Remembering the first touch location is useful, for example, for a pan gesture recognizer,
+  // which only knows where the gesture was first recognized (after possibly significant movement).
+  _gestureRecognizerState.gestureFirstTouchLocation = viewLocation;
 
-  CGPoint hudLocation = [touch locationInNode:_hudNode];
-  if ([_hudNode nodeAtPoint:hudLocation] != _hudNode) {
+  // noob: Right now we just do a linear search through the various interface components/helpers to
+  // see who wants to receive which gestures.  This could be replaced by some kind of general-purpose
+  // registration system, where the component registers itself, or defines an interface by which it
+  // may be asked if it wants a particular gesture, and if so, which method to call.
+
+  // Main toolbar.
+  if (_mainToolbarState.toolbarNode && [_mainToolbarState.toolbarNode containsPoint:sceneLocation]) {
+    if ([gestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]]) {
+      [gestureRecognizer removeTarget:nil action:nil];
+      [gestureRecognizer addTarget:self action:@selector(handleMainToolbarPan:)];
+      return YES;
+    }
     return NO;
   }
   
-  if (gestureRecognizer == _panRecognizer) {
-    CGPoint location = [touch locationInView:self.view];
-    // note: The pan gesture recognizer only recognizes after the touch has
-    // moved a bit.  This code could go in touchesBegan:, but it's nice to
-    // keep it in the gesture-recognizer-only domain, here.
-    _gestureRecognizerState.panFirstTouchLocation = location;
+  // Track edit menu.
+  if (_trackEditMenuHelper.editMenuNode && [_trackEditMenuHelper.editMenuNode containsPoint:trackLocation]) {
+    if ([gestureRecognizer isKindOfClass:[UITapGestureRecognizer class]]) {
+      [gestureRecognizer removeTarget:nil action:nil];
+      [gestureRecognizer addTarget:_trackEditMenuHelper action:@selector(handleTap:)];
+      return YES;
+    }
+    return NO;
+  }
+
+  // World.
+  if ([gestureRecognizer isKindOfClass:[UITapGestureRecognizer class]]) {
+    [gestureRecognizer removeTarget:nil action:nil];
+    [gestureRecognizer addTarget:self action:@selector(handleWorldTap:)];
+    return YES;
+  }
+  if ([gestureRecognizer isKindOfClass:[UILongPressGestureRecognizer class]]) {
+    [gestureRecognizer removeTarget:nil action:nil];
+    [gestureRecognizer addTarget:self action:@selector(handleWorldLongPress:)];
+    return YES;
+  }
+  if ([gestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]]) {
+    [gestureRecognizer removeTarget:nil action:nil];
+    [gestureRecognizer addTarget:self action:@selector(handleWorldPan:)];
+    return YES;
+  }
+  if ([gestureRecognizer isKindOfClass:[UIPinchGestureRecognizer class]]) {
+    [gestureRecognizer removeTarget:nil action:nil];
+    [gestureRecognizer addTarget:self action:@selector(handleWorldPinch:)];
+    return YES;
   }
   
-  return YES;
+  // None.
+  //
+  // noob: So, what if we return NO?  We want the gesture recognizer to be disabled, and its target
+  // not to be called.  If returning NO doesn't do that, then try calling removeTarget:.
+  return NO;
 }
 
-#pragma mark -
-#pragma mark FLToolbarNodeDelegate (for main toolbar)
-
-- (void)toolbarNode:(FLToolbarNode *)toolbarNode toolMoveBegan:(NSString *)tool location:(CGPoint)location
-{
-  SKNode *toolInUse = [_hudNode childNodeWithName:@"toolInUse"];
-  if (toolInUse) {
-    [NSException raise:@"FLBadToolbarState"
-                format:@"Toolbar says tool \"%@\" began, but toolInUse node already exists.", tool];
-  };
-  toolInUse = [self FL_createSprite:@"toolInUse" withTexture:tool parent:_hudNode];
-  toolInUse.position = [_hudNode convertPoint:location fromNode:toolbarNode];
-  toolInUse.zRotation = M_PI_2;
-  toolInUse.alpha = 0.5f;
-
-  SKSpriteNode *newSegmentNode = [self FL_createSprite:nil withTexture:tool parent:nil];
-  newSegmentNode.userData = [NSMutableDictionary dictionaryWithDictionary:@{ @"segmentType" : tool }];
-  newSegmentNode.zPosition = FLZPositionTrackPlaced;
-  newSegmentNode.zRotation = M_PI_2;
-  CGPoint segmentLocation = [_trackNode convertPoint:location fromNode:toolbarNode];
-  int gridX = int(floorf(segmentLocation.x / _gridSize + 0.5f));
-  int gridY = int(floorf(segmentLocation.y / _gridSize + 0.5f));
-  [self FL_trackMoveBeganWithNode:newSegmentNode gridX:gridX gridY:gridY];
-}
-
-- (void)toolbarNode:(FLToolbarNode *)toolbarNode toolMoveChanged:(NSString *)tool location:(CGPoint)location
-{
-  SKNode *toolInUse = [_hudNode childNodeWithName:@"toolInUse"];
-  if (!toolInUse) {
-    [NSException raise:@"FLBadToolbarState"
-                format:@"Toolbar says tool \"%@\" moved, but no toolInUse node exists.", tool];
-  };
-  toolInUse.position = [_hudNode convertPoint:location fromNode:toolbarNode];
-
-  CGPoint segmentLocation = [_trackNode convertPoint:location fromNode:toolbarNode];
-  int gridX = int(floorf(segmentLocation.x / _gridSize + 0.5f));
-  int gridY = int(floorf(segmentLocation.y / _gridSize + 0.5f));
-  [self FL_trackMoveContinuedWithGridX:gridX gridY:gridY];
-}
-
-- (void)toolbarNode:(FLToolbarNode *)toolbarNode toolMoveEnded:(NSString *)tool location:(CGPoint)location
-{
-  SKNode *toolInUse = [_hudNode childNodeWithName:@"toolInUse"];
-  if (!toolInUse) {
-    [NSException raise:@"FLBadToolbarState"
-                format:@"Toolbar says tool \"%@\" ended, but no toolInUse node exists.", tool];
-  };
-  [toolInUse removeFromParent];
-
-  CGPoint segmentLocation = [_trackNode convertPoint:location fromNode:toolbarNode];
-  int gridX = int(floorf(segmentLocation.x / _gridSize + 0.5f));
-  int gridY = int(floorf(segmentLocation.y / _gridSize + 0.5f));
-  [self FL_trackMoveEndedWithGridX:gridX gridY:gridY];
-}
-
-- (void)toolbarNode:(FLToolbarNode *)toolbarNode toolMoveCancelled:(NSString *)tool location:(CGPoint)location
-{
-  SKNode *toolInUse = [_hudNode childNodeWithName:@"toolInUse"];
-  if (!toolInUse) {
-    [NSException raise:@"FLBadToolbarState"
-                format:@"Toolbar says tool \"%@\" cancelled, but no toolInUse node exists.", tool];
-  };
-  [toolInUse removeFromParent];
-
-  CGPoint segmentLocation = [_trackNode convertPoint:location fromNode:toolbarNode];
-  int gridX = int(floorf(segmentLocation.x / _gridSize + 0.5f));
-  int gridY = int(floorf(segmentLocation.y / _gridSize + 0.5f));
-  [self FL_trackMoveCancelledWithGridX:gridX gridY:gridY];
-}
+// Commented out: Started building this way of separating gesture delegate from target, but I'm not sure
+// it's going to be used.  Still, keep the code around for a while in case I want it.
+//
+//- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch
+//{
+//  // noob: The scene contains a few different components which respond to gestures.  For instance, the world
+//  // responds to zooming, panning, and track selection; the main and popup toolbars respond to taps and pans.
+//  // So the SKScene is the delegate and owner of all gesture recognizers; that seems right.  But if I set it
+//  // as the only target of each gesture, then each target selector will be doing some kind of search to see
+//  // which component of the scene should be receiving (and responding to) the gesture.  Further, it seems
+//  // that "search" will either be a big linear switch statement in each method, or else something more
+//  // sophisiticated which would be repeated in each method.
+//  //
+//  // So, let's make the SKScene responsible for maintaining state about the current target of the gesture
+//  // recognizer objects, and the components responsible for implementing target methods.
+//  //
+//  // More ideas for loose-coupling: The components could excplicitly subscribe to receive particular gestures
+//  // from the SKScene, through an interface.  Then the SKScene could add the required gesture recognizers
+//  // as needed.
+//  //
+//  // For now, I don't mind hardcoding some of the knowledge about components here in the scene.  After all,
+//  // the scene created these guys, so it knows something about them.
+//  //
+//  // Also, rather than do linear search, let's assume that hit-testing the initial touch to a particular
+//  // SKNode is optimized to be fast.  I guess this is how SKScene (SKView?) forwards UIResponder touches*
+//  // methods to a particular SKNode: It gets the highest-position node for the touch, then walks up the node
+//  // tree looking for userInteractionEnabled.
+//
+//  // noob: It appears that this is only called for initial touches, and not for continued touches that
+//  // the gesture recognizer has already started recognizing.  So, for example, a pan begun on one side
+//  // of the toolbar, and continuing through it, continues to be recognized by the pan gesture
+//  // recognizer.  This is good.  Otherwise, I suppose I would be doing explicit checks of the
+//  // recognizer's state here.
+//
+//  CGPoint sceneLocation = [touch locationInNode:self];
+//  SKNode *node = [self nodeAtPoint:sceneLocation];
+//  SKNode <FLGestureTarget> *target = self;
+//  while (node != self) {
+//    if ([node conformsToProtocol:@protocol(FLGestureTarget) ]) {
+//      target = (SKNode <FLGestureTarget> *)node;
+//      break;
+//    }
+//    node = node.parent;
+//  }
+//
+//  // noob: If this idea of a gesture-forwarding system works out in the long run, I might make a real
+//  // subscription system, and if so then the naming of the action handler method will be a natural
+//  // part of it.  (For instance, a particular toolbar will subscribe for tap gestures with selector
+//  // handleTap:, both of which will be parameters here.)  For now, let's just use something clumsy
+//  // and hardcoded.
+//  SEL action;
+//  if ([gestureRecognizer isKindOfClass:[UITapGestureRecognizer class]]) {
+//    action = @selector(handleTap:);
+//  } else if ([gestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]]) {
+//    action = @selector(handlePan:);
+//  } else if (...) {
+//    ...
+//  } else {
+//    action = @selector(handleGesture:);
+//  }
+//
+//  [gestureRecognizer removeTarget:nil action:nil];
+//  [gestureRecognizer addTarget:target action:action];
+//
+//  if (target == self) {
+//    return YES;
+//  } else {
+//    // noob: We're splitting gesture delegate from delegate target, but the target might want input
+//    // into certain delegate-ish things.  This is an example.  It's either an example of discomfort,
+//    // because maybe target shouldn't be split from delegate, or else an example of elegance, because
+//    // we can cleanly separate the concerns by a registered interface of FLGestureTarget.
+//    return [target shouldHandleGesture:gestureRecognizer firstTouch:touch];
+//  }
+//}
 
 #pragma mark -
 #pragma mark Common
@@ -616,6 +703,8 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   SKSpriteNode *sprite = [SKSpriteNode spriteNodeWithTexture:texture];
   sprite.name = spriteName;
   sprite.scale = _artScale;
+  // note: The textureKey in user data is currently only used for debugging.
+  sprite.userData = [NSMutableDictionary dictionaryWithDictionary:@{ @"textureKey" : textureKey }];
   [parent addChild:sprite];
   return sprite;
 }
@@ -624,11 +713,11 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 {
   if (!_mainToolbarState.toolbarNode) {
     const CGFloat FLMainToolbarBottomPad = 20.0f;
-    
+
     _mainToolbarState.toolbarNode = [[FLToolbarNode alloc] init];
-    _mainToolbarState.toolbarNode.delegate = self;
     _mainToolbarState.toolbarNode.anchorPoint = CGPointMake(0.5f, 0.0f);
     _mainToolbarState.toolbarNode.position = CGPointMake(0.0f, FLMainToolbarBottomPad - self.size.height / 2.0f);
+    _mainToolbarState.toolbarNode.toolPad = -1.0f;
 
     CGFloat artSegmentBasicInset = (_artSegmentSizeFull - _artSegmentSizeBasic) / 2.0f;
     // note: The straight segment runs along the visual edge of a square; we'd like to shift
@@ -650,7 +739,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
                                                               [NSValue valueWithCGPoint:CGPointMake(curveShift, -curveShift)],
                                                               [NSValue valueWithCGPoint:CGPointMake(curveShift, -curveShift)] ]];
   }
-  
+
   if (visible) {
     if (!_mainToolbarState.toolbarNode.parent) {
       [_hudNode addChild:_mainToolbarState.toolbarNode];
@@ -742,7 +831,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   }
 
   _trackMoveState.segmentMoving = segmentMovingNode;
-  
+
   [_trackEditMenuHelper hideAnimated:YES];
 
   // note: The update call will detect no parent and know that the segmentMovingNode has
@@ -772,11 +861,11 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   [self FL_trackMoveUpdateWithGridX:gridX gridY:gridY];
 
   // note: Current selection unchanged.
-  [_trackEditMenuHelper showOnTrack:_trackNode atSegment:_trackMoveState.segmentMoving animated:YES];
+  [_trackEditMenuHelper showOnTrack:_trackNode atSegment:_trackMoveState.segmentMoving gridX:gridX gridY:gridY animated:YES];
   _trackMoveState.segmentMoving = nil;
   _trackMoveState.segmentRemoving = nil;
-  
-  [self FL_dumpTrackGrid];
+
+  [self FL_trackGridDump];
 }
 
 - (void)FL_trackMoveCancelledWithGridX:(int)gridX gridY:(int)gridY
@@ -807,8 +896,8 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
     [self FL_trackSelectClear];
   }
-  
-  [self FL_dumpTrackGrid];
+
+  [self FL_trackGridDump];
 }
 
 /**
@@ -866,7 +955,24 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   [self FL_trackSelectGridX:gridX gridY:gridY];
 }
 
-- (void)FL_dumpTrackGrid
+- (void)FL_trackGridEraseGridX:(int)gridX gridY:(int)gridY animated:(BOOL)animated
+{
+  SKSpriteNode *segmentNode = _trackGrid.get(gridX, gridY, nil);
+  if (segmentNode) {
+    if (!animated) {
+      [segmentNode removeFromParent];
+    } else {
+      SKAction *fadeOut = [SKAction fadeOutWithDuration:0.2f];
+      SKAction *remove = [SKAction removeFromParent];
+      SKAction *eraseSequence = [SKAction sequence:@[ fadeOut, remove ]];
+      [segmentNode runAction:eraseSequence];
+    }
+    _trackGrid.erase(gridX, gridY);
+    [_trackEditMenuHelper hideAnimated:YES];
+  }
+}
+
+- (void)FL_trackGridDump
 {
   std::cout << "dump track grid:" << std::endl;
   for (int y = 3; y >= -4; --y) {
@@ -876,12 +982,12 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
       if (segmentNode == nil) {
         c = '.';
       } else {
-        NSString *segmentType = [segmentNode.userData objectForKey:@"segmentType"];
-        if ([segmentType isEqualToString:@"straight"]) {
+        NSString *textureKey = [segmentNode.userData objectForKey:@"textureKey"];
+        if ([textureKey isEqualToString:@"straight"]) {
           c = '|';
-        } else if ([segmentType isEqualToString:@"curve"]) {
+        } else if ([textureKey isEqualToString:@"curve"]) {
           c = '/';
-        } else if ([segmentType isEqualToString:@"join"]) {
+        } else if ([textureKey isEqualToString:@"join"]) {
           c = 'Y';
         } else {
           c = '?';
@@ -900,17 +1006,19 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
 @implementation FLTrackEditMenuHelper
 {
-  __weak SKScene *_scene;
+  __weak FLTrackScene *_scene;
+  int _lastGridX;
+  int _lastGridY;
+  CGPoint _lastOrigin;
 }
 
-- (id)initWithScene:(SKScene *)scene
+- (id)initWithScene:(FLTrackScene *)scene
 {
   self = [super init];
   if (self) {
     _scene = scene;
     CGSize FLTrackEditMenuToolSize = { 48.0f, 48.0f };
     _editMenuNode = [[FLToolbarNode alloc] init];
-    _editMenuNode.delegate = self;
     _editMenuNode.zPosition = FLZPositionTrackOverlay;
     _editMenuNode.anchorPoint = CGPointMake(0.5f, 0.0f);
     NSValue *toolSize = [NSValue valueWithCGSize:FLTrackEditMenuToolSize];
@@ -922,25 +1030,33 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   return self;
 }
 
-- (void)showOnTrack:(SKNode *)trackNode atSegment:(SKSpriteNode *)segmentNode animated:(BOOL)animated
+- (void)showOnTrack:(SKNode *)trackNode atSegment:(SKSpriteNode *)segmentNode gridX:(int)gridX gridY:(int)gridY animated:(BOOL)animated
 {
   const CGFloat FLTrackEditMenuBottomPad = 0.0f;
-  
-  // TODO: Animated.
+
   CGPoint trackLocation = CGPointMake(segmentNode.position.x, segmentNode.position.y + segmentNode.size.height / 2.0f + FLTrackEditMenuBottomPad);
   _editMenuNode.position = trackLocation;
   if (!_editMenuNode.parent) {
     [trackNode addChild:_editMenuNode];
   }
+  if (animated) {
+    [_editMenuNode runShowWithOrigin:segmentNode.position];
+  }
+  _lastOrigin = segmentNode.position;
+  _lastGridX = gridX;
+  _lastGridY = gridY;
 }
 
 - (void)hideAnimated:(BOOL)animated
 {
-  // TODO: Animated.
   if (!_editMenuNode.parent) {
     return;
   }
-  [_editMenuNode removeFromParent];
+  if (!animated) {
+    [_editMenuNode removeFromParent];
+  } else {
+    [_editMenuNode runHideWithOrigin:_lastOrigin removeFromParent:YES];
+  }
 }
 
 - (void)scaleToWorld:(SKNode *)worldNode
@@ -950,15 +1066,30 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   // what the scale of the world.  Values less than one mean less-dramatic scaling than
   // the world, and vice versa.
   const CGFloat FLTrackEditMenuScaleFactor = 0.5f;
-  
+
   CGFloat editMenuScale = 1.0f / powf(worldNode.xScale, FLTrackEditMenuScaleFactor);
   _editMenuNode.xScale = editMenuScale;
   _editMenuNode.yScale = editMenuScale;
 }
 
-- (void)toolbarNode:(FLToolbarNode *)toolbarNode toolTapped:(NSString *)tool
+- (void)handleTap:(UIGestureRecognizer *)gestureRecognizer
 {
-  NSLog(@"tool %@ tapped", tool);
+  CGPoint viewLocation = [gestureRecognizer locationInView:_scene.view];
+  CGPoint sceneLocation = [_scene convertPointFromView:viewLocation];
+  CGPoint toolbarLocation = [_editMenuNode convertPoint:sceneLocation fromNode:_scene];
+  NSString *button = [_editMenuNode toolAtLocation:toolbarLocation];
+
+  // noob: This is a helper, which is supposed to have private access to the scene.  We're faking
+  // that right now by passing in all private data that needs to be accessed, but it occurs to me
+  // that deleting a track segment might involve a callback to a private method of the scene (in
+  // case we want to do some standard things, like animation, when deleting a segment).  Not sure
+  // how to fake that.
+
+  if ([button isEqualToString:@"rotate-cw"]) {
+  } else if ([button isEqualToString:@"rotate-ccw"]) {
+  } else if ([button isEqualToString:@"delete"]) {
+    [_scene FL_trackGridEraseGridX:_lastGridX gridY:_lastGridY animated:YES];
+  }
 }
 
 @end
