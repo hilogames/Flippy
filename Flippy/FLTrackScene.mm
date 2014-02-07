@@ -16,6 +16,7 @@ using namespace HLCommon;
 
 static const CGFloat FLWorldScaleMin = 0.125f;
 static const CGFloat FLWorldScaleMax = 2.0f;
+static const CGSize FLWorldSize = { 3000.0f, 3000.0f };
 
 // Main layers.
 static const CGFloat FLZPositionWorld = 0.0f;
@@ -179,7 +180,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
 - (void)FL_createSceneContents
 {
-  self.backgroundColor = [SKColor colorWithRed:0.4 green:0.6 blue:0.4 alpha:1.0];
+  self.backgroundColor = [SKColor colorWithRed:0.4 green:0.6 blue:0.0 alpha:1.0];
   self.anchorPoint = CGPointMake(0.5f, 0.5f);
 
   // Create basic layers.
@@ -206,12 +207,22 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   _worldNode.zPosition = FLZPositionWorld;
   [self addChild:_worldNode];
 
-  SKSpriteNode *terrainNode = [SKSpriteNode spriteNodeWithImageNamed:@"earth-map.jpg"];
-  // noob: Using a tip to use replace blend mode for opaque sprites, but since
-  // JPGs don't have an alpha channel in the source, does this really do anything?
+  UIImage *terrainTileImage = [UIImage imageNamed:@"grass.png"];
+  CGRect terrainTileRect = CGRectMake(0.0f, 0.0f, terrainTileImage.size.width, terrainTileImage.size.height);
+  CGImageRef terrainTileRef = [terrainTileImage CGImage];
+  // TODO: Begin context with scaling options for Retina display.
+  UIGraphicsBeginImageContext(FLWorldSize);
+  CGContextRef context = UIGraphicsGetCurrentContext();
+  CGContextDrawTiledImage(context, terrainTileRect, terrainTileRef);
+  UIImage *terrainImage = UIGraphicsGetImageFromCurrentImageContext();
+  UIGraphicsEndImageContext();
+  SKTexture *terrainTexture = [SKTexture textureWithCGImage:[terrainImage CGImage]];
+  SKSpriteNode *terrainNode = [SKSpriteNode spriteNodeWithTexture:terrainTexture];
   terrainNode.zPosition = FLZPositionTerrain;
+  // noob: Using a tip to use replace blend mode for opaque sprites, but since
+  // JPEGs don't have an alpha channel in the source, does this really do anything
+  // for JPEGs?
   terrainNode.blendMode = SKBlendModeReplace;
-  terrainNode.scale = 2.0f;
   [_worldNode addChild:terrainNode];
 
   // noob: See note near _worldNode above: We will probaly want to add/remove near/distant
@@ -474,6 +485,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   }
   _worldNode.xScale = worldScaleCurrent;
   _worldNode.yScale = worldScaleCurrent;
+  [_trackEditMenuHelper scaleToWorld:_worldNode];
   CGFloat scaleFactor = worldScaleCurrent / handlePinchWorldScaleBegin;
 
   // Zoom around previously-chosen center point.
@@ -481,12 +493,17 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   worldPosition.x = (handlePinchWorldPositionBegin.x - _gestureRecognizerState.pinchZoomCenter.x) * scaleFactor + _gestureRecognizerState.pinchZoomCenter.x;
   worldPosition.y = (handlePinchWorldPositionBegin.y - _gestureRecognizerState.pinchZoomCenter.y) * scaleFactor + _gestureRecognizerState.pinchZoomCenter.y;
   _worldNode.position = worldPosition;
-  
-  [_trackEditMenuHelper scaleToWorld:_worldNode];
 }
 
 - (void)handleMainToolbarPan:(UIGestureRecognizer *)gestureRecognizer
 {
+  // TODO: This should pan the world when tool is dragged to edge of scene.
+  // Also, should perhaps recenter world as needed when tool is released,
+  // if track is placed, so that the track edit popup menu can fit fully
+  // into the scene.  (This could be the purview of either selection, or
+  // track edit menu, or track move.  Since it's not clear, we could order
+  // it explicitly -- get track edit menu to calculate it the centering
+  // factor for us, then tell the world to fit a certain point.  Or something.)
   CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
   CGPoint sceneLocation = [self convertPointFromView:viewLocation];
   CGPoint trackLocation = [_trackNode convertPoint:sceneLocation fromNode:self];
@@ -955,6 +972,22 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   [self FL_trackSelectGridX:gridX gridY:gridY];
 }
 
+- (void)FL_trackGridRotateGridX:(int)gridX gridY:(int)gridY rotateBy:(int)rotateBy animated:(BOOL)animated
+{
+  // note: rotateBy positive means counterclockwise; negative means clockwise.
+  SKSpriteNode *segmentNode = _trackGrid.get(gridX, gridY, nil);
+  if (segmentNode) {
+    if (!animated) {
+      // noob: Trying to avoid cumulative floating point error.  Maybe this is overkill.
+      segmentNode.zRotation = (int(floorf((segmentNode.zRotation + 0.00001f) / M_PI_2)) + rotateBy) * M_PI_2;
+    } else {
+      // noob: If this leads to cumulative floating point error, then use rotateToAngle:.
+      SKAction *rotate = [SKAction rotateByAngle:(rotateBy * M_PI_2) duration:0.1];
+      [segmentNode runAction:rotate];
+    }
+  }
+}
+
 - (void)FL_trackGridEraseGridX:(int)gridX gridY:(int)gridY animated:(BOOL)animated
 {
   SKSpriteNode *segmentNode = _trackGrid.get(gridX, gridY, nil);
@@ -962,7 +995,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     if (!animated) {
       [segmentNode removeFromParent];
     } else {
-      SKAction *fadeOut = [SKAction fadeOutWithDuration:0.2f];
+      SKAction *fadeOut = [SKAction fadeOutWithDuration:0.2];
       SKAction *remove = [SKAction removeFromParent];
       SKAction *eraseSequence = [SKAction sequence:@[ fadeOut, remove ]];
       [segmentNode runAction:eraseSequence];
@@ -1035,12 +1068,14 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   const CGFloat FLTrackEditMenuBottomPad = 0.0f;
 
   CGPoint trackLocation = CGPointMake(segmentNode.position.x, segmentNode.position.y + segmentNode.size.height / 2.0f + FLTrackEditMenuBottomPad);
-  _editMenuNode.position = trackLocation;
   if (!_editMenuNode.parent) {
     [trackNode addChild:_editMenuNode];
   }
-  if (animated) {
-    [_editMenuNode runShowWithOrigin:segmentNode.position];
+  if (!animated) {
+    _editMenuNode.position = trackLocation;
+  } else {
+    CGFloat fullScale = [self scaleForWorld:trackNode.parent];
+    [_editMenuNode runShowWithOrigin:segmentNode.position finalPosition:trackLocation fullScale:fullScale];
   }
   _lastOrigin = segmentNode.position;
   _lastGridX = gridX;
@@ -1061,15 +1096,19 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
 - (void)scaleToWorld:(SKNode *)worldNode
 {
+  CGFloat editMenuScale = [self scaleForWorld:worldNode];
+  _editMenuNode.xScale = editMenuScale;
+  _editMenuNode.yScale = editMenuScale;
+}
+
+- (CGFloat)scaleForWorld:(SKNode *)worldNode
+{
   // note: The track edit menu scales inversely to the world, but perhaps at a different rate.
   // A value of 1.0f means the edit menu will always maintain the same screen size no matter
   // what the scale of the world.  Values less than one mean less-dramatic scaling than
   // the world, and vice versa.
   const CGFloat FLTrackEditMenuScaleFactor = 0.5f;
-
-  CGFloat editMenuScale = 1.0f / powf(worldNode.xScale, FLTrackEditMenuScaleFactor);
-  _editMenuNode.xScale = editMenuScale;
-  _editMenuNode.yScale = editMenuScale;
+  return 1.0f / powf(worldNode.xScale, FLTrackEditMenuScaleFactor);
 }
 
 - (void)handleTap:(UIGestureRecognizer *)gestureRecognizer
@@ -1086,7 +1125,9 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   // how to fake that.
 
   if ([button isEqualToString:@"rotate-cw"]) {
+    [_scene FL_trackGridRotateGridX:_lastGridX gridY:_lastGridY rotateBy:-1 animated:YES];
   } else if ([button isEqualToString:@"rotate-ccw"]) {
+    [_scene FL_trackGridRotateGridX:_lastGridX gridY:_lastGridY rotateBy:1 animated:YES];
   } else if ([button isEqualToString:@"delete"]) {
     [_scene FL_trackGridEraseGridX:_lastGridX gridY:_lastGridY animated:YES];
   }

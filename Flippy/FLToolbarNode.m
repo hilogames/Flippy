@@ -111,16 +111,41 @@ static const CGFloat FLToolbarToolSeparatorSize = 3.0f;
   return nil;
 }
 
-- (void)runShowWithOrigin:(CGPoint)origin fullScale:(CGFloat)fullScale
+- (void)runShowWithOrigin:(CGPoint)origin finalPosition:(CGPoint)finalPosition fullScale:(CGFloat)fullScale
 {
+  // noob: I'm encapsulating this animation within the toolbar, since the toolbar might know cool ways to make itself
+  // appear.  But the owner of this toolbar knows the anchor, position, size, and scale of this toolbar, which then
+  // all needs to be communicated to this animation method.  Kind of a pain.
+  const NSTimeInterval FLToolbarNodeShowDuration = 0.15;
+  self.xScale = 0.0f;
+  self.yScale = 0.0f;
+  SKAction *grow = [SKAction scaleTo:fullScale duration:FLToolbarNodeShowDuration];
+  self.position = origin;
+  SKAction *move = [SKAction moveTo:finalPosition duration:FLToolbarNodeShowDuration];
+  SKAction *showGroup = [SKAction group:@[ grow, move ]];
+  [self runAction:showGroup];
 }
 
 - (void)runHideWithOrigin:(CGPoint)origin removeFromParent:(BOOL)removeFromParent
 {
-  SKAction *fadeOut = [SKAction fadeOutWithDuration:0.2f];
+  // noob: After removing the node from the parent, we restore everything we changed, so from the owner's point
+  // of view, the node looks the same when re-added.  Not sure if this is the right way to think of this; perhaps
+  // instead we should own more of our own appearance properties, or maybe expose a show: method which restores
+  // these things if necessary.
+  const NSTimeInterval FLToolbarNodeHideDuration = 0.15;
+  CGFloat originalXScale = self.xScale;
+  CGFloat originalYScale = self.yScale;
+  CGPoint originalPosition = self.position;
+  SKAction *shrink = [SKAction scaleTo:0.0f duration:FLToolbarNodeHideDuration];
+  SKAction *move = [SKAction moveTo:origin duration:FLToolbarNodeHideDuration];
+  SKAction *hideGroup = [SKAction group:@[ shrink, move]];
   SKAction *remove = [SKAction removeFromParent];
-  SKAction *hideSequence = [SKAction sequence:@[ fadeOut, remove ]];
-  [self runAction:hideSequence completion:^{ self.alpha = 1.0f; }];
+  SKAction *hideSequence = [SKAction sequence:@[ hideGroup, remove ]];
+  [self runAction:hideSequence completion:^{
+    self.xScale = originalXScale;
+    self.yScale = originalYScale;
+    self.position = originalPosition;
+  }];
 }
 
 @end

@@ -31,7 +31,7 @@
  */
 - (NSString *)toolAtLocation:(CGPoint)location;
 
-- (void)runShowWithOrigin:(CGPoint)origin;
+- (void)runShowWithOrigin:(CGPoint)origin finalPosition:(CGPoint)finalPosition fullScale:(CGFloat)fullScale;
 
 - (void)runHideWithOrigin:(CGPoint)origin removeFromParent:(BOOL)removeFromParent;
 
