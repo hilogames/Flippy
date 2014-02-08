@@ -123,6 +123,7 @@ static const CGFloat FLToolbarToolSeparatorSize = 3.0f;
   self.position = origin;
   SKAction *move = [SKAction moveTo:finalPosition duration:FLToolbarNodeShowDuration];
   SKAction *showGroup = [SKAction group:@[ grow, move ]];
+  showGroup.timingMode = SKActionTimingEaseOut;
   [self runAction:showGroup];
 }
 
@@ -139,6 +140,7 @@ static const CGFloat FLToolbarToolSeparatorSize = 3.0f;
   SKAction *shrink = [SKAction scaleTo:0.0f duration:FLToolbarNodeHideDuration];
   SKAction *move = [SKAction moveTo:origin duration:FLToolbarNodeHideDuration];
   SKAction *hideGroup = [SKAction group:@[ shrink, move]];
+  hideGroup.timingMode = SKActionTimingEaseIn;
   SKAction *remove = [SKAction removeFromParent];
   SKAction *hideSequence = [SKAction sequence:@[ hideGroup, remove ]];
   [self runAction:hideSequence completion:^{

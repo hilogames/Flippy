@@ -992,13 +992,20 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 {
   SKSpriteNode *segmentNode = _trackGrid.get(gridX, gridY, nil);
   if (segmentNode) {
-    if (!animated) {
-      [segmentNode removeFromParent];
-    } else {
-      SKAction *fadeOut = [SKAction fadeOutWithDuration:0.2];
-      SKAction *remove = [SKAction removeFromParent];
-      SKAction *eraseSequence = [SKAction sequence:@[ fadeOut, remove ]];
-      [segmentNode runAction:eraseSequence];
+    [segmentNode removeFromParent];
+    if (animated) {
+      SKEmitterNode *sleeperDestruction = [NSKeyedUnarchiver unarchiveObjectWithFile:[[NSBundle mainBundle] pathForResource:@"sleeperDestruction" ofType:@"sks"]];
+      SKEmitterNode *railDestruction = [NSKeyedUnarchiver unarchiveObjectWithFile:[[NSBundle mainBundle] pathForResource:@"railDestruction" ofType:@"sks"]];
+      // TODO: This kind of thing makes me think having an _artScale is a bad idea.  Resample the art.
+      sleeperDestruction.xScale = _artScale;
+      sleeperDestruction.yScale = _artScale;
+      railDestruction.xScale = _artScale;
+      railDestruction.yScale = _artScale;
+      CGPoint trackLocation = CGPointMake(gridX * _gridSize, gridY *_gridSize);
+      sleeperDestruction.position = trackLocation;
+      railDestruction.position = trackLocation;
+      [_trackNode addChild:sleeperDestruction];
+      [_trackNode addChild:railDestruction];
     }
     _trackGrid.erase(gridX, gridY);
     [_trackEditMenuHelper hideAnimated:YES];

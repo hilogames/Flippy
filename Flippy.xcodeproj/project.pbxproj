@@ -12,6 +12,10 @@
 		CB3FBDCD1889860A00CE5BBD /* QuadTree.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */; };
 		CB657E9A1843E8DB00399E34 /* track.atlas in Resources */ = {isa = PBXBuildFile; fileRef = CB657E991843E8DB00399E34 /* track.atlas */; };
 		CB88668F18A540130045FD7E /* grass.png in Resources */ = {isa = PBXBuildFile; fileRef = CB88668E18A540130045FD7E /* grass.png */; };
+		CB88669218A544530045FD7E /* sleeperDestruction.sks in Resources */ = {isa = PBXBuildFile; fileRef = CB88669018A544530045FD7E /* sleeperDestruction.sks */; };
+		CB88669618A544820045FD7E /* rail.png in Resources */ = {isa = PBXBuildFile; fileRef = CB88669418A544820045FD7E /* rail.png */; };
+		CB88669718A544820045FD7E /* sleeper.png in Resources */ = {isa = PBXBuildFile; fileRef = CB88669518A544820045FD7E /* sleeper.png */; };
+		CB88669918A549150045FD7E /* railDestruction.sks in Resources */ = {isa = PBXBuildFile; fileRef = CB88669818A549150045FD7E /* railDestruction.sks */; };
 		CBB4B7F9183C00E1003C3444 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B7F8183C00E1003C3444 /* Foundation.framework */; };
 		CBB4B7FB183C00E1003C3444 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B7FA183C00E1003C3444 /* CoreGraphics.framework */; };
 		CBB4B7FD183C00E1003C3444 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B7FC183C00E1003C3444 /* UIKit.framework */; };
@@ -48,6 +52,10 @@
 		CB3FBDCC1889860A00CE5BBD /* QuadTree.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = QuadTree.h; sourceTree = "<group>"; };
 		CB657E991843E8DB00399E34 /* track.atlas */ = {isa = PBXFileReference; lastKnownFileType = folder.skatlas; path = track.atlas; sourceTree = "<group>"; };
 		CB88668E18A540130045FD7E /* grass.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = grass.png; sourceTree = "<group>"; };
+		CB88669018A544530045FD7E /* sleeperDestruction.sks */ = {isa = PBXFileReference; lastKnownFileType = file.sks; path = sleeperDestruction.sks; sourceTree = "<group>"; };
+		CB88669418A544820045FD7E /* rail.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = rail.png; sourceTree = "<group>"; };
+		CB88669518A544820045FD7E /* sleeper.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = sleeper.png; sourceTree = "<group>"; };
+		CB88669818A549150045FD7E /* railDestruction.sks */ = {isa = PBXFileReference; lastKnownFileType = file.sks; path = railDestruction.sks; sourceTree = "<group>"; };
 		CBB4B7F5183C00E1003C3444 /* Flippy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Flippy.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CBB4B7F8183C00E1003C3444 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		CBB4B7FA183C00E1003C3444 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
@@ -135,25 +143,29 @@
 		CBB4B800183C00E1003C3444 /* Flippy */ = {
 			isa = PBXGroup;
 			children = (
-				CB88668E18A540130045FD7E /* grass.png */,
 				CB251206184E7DEB003DD411 /* earth-map.jpg */,
 				CBB4B809183C00E1003C3444 /* FLAppDelegate.h */,
 				CBB4B80A183C00E1003C3444 /* FLAppDelegate.mm */,
-				CBB4B815183C00E1003C3444 /* FLTrackScene.h */,
-				CBB4B816183C00E1003C3444 /* FLTrackScene.mm */,
-				CB3FBDCC1889860A00CE5BBD /* QuadTree.h */,
-				CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */,
-				CBE5A5EA185A128100DC86B3 /* FLToolbarNode.h */,
-				CBE5A5EB185A128100DC86B3 /* FLToolbarNode.m */,
 				CBF959E418A1913F005F01A6 /* FLGestureTarget.h */,
+				CB88669818A549150045FD7E /* railDestruction.sks */,
+				CB88669018A544530045FD7E /* sleeperDestruction.sks */,
 				CBE5A5E7185A0CAB00DC86B3 /* FLTextureStore.h */,
 				CBE5A5E8185A0CAB00DC86B3 /* FLTextureStore.m */,
+				CBE5A5EA185A128100DC86B3 /* FLToolbarNode.h */,
+				CBE5A5EB185A128100DC86B3 /* FLToolbarNode.m */,
+				CBB4B815183C00E1003C3444 /* FLTrackScene.h */,
+				CBB4B816183C00E1003C3444 /* FLTrackScene.mm */,
 				CBB4B812183C00E1003C3444 /* FLViewController.h */,
 				CBB4B813183C00E1003C3444 /* FLViewController.mm */,
+				CB88668E18A540130045FD7E /* grass.png */,
 				CBB4B81A183C00E1003C3444 /* Images.xcassets */,
+				CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */,
+				CB3FBDCC1889860A00CE5BBD /* QuadTree.h */,
+				CB88669418A544820045FD7E /* rail.png */,
+				CB88669518A544820045FD7E /* sleeper.png */,
+				CBB4B801183C00E1003C3444 /* Supporting Files */,
 				CB3E96BD189AB85900D0D567 /* tools.atlas */,
 				CB657E991843E8DB00399E34 /* track.atlas */,
-				CBB4B801183C00E1003C3444 /* Supporting Files */,
 			);
 			path = Flippy;
 			sourceTree = "<group>";
@@ -264,10 +276,14 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CB88669918A549150045FD7E /* railDestruction.sks in Resources */,
 				CB88668F18A540130045FD7E /* grass.png in Resources */,
 				CBB4B81B183C00E1003C3444 /* Images.xcassets in Resources */,
+				CB88669618A544820045FD7E /* rail.png in Resources */,
 				CBB4B805183C00E1003C3444 /* InfoPlist.strings in Resources */,
+				CB88669718A544820045FD7E /* sleeper.png in Resources */,
 				CB657E9A1843E8DB00399E34 /* track.atlas in Resources */,
+				CB88669218A544530045FD7E /* sleeperDestruction.sks in Resources */,
 				CB251207184E7DEB003DD411 /* earth-map.jpg in Resources */,
 				CB3E96BE189AB85900D0D567 /* tools.atlas in Resources */,
 			);
