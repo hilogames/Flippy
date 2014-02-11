@@ -168,6 +168,8 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   _pinchRecognizer.delegate = self;
   _pinchRecognizer.cancelsTouchesInView = NO;
   [view addGestureRecognizer:_pinchRecognizer];
+
+  [self FL_preloadSound];
 }
 
 - (void)willMoveFromView:(SKView *)view
@@ -581,7 +583,9 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   // may be asked if it wants a particular gesture, and if so, which method to call.
 
   // Main toolbar.
-  if (_mainToolbarState.toolbarNode && [_mainToolbarState.toolbarNode containsPoint:sceneLocation]) {
+  if (_mainToolbarState.toolbarNode
+      && _mainToolbarState.toolbarNode.parent
+      && [_mainToolbarState.toolbarNode containsPoint:sceneLocation]) {
     if ([gestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]]) {
       [gestureRecognizer removeTarget:nil action:nil];
       [gestureRecognizer addTarget:self action:@selector(handleMainToolbarPan:)];
@@ -591,7 +595,9 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   }
   
   // Track edit menu.
-  if (_trackEditMenuHelper.editMenuNode && [_trackEditMenuHelper.editMenuNode containsPoint:trackLocation]) {
+  if (_trackEditMenuHelper.editMenuNode
+      && _trackEditMenuHelper.editMenuNode.parent
+      && [_trackEditMenuHelper.editMenuNode containsPoint:trackLocation]) {
     if ([gestureRecognizer isKindOfClass:[UITapGestureRecognizer class]]) {
       [gestureRecognizer removeTarget:nil action:nil];
       [gestureRecognizer addTarget:_trackEditMenuHelper action:@selector(handleTap:)];
@@ -706,6 +712,16 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
 #pragma mark -
 #pragma mark Common
+
+- (void)FL_preloadSound
+{
+  // noob: Could make a store to control this, but it would be a weird store, since the
+  // references to the sounds don't actually need to be tracked.
+  [SKAction playSoundFileNamed:@"wooden-click-1.caf" waitForCompletion:NO];
+  [SKAction playSoundFileNamed:@"wooden-click-2.caf" waitForCompletion:NO];
+  [SKAction playSoundFileNamed:@"wooden-clickity-2.caf" waitForCompletion:NO];
+  [SKAction playSoundFileNamed:@"wooden-clatter-1.caf" waitForCompletion:NO];
+}
 
 /**
  * Creates a sprite using the shared texture store.
@@ -881,8 +897,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   [_trackEditMenuHelper showOnTrack:_trackNode atSegment:_trackMoveState.segmentMoving gridX:gridX gridY:gridY animated:YES];
   _trackMoveState.segmentMoving = nil;
   _trackMoveState.segmentRemoving = nil;
-
-  [self FL_trackGridDump];
+  [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-clickity-2.caf" waitForCompletion:NO]];
 }
 
 - (void)FL_trackMoveCancelledWithGridX:(int)gridX gridY:(int)gridY
@@ -967,6 +982,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   }
   _trackGrid[{gridX, gridY}] = _trackMoveState.segmentMoving;
   _trackMoveState.segmentMoving.position = CGPointMake(gridX * _gridSize, gridY * _gridSize);
+  [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-click-2.caf" waitForCompletion:NO]];
 
   // Update selection.
   [self FL_trackSelectGridX:gridX gridY:gridY];
@@ -982,8 +998,8 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
       segmentNode.zRotation = (int(floorf((segmentNode.zRotation + 0.00001f) / M_PI_2)) + rotateBy) * M_PI_2;
     } else {
       // noob: If this leads to cumulative floating point error, then use rotateToAngle:.
-      SKAction *rotate = [SKAction rotateByAngle:(rotateBy * M_PI_2) duration:0.1];
-      [segmentNode runAction:rotate];
+      [segmentNode runAction:[SKAction rotateByAngle:(rotateBy * M_PI_2) duration:0.1]];
+      [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-click-1.caf" waitForCompletion:NO]];
     }
   }
 }
@@ -996,7 +1012,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     if (animated) {
       SKEmitterNode *sleeperDestruction = [NSKeyedUnarchiver unarchiveObjectWithFile:[[NSBundle mainBundle] pathForResource:@"sleeperDestruction" ofType:@"sks"]];
       SKEmitterNode *railDestruction = [NSKeyedUnarchiver unarchiveObjectWithFile:[[NSBundle mainBundle] pathForResource:@"railDestruction" ofType:@"sks"]];
-      // TODO: This kind of thing makes me think having an _artScale is a bad idea.  Resample the art.
+      // note: This kind of thing makes me think having an _artScale is a bad idea.  Resample the art instead.
       sleeperDestruction.xScale = _artScale;
       sleeperDestruction.yScale = _artScale;
       railDestruction.xScale = _artScale;
@@ -1006,6 +1022,14 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
       railDestruction.position = trackLocation;
       [_trackNode addChild:sleeperDestruction];
       [_trackNode addChild:railDestruction];
+      // noob: I read it is recommended to remove emitter nodes when they aren't visible.  I'm not sure if that applies
+      // to emitter nodes that have reached their numParticlesToEmit maximum, but it certainly seems like a best practice.
+      SKAction *removeAfterWait = [SKAction sequence:@[ [SKAction waitForDuration:(sleeperDestruction.particleLifetime * 1.0)],
+                                                        [SKAction removeFromParent] ]];
+      [sleeperDestruction runAction:removeAfterWait];
+      [railDestruction runAction:removeAfterWait];
+      SKAction *sound = [SKAction playSoundFileNamed:@"wooden-clatter-1.caf" waitForCompletion:NO];
+      [_trackNode runAction:sound];
     }
     _trackGrid.erase(gridX, gridY);
     [_trackEditMenuHelper hideAnimated:YES];
