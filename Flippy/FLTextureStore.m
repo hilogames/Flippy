@@ -25,6 +25,9 @@
     [sharedStore loadTextureForKey:@"join" filteringMode:SKTextureFilteringNearest];
 
     // Tools.
+    [sharedStore loadTextureForKey:@"play" filteringMode:SKTextureFilteringLinear];
+    [sharedStore loadTextureForKey:@"pause" filteringMode:SKTextureFilteringLinear];
+    [sharedStore loadTextureForKey:@"center" filteringMode:SKTextureFilteringLinear];
     [sharedStore loadTextureForKey:@"delete" filteringMode:SKTextureFilteringLinear];
     [sharedStore loadTextureForKey:@"rotate-cw" filteringMode:SKTextureFilteringLinear];
     [sharedStore loadTextureForKey:@"rotate-ccw" filteringMode:SKTextureFilteringLinear];

@@ -7,51 +7,49 @@ circuits.
 
 Current
 
-. Make toolbar to create track pieces; show grid snap without outline;
-  snap to grid when deselected.  (See below.)
+Other
 
-. Track composition tools: Simple grid, rather than hierarchy of
-  subtracks, I guess, since that's how I did it originally.
+  . Persist track.
 
-    TODO:  How does selection/deselection work?
+  . Save/load tracks/subtracks.
 
-    . Add segments or subtracks:
+Train
 
-      . Drag a segment or subtrack from a toolbar, after which it is
-        selected and can be rotated/mirrored/deleted/moved.  Only
-        written into track once unselected, but can be manipulated
-        before it is written in.
+  . Stop/pause, follow path.
 
-      . Draw a line with your finger, segments created automatically.
-        Better: A special "auto connect" path subtrack which
-        calculates a path between two specified segments and maintains
-        the connection following moves and rotations of those
-        segments.  (This might be out of the scope of the project.)
+  . Train drag.
 
-    . A rotate/mirror/delete/move popup toolbar shows (at bottom of
-      screen?  at bottom of selection?  in a circle around the
-      selection?  probably at bottom of screen, for better support of
-      non-contiguous selection?) whenever something is selected, but
-      gestures can be used instead of tapping on buttons.
+  . Train edit menu and gesture for turning the train around (and, if
+    multiple trains, for individual play/pause controls).
 
-    . Undo stack.
+Devices
 
-    . Selection should be a mode?  When you add something it is
-      selected.  If you , but you can't change the selection without entering
-      selection mode.  A separate selection tool that allows selection
-      of segments by coloring them (and/or fast tapping, if it's too
-      hard to distinguish coloring from scroll/zoom actions).
+  . Art for retina devices.  Also note the terrain tiling graphics
+    context needs scaling options set for retina to successfully tile
+    things (I think).
 
-      . Rotate
+Track Editing and Composition
 
-      . Delete
+  . Pan world when track move goes to edge of scene.
 
-      . Transpose
+  . Consider recentering world as needed when construction tool is
+    released, so that track edit popup menu can fit fully onscreen.
+    (Get the track edit menu to report its width, I guess, and then
+    do the centering in the handleGesture method.)
 
-  include adding entire other tracks, though.  Also: undo stack.
-  Also: Multiple selection (both rectangle and shift-click type) which
-  can then rotate all Decide whether subtracks can be rotated and
-  movedThis time around, make the track model a hierarchy of
-  subtracks, the smallest of which can be 1x1, so that
+  . Add mirror transformation to track edit menu, or else create a
+    separate mirrored segment for "join".
 
-. Draw a train.  (Orient to the right!)
+  . Rotation gesture recognizer for rotation; flick for deletion;
+    pinch or something for mirror.
+
+  . Draw a line with your finger, segments created automatically.
+    Better: A special "auto connect" path subtrack which
+    calculates a path between two specified segments and maintains
+    the connection following moves and rotations of those
+    segments.  (This might be out of the scope of the project.)
+
+  . Undo stack.
+
+  . Multiple selection and editing.  (Paint a selection; draw a
+    rectangle for selection; shift-click-type selection; etc.)

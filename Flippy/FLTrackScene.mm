@@ -8,10 +8,15 @@
 
 #import "FLTrackScene.h"
 
+#include <memory>
+
+#include "FLCommon.h"
 #import "FLTextureStore.h"
 #import "FLToolbarNode.h"
+#import "FLTrain.h"
 #include "QuadTree.h"
 
+using namespace std;
 using namespace HLCommon;
 
 static const CGFloat FLWorldScaleMin = 0.125f;
@@ -22,32 +27,11 @@ static const CGSize FLWorldSize = { 3000.0f, 3000.0f };
 static const CGFloat FLZPositionWorld = 0.0f;
 static const CGFloat FLZPositionHud = 10.0f;
 // World sublayers.
-static const CGFloat FLZPositionTerrain = 0.0f;
-static const CGFloat FLZPositionTrack = 1.0f;
-static const CGFloat FLZPositionTrain = 2.0f;
-// World-Track sublayers.
-static const CGFloat FLZPositionTrackSelect = 0.0f;
-static const CGFloat FLZPositionTrackPlaced = 0.1f;
-static const CGFloat FLZPositionTrackOverlay = 0.2f;
-
-#pragma mark -
-#pragma mark Helpers
-
-// Helpers are functional components of the scene split into classes;
-// these are considered to have private access to the scene.
-
-@interface FLTrackScene (Helper)
-- (void)FL_trackGridEraseGridX:(int)gridX gridY:(int)gridY animated:(BOOL)animated;
-@end
-
-@interface FLTrackEditMenuHelper : NSObject
-@property (nonatomic, strong) FLToolbarNode *editMenuNode;
-- (id)initWithScene:(SKScene *)scene;
-- (void)showOnTrack:(SKNode *)trackNode atSegment:(SKSpriteNode *)segmentNode gridX:(int)gridX gridY:(int)gridY animated:(BOOL)animated;
-- (void)hideAnimated:(BOOL)animated;
-- (void)scaleToWorld:(SKNode *)worldNode;
-- (void)handleTap:(UIGestureRecognizer *)gestureRecognizer;
-@end
+static const CGFloat FLZPositionWorldTerrain = 0.0f;
+static const CGFloat FLZPositionWorldSelect = 1.0f;
+static const CGFloat FLZPositionWorldTrack = 2.0f;
+static const CGFloat FLZPositionWorldTrain = 3.0f;
+static const CGFloat FLZPositionWorldOverlay = 4.0f;
 
 #pragma mark -
 #pragma mark States
@@ -56,11 +40,17 @@ static const CGFloat FLZPositionTrackOverlay = 0.2f;
 // a simple public struct, and the associated functionality is implemented in
 // private methods of the scene.
 
-struct FLMainToolbarState
+struct FLConstructionToolbarState
 {
-  FLMainToolbarState() : toolbarNode(nil), toolInUseNode(nil) {}
+  FLConstructionToolbarState() : toolbarNode(nil), toolInUseNode(nil) {}
   FLToolbarNode *toolbarNode;
   SKSpriteNode *toolInUseNode;
+};
+
+struct FLSimulationToolbarState
+{
+  FLSimulationToolbarState() : toolbarNode(nil) {}
+  FLToolbarNode *toolbarNode;
 };
 
 struct FLTrackSelectState
@@ -77,6 +67,15 @@ struct FLTrackMoveState
   FLTrackMoveState() : segmentMoving(nil), segmentRemoving(nil) {}
   SKSpriteNode *segmentMoving;
   SKSpriteNode *segmentRemoving;
+};
+
+struct FLTrackEditMenuState
+{
+  FLTrackEditMenuState() : editMenuNode(nil) {}
+  FLToolbarNode *editMenuNode;
+  int lastGridX;
+  int lastGridY;
+  CGPoint lastOrigin;
 };
 
 enum FLPanType { FLPanTypeNone, FLPanTypeWorld, FLPanTypeTrackMove };
@@ -100,7 +99,6 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
   SKNode *_worldNode;
   SKNode *_trackNode;
-  SKSpriteNode *_trainNode;
   SKNode *_hudNode;
 
   FLGestureRecognizerState _gestureRecognizerState;
@@ -116,14 +114,17 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   CGFloat _artScale;
 
   FLCameraMode _cameraMode;
+  BOOL _simulationRunning;
 
-  QuadTree<SKSpriteNode *> _trackGrid;
+  shared_ptr<QuadTree<SKSpriteNode *>> _trackGrid;
 
-  FLMainToolbarState _mainToolbarState;
+  FLConstructionToolbarState _constructionToolbarState;
+  FLSimulationToolbarState _simulationToolbarState;
+  FLTrackEditMenuState _trackEditMenuState;
   FLTrackSelectState _trackSelectState;
   FLTrackMoveState _trackMoveState;
 
-  FLTrackEditMenuHelper *_trackEditMenuHelper;
+  FLTrain *_train;
 }
 
 - (id)initWithSize:(CGSize)size
@@ -135,8 +136,9 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     _artSegmentDrawnTrackNormalWidth = 14.0f;  // the pixel width of the drawn tracks (widest: sleepers) when orthagonal
     _artScale = 2.0f;
     _gridSize = _artSegmentSizeBasic * _artScale;
-    _cameraMode = FLCameraModeFollowTrain;
-    _trackEditMenuHelper = [[FLTrackEditMenuHelper alloc] initWithScene:self];
+    _cameraMode = FLCameraModeManual;
+    _simulationRunning = NO;
+    _trackGrid.reset(new QuadTree<SKSpriteNode *>);
   }
   return self;
 }
@@ -205,14 +207,13 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   // breaking up a single large SKSpriteNode with a big image would save on memory,
   // but perhaps not make anything much faster.
   _worldNode = [SKNode node];
-  _worldNode.name = @"world";
   _worldNode.zPosition = FLZPositionWorld;
   [self addChild:_worldNode];
 
   UIImage *terrainTileImage = [UIImage imageNamed:@"grass.png"];
   CGRect terrainTileRect = CGRectMake(0.0f, 0.0f, terrainTileImage.size.width, terrainTileImage.size.height);
   CGImageRef terrainTileRef = [terrainTileImage CGImage];
-  // TODO: Begin context with scaling options for Retina display.
+  // note: Begin context with scaling options for Retina display.
   UIGraphicsBeginImageContext(FLWorldSize);
   CGContextRef context = UIGraphicsGetCurrentContext();
   CGContextDrawTiledImage(context, terrainTileRect, terrainTileRef);
@@ -220,7 +221,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   UIGraphicsEndImageContext();
   SKTexture *terrainTexture = [SKTexture textureWithCGImage:[terrainImage CGImage]];
   SKSpriteNode *terrainNode = [SKSpriteNode spriteNodeWithTexture:terrainTexture];
-  terrainNode.zPosition = FLZPositionTerrain;
+  terrainNode.zPosition = FLZPositionWorldTerrain;
   // noob: Using a tip to use replace blend mode for opaque sprites, but since
   // JPEGs don't have an alpha channel in the source, does this really do anything
   // for JPEGs?
@@ -231,30 +232,22 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   // child nodes based on our current camera location in the world.  Use our QuadTree
   // to implement, I expect.
   _trackNode = [SKNode node];
-  _trackNode.name = @"track";
-  _trackNode.zPosition = FLZPositionTrack;
+  _trackNode.zPosition = FLZPositionWorldTrack;
   [_worldNode addChild:_trackNode];
-
-  _trainNode = [SKSpriteNode spriteNodeWithColor:[UIColor redColor] size:CGSizeMake(20.0f, 20.0f)];
-  _trainNode.name = @"train";
-  _trainNode.zPosition = FLZPositionTrain;
-  SKAction *trainMove1 = [SKAction moveByX:200.0f y:0.0f duration:8.0];
-  SKAction *trainMove2 = [SKAction moveByX:0.0f y:200.0f duration:8.0];
-  SKAction *trainMove3 = [SKAction moveByX:-200.0f y:0.0f duration:8.0];
-  SKAction *trainMove4 = [SKAction moveByX:0.0f y:-200.0f duration:8.0];
-  SKAction *trainLap = [SKAction sequence:@[ trainMove1, trainMove2, trainMove3, trainMove4 ]];
-  [_trainNode runAction:[SKAction repeatActionForever:trainLap]];
-  [_worldNode addChild:_trainNode];
 
   // The HUD node contains everything pinned to the scene window, outside the world.
   _hudNode = [SKNode node];
-  _hudNode.name = @"hud";
   _hudNode.zPosition = FLZPositionHud;
   [self addChild:_hudNode];
 
   // Create other content.
 
-  [self FL_mainToolbarSetVisible:YES];
+  _train = [[FLTrain alloc] initWithTrackGrid:_trackGrid gridSize:_gridSize];
+  _train.zPosition = FLZPositionWorldTrain;
+  [_worldNode addChild:_train];
+
+  [self FL_constructionToolbarSetVisible:YES];
+  [self FL_simulationToolbarSetVisible:YES];
 }
 
 - (void)didSimulatePhysics
@@ -263,7 +256,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     case FLCameraModeFollowTrain: {
       // note: Set world position based on train position.  Note that the
       // train is in the world, but the world is in the scene, so convert.
-      CGPoint trainSceneLocation = [self convertPoint:_trainNode.position fromNode:_worldNode];
+      CGPoint trainSceneLocation = [self convertPoint:_train.position fromNode:_worldNode];
       _worldNode.position = CGPointMake(_worldNode.position.x - trainSceneLocation.x,
                                         _worldNode.position.y - trainSceneLocation.y);
       break;
@@ -277,6 +270,9 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
 - (void)update:(CFTimeInterval)currentTime
 {
+  if (_simulationRunning) {
+    [_train update:currentTime];
+  }
 }
 
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event
@@ -290,10 +286,11 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 {
   CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
   CGPoint sceneLocation = [self convertPointFromView:viewLocation];
-  CGPoint trackLocation = [_trackNode convertPoint:sceneLocation fromNode:self];
+  CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
 
-  int gridX = int(floorf(trackLocation.x / _gridSize + 0.5f));
-  int gridY = int(floorf(trackLocation.y / _gridSize + 0.5f));
+  int gridX;
+  int gridY;
+  convertWorldLocationToTrackGrid(worldLocation, _gridSize, &gridX, &gridY);
 
   int selectedGridX;
   int selectedGridY;
@@ -301,14 +298,14 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
       && selectedGridX == gridX
       && selectedGridY == gridY) {
     [self FL_trackSelectClear];
-    [_trackEditMenuHelper hideAnimated:YES];
+    [self FL_trackEditMenuHideAnimated:YES];
   } else {
     [self FL_trackSelectGridX:gridX gridY:gridY];
-    SKSpriteNode *segmentNode = _trackGrid.get(gridX, gridY, nil);
+    SKSpriteNode *segmentNode = _trackGrid->get(gridX, gridY, nil);
     if (segmentNode) {
-      [_trackEditMenuHelper showOnTrack:_trackNode atSegment:segmentNode gridX:gridX gridY:gridY animated:YES];
+      [self FL_trackEditMenuShowAtSegment:segmentNode gridX:gridX gridY:gridY animated:YES];
     } else {
-      [_trackEditMenuHelper hideAnimated:YES];
+      [self FL_trackEditMenuHideAnimated:YES];
     }
   }
 }
@@ -317,16 +314,17 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 {
   CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
   CGPoint sceneLocation = [self convertPointFromView:viewLocation];
-  CGPoint trackLocation = [_trackNode convertPoint:sceneLocation fromNode:self];
+  CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
 
-  int gridX = int(floorf(trackLocation.x / _gridSize + 0.5f));
-  int gridY = int(floorf(trackLocation.y / _gridSize + 0.5f));
+  int gridX;
+  int gridY;
+  convertWorldLocationToTrackGrid(worldLocation, _gridSize, &gridX, &gridY);
 
   if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
     [self FL_trackSelectGridX:gridX gridY:gridY];
-    SKSpriteNode *segmentNode = _trackGrid.get(gridX, gridY, nil);
+    SKSpriteNode *segmentNode = _trackGrid->get(gridX, gridY, nil);
     if (segmentNode) {
-      [_trackEditMenuHelper showOnTrack:_trackNode atSegment:segmentNode gridX:gridX gridY:gridY animated:YES];
+      [self FL_trackEditMenuShowAtSegment:segmentNode gridX:gridX gridY:gridY animated:YES];
     }
   }
 }
@@ -345,29 +343,28 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     // let the gesture recognizer do its thing, assuming that's the interface standard.)
     CGPoint viewLocation = _gestureRecognizerState.gestureFirstTouchLocation;
     CGPoint sceneLocation = [self convertPointFromView:viewLocation];
-    CGPoint trackLocation = [_trackNode convertPoint:sceneLocation fromNode:self];
-    int gridX = int(floorf(trackLocation.x / _gridSize + 0.5f));
-    int gridY = int(floorf(trackLocation.y / _gridSize + 0.5f));
+    CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
+    int gridX;
+    int gridY;
+    convertWorldLocationToTrackGrid(worldLocation, _gridSize, &gridX, &gridY);
     int selectedGridX;
     int selectedGridY;
     if ([self FL_trackSelectGetCurrentGridX:&selectedGridX gridY:&selectedGridY]
         && selectedGridX == gridX
         && selectedGridY == gridY) {
-      SKSpriteNode *selectedSegmentNode = _trackGrid.get(gridX, gridY, nil);
+      SKSpriteNode *selectedSegmentNode = _trackGrid->get(gridX, gridY, nil);
       if (selectedSegmentNode) {
         // Pan begins inside a selected track segment.
         _gestureRecognizerState.panType = FLPanTypeTrackMove;
         [selectedSegmentNode removeFromParent];
-        _trackGrid.erase(gridX, gridY);
+        _trackGrid->erase(gridX, gridY);
         [self FL_trackMoveBeganWithNode:selectedSegmentNode gridX:gridX gridY:gridY];
       } else {
         // Pan begins inside a track selection that has no segment.
         _gestureRecognizerState.panType = FLPanTypeNone;
       }
     } else {
-      // Pan begins not inside a selected track segment.  Note that this currently means
-      // it must be in the world somewhere, since touches outside the world (e.g. on the
-      // HUD layer) are blocked from the gesture recognizer.
+      // Pan begins not inside a selected track segment.
       _gestureRecognizerState.panType = FLPanTypeWorld;
     }
 
@@ -377,9 +374,10 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
       case FLPanTypeTrackMove: {
         CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
         CGPoint sceneLocation = [self convertPointFromView:viewLocation];
-        CGPoint trackLocation = [_trackNode convertPoint:sceneLocation fromNode:self];
-        int gridX = int(floorf(trackLocation.x / _gridSize + 0.5f));
-        int gridY = int(floorf(trackLocation.y / _gridSize + 0.5f));
+        CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
+        int gridX;
+        int gridY;
+        convertWorldLocationToTrackGrid(worldLocation, _gridSize, &gridX, &gridY);
         [self FL_trackMoveContinuedWithGridX:gridX gridY:gridY];
         break;
       }
@@ -403,9 +401,10 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
       case FLPanTypeTrackMove: {
         CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
         CGPoint sceneLocation = [self convertPointFromView:viewLocation];
-        CGPoint trackLocation = [_trackNode convertPoint:sceneLocation fromNode:self];
-        int gridX = int(floorf(trackLocation.x / _gridSize + 0.5f));
-        int gridY = int(floorf(trackLocation.y / _gridSize + 0.5f));
+        CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
+        int gridX;
+        int gridY;
+        convertWorldLocationToTrackGrid(worldLocation, _gridSize, &gridX, &gridY);
         [self FL_trackMoveEndedWithGridX:gridX gridY:gridY];
         break;
       }
@@ -424,9 +423,10 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
       case FLPanTypeTrackMove: {
         CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
         CGPoint sceneLocation = [self convertPointFromView:viewLocation];
-        CGPoint trackLocation = [_trackNode convertPoint:sceneLocation fromNode:self];
-        int gridX = int(floorf(trackLocation.x / _gridSize + 0.5f));
-        int gridY = int(floorf(trackLocation.y / _gridSize + 0.5f));
+        CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
+        int gridX;
+        int gridY;
+        convertWorldLocationToTrackGrid(worldLocation, _gridSize, &gridX, &gridY);
         [self FL_trackMoveCancelledWithGridX:gridX gridY:gridY];
         break;
       }
@@ -487,7 +487,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   }
   _worldNode.xScale = worldScaleCurrent;
   _worldNode.yScale = worldScaleCurrent;
-  [_trackEditMenuHelper scaleToWorld:_worldNode];
+  [self FL_trackEditMenuScaleToWorld];
   CGFloat scaleFactor = worldScaleCurrent / handlePinchWorldScaleBegin;
 
   // Zoom around previously-chosen center point.
@@ -497,58 +497,129 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   _worldNode.position = worldPosition;
 }
 
-- (void)handleMainToolbarPan:(UIGestureRecognizer *)gestureRecognizer
+- (void)handleConstructionToolbarPan:(UIGestureRecognizer *)gestureRecognizer
 {
-  // TODO: This should pan the world when tool is dragged to edge of scene.
-  // Also, should perhaps recenter world as needed when tool is released,
-  // if track is placed, so that the track edit popup menu can fit fully
-  // into the scene.  (This could be the purview of either selection, or
-  // track edit menu, or track move.  Since it's not clear, we could order
-  // it explicitly -- get track edit menu to calculate it the centering
-  // factor for us, then tell the world to fit a certain point.  Or something.)
   CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
   CGPoint sceneLocation = [self convertPointFromView:viewLocation];
-  CGPoint trackLocation = [_trackNode convertPoint:sceneLocation fromNode:self];
-  int gridX = int(floorf(trackLocation.x / _gridSize + 0.5f));
-  int gridY = int(floorf(trackLocation.y / _gridSize + 0.5f));
+  CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
+  int gridX;
+  int gridY;
+  convertWorldLocationToTrackGrid(worldLocation, _gridSize, &gridX, &gridY);
 
   if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
 
     CGPoint firstTouchSceneLocation = [self convertPointFromView:_gestureRecognizerState.gestureFirstTouchLocation];
-    CGPoint firstTouchToolbarLocation = [_mainToolbarState.toolbarNode convertPoint:firstTouchSceneLocation fromNode:self];
-    NSString *tool = [_mainToolbarState.toolbarNode toolAtLocation:firstTouchToolbarLocation];
-    _mainToolbarState.toolInUseNode = [self FL_createSprite:nil withTexture:tool parent:_hudNode];
-    _mainToolbarState.toolInUseNode.zRotation = M_PI_2;
-    _mainToolbarState.toolInUseNode.alpha = 0.5f;
-    _mainToolbarState.toolInUseNode.position = sceneLocation;
+    CGPoint firstTouchToolbarLocation = [_constructionToolbarState.toolbarNode convertPoint:firstTouchSceneLocation fromNode:self];
+    NSString *tool = [_constructionToolbarState.toolbarNode toolAtLocation:firstTouchToolbarLocation];
+    if (!tool) {
+      _gestureRecognizerState.panType = FLPanTypeNone;
+      return;
+    }
+    _gestureRecognizerState.panType = FLPanTypeTrackMove;
+
+    _constructionToolbarState.toolInUseNode = [self FL_createSprite:nil withTexture:tool parent:_hudNode];
+    _constructionToolbarState.toolInUseNode.zRotation = M_PI_2;
+    _constructionToolbarState.toolInUseNode.alpha = 0.5f;
+    _constructionToolbarState.toolInUseNode.position = sceneLocation;
     
-    SKSpriteNode *newSegmentNode = [self FL_createSprite:nil withTexture:tool parent:nil];
-    newSegmentNode.zPosition = FLZPositionTrackPlaced;
+    SKSpriteNode *newSegmentNode = [self FL_createSprite:tool withTexture:tool parent:nil];
     newSegmentNode.zRotation = M_PI_2;
     [self FL_trackMoveBeganWithNode:newSegmentNode gridX:gridX gridY:gridY];
 
-    // note: This isn't really used for anything during a main toolbar pan, since all pans are track moves,
-    // but I'm still trying to figure out the relationship between gestureRecognizerState and mainToolbarState,
-    // so I'm setting it for consistency.
-    _gestureRecognizerState.panType = FLPanTypeTrackMove;
-    
-  } else if (gestureRecognizer.state == UIGestureRecognizerStateChanged) {
+    return;
+  }
 
-    _mainToolbarState.toolInUseNode.position = sceneLocation;
+  if (_gestureRecognizerState.panType != FLPanTypeTrackMove) {
+    return;
+  }
+
+  if (gestureRecognizer.state == UIGestureRecognizerStateChanged) {
+
+    _constructionToolbarState.toolInUseNode.position = sceneLocation;
     [self FL_trackMoveContinuedWithGridX:gridX gridY:gridY];
 
   } else if (gestureRecognizer.state == UIGestureRecognizerStateEnded) {
 
-    [_mainToolbarState.toolInUseNode removeFromParent];
-    _mainToolbarState.toolInUseNode = nil;
+    [_constructionToolbarState.toolInUseNode removeFromParent];
+    _constructionToolbarState.toolInUseNode = nil;
     [self FL_trackMoveEndedWithGridX:gridX gridY:gridY];
-    
+
   } else if (gestureRecognizer.state == UIGestureRecognizerStateCancelled) {
 
-    [_mainToolbarState.toolInUseNode removeFromParent];
-    _mainToolbarState.toolInUseNode = nil;
+    [_constructionToolbarState.toolInUseNode removeFromParent];
+    _constructionToolbarState.toolInUseNode = nil;
     [self FL_trackMoveCancelledWithGridX:gridX gridY:gridY];
 
+  }
+}
+
+- (void)handleSimulationToolbarTap:(UIGestureRecognizer *)gestureRecognizer
+{
+  CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
+  CGPoint sceneLocation = [self convertPointFromView:viewLocation];
+  CGPoint toolbarLocation = [_simulationToolbarState.toolbarNode convertPoint:sceneLocation fromNode:self];
+  NSString *tool = [_simulationToolbarState.toolbarNode toolAtLocation:toolbarLocation];
+  if (!tool) {
+    return;
+  }
+
+  if ([tool isEqualToString:@"play"]) {
+
+    _simulationRunning = YES;
+    [_train start];
+    [_simulationToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"pause", @"center" ]
+                                                           sizes:nil
+                                                       rotations:@[ @M_PI_2, @M_PI_2 ]
+                                                         offsets:nil];
+
+  } else if ([tool isEqualToString:@"pause"]) {
+
+    _simulationRunning = NO;
+    [_train stop];
+    [_simulationToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"play", @"center" ]
+                                                           sizes:nil
+                                                       rotations:@[ @M_PI_2, @M_PI_2 ]
+                                                         offsets:nil];
+
+  } else if ([tool isEqualToString:@"center"]) {
+
+    CGPoint trainSceneLocation = [self convertPoint:_train.position fromNode:_worldNode];
+    CGPoint worldPosition = CGPointMake(_worldNode.position.x - trainSceneLocation.x,
+                                        _worldNode.position.y - trainSceneLocation.y);
+    SKAction *move = [SKAction moveTo:worldPosition duration:0.5];
+    move.timingMode = SKActionTimingEaseInEaseOut;
+    [_worldNode runAction:move completion:^{
+      _cameraMode = FLCameraModeFollowTrain;
+    }];
+  }
+}
+
+- (void)handleTrackEditMenuTap:(UIGestureRecognizer *)gestureRecognizer
+{
+  CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
+  CGPoint sceneLocation = [self convertPointFromView:viewLocation];
+  CGPoint toolbarLocation = [_trackEditMenuState.editMenuNode convertPoint:sceneLocation fromNode:self];
+  NSString *button = [_trackEditMenuState.editMenuNode toolAtLocation:toolbarLocation];
+  
+  if ([button isEqualToString:@"rotate-cw"]) {
+    [self FL_trackGridRotateGridX:_trackEditMenuState.lastGridX gridY:_trackEditMenuState.lastGridY rotateBy:-1 animated:YES];
+  } else if ([button isEqualToString:@"rotate-ccw"]) {
+    [self FL_trackGridRotateGridX:_trackEditMenuState.lastGridX gridY:_trackEditMenuState.lastGridY rotateBy:1 animated:YES];
+  } else if ([button isEqualToString:@"delete"]) {
+    [self FL_trackGridEraseGridX:_trackEditMenuState.lastGridX gridY:_trackEditMenuState.lastGridY animated:YES];
+  }
+}
+
+- (void)handleTrainPan:(UIGestureRecognizer *)gestureRecognizer
+{
+  if (gestureRecognizer.state != UIGestureRecognizerStateCancelled) {
+    CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
+    CGPoint sceneLocation = [self convertPointFromView:viewLocation];
+    CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
+    CGPoint onTrackLocation;
+    if ([_train getClosestOnTrackLocation:&onTrackLocation forLocation:worldLocation]) {
+      _train.position = onTrackLocation;
+    }
   }
 }
 
@@ -564,6 +635,13 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   if (gestureRecognizer == _panRecognizer && otherGestureRecognizer == _pinchRecognizer) {
     return YES;
   }
+  // The way I wrote shouldReceiveTouch:, e.g. a tap on the train will get blocked because a train
+  // tap doesn't currently mean anything, but it doesn't let the tap fall through to anything below
+  // it.  I think that also means that the tap gesture doesn't get a chance to fail, which means the
+  // pan gesture never gets started at all.  Uuuuuuuunless I allow them to recognize simultaneously.
+  if (gestureRecognizer == _panRecognizer && otherGestureRecognizer == _tapRecognizer) {
+    return YES;
+  }
   return NO;
 }
 
@@ -571,42 +649,73 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 {
   CGPoint viewLocation = [touch locationInView:self.view];
   CGPoint sceneLocation = [self convertPointFromView:viewLocation];
-  CGPoint trackLocation = [_trackNode convertPoint:sceneLocation fromNode:self];
 
   // note: Remembering the first touch location is useful, for example, for a pan gesture recognizer,
   // which only knows where the gesture was first recognized (after possibly significant movement).
   _gestureRecognizerState.gestureFirstTouchLocation = viewLocation;
 
-  // noob: Right now we just do a linear search through the various interface components/helpers to
+  // note: Right now we just do a linear search through the various interface components to
   // see who wants to receive which gestures.  This could be replaced by some kind of general-purpose
-  // registration system, where the component registers itself, or defines an interface by which it
-  // may be asked if it wants a particular gesture, and if so, which method to call.
+  // registration system, where we register the component for a particular handler into a lookup table.
+  // It doesn't seem linear would scale well, anyway, and so we might find ourselves maintaining a
+  // lookup table regardless of the interface.
+  
+  // note: Currently, a handler is selected based on quick and easy criteria, which means a single
+  // handler can end up handling a few different actions (e.g. the world handler handles track moves
+  // and world pans).  The argument for putting all the logic here, and making the handlers extremely
+  // fine-grained, would be that touches might need to fall through from one handler to another.  For
+  // instance, maybe it takes a sophisticated check to determine if a tap within the bounds of a toolbar
+  // should count as a tap on the toolbar or a tap on the world behind it.
 
-  // Main toolbar.
-  if (_mainToolbarState.toolbarNode
-      && _mainToolbarState.toolbarNode.parent
-      && [_mainToolbarState.toolbarNode containsPoint:sceneLocation]) {
+  // Construction toolbar.
+  if (_constructionToolbarState.toolbarNode
+      && _constructionToolbarState.toolbarNode.parent
+      && [_constructionToolbarState.toolbarNode containsPoint:sceneLocation]) {
     if ([gestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]]) {
       [gestureRecognizer removeTarget:nil action:nil];
-      [gestureRecognizer addTarget:self action:@selector(handleMainToolbarPan:)];
+      [gestureRecognizer addTarget:self action:@selector(handleConstructionToolbarPan:)];
       return YES;
     }
     return NO;
   }
   
-  // Track edit menu.
-  if (_trackEditMenuHelper.editMenuNode
-      && _trackEditMenuHelper.editMenuNode.parent
-      && [_trackEditMenuHelper.editMenuNode containsPoint:trackLocation]) {
+  // Simulation toolbar.
+  if (_simulationToolbarState.toolbarNode
+      && _simulationToolbarState.toolbarNode.parent
+      && [_simulationToolbarState.toolbarNode containsPoint:sceneLocation]) {
     if ([gestureRecognizer isKindOfClass:[UITapGestureRecognizer class]]) {
       [gestureRecognizer removeTarget:nil action:nil];
-      [gestureRecognizer addTarget:_trackEditMenuHelper action:@selector(handleTap:)];
+      [gestureRecognizer addTarget:self action:@selector(handleSimulationToolbarTap:)];
       return YES;
     }
     return NO;
   }
 
-  // World.
+  // Track edit menu.
+  CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
+  if (_trackEditMenuState.editMenuNode
+      && _trackEditMenuState.editMenuNode.parent
+      && [_trackEditMenuState.editMenuNode containsPoint:worldLocation]) {
+    if ([gestureRecognizer isKindOfClass:[UITapGestureRecognizer class]]) {
+      [gestureRecognizer removeTarget:nil action:nil];
+      [gestureRecognizer addTarget:self action:@selector(handleTrackEditMenuTap:)];
+      return YES;
+    }
+    return NO;
+  }
+
+  // Train.
+  if (_train.parent
+      && [_train containsPoint:worldLocation]) {
+    if ([gestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]]) {
+      [gestureRecognizer removeTarget:nil action:nil];
+      [gestureRecognizer addTarget:self action:@selector(handleTrainPan:)];
+      return YES;
+    }
+    return NO;
+  }
+  
+  // World (and track).
   if ([gestureRecognizer isKindOfClass:[UITapGestureRecognizer class]]) {
     [gestureRecognizer removeTarget:nil action:nil];
     [gestureRecognizer addTarget:self action:@selector(handleWorldTap:)];
@@ -641,7 +750,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 //- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch
 //{
 //  // noob: The scene contains a few different components which respond to gestures.  For instance, the world
-//  // responds to zooming, panning, and track selection; the main and popup toolbars respond to taps and pans.
+//  // responds to zooming, panning, and track selection; the toolbars respond to taps and pans.
 //  // So the SKScene is the delegate and owner of all gesture recognizers; that seems right.  But if I set it
 //  // as the only target of each gesture, then each target selector will be doing some kind of search to see
 //  // which component of the scene should be receiving (and responding to) the gesture.  Further, it seems
@@ -736,22 +845,22 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   SKSpriteNode *sprite = [SKSpriteNode spriteNodeWithTexture:texture];
   sprite.name = spriteName;
   sprite.scale = _artScale;
-  // note: The textureKey in user data is currently only used for debugging.
-  sprite.userData = [NSMutableDictionary dictionaryWithDictionary:@{ @"textureKey" : textureKey }];
+  //// note: The textureKey in user data is currently only used for debugging.
+  //sprite.userData = [NSMutableDictionary dictionaryWithDictionary:@{ @"textureKey" : textureKey }];
   [parent addChild:sprite];
   return sprite;
 }
 
-- (void)FL_mainToolbarSetVisible:(BOOL)visible
+- (void)FL_constructionToolbarSetVisible:(BOOL)visible
 {
-  if (!_mainToolbarState.toolbarNode) {
-    const CGFloat FLMainToolbarBottomPad = 20.0f;
-
-    _mainToolbarState.toolbarNode = [[FLToolbarNode alloc] init];
-    _mainToolbarState.toolbarNode.anchorPoint = CGPointMake(0.5f, 0.0f);
-    _mainToolbarState.toolbarNode.position = CGPointMake(0.0f, FLMainToolbarBottomPad - self.size.height / 2.0f);
-    _mainToolbarState.toolbarNode.toolPad = -1.0f;
-
+  if (!_constructionToolbarState.toolbarNode) {
+    const CGFloat FLConstructionToolbarPad = 20.0f;
+    
+    _constructionToolbarState.toolbarNode = [[FLToolbarNode alloc] init];
+    _constructionToolbarState.toolbarNode.anchorPoint = CGPointMake(0.5f, 0.0f);
+    _constructionToolbarState.toolbarNode.position = CGPointMake(0.0f, FLConstructionToolbarPad - self.size.height / 2.0f);
+    _constructionToolbarState.toolbarNode.toolPad = -1.0f;
+    
     CGFloat artSegmentBasicInset = (_artSegmentSizeFull - _artSegmentSizeBasic) / 2.0f;
     // note: The straight segment runs along the visual edge of a square; we'd like to shift
     // it to the visual center of the tool image.  Half the full texture size is the middle,
@@ -765,21 +874,49 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     // the difference between the edges.  The math simplifies down a bit.  Rounded to prevent
     // aliasing (?).
     CGFloat curveShift = floorf(_artSegmentDrawnTrackNormalWidth / 4.0f);
-    [_mainToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"straight", @"curve", @"join" ]
-                                                     sizes:nil
-                                                 rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2 ]
-                                                   offsets:@[ [NSValue valueWithCGPoint:CGPointMake(straightShift, 0.0f)],
-                                                              [NSValue valueWithCGPoint:CGPointMake(curveShift, -curveShift)],
-                                                              [NSValue valueWithCGPoint:CGPointMake(curveShift, -curveShift)] ]];
+    [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"straight", @"curve", @"join" ]
+                                                             sizes:nil
+                                                         rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2 ]
+                                                           offsets:@[ [NSValue valueWithCGPoint:CGPointMake(straightShift, 0.0f)],
+                                                                      [NSValue valueWithCGPoint:CGPointMake(curveShift, -curveShift)],
+                                                                      [NSValue valueWithCGPoint:CGPointMake(curveShift, -curveShift)] ]];
   }
-
+  
   if (visible) {
-    if (!_mainToolbarState.toolbarNode.parent) {
-      [_hudNode addChild:_mainToolbarState.toolbarNode];
+    if (!_constructionToolbarState.toolbarNode.parent) {
+      [_hudNode addChild:_constructionToolbarState.toolbarNode];
     }
   } else {
-    if (_mainToolbarState.toolbarNode.parent) {
-      [_mainToolbarState.toolbarNode removeFromParent];
+    if (_constructionToolbarState.toolbarNode.parent) {
+      [_constructionToolbarState.toolbarNode removeFromParent];
+    }
+  }
+}
+
+- (void)FL_simulationToolbarSetVisible:(BOOL)visible
+{
+  if (!_simulationToolbarState.toolbarNode) {
+    const CGFloat FLSimulationToolbarPad = 40.0f;
+    
+    _simulationToolbarState.toolbarNode = [[FLToolbarNode alloc] init];
+    _simulationToolbarState.toolbarNode.anchorPoint = CGPointMake(0.5f, 1.0f);
+    _simulationToolbarState.toolbarNode.position = CGPointMake(0.0f, self.size.height / 2.0f - FLSimulationToolbarPad);
+    // note: To match appearance of construction toolbar, use similar sizes and pads.
+    _simulationToolbarState.toolbarNode.toolPad = -1.0f;
+
+    [_simulationToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"play", @"center" ]
+                                                           sizes:nil
+                                                       rotations:@[ @M_PI_2, @M_PI_2 ]
+                                                         offsets:nil];
+  }
+  
+  if (visible) {
+    if (!_simulationToolbarState.toolbarNode.parent) {
+      [_hudNode addChild:_simulationToolbarState.toolbarNode];
+    }
+  } else {
+    if (_simulationToolbarState.toolbarNode.parent) {
+      [_simulationToolbarState.toolbarNode removeFromParent];
     }
   }
 }
@@ -796,11 +933,11 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
     _trackSelectState.visualSelectionNode = [SKSpriteNode spriteNodeWithColor:[UIColor colorWithWhite:0.2f alpha:1.0f]
                                                                size:CGSizeMake(_artSegmentSizeBasic, _artSegmentSizeBasic)];
-    // TODO: This doesn't work well with light backgrounds.
+    // note: This doesn't work well with light backgrounds.
     _trackSelectState.visualSelectionNode.blendMode = SKBlendModeAdd;
     _trackSelectState.visualSelectionNode.name = @"selection";
     _trackSelectState.visualSelectionNode.scale = _artScale;
-    _trackSelectState.visualSelectionNode.zPosition = FLZPositionTrackSelect;
+    _trackSelectState.visualSelectionNode.zPosition = FLZPositionWorldSelect;
     _trackSelectState.visualSelectionNode.alpha = FLTrackSelectAlphaMin;
 
     SKAction *pulseIn = [SKAction fadeAlphaTo:FLTrackSelectAlphaMax duration:FLTrackSelectFadeDuration];
@@ -813,7 +950,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   }
 
   if (!_trackSelectState.visualSelectionNode.parent) {
-    [_trackNode addChild:_trackSelectState.visualSelectionNode];
+    [_worldNode addChild:_trackSelectState.visualSelectionNode];
   }
   _trackSelectState.visualSelectionNode.position = CGPointMake(gridX * _gridSize, gridY * _gridSize);
   _trackSelectState.selected = YES;
@@ -865,7 +1002,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
   _trackMoveState.segmentMoving = segmentMovingNode;
 
-  [_trackEditMenuHelper hideAnimated:YES];
+  [self FL_trackEditMenuHideAnimated:YES];
 
   // note: The update call will detect no parent and know that the segmentMovingNode has
   // not yet been added to the grid.
@@ -894,7 +1031,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   [self FL_trackMoveUpdateWithGridX:gridX gridY:gridY];
 
   // note: Current selection unchanged.
-  [_trackEditMenuHelper showOnTrack:_trackNode atSegment:_trackMoveState.segmentMoving gridX:gridX gridY:gridY animated:YES];
+  [self FL_trackEditMenuShowAtSegment:_trackMoveState.segmentMoving gridX:gridX gridY:gridY animated:YES];
   _trackMoveState.segmentMoving = nil;
   _trackMoveState.segmentRemoving = nil;
   [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-clickity-2.caf" waitForCompletion:NO]];
@@ -916,12 +1053,12 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
     [_trackMoveState.segmentMoving removeFromParent];
     if (!_trackMoveState.segmentRemoving) {
-      _trackGrid.erase(gridX, gridY);
+      _trackGrid->erase(gridX, gridY);
     }
     _trackMoveState.segmentMoving = nil;
 
     if (_trackMoveState.segmentRemoving) {
-      _trackGrid[{gridX, gridY}] = _trackMoveState.segmentRemoving;
+      (*_trackGrid)[{gridX, gridY}] = _trackMoveState.segmentRemoving;
       [_trackNode addChild:_trackMoveState.segmentRemoving];
       _trackMoveState.segmentRemoving = nil;
     }
@@ -942,7 +1079,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
  */
 - (void)FL_trackMoveUpdateWithGridX:(int)gridX gridY:(int)gridY
 {
-  SKSpriteNode *segmentOccupying = _trackGrid.get(gridX, gridY, nil);
+  SKSpriteNode *segmentOccupying = _trackGrid->get(gridX, gridY, nil);
 
   if (segmentOccupying == _trackMoveState.segmentMoving) {
     // The move updated within the same grid square; nothing has changed.
@@ -959,28 +1096,30 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     // At the previous grid location, an occupying segment was removed; restore it.  (This
     // will overwrite the moving segment that had been shown there in its place).
     CGPoint oldLocation = _trackMoveState.segmentRemoving.position;
-    int oldGridX = int(floorf(oldLocation.x / _gridSize + 0.5f));
-    int oldGridY = int(floorf(oldLocation.y / _gridSize + 0.5f));
-    _trackGrid[{oldGridX, oldGridY}] = _trackMoveState.segmentRemoving;
+    int oldGridX;
+    int oldGridY;
+    convertWorldLocationToTrackGrid(oldLocation, _gridSize, &oldGridX, &oldGridY);
+    (*_trackGrid)[{oldGridX, oldGridY}] = _trackMoveState.segmentRemoving;
     [_trackNode addChild:_trackMoveState.segmentRemoving];
   } else {
     // At the previous grid location, no segment was displaced by the moving segment; clear
     // out the moving segment.
     CGPoint oldLocation = _trackMoveState.segmentMoving.position;
-    int oldGridX = int(floorf(oldLocation.x / _gridSize + 0.5f));
-    int oldGridY = int(floorf(oldLocation.y / _gridSize + 0.5f));
-    _trackGrid.erase(oldGridX, oldGridY);
+    int oldGridX;
+    int oldGridY;
+    convertWorldLocationToTrackGrid(oldLocation, _gridSize, &oldGridX, &oldGridY);
+    _trackGrid->erase(oldGridX, oldGridY);
   }
 
   // Update the new grid location.
   if (segmentOccupying) {
     [segmentOccupying removeFromParent];
-    _trackGrid.erase(gridX, gridY);
+    _trackGrid->erase(gridX, gridY);
     _trackMoveState.segmentRemoving = segmentOccupying;
   } else {
     _trackMoveState.segmentRemoving = nil;
   }
-  _trackGrid[{gridX, gridY}] = _trackMoveState.segmentMoving;
+  (*_trackGrid)[{gridX, gridY}] = _trackMoveState.segmentMoving;
   _trackMoveState.segmentMoving.position = CGPointMake(gridX * _gridSize, gridY * _gridSize);
   [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-click-2.caf" waitForCompletion:NO]];
 
@@ -988,25 +1127,91 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   [self FL_trackSelectGridX:gridX gridY:gridY];
 }
 
+- (void)FL_trackEditMenuShowAtSegment:(SKSpriteNode *)segmentNode gridX:(int)gridX gridY:(int)gridY animated:(BOOL)animated
+{
+  if (!_trackEditMenuState.editMenuNode) {
+    CGSize FLTrackEditMenuToolSize = { 48.0f, 48.0f };
+    _trackEditMenuState.editMenuNode = [[FLToolbarNode alloc] init];
+    _trackEditMenuState.editMenuNode.zPosition = FLZPositionWorldOverlay;
+    _trackEditMenuState.editMenuNode.anchorPoint = CGPointMake(0.5f, 0.0f);
+    NSValue *toolSize = [NSValue valueWithCGSize:FLTrackEditMenuToolSize];
+    [_trackEditMenuState.editMenuNode setToolsWithTextureKeys:@[ @"rotate-ccw", @"delete", @"rotate-cw" ]
+                                                        sizes:@[ toolSize, toolSize, toolSize ]
+                                                    rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2 ]
+                                                      offsets:nil];
+  }
+  
+  const CGFloat FLTrackEditMenuBottomPad = 0.0f;
+  
+  CGPoint worldLocation = CGPointMake(segmentNode.position.x, segmentNode.position.y + segmentNode.size.height / 2.0f + FLTrackEditMenuBottomPad);
+  if (!_trackEditMenuState.editMenuNode.parent) {
+    [_worldNode addChild:_trackEditMenuState.editMenuNode];
+  }
+  if (!animated) {
+    _trackEditMenuState.editMenuNode.position = worldLocation;
+  } else {
+    CGFloat fullScale = [self FL_trackEditMenuScaleForWorld];
+    [_trackEditMenuState.editMenuNode runShowWithOrigin:segmentNode.position finalPosition:worldLocation fullScale:fullScale];
+  }
+  _trackEditMenuState.lastOrigin = segmentNode.position;
+  _trackEditMenuState.lastGridX = gridX;
+  _trackEditMenuState.lastGridY = gridY;
+}
+
+- (void)FL_trackEditMenuHideAnimated:(BOOL)animated
+{
+  if (!_trackEditMenuState.editMenuNode.parent) {
+    return;
+  }
+  if (!animated) {
+    [_trackEditMenuState.editMenuNode removeFromParent];
+  } else {
+    [_trackEditMenuState.editMenuNode runHideWithOrigin:_trackEditMenuState.lastOrigin removeFromParent:YES];
+  }
+}
+
+- (void)FL_trackEditMenuScaleToWorld
+{
+  CGFloat editMenuScale = [self FL_trackEditMenuScaleForWorld];
+  _trackEditMenuState.editMenuNode.xScale = editMenuScale;
+  _trackEditMenuState.editMenuNode.yScale = editMenuScale;
+}
+
+- (CGFloat)FL_trackEditMenuScaleForWorld
+{
+  // note: The track edit menu scales inversely to the world, but perhaps at a different rate.
+  // A value of 1.0f means the edit menu will always maintain the same screen size no matter
+  // what the scale of the world.  Values less than one mean less-dramatic scaling than
+  // the world, and vice versa.
+  const CGFloat FLTrackEditMenuScaleFactor = 0.5f;
+  return 1.0f / powf(_worldNode.xScale, FLTrackEditMenuScaleFactor);
+}
+
 - (void)FL_trackGridRotateGridX:(int)gridX gridY:(int)gridY rotateBy:(int)rotateBy animated:(BOOL)animated
 {
-  // note: rotateBy positive means counterclockwise; negative means clockwise.
-  SKSpriteNode *segmentNode = _trackGrid.get(gridX, gridY, nil);
+  // note: rotateBy positive is in the counterclockwise direction, but current implementation
+  // will animate the shortest arc regardless of rotateBy sign.
+  SKSpriteNode *segmentNode = _trackGrid->get(gridX, gridY, nil);
   if (segmentNode) {
+    int oldRotationQuarters = convertRotationRadiansToQuarters(segmentNode.zRotation);
+    int newRotationQuarters = (oldRotationQuarters + rotateBy) % 4;
+    // note: Repeatedly rotating by adding M_PI_2 * rotateBy leads to cumulative floating point
+    // error, which can be large enough over time to affect the calculation (e.g. if the epsilon
+    // value in convertRotationRadiansToQuarters is not large enough).  So: Don't just add the
+    // angle; recalculate it.
     if (!animated) {
-      // noob: Trying to avoid cumulative floating point error.  Maybe this is overkill.
-      segmentNode.zRotation = (int(floorf((segmentNode.zRotation + 0.00001f) / M_PI_2)) + rotateBy) * M_PI_2;
+      segmentNode.zRotation = newRotationQuarters * M_PI_2;
     } else {
-      // noob: If this leads to cumulative floating point error, then use rotateToAngle:.
-      [segmentNode runAction:[SKAction rotateByAngle:(rotateBy * M_PI_2) duration:0.1]];
+      [segmentNode runAction:[SKAction rotateToAngle:(newRotationQuarters * M_PI_2) duration:0.1 shortestUnitArc:YES]];
       [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-click-1.caf" waitForCompletion:NO]];
     }
+    NSLog(@"new rotation %d", newRotationQuarters);
   }
 }
 
 - (void)FL_trackGridEraseGridX:(int)gridX gridY:(int)gridY animated:(BOOL)animated
 {
-  SKSpriteNode *segmentNode = _trackGrid.get(gridX, gridY, nil);
+  SKSpriteNode *segmentNode = _trackGrid->get(gridX, gridY, nil);
   if (segmentNode) {
     [segmentNode removeFromParent];
     if (animated) {
@@ -1017,9 +1222,9 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
       sleeperDestruction.yScale = _artScale;
       railDestruction.xScale = _artScale;
       railDestruction.yScale = _artScale;
-      CGPoint trackLocation = CGPointMake(gridX * _gridSize, gridY *_gridSize);
-      sleeperDestruction.position = trackLocation;
-      railDestruction.position = trackLocation;
+      CGPoint worldLocation = CGPointMake(gridX * _gridSize, gridY *_gridSize);
+      sleeperDestruction.position = worldLocation;
+      railDestruction.position = worldLocation;
       [_trackNode addChild:sleeperDestruction];
       [_trackNode addChild:railDestruction];
       // noob: I read it is recommended to remove emitter nodes when they aren't visible.  I'm not sure if that applies
@@ -1031,8 +1236,8 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
       SKAction *sound = [SKAction playSoundFileNamed:@"wooden-clatter-1.caf" waitForCompletion:NO];
       [_trackNode runAction:sound];
     }
-    _trackGrid.erase(gridX, gridY);
-    [_trackEditMenuHelper hideAnimated:YES];
+    _trackGrid->erase(gridX, gridY);
+    [self FL_trackEditMenuHideAnimated:YES];
   }
 }
 
@@ -1041,17 +1246,16 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   std::cout << "dump track grid:" << std::endl;
   for (int y = 3; y >= -4; --y) {
     for (int x = -4; x <= 3; ++x) {
-      SKSpriteNode *segmentNode = _trackGrid.get(x, y, nil);
+      SKSpriteNode *segmentNode = _trackGrid->get(x, y, nil);
       char c;
       if (segmentNode == nil) {
         c = '.';
       } else {
-        NSString *textureKey = [segmentNode.userData objectForKey:@"textureKey"];
-        if ([textureKey isEqualToString:@"straight"]) {
+        if ([segmentNode.name isEqualToString:@"straight"]) {
           c = '|';
-        } else if ([textureKey isEqualToString:@"curve"]) {
+        } else if ([segmentNode.name isEqualToString:@"curve"]) {
           c = '/';
-        } else if ([textureKey isEqualToString:@"join"]) {
+        } else if ([segmentNode.name isEqualToString:@"join"]) {
           c = 'Y';
         } else {
           c = '?';
@@ -1060,107 +1264,6 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
       std::cout << c;
     }
     std::cout << std::endl;
-  }
-}
-
-@end
-
-#pragma mark -
-#pragma mark FLTrackEditMenuHelper
-
-@implementation FLTrackEditMenuHelper
-{
-  __weak FLTrackScene *_scene;
-  int _lastGridX;
-  int _lastGridY;
-  CGPoint _lastOrigin;
-}
-
-- (id)initWithScene:(FLTrackScene *)scene
-{
-  self = [super init];
-  if (self) {
-    _scene = scene;
-    CGSize FLTrackEditMenuToolSize = { 48.0f, 48.0f };
-    _editMenuNode = [[FLToolbarNode alloc] init];
-    _editMenuNode.zPosition = FLZPositionTrackOverlay;
-    _editMenuNode.anchorPoint = CGPointMake(0.5f, 0.0f);
-    NSValue *toolSize = [NSValue valueWithCGSize:FLTrackEditMenuToolSize];
-    [_editMenuNode setToolsWithTextureKeys:@[ @"rotate-ccw", @"delete", @"rotate-cw" ]
-                                     sizes:@[ toolSize, toolSize, toolSize ]
-                                 rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2 ]
-                                   offsets:nil];
-  }
-  return self;
-}
-
-- (void)showOnTrack:(SKNode *)trackNode atSegment:(SKSpriteNode *)segmentNode gridX:(int)gridX gridY:(int)gridY animated:(BOOL)animated
-{
-  const CGFloat FLTrackEditMenuBottomPad = 0.0f;
-
-  CGPoint trackLocation = CGPointMake(segmentNode.position.x, segmentNode.position.y + segmentNode.size.height / 2.0f + FLTrackEditMenuBottomPad);
-  if (!_editMenuNode.parent) {
-    [trackNode addChild:_editMenuNode];
-  }
-  if (!animated) {
-    _editMenuNode.position = trackLocation;
-  } else {
-    CGFloat fullScale = [self scaleForWorld:trackNode.parent];
-    [_editMenuNode runShowWithOrigin:segmentNode.position finalPosition:trackLocation fullScale:fullScale];
-  }
-  _lastOrigin = segmentNode.position;
-  _lastGridX = gridX;
-  _lastGridY = gridY;
-}
-
-- (void)hideAnimated:(BOOL)animated
-{
-  if (!_editMenuNode.parent) {
-    return;
-  }
-  if (!animated) {
-    [_editMenuNode removeFromParent];
-  } else {
-    [_editMenuNode runHideWithOrigin:_lastOrigin removeFromParent:YES];
-  }
-}
-
-- (void)scaleToWorld:(SKNode *)worldNode
-{
-  CGFloat editMenuScale = [self scaleForWorld:worldNode];
-  _editMenuNode.xScale = editMenuScale;
-  _editMenuNode.yScale = editMenuScale;
-}
-
-- (CGFloat)scaleForWorld:(SKNode *)worldNode
-{
-  // note: The track edit menu scales inversely to the world, but perhaps at a different rate.
-  // A value of 1.0f means the edit menu will always maintain the same screen size no matter
-  // what the scale of the world.  Values less than one mean less-dramatic scaling than
-  // the world, and vice versa.
-  const CGFloat FLTrackEditMenuScaleFactor = 0.5f;
-  return 1.0f / powf(worldNode.xScale, FLTrackEditMenuScaleFactor);
-}
-
-- (void)handleTap:(UIGestureRecognizer *)gestureRecognizer
-{
-  CGPoint viewLocation = [gestureRecognizer locationInView:_scene.view];
-  CGPoint sceneLocation = [_scene convertPointFromView:viewLocation];
-  CGPoint toolbarLocation = [_editMenuNode convertPoint:sceneLocation fromNode:_scene];
-  NSString *button = [_editMenuNode toolAtLocation:toolbarLocation];
-
-  // noob: This is a helper, which is supposed to have private access to the scene.  We're faking
-  // that right now by passing in all private data that needs to be accessed, but it occurs to me
-  // that deleting a track segment might involve a callback to a private method of the scene (in
-  // case we want to do some standard things, like animation, when deleting a segment).  Not sure
-  // how to fake that.
-
-  if ([button isEqualToString:@"rotate-cw"]) {
-    [_scene FL_trackGridRotateGridX:_lastGridX gridY:_lastGridY rotateBy:-1 animated:YES];
-  } else if ([button isEqualToString:@"rotate-ccw"]) {
-    [_scene FL_trackGridRotateGridX:_lastGridX gridY:_lastGridY rotateBy:1 animated:YES];
-  } else if ([button isEqualToString:@"delete"]) {
-    [_scene FL_trackGridEraseGridX:_lastGridX gridY:_lastGridY animated:YES];
   }
 }
 
