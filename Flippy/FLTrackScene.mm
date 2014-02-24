@@ -11,6 +11,7 @@
 #include <memory>
 
 #include "FLCommon.h"
+#import "FLSegmentNode.h"
 #import "FLTextureStore.h"
 #import "FLToolbarNode.h"
 #import "FLTrain.h"
@@ -65,8 +66,8 @@ struct FLTrackSelectState
 struct FLTrackMoveState
 {
   FLTrackMoveState() : segmentMoving(nil), segmentRemoving(nil) {}
-  SKSpriteNode *segmentMoving;
-  SKSpriteNode *segmentRemoving;
+  FLSegmentNode *segmentMoving;
+  FLSegmentNode *segmentRemoving;
 };
 
 struct FLTrackEditMenuState
@@ -116,7 +117,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   FLCameraMode _cameraMode;
   BOOL _simulationRunning;
 
-  shared_ptr<QuadTree<SKSpriteNode *>> _trackGrid;
+  shared_ptr<QuadTree<FLSegmentNode *>> _trackGrid;
 
   FLConstructionToolbarState _constructionToolbarState;
   FLSimulationToolbarState _simulationToolbarState;
@@ -138,7 +139,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     _gridSize = _artSegmentSizeBasic * _artScale;
     _cameraMode = FLCameraModeManual;
     _simulationRunning = NO;
-    _trackGrid.reset(new QuadTree<SKSpriteNode *>);
+    _trackGrid.reset(new QuadTree<FLSegmentNode *>);
   }
   return self;
 }
@@ -301,7 +302,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     [self FL_trackEditMenuHideAnimated:YES];
   } else {
     [self FL_trackSelectGridX:gridX gridY:gridY];
-    SKSpriteNode *segmentNode = _trackGrid->get(gridX, gridY, nil);
+    FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY, nil);
     if (segmentNode) {
       [self FL_trackEditMenuShowAtSegment:segmentNode gridX:gridX gridY:gridY animated:YES];
     } else {
@@ -322,7 +323,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
   if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
     [self FL_trackSelectGridX:gridX gridY:gridY];
-    SKSpriteNode *segmentNode = _trackGrid->get(gridX, gridY, nil);
+    FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY, nil);
     if (segmentNode) {
       [self FL_trackEditMenuShowAtSegment:segmentNode gridX:gridX gridY:gridY animated:YES];
     }
@@ -352,7 +353,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     if ([self FL_trackSelectGetCurrentGridX:&selectedGridX gridY:&selectedGridY]
         && selectedGridX == gridX
         && selectedGridY == gridY) {
-      SKSpriteNode *selectedSegmentNode = _trackGrid->get(gridX, gridY, nil);
+      FLSegmentNode *selectedSegmentNode = _trackGrid->get(gridX, gridY, nil);
       if (selectedSegmentNode) {
         // Pan begins inside a selected track segment.
         _gestureRecognizerState.panType = FLPanTypeTrackMove;
@@ -522,7 +523,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     _constructionToolbarState.toolInUseNode.alpha = 0.5f;
     _constructionToolbarState.toolInUseNode.position = sceneLocation;
     
-    SKSpriteNode *newSegmentNode = [self FL_createSprite:tool withTexture:tool parent:nil];
+    FLSegmentNode *newSegmentNode = [self FL_createSegmentWithTextureKey:tool];
     newSegmentNode.zRotation = M_PI_2;
     [self FL_trackMoveBeganWithNode:newSegmentNode gridX:gridX gridY:gridY];
 
@@ -616,10 +617,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
     CGPoint sceneLocation = [self convertPointFromView:viewLocation];
     CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
-    CGPoint onTrackLocation;
-    if ([_train getClosestOnTrackLocation:&onTrackLocation forLocation:worldLocation]) {
-      _train.position = onTrackLocation;
-    }
+    [_train moveToClosestOnTrackLocationForLocation:worldLocation];
   }
 }
 
@@ -851,6 +849,20 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   return sprite;
 }
 
+- (FLSegmentNode *)FL_createSegmentWithSegmentType:(FLSegmentType)segmentType
+{
+  FLSegmentNode *segmentNode = [[FLSegmentNode alloc] initWithSegmentType:segmentType];
+  segmentNode.scale = _artScale;
+  return segmentNode;
+}
+
+- (FLSegmentNode *)FL_createSegmentWithTextureKey:(NSString *)textureKey
+{
+  FLSegmentNode *segmentNode = [[FLSegmentNode alloc] initWithTextureKey:textureKey];
+  segmentNode.scale = _artScale;
+  return segmentNode;
+}
+
 - (void)FL_constructionToolbarSetVisible:(BOOL)visible
 {
   if (!_constructionToolbarState.toolbarNode) {
@@ -989,7 +1001,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
  *
  * @param The location of the start of the move in track grid coordinates.
  */
-- (void)FL_trackMoveBeganWithNode:(SKSpriteNode *)segmentMovingNode gridX:(int)gridX gridY:(int)gridY
+- (void)FL_trackMoveBeganWithNode:(FLSegmentNode *)segmentMovingNode gridX:(int)gridX gridY:(int)gridY
 {
   if (_trackMoveState.segmentMoving) {
     [NSException raise:@"FLTrackMoveBadState"
@@ -1079,7 +1091,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
  */
 - (void)FL_trackMoveUpdateWithGridX:(int)gridX gridY:(int)gridY
 {
-  SKSpriteNode *segmentOccupying = _trackGrid->get(gridX, gridY, nil);
+  FLSegmentNode *segmentOccupying = _trackGrid->get(gridX, gridY, nil);
 
   if (segmentOccupying == _trackMoveState.segmentMoving) {
     // The move updated within the same grid square; nothing has changed.
@@ -1127,7 +1139,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   [self FL_trackSelectGridX:gridX gridY:gridY];
 }
 
-- (void)FL_trackEditMenuShowAtSegment:(SKSpriteNode *)segmentNode gridX:(int)gridX gridY:(int)gridY animated:(BOOL)animated
+- (void)FL_trackEditMenuShowAtSegment:(FLSegmentNode *)segmentNode gridX:(int)gridX gridY:(int)gridY animated:(BOOL)animated
 {
   if (!_trackEditMenuState.editMenuNode) {
     CGSize FLTrackEditMenuToolSize = { 48.0f, 48.0f };
@@ -1191,7 +1203,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 {
   // note: rotateBy positive is in the counterclockwise direction, but current implementation
   // will animate the shortest arc regardless of rotateBy sign.
-  SKSpriteNode *segmentNode = _trackGrid->get(gridX, gridY, nil);
+  FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY, nil);
   if (segmentNode) {
     int oldRotationQuarters = convertRotationRadiansToQuarters(segmentNode.zRotation);
     int newRotationQuarters = (oldRotationQuarters + rotateBy) % 4;
@@ -1205,7 +1217,6 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
       [segmentNode runAction:[SKAction rotateToAngle:(newRotationQuarters * M_PI_2) duration:0.1 shortestUnitArc:YES]];
       [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-click-1.caf" waitForCompletion:NO]];
     }
-    NSLog(@"new rotation %d", newRotationQuarters);
   }
 }
 
@@ -1246,19 +1257,27 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   std::cout << "dump track grid:" << std::endl;
   for (int y = 3; y >= -4; --y) {
     for (int x = -4; x <= 3; ++x) {
-      SKSpriteNode *segmentNode = _trackGrid->get(x, y, nil);
+      FLSegmentNode *segmentNode = _trackGrid->get(x, y, nil);
       char c;
       if (segmentNode == nil) {
         c = '.';
       } else {
-        if ([segmentNode.name isEqualToString:@"straight"]) {
-          c = '|';
-        } else if ([segmentNode.name isEqualToString:@"curve"]) {
-          c = '/';
-        } else if ([segmentNode.name isEqualToString:@"join"]) {
-          c = 'Y';
-        } else {
-          c = '?';
+        switch (segmentNode.segmentType) {
+          case FLSegmentTypeStraight:
+            c = '|';
+            break;
+          case FLSegmentTypeCurve:
+            c = '/';
+            break;
+          case FLSegmentTypeJoin:
+            c = 'Y';
+            break;
+          case FLSegmentTypeNone:
+            c = ' ';
+            break;
+          default:
+            c = '?';
+            break;
         }
       }
       std::cout << c;

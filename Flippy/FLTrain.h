@@ -8,6 +8,7 @@
 
 #import <SpriteKit/SpriteKit.h>
 
+#import "FLSegmentNode.h"
 #include "QuadTree.h"
 
 /**
@@ -27,7 +28,7 @@
 
 @interface FLTrain : SKSpriteNode
 
-- (id)initWithTrackGrid:(std::shared_ptr<HLCommon::QuadTree<SKSpriteNode *>>&)trackGrid gridSize:(CGFloat)gridSize;
+- (id)initWithTrackGrid:(std::shared_ptr<HLCommon::QuadTree<FLSegmentNode *>>&)trackGrid gridSize:(CGFloat)gridSize;
 
 - (void)start;
 
@@ -35,6 +36,6 @@
 
 - (void)update:(CFTimeInterval)currentTime;
 
-- (BOOL)getClosestOnTrackLocation:(CGPoint *)onTrackLocation forLocation:(CGPoint)worldLocation;
+- (BOOL)moveToClosestOnTrackLocationForLocation:(CGPoint)worldLocation;
 
 @end
