@@ -85,33 +85,50 @@ using namespace HLCommon;
   int worldLocationGridX = int(floorf(worldLocation.x / _gridSize + 0.5f));
   int worldLocationGridY = int(floorf(worldLocation.y / _gridSize + 0.5f));
 
-  CGFloat closestDistance = -1.0f;
-  CGPoint closestLocation;
-  CGFloat closestRotation;
+  // note: Calculate closest point on each of nine closest segments.  The performance
+  // seems okay even when calculating the best precision for each, but in order to
+  // provide an easy way to tweak performance in the future, do two passes: coarse to
+  // find the closest segment, and fine to get the best point on the roughly-closest
+  // segment.
+  const CGFloat FLPrecisionClosestSegment = 0.1f;
+  const CGFloat FLPrecisionClosestLocation = 0.01f;
+
+  FLSegmentNode *closestSegmentNode = nil;
+  CGFloat closestDistance;
   for (int gx = worldLocationGridX - 1; gx <= worldLocationGridX + 1; ++gx) {
     for (int gy = worldLocationGridY - 1; gy <= worldLocationGridY + 1; ++gy) {
       FLSegmentNode *segmentNode = _trackGrid->get(gx, gy, nil);
       if (!segmentNode) {
         continue;
       }
-      CGPoint onTrackLocation;
-      CGFloat onTrackRotation;
-      CGFloat distance = [segmentNode getClosestOnSegmentPoint:&onTrackLocation rotation:&onTrackRotation forOffSegmentPoint:worldLocation scale:_gridSize precision:0.01f];
-      if (closestDistance < 0.0f || distance < closestDistance) {
+      CGFloat distance = [segmentNode getClosestOnSegmentPoint:nil rotation:nil progress:nil forOffSegmentPoint:worldLocation scale:_gridSize precision:FLPrecisionClosestSegment];
+      if (!closestSegmentNode || distance < closestDistance) {
+        closestSegmentNode = segmentNode;
         closestDistance = distance;
-        closestLocation = onTrackLocation;
-        closestRotation = onTrackRotation;
       }
     }
   }
-
-  if (closestDistance >= 0.0f) {
-    self.position = closestLocation;
-    self.zRotation = closestRotation;
-    return YES;
-  } else {
+  if (!closestSegmentNode) {
     return NO;
   }
+
+  CGPoint location;
+  CGFloat rotationRadians;
+  CGFloat progress;
+  [closestSegmentNode getClosestOnSegmentPoint:&location rotation:&rotationRadians progress:&progress forOffSegmentPoint:worldLocation scale:_gridSize precision:FLPrecisionClosestLocation];
+
+  // Point train inward.
+  //
+  // note: Easy way to do this: Currently, all paths are closest to the center of the segment at their
+  // halfway point.  Slightly more sophisticated way to do this: Calculate atan2f(location.y - segmentPosition.y,
+  // location.x - segmentPosition.x) and get rotationRadians within M_PI radians of that.
+  if (progress > 0.5f) {
+    rotationRadians += M_PI;
+  }
+
+  self.position = location;
+  self.zRotation = rotationRadians;
+  return YES;
 }
 
 @end

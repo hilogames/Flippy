@@ -68,7 +68,7 @@
   *rotationRadians = path->getTangent(progress);
 }
 
-- (CGFloat)getClosestOnSegmentPoint:(CGPoint *)onSegmentPoint rotation:(CGFloat *)rotationRadians forOffSegmentPoint:(CGPoint)offSegmentPoint scale:(CGFloat)scale precision:(CGFloat)precision
+- (CGFloat)getClosestOnSegmentPoint:(CGPoint *)onSegmentPoint rotation:(CGFloat *)rotationRadians progress:(CGFloat *)progress forOffSegmentPoint:(CGPoint)offSegmentPoint scale:(CGFloat)scale precision:(CGFloat)precision
 {
   const FLPath *path = [self FL_currentPath];
   // note: Again, note that path points are contained within the unit square centered on the origin.
@@ -79,9 +79,16 @@
   CGPoint onPathPoint;
   CGFloat onPathProgress;
   CGFloat distance = path->getClosestOnPathPoint(&onPathPoint, &onPathProgress, offPathPoint, precision);
-  onSegmentPoint->x = onPathPoint.x * scale + self.position.x;
-  onSegmentPoint->y = onPathPoint.y * scale + self.position.y;
-  *rotationRadians = path->getTangent(onPathProgress);
+  if (onSegmentPoint) {
+    onSegmentPoint->x = onPathPoint.x * scale + self.position.x;
+    onSegmentPoint->y = onPathPoint.y * scale + self.position.y;
+  }
+  if (rotationRadians) {
+    *rotationRadians = path->getTangent(onPathProgress);
+  }
+  if (progress) {
+    *progress = onPathProgress;
+  }
   return distance;
 }
 

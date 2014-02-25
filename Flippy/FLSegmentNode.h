@@ -20,6 +20,6 @@ enum FLSegmentType { FLSegmentTypeNone, FLSegmentTypeStraight, FLSegmentTypeCurv
 
 - (void)getPoint:(CGPoint *)point rotation:(CGFloat *)rotationRadians forProgress:(CGFloat)progress scale:(CGFloat)scale;
 
-- (CGFloat)getClosestOnSegmentPoint:(CGPoint *)onSegmentPoint rotation:(CGFloat *)rotationRadians forOffSegmentPoint:(CGPoint)offSegmentPoint scale:(CGFloat)scale precision:(CGFloat)precision;
+- (CGFloat)getClosestOnSegmentPoint:(CGPoint *)onSegmentPoint rotation:(CGFloat *)rotationRadians progress:(CGFloat *)progress forOffSegmentPoint:(CGPoint)offSegmentPoint scale:(CGFloat)scale precision:(CGFloat)precision;
 
 @end
