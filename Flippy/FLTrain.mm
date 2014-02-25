@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "FLCommon.h"
+#import "FLTextureStore.h"
 
 using namespace std;
 using namespace HLCommon;
@@ -24,7 +25,8 @@ using namespace HLCommon;
 
 - (id)initWithTrackGrid:(shared_ptr<QuadTree<FLSegmentNode *>>&)trackGrid gridSize:(CGFloat)gridSize
 {
-  self = [super initWithColor:[UIColor colorWithRed:0.2f green:0.2f blue:0.2f alpha:1.0f] size:CGSizeMake(60.0f, 20.0f)];
+  SKTexture *texture = [[FLTextureStore sharedStore] textureForKey:@"engine"];
+  self = [super initWithTexture:texture];
   if (self) {
     self.zRotation = M_PI_2;
     _trackGrid = trackGrid;

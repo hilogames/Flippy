@@ -24,6 +24,8 @@
  * inherited properties of this class are currently considered read-only for the owner except:
  *
  *    . parent
+ *    . scale
+ *    . zPosition
  */
 
 @interface FLTrain : SKSpriteNode

@@ -19,6 +19,9 @@
   if (!sharedStore) {
     sharedStore = [[FLTextureStore alloc] init];
 
+    // Train.
+    [sharedStore loadTextureForKey:@"engine" filteringMode:SKTextureFilteringNearest];
+
     // Segments.
     [sharedStore loadTextureForKey:@"straight" filteringMode:SKTextureFilteringNearest];
     [sharedStore loadTextureForKey:@"curve" filteringMode:SKTextureFilteringNearest];

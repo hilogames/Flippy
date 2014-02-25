@@ -244,6 +244,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   // Create other content.
 
   _train = [[FLTrain alloc] initWithTrackGrid:_trackGrid gridSize:_gridSize];
+  _train.scale = _artScale;
   _train.zPosition = FLZPositionWorldTrain;
   [_worldNode addChild:_train];
 
