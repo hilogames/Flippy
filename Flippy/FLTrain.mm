@@ -16,11 +16,21 @@
 using namespace std;
 using namespace HLCommon;
 
+enum FLTrainDirection { FLTrainDirectionPathForward, FLTrainDirectionPathReverse };
+
 @implementation FLTrain
 {
   shared_ptr<QuadTree<FLSegmentNode *>> _trackGrid;
+  // note: It's a little strange that _gridSize can't be inferred from -- or isn't a
+  // part of -- the track grid structure.
   CGFloat _gridSize;
+
   BOOL _running;
+  BOOL _firstUpdateSinceRunning;
+
+  FLSegmentNode *_lastSegmentNode;
+  CGFloat _lastProgress;
+  FLTrainDirection _lastDirection;
 }
 
 - (id)initWithTrackGrid:(shared_ptr<QuadTree<FLSegmentNode *>>&)trackGrid gridSize:(CGFloat)gridSize
@@ -42,6 +52,7 @@ using namespace HLCommon;
     return;
   }
   _running = YES;
+  _firstUpdateSinceRunning = YES;
 }
 
 - (void)stop
@@ -52,7 +63,7 @@ using namespace HLCommon;
   _running = NO;
 }
 
-- (void)update:(CFTimeInterval)currentTime
+- (void)update:(CFTimeInterval)elapsedTime
 {
   if (!_running) {
     return;
@@ -62,22 +73,49 @@ using namespace HLCommon;
   // is too much, then can impose some editing restrictions (or simpler error checking) on
   // the track.
 
+  // If last segment node has been removed or replaced, then crash.
+  //
+  // note: Perhaps worth noting, though, that if the last segment node merely changes
+  // rotation, we'll follow right along.  A bit inconsistent, but fun.
   int gridX;
   int gridY;
   convertWorldLocationToTrackGrid(self.position, _gridSize, &gridX, &gridY);
-  
   FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY, nil);
-  if (!segmentNode) {
+  if (!segmentNode || segmentNode != _lastSegmentNode) {
+    [self stop];
     return;
   }
 
-  CGFloat progress = fmodf(currentTime, 3.0f) * 3.0f / 10.0f + 0.05f;
-  CGPoint point;
+  const CGFloat FLTrainSpeedProgressPerSecond = 0.7f;
+  CGFloat deltaProgress;
+  if (_firstUpdateSinceRunning) {
+    deltaProgress = 0.0f;
+    _firstUpdateSinceRunning = NO;
+  } else {
+    deltaProgress = FLTrainSpeedProgressPerSecond * elapsedTime;
+  }
+  if (_lastDirection == FLTrainDirectionPathForward) {
+    _lastProgress += deltaProgress;
+  } else {
+    _lastProgress -= deltaProgress;
+  }
+
+  // HERE HERE HERE: Go to next segment.
+  if (_lastProgress > 1.0f) {
+    _lastProgress = 1.0f;
+  } else if (_lastProgress < 0.0f) {
+    _lastProgress = 0.0f;
+  }
+
+  CGPoint location;
   CGFloat rotationRadians;
-  [segmentNode getPoint:&point rotation:&rotationRadians forProgress:progress scale:_gridSize];
-  self.position = CGPointMake(segmentNode.position.x + point.x,
-                              segmentNode.position.y + point.y);
-  self.zRotation = rotationRadians;
+  [segmentNode getPoint:&location rotation:&rotationRadians forProgress:_lastProgress scale:_gridSize];
+  self.position = location;
+  if (_lastDirection == FLTrainDirectionPathForward) {
+    self.zRotation = rotationRadians;
+  } else {
+    self.zRotation = rotationRadians + M_PI;
+  }
 }
 
 - (BOOL)moveToClosestOnTrackLocationForLocation:(CGPoint)worldLocation
@@ -122,12 +160,19 @@ using namespace HLCommon;
   // note: Easy way to do this: Currently, all paths are closest to the center of the segment at their
   // halfway point.  Slightly more sophisticated way to do this: Calculate atan2f(location.y - segmentPosition.y,
   // location.x - segmentPosition.x) and get rotationRadians within M_PI radians of that.
+  FLTrainDirection direction = FLTrainDirectionPathForward;
   if (progress > 0.5f) {
+    direction = FLTrainDirectionPathReverse;
     rotationRadians += M_PI;
   }
 
   self.position = location;
   self.zRotation = rotationRadians;
+
+  _lastSegmentNode = closestSegmentNode;
+  _lastProgress = progress;
+  _lastDirection = direction;
+
   return YES;
 }
 

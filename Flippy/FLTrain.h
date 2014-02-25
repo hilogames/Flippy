@@ -36,7 +36,7 @@
 
 - (void)stop;
 
-- (void)update:(CFTimeInterval)currentTime;
+- (void)update:(CFTimeInterval)elapsedTime;
 
 - (BOOL)moveToClosestOnTrackLocationForLocation:(CGPoint)worldLocation;
 

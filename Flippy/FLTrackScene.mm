@@ -116,6 +116,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
   FLCameraMode _cameraMode;
   BOOL _simulationRunning;
+  CFTimeInterval _updateLastTime;
 
   shared_ptr<QuadTree<FLSegmentNode *>> _trackGrid;
 
@@ -272,8 +273,22 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
 - (void)update:(CFTimeInterval)currentTime
 {
+  // Sanitize and constrain elapsed time.
+  CFTimeInterval elapsedTime;
+  elapsedTime = currentTime - _updateLastTime;
+  _updateLastTime = currentTime;
+  // note: No time elapsed if clock runs backwards.  (Does SKScene already check this?)
+  if (elapsedTime < 0.0) {
+    elapsedTime = 0.0;
+  }
+  // note: If framerate is crazy low, pretend time has slowed down, too.
+  if (elapsedTime > 0.2) {
+    NSLog(@"time is slow");
+    elapsedTime = 0.01;
+  }
+
   if (_simulationRunning) {
-    [_train update:currentTime];
+    [_train update:elapsedTime];
   }
 }
 
