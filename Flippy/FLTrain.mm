@@ -8,59 +8,45 @@
 
 #import "FLTrain.h"
 
-#include <vector>
-
-#include "FLCommon.h"
 #import "FLTextureStore.h"
+#include "FLTrackGrid.h"
 
 using namespace std;
-using namespace HLCommon;
 
-enum FLTrainDirection { FLTrainDirectionPathForward, FLTrainDirectionPathReverse };
+static const int FLTrainDirectionForward = 1;
+static const int FLTrainDirectionReverse = -1;
 
 @implementation FLTrain
 {
-  shared_ptr<QuadTree<FLSegmentNode *>> _trackGrid;
-  // note: It's a little strange that _gridSize can't be inferred from -- or isn't a
-  // part of -- the track grid structure.
-  CGFloat _gridSize;
+  shared_ptr<FLTrackGrid> _trackGrid;
 
   BOOL _running;
   BOOL _firstUpdateSinceRunning;
 
   FLSegmentNode *_lastSegmentNode;
+  int _lastPathId;
   CGFloat _lastProgress;
-  FLTrainDirection _lastDirection;
+  int _lastDirection;
 }
 
-- (id)initWithTrackGrid:(shared_ptr<QuadTree<FLSegmentNode *>>&)trackGrid gridSize:(CGFloat)gridSize
+- (id)initWithTrackGrid:(shared_ptr<FLTrackGrid>&)trackGrid
 {
   SKTexture *texture = [[FLTextureStore sharedStore] textureForKey:@"engine"];
   self = [super initWithTexture:texture];
   if (self) {
     self.zRotation = M_PI_2;
     _trackGrid = trackGrid;
-    _gridSize = gridSize;
     _running = NO;
   }
   return self;
 }
 
-- (void)start
+- (void)setRunning:(BOOL)running
 {
-  if (_running) {
-    return;
+  if (!_running && running) {
+    _firstUpdateSinceRunning = YES;
   }
-  _running = YES;
-  _firstUpdateSinceRunning = YES;
-}
-
-- (void)stop
-{
-  if (!_running) {
-    return;
-  }
-  _running = NO;
+  _running = running;
 }
 
 - (void)update:(CFTimeInterval)elapsedTime
@@ -69,109 +55,136 @@ enum FLTrainDirection { FLTrainDirectionPathForward, FLTrainDirectionPathReverse
     return;
   }
 
-  // note: For now, assume that the track can change from frame to frame.  If the overhead
-  // is too much, then can impose some editing restrictions (or simpler error checking) on
-  // the track.
-
+  // If never put on track, then crash.
+  if (!_lastSegmentNode) {
+    self.running = NO;
+    return;
+  }
+  
   // If last segment node has been removed or replaced, then crash.
   //
-  // note: Perhaps worth noting, though, that if the last segment node merely changes
-  // rotation, we'll follow right along.  A bit inconsistent, but fun.
-  int gridX;
-  int gridY;
-  convertWorldLocationToTrackGrid(self.position, _gridSize, &gridX, &gridY);
-  FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY, nil);
-  if (!segmentNode || segmentNode != _lastSegmentNode) {
-    [self stop];
+  // note: For now, assuming that the track can change from frame to frame.  If the overhead
+  // is too much, then can impose some editing restrictions (or simpler error checking) on
+  // the track.
+  //
+  // note: However, we assume that if we can find the last segment node at least somewhere
+  // nearby, then we must still be on track.  So, if the last segment node is just moved
+  // a little bit, or if it's rotated, we'll probably happily follow right along.
+  //
+  // note: Keep in mind that checking if the last segment node is still here isn't as
+  // simple as checking at the train's position.  The train runs on edges and corners
+  // of segments, and so because of floating point error (and also because of points
+  // legitimately shared by multiple segments), we have to look at "adjacent" segments
+  // (where adjacent is a bit fuzzy).
+  BOOL foundLastSegmentNode = NO;
+  FLSegmentNode *adjacentSegmentNodes[FLTrackGridAdjacentMax];
+  size_t adjacentCount = trackGridFindAdjacent(*_trackGrid, self.position, adjacentSegmentNodes);
+  for (int as = 0; as < adjacentCount; ++as) {
+    if (adjacentSegmentNodes[as] == _lastSegmentNode) {
+      foundLastSegmentNode = YES;
+      break;
+    }
+  }
+  if (!foundLastSegmentNode) {
+    self.running = NO;
     return;
   }
 
+  // Calculate train's new progress along current segment.
+  //
+  // note: Current speed is constant in terms of progress.  This will be modified in
+  // the future to account for path length, and probably also to allow acceleration
+  // for fun.
   const CGFloat FLTrainSpeedProgressPerSecond = 0.7f;
   CGFloat deltaProgress;
   if (_firstUpdateSinceRunning) {
     deltaProgress = 0.0f;
     _firstUpdateSinceRunning = NO;
   } else {
-    deltaProgress = FLTrainSpeedProgressPerSecond * elapsedTime;
+    deltaProgress = FLTrainSpeedProgressPerSecond * elapsedTime * _lastDirection;
   }
-  if (_lastDirection == FLTrainDirectionPathForward) {
-    _lastProgress += deltaProgress;
-  } else {
-    _lastProgress -= deltaProgress;
+  _lastProgress += deltaProgress;
+
+  // If the train tries to go past the end of the segment, then attempt to
+  // switch to a connecting segment.
+  if (_lastProgress < 0.0f || _lastProgress > 1.0f) {
+    if (![self FL_switchToConnectingSegment]) {
+      self.running = NO;
+      return;
+    }
+    // note: One loose end here: The switch method carries over remaining progress
+    // from the last segment to the new one.  That will have to modified once
+    // path length is taken into account; the switch method should maybe instead
+    // return the remaining progress, and let us do the math.  Or maybe better,
+    // factor out the code to do the progression math, and both we and the switch
+    // method will call it.
   }
 
-  // HERE HERE HERE: Go to next segment.
-  if (_lastProgress > 1.0f) {
-    _lastProgress = 1.0f;
-  } else if (_lastProgress < 0.0f) {
-    _lastProgress = 0.0f;
-  }
-
+  // Show the train at the new position.
   CGPoint location;
   CGFloat rotationRadians;
-  [segmentNode getPoint:&location rotation:&rotationRadians forProgress:_lastProgress scale:_gridSize];
+  [_lastSegmentNode getPoint:&location rotation:&rotationRadians forPath:_lastPathId progress:_lastProgress scale:_trackGrid->segmentSize()];
   self.position = location;
-  if (_lastDirection == FLTrainDirectionPathForward) {
-    self.zRotation = rotationRadians;
-  } else {
-    self.zRotation = rotationRadians + M_PI;
-  }
+  self.zRotation = (_lastDirection == FLTrainDirectionForward ? rotationRadians : rotationRadians + M_PI);
 }
 
 - (BOOL)moveToClosestOnTrackLocationForLocation:(CGPoint)worldLocation
 {
-  int worldLocationGridX = int(floorf(worldLocation.x / _gridSize + 0.5f));
-  int worldLocationGridY = int(floorf(worldLocation.y / _gridSize + 0.5f));
+  // note: Search distance 1 means we'll look at the 9 segments centered around worldLocation.
+  const int FLGridSearchDistance = 1;
+  const CGFloat FLProgressPrecision = 0.01f;
 
-  // note: Calculate closest point on each of nine closest segments.  The performance
-  // seems okay even when calculating the best precision for each, but in order to
-  // provide an easy way to tweak performance in the future, do two passes: coarse to
-  // find the closest segment, and fine to get the best point on the roughly-closest
-  // segment.
-  const CGFloat FLPrecisionClosestSegment = 0.1f;
-  const CGFloat FLPrecisionClosestLocation = 0.01f;
-
-  FLSegmentNode *closestSegmentNode = nil;
-  CGFloat closestDistance;
-  for (int gx = worldLocationGridX - 1; gx <= worldLocationGridX + 1; ++gx) {
-    for (int gy = worldLocationGridY - 1; gy <= worldLocationGridY + 1; ++gy) {
-      FLSegmentNode *segmentNode = _trackGrid->get(gx, gy, nil);
-      if (!segmentNode) {
-        continue;
-      }
-      CGFloat distance = [segmentNode getClosestOnSegmentPoint:nil rotation:nil progress:nil forOffSegmentPoint:worldLocation scale:_gridSize precision:FLPrecisionClosestSegment];
-      if (!closestSegmentNode || distance < closestDistance) {
-        closestSegmentNode = segmentNode;
-        closestDistance = distance;
-      }
-    }
-  }
-  if (!closestSegmentNode) {
-    return NO;
-  }
-
+  CGFloat distance;
   CGPoint location;
   CGFloat rotationRadians;
+  FLSegmentNode *segmentNode;
+  int pathId;
   CGFloat progress;
-  [closestSegmentNode getClosestOnSegmentPoint:&location rotation:&rotationRadians progress:&progress forOffSegmentPoint:worldLocation scale:_gridSize precision:FLPrecisionClosestLocation];
+  if (!trackGridFindClosestOnTrackPoint(*_trackGrid, worldLocation, FLGridSearchDistance, FLProgressPrecision,
+                                        &distance, &location, &rotationRadians, &segmentNode, &pathId, &progress)) {
+    return NO;
+  }
 
   // Point train inward.
   //
   // note: Easy way to do this: Currently, all paths are closest to the center of the segment at their
   // halfway point.  Slightly more sophisticated way to do this: Calculate atan2f(location.y - segmentPosition.y,
-  // location.x - segmentPosition.x) and get rotationRadians within M_PI radians of that.
-  FLTrainDirection direction = FLTrainDirectionPathForward;
-  if (progress > 0.5f) {
-    direction = FLTrainDirectionPathReverse;
-    rotationRadians += M_PI;
-  }
+  // location.x - segmentPosition.x) and choose either rotationRadians or rotationRadians+M_PI as closer.
+  int direction = (progress < 0.5f ? FLTrainDirectionForward : FLTrainDirectionReverse);
 
   self.position = location;
-  self.zRotation = rotationRadians;
+  self.zRotation = (direction == FLTrainDirectionForward ? rotationRadians : rotationRadians + M_PI);
 
-  _lastSegmentNode = closestSegmentNode;
+  _lastSegmentNode = segmentNode;
+  _lastPathId = pathId;
   _lastProgress = progress;
   _lastDirection = direction;
+
+  return YES;
+}
+
+- (BOOL)FL_switchToConnectingSegment
+{
+  CGFloat endPointProgress = (_lastDirection == FLTrainDirectionForward ? 1.0f : 0.0f);
+  FLSegmentNode *nextSegmentNode;
+  int nextPathId;
+  CGFloat nextProgress;
+  if (!trackGridFindConnecting(*_trackGrid,
+                               _lastSegmentNode, _lastPathId, endPointProgress,
+                               &nextSegmentNode, &nextPathId, &nextProgress)) {
+    return NO;
+  }
+
+  int nextDirection = (nextProgress < 0.5f ? FLTrainDirectionForward : FLTrainDirectionReverse);
+
+  _lastSegmentNode = nextSegmentNode;
+  _lastPathId = nextPathId;
+  if (_lastDirection == nextDirection) {
+    _lastProgress = _lastProgress - _lastDirection;
+  } else {
+    _lastProgress = 1.0f - _lastProgress + _lastDirection;
+  }
+  _lastDirection = nextDirection;
 
   return YES;
 }

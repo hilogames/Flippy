@@ -10,12 +10,11 @@
 
 #include <memory>
 
-#include "FLCommon.h"
 #import "FLSegmentNode.h"
 #import "FLTextureStore.h"
 #import "FLToolbarNode.h"
+#include "FLTrackGrid.h"
 #import "FLTrain.h"
-#include "QuadTree.h"
 
 using namespace std;
 using namespace HLCommon;
@@ -111,14 +110,13 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   CGFloat _artSegmentSizeFull;
   CGFloat _artSegmentSizeBasic;
   CGFloat _artSegmentDrawnTrackNormalWidth;
-  CGFloat _gridSize;
   CGFloat _artScale;
 
   FLCameraMode _cameraMode;
   BOOL _simulationRunning;
   CFTimeInterval _updateLastTime;
 
-  shared_ptr<QuadTree<FLSegmentNode *>> _trackGrid;
+  shared_ptr<FLTrackGrid> _trackGrid;
 
   FLConstructionToolbarState _constructionToolbarState;
   FLSimulationToolbarState _simulationToolbarState;
@@ -137,10 +135,9 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     _artSegmentSizeBasic = 36.0f;
     _artSegmentDrawnTrackNormalWidth = 14.0f;  // the pixel width of the drawn tracks (widest: sleepers) when orthagonal
     _artScale = 2.0f;
-    _gridSize = _artSegmentSizeBasic * _artScale;
     _cameraMode = FLCameraModeManual;
     _simulationRunning = NO;
-    _trackGrid.reset(new QuadTree<FLSegmentNode *>);
+    _trackGrid.reset(new FLTrackGrid(_artSegmentSizeBasic * _artScale));
   }
   return self;
 }
@@ -244,7 +241,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
   // Create other content.
 
-  _train = [[FLTrain alloc] initWithTrackGrid:_trackGrid gridSize:_gridSize];
+  _train = [[FLTrain alloc] initWithTrackGrid:_trackGrid];
   _train.scale = _artScale;
   _train.zPosition = FLZPositionWorldTrain;
   [_worldNode addChild:_train];
@@ -307,7 +304,8 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
   int gridX;
   int gridY;
-  convertWorldLocationToTrackGrid(worldLocation, _gridSize, &gridX, &gridY);
+  _trackGrid->convert(worldLocation, &gridX, &gridY);
+  NSLog(@"tapped %d,%d", gridX, gridY);
 
   int selectedGridX;
   int selectedGridY;
@@ -318,7 +316,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     [self FL_trackEditMenuHideAnimated:YES];
   } else {
     [self FL_trackSelectGridX:gridX gridY:gridY];
-    FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY, nil);
+    FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY);
     if (segmentNode) {
       [self FL_trackEditMenuShowAtSegment:segmentNode gridX:gridX gridY:gridY animated:YES];
     } else {
@@ -333,13 +331,13 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   CGPoint sceneLocation = [self convertPointFromView:viewLocation];
   CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
 
-  int gridX;
-  int gridY;
-  convertWorldLocationToTrackGrid(worldLocation, _gridSize, &gridX, &gridY);
-
   if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
+
+    int gridX;
+    int gridY;
+    _trackGrid->convert(worldLocation, &gridX, &gridY);
     [self FL_trackSelectGridX:gridX gridY:gridY];
-    FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY, nil);
+    FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY);
     if (segmentNode) {
       [self FL_trackEditMenuShowAtSegment:segmentNode gridX:gridX gridY:gridY animated:YES];
     }
@@ -363,13 +361,13 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
     int gridX;
     int gridY;
-    convertWorldLocationToTrackGrid(worldLocation, _gridSize, &gridX, &gridY);
+    _trackGrid->convert(worldLocation, &gridX, &gridY);
     int selectedGridX;
     int selectedGridY;
     if ([self FL_trackSelectGetCurrentGridX:&selectedGridX gridY:&selectedGridY]
         && selectedGridX == gridX
         && selectedGridY == gridY) {
-      FLSegmentNode *selectedSegmentNode = _trackGrid->get(gridX, gridY, nil);
+      FLSegmentNode *selectedSegmentNode = _trackGrid->get(gridX, gridY);
       if (selectedSegmentNode) {
         // Pan begins inside a selected track segment.
         _gestureRecognizerState.panType = FLPanTypeTrackMove;
@@ -394,7 +392,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
         CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
         int gridX;
         int gridY;
-        convertWorldLocationToTrackGrid(worldLocation, _gridSize, &gridX, &gridY);
+        _trackGrid->convert(worldLocation, &gridX, &gridY);
         [self FL_trackMoveContinuedWithGridX:gridX gridY:gridY];
         break;
       }
@@ -421,7 +419,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
         CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
         int gridX;
         int gridY;
-        convertWorldLocationToTrackGrid(worldLocation, _gridSize, &gridX, &gridY);
+        _trackGrid->convert(worldLocation, &gridX, &gridY);
         [self FL_trackMoveEndedWithGridX:gridX gridY:gridY];
         break;
       }
@@ -443,7 +441,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
         CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
         int gridX;
         int gridY;
-        convertWorldLocationToTrackGrid(worldLocation, _gridSize, &gridX, &gridY);
+        _trackGrid->convert(worldLocation, &gridX, &gridY);
         [self FL_trackMoveCancelledWithGridX:gridX gridY:gridY];
         break;
       }
@@ -521,7 +519,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
   int gridX;
   int gridY;
-  convertWorldLocationToTrackGrid(worldLocation, _gridSize, &gridX, &gridY);
+  _trackGrid->convert(worldLocation, &gridX, &gridY);
 
   if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
 
@@ -583,7 +581,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   if ([tool isEqualToString:@"play"]) {
 
     _simulationRunning = YES;
-    [_train start];
+    _train.running = YES;
     [_simulationToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"pause", @"center" ]
                                                            sizes:nil
                                                        rotations:@[ @M_PI_2, @M_PI_2 ]
@@ -592,7 +590,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   } else if ([tool isEqualToString:@"pause"]) {
 
     _simulationRunning = NO;
-    [_train stop];
+    _train.running = NO;
     [_simulationToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"play", @"center" ]
                                                            sizes:nil
                                                        rotations:@[ @M_PI_2, @M_PI_2 ]
@@ -951,8 +949,6 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
 - (void)FL_trackSelectGridX:(int)gridX gridY:(int)gridY
 {
-  NSLog(@"selected %d,%d", gridX, gridY);
-
   // Create the visuals if not already created.
   if (!_trackSelectState.visualSelectionNode) {
     const CGFloat FLTrackSelectAlphaMin = 0.7f;
@@ -980,7 +976,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   if (!_trackSelectState.visualSelectionNode.parent) {
     [_worldNode addChild:_trackSelectState.visualSelectionNode];
   }
-  _trackSelectState.visualSelectionNode.position = CGPointMake(gridX * _gridSize, gridY * _gridSize);
+  _trackSelectState.visualSelectionNode.position = _trackGrid->convert(gridX, gridY);
   _trackSelectState.selected = YES;
   _trackSelectState.gridX = gridX;
   _trackSelectState.gridY = gridY;
@@ -1086,7 +1082,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     _trackMoveState.segmentMoving = nil;
 
     if (_trackMoveState.segmentRemoving) {
-      (*_trackGrid)[{gridX, gridY}] = _trackMoveState.segmentRemoving;
+      _trackGrid->set(gridX, gridY, _trackMoveState.segmentRemoving);
       [_trackNode addChild:_trackMoveState.segmentRemoving];
       _trackMoveState.segmentRemoving = nil;
     }
@@ -1107,7 +1103,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
  */
 - (void)FL_trackMoveUpdateWithGridX:(int)gridX gridY:(int)gridY
 {
-  FLSegmentNode *segmentOccupying = _trackGrid->get(gridX, gridY, nil);
+  FLSegmentNode *segmentOccupying = _trackGrid->get(gridX, gridY);
 
   if (segmentOccupying == _trackMoveState.segmentMoving) {
     // The move updated within the same grid square; nothing has changed.
@@ -1124,19 +1120,13 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     // At the previous grid location, an occupying segment was removed; restore it.  (This
     // will overwrite the moving segment that had been shown there in its place).
     CGPoint oldLocation = _trackMoveState.segmentRemoving.position;
-    int oldGridX;
-    int oldGridY;
-    convertWorldLocationToTrackGrid(oldLocation, _gridSize, &oldGridX, &oldGridY);
-    (*_trackGrid)[{oldGridX, oldGridY}] = _trackMoveState.segmentRemoving;
+    trackGridConvertSet(*_trackGrid, oldLocation, _trackMoveState.segmentRemoving);
     [_trackNode addChild:_trackMoveState.segmentRemoving];
   } else {
     // At the previous grid location, no segment was displaced by the moving segment; clear
     // out the moving segment.
     CGPoint oldLocation = _trackMoveState.segmentMoving.position;
-    int oldGridX;
-    int oldGridY;
-    convertWorldLocationToTrackGrid(oldLocation, _gridSize, &oldGridX, &oldGridY);
-    _trackGrid->erase(oldGridX, oldGridY);
+    trackGridConvertErase(*_trackGrid, oldLocation);
   }
 
   // Update the new grid location.
@@ -1147,8 +1137,8 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   } else {
     _trackMoveState.segmentRemoving = nil;
   }
-  (*_trackGrid)[{gridX, gridY}] = _trackMoveState.segmentMoving;
-  _trackMoveState.segmentMoving.position = CGPointMake(gridX * _gridSize, gridY * _gridSize);
+  _trackGrid->set(gridX, gridY, _trackMoveState.segmentMoving);
+  _trackMoveState.segmentMoving.position = _trackGrid->convert(gridX, gridY);
   [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-click-2.caf" waitForCompletion:NO]];
 
   // Update selection.
@@ -1219,16 +1209,15 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 {
   // note: rotateBy positive is in the counterclockwise direction, but current implementation
   // will animate the shortest arc regardless of rotateBy sign.
-  FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY, nil);
+  FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY);
   if (segmentNode) {
-    int oldRotationQuarters = convertRotationRadiansToQuarters(segmentNode.zRotation);
-    int newRotationQuarters = (oldRotationQuarters + rotateBy) % 4;
+    int newRotationQuarters = (segmentNode.zRotationQuarters + rotateBy) % 4;
     // note: Repeatedly rotating by adding M_PI_2 * rotateBy leads to cumulative floating point
     // error, which can be large enough over time to affect the calculation (e.g. if the epsilon
     // value in convertRotationRadiansToQuarters is not large enough).  So: Don't just add the
     // angle; recalculate it.
     if (!animated) {
-      segmentNode.zRotation = newRotationQuarters * M_PI_2;
+      segmentNode.zRotationQuarters = newRotationQuarters;
     } else {
       [segmentNode runAction:[SKAction rotateToAngle:(newRotationQuarters * M_PI_2) duration:0.1 shortestUnitArc:YES]];
       [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-click-1.caf" waitForCompletion:NO]];
@@ -1238,7 +1227,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
 - (void)FL_trackGridEraseGridX:(int)gridX gridY:(int)gridY animated:(BOOL)animated
 {
-  SKSpriteNode *segmentNode = _trackGrid->get(gridX, gridY, nil);
+  SKSpriteNode *segmentNode = _trackGrid->get(gridX, gridY);
   if (segmentNode) {
     [segmentNode removeFromParent];
     if (animated) {
@@ -1249,7 +1238,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
       sleeperDestruction.yScale = _artScale;
       railDestruction.xScale = _artScale;
       railDestruction.yScale = _artScale;
-      CGPoint worldLocation = CGPointMake(gridX * _gridSize, gridY *_gridSize);
+      CGPoint worldLocation = _trackGrid->convert(gridX, gridY);
       sleeperDestruction.position = worldLocation;
       railDestruction.position = worldLocation;
       [_trackNode addChild:sleeperDestruction];
@@ -1273,7 +1262,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   std::cout << "dump track grid:" << std::endl;
   for (int y = 3; y >= -4; --y) {
     for (int x = -4; x <= 3; ++x) {
-      FLSegmentNode *segmentNode = _trackGrid->get(x, y, nil);
+      FLSegmentNode *segmentNode = _trackGrid->get(x, y);
       char c;
       if (segmentNode == nil) {
         c = '.';

@@ -14,6 +14,7 @@
 		CB4D531018A979550087E1F7 /* wooden-click-1.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB4D530B18A979550087E1F7 /* wooden-click-1.caf */; };
 		CB4D531118A979550087E1F7 /* wooden-click-2.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB4D530C18A979550087E1F7 /* wooden-click-2.caf */; };
 		CB4D531318A979550087E1F7 /* wooden-clickity-2.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB4D530E18A979550087E1F7 /* wooden-clickity-2.caf */; };
+		CB50C21718BF8F140072DA30 /* FLTrackGrid.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB50C21518BF8F140072DA30 /* FLTrackGrid.mm */; };
 		CB657E9A1843E8DB00399E34 /* track.atlas in Resources */ = {isa = PBXBuildFile; fileRef = CB657E991843E8DB00399E34 /* track.atlas */; };
 		CB88668F18A540130045FD7E /* grass.png in Resources */ = {isa = PBXBuildFile; fileRef = CB88668E18A540130045FD7E /* grass.png */; };
 		CB88669218A544530045FD7E /* sleeperDestruction.sks in Resources */ = {isa = PBXBuildFile; fileRef = CB88669018A544530045FD7E /* sleeperDestruction.sks */; };
@@ -63,6 +64,8 @@
 		CB4D530B18A979550087E1F7 /* wooden-click-1.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "wooden-click-1.caf"; sourceTree = "<group>"; };
 		CB4D530C18A979550087E1F7 /* wooden-click-2.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "wooden-click-2.caf"; sourceTree = "<group>"; };
 		CB4D530E18A979550087E1F7 /* wooden-clickity-2.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "wooden-clickity-2.caf"; sourceTree = "<group>"; };
+		CB50C21518BF8F140072DA30 /* FLTrackGrid.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLTrackGrid.mm; sourceTree = "<group>"; };
+		CB50C21618BF8F140072DA30 /* FLTrackGrid.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTrackGrid.h; sourceTree = "<group>"; };
 		CB657E991843E8DB00399E34 /* track.atlas */ = {isa = PBXFileReference; lastKnownFileType = folder.skatlas; path = track.atlas; sourceTree = "<group>"; };
 		CB88668E18A540130045FD7E /* grass.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = grass.png; sourceTree = "<group>"; };
 		CB88669018A544530045FD7E /* sleeperDestruction.sks */ = {isa = PBXFileReference; lastKnownFileType = file.sks; path = sleeperDestruction.sks; sourceTree = "<group>"; };
@@ -99,7 +102,6 @@
 		CBE5A5E8185A0CAB00DC86B3 /* FLTextureStore.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FLTextureStore.m; sourceTree = "<group>"; };
 		CBE5A5EA185A128100DC86B3 /* FLToolbarNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLToolbarNode.h; sourceTree = "<group>"; };
 		CBE5A5EB185A128100DC86B3 /* FLToolbarNode.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FLToolbarNode.m; sourceTree = "<group>"; };
-		CBF412FF18B6A5EE0097AC33 /* FLCommon.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FLCommon.h; sourceTree = "<group>"; };
 		CBF959E418A1913F005F01A6 /* FLGestureTarget.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FLGestureTarget.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -192,7 +194,6 @@
 				CB4D531418A9796B0087E1F7 /* Audio */,
 				CBB4B809183C00E1003C3444 /* FLAppDelegate.h */,
 				CBB4B80A183C00E1003C3444 /* FLAppDelegate.mm */,
-				CBF412FF18B6A5EE0097AC33 /* FLCommon.h */,
 				CBF959E418A1913F005F01A6 /* FLGestureTarget.h */,
 				CB0DA5A518B7D8CE00E43D34 /* FLPath.h */,
 				CB0DA5A418B7D8CE00E43D34 /* FLPath.mm */,
@@ -202,6 +203,8 @@
 				CBE5A5E8185A0CAB00DC86B3 /* FLTextureStore.m */,
 				CBE5A5EA185A128100DC86B3 /* FLToolbarNode.h */,
 				CBE5A5EB185A128100DC86B3 /* FLToolbarNode.m */,
+				CB50C21518BF8F140072DA30 /* FLTrackGrid.mm */,
+				CB50C21618BF8F140072DA30 /* FLTrackGrid.h */,
 				CBB4B815183C00E1003C3444 /* FLTrackScene.h */,
 				CBB4B816183C00E1003C3444 /* FLTrackScene.mm */,
 				CBD707C218AD0EE00041B170 /* FLTrain.h */,
@@ -357,6 +360,7 @@
 			files = (
 				CBE5A5E9185A0CAB00DC86B3 /* FLTextureStore.m in Sources */,
 				CBB4B817183C00E1003C3444 /* FLTrackScene.mm in Sources */,
+				CB50C21718BF8F140072DA30 /* FLTrackGrid.mm in Sources */,
 				CBB4B80B183C00E1003C3444 /* FLAppDelegate.mm in Sources */,
 				CBE5A5EC185A128100DC86B3 /* FLToolbarNode.m in Sources */,
 				CBD707C418AD0EE00041B170 /* FLTrain.mm in Sources */,

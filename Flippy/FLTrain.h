@@ -6,10 +6,10 @@
 //  Copyright (c) 2014 Hilo. All rights reserved.
 //
 
+#include <memory>
 #import <SpriteKit/SpriteKit.h>
 
-#import "FLSegmentNode.h"
-#include "QuadTree.h"
+class FLTrackGrid;
 
 /**
  * A train running on a track grid.
@@ -30,11 +30,9 @@
 
 @interface FLTrain : SKSpriteNode
 
-- (id)initWithTrackGrid:(std::shared_ptr<HLCommon::QuadTree<FLSegmentNode *>>&)trackGrid gridSize:(CGFloat)gridSize;
+@property (nonatomic) BOOL running;
 
-- (void)start;
-
-- (void)stop;
+- (id)initWithTrackGrid:(std::shared_ptr<FLTrackGrid>&)trackGrid;
 
 - (void)update:(CFTimeInterval)elapsedTime;
 

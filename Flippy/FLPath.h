@@ -16,6 +16,7 @@ public:
   FLPath() : pathType_(FLPathTypeNone) {}
   FLPath(FLPathType pathType, int rotationQuarters);
   CGPoint getPoint(CGFloat progress) const;
+  // note: Tangent values returned are in the range [-M_PI,+M_PI].
   CGFloat getTangent(CGFloat progress) const;
   CGFloat getClosestOnPathPoint(CGPoint *onPathPoint, CGFloat *onPathProgress, CGPoint offPathPoint, CGFloat progressPrecision) const;
 private:

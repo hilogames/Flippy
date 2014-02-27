@@ -8,9 +8,10 @@
 
 #import "FLSegmentNode.h"
 
-#include "FLCommon.h"
 #import "FLPath.h"
 #import "FLTextureStore.h"
+
+static const unsigned int FLSegmentNodePathsMax = 2;
 
 @implementation FLSegmentNode
 
@@ -22,10 +23,10 @@
       texture = [[FLTextureStore sharedStore] textureForKey:@"straight"];
       break;
     case FLSegmentTypeCurve:
-      texture = [[FLTextureStore sharedStore] textureForKey:@"straight"];
+      texture = [[FLTextureStore sharedStore] textureForKey:@"curve"];
       break;
     case FLSegmentTypeJoin:
-      texture = [[FLTextureStore sharedStore] textureForKey:@"straight"];
+      texture = [[FLTextureStore sharedStore] textureForKey:@"join"];
       break;
     default:
       [NSException raise:@"FLSegmentNodeSegmentTypeUnknown" format:@"Unknown segment type."];
@@ -53,9 +54,19 @@
   return self;
 }
 
-- (void)getPoint:(CGPoint *)point rotation:(CGFloat *)rotationRadians forProgress:(CGFloat)progress scale:(CGFloat)scale
+- (int)zRotationQuarters
 {
-  const FLPath *path = [self FL_currentPath];
+  return convertRotationRadiansToQuarters(self.zRotation);
+}
+
+- (void)setZRotationQuarters:(int)zRotationQuarters
+{
+  self.zRotation = convertRotationQuartersToRadians(zRotationQuarters);
+}
+
+- (void)getPoint:(CGPoint *)point rotation:(CGFloat *)rotationRadians forPath:(int)pathId progress:(CGFloat)progress scale:(CGFloat)scale
+{
+  const FLPath *path = [self FL_path:pathId];
   CGPoint pathPoint = path->getPoint(progress);
   // note: Scaling would seem to be the segment's job, which is why it's here.  But for space
   // optimizations, the segment doesn't actually know the scale of its own paths.  Either:
@@ -63,36 +74,103 @@
   // constant to define the scale for all segments; 4) Make the scale inferrable from the
   // segment's texure size, e.g. the pad on the outside is always 20% or whatever.  Meh,
   // whatever.
-  point->x = pathPoint.x * scale;
-  point->y = pathPoint.y * scale;
-  *rotationRadians = path->getTangent(progress);
+  point->x = self.position.x + pathPoint.x * scale;
+  point->y = self.position.y + pathPoint.y * scale;
+  if (rotationRadians) {
+    *rotationRadians = path->getTangent(progress);
+  }
 }
 
-- (CGFloat)getClosestOnSegmentPoint:(CGPoint *)onSegmentPoint rotation:(CGFloat *)rotationRadians progress:(CGFloat *)progress forOffSegmentPoint:(CGPoint)offSegmentPoint scale:(CGFloat)scale precision:(CGFloat)precision
+- (CGFloat)getClosestOnSegmentPoint:(CGPoint *)onSegmentPoint rotation:(CGFloat *)rotationRadians path:(int *)pathId progress:(CGFloat *)progress forOffSegmentPoint:(CGPoint)offSegmentPoint scale:(CGFloat)scale precision:(CGFloat)precision
 {
-  const FLPath *path = [self FL_currentPath];
+  const FLPath *paths[FLSegmentNodePathsMax];
+  int pathCount = [self FL_allPaths:paths];
+
   // note: Again, note that path points are contained within the unit square centered on the origin.
   // Segment points, on the other hand, are in the segment's parent's coordinate system (that is,
   // comparable to the segment's position).
   CGPoint offPathPoint = CGPointMake((offSegmentPoint.x - self.position.x) / scale,
                                      (offSegmentPoint.y - self.position.y) / scale);
-  CGPoint onPathPoint;
-  CGFloat onPathProgress;
-  CGFloat distance = path->getClosestOnPathPoint(&onPathPoint, &onPathProgress, offPathPoint, precision);
+
+  int closestPathId = -1;
+  CGPoint closestPoint;
+  CGFloat closestProgress;
+  CGFloat closestDistance;
+  for (int p = 0; p < pathCount; ++p) {
+    const FLPath *path = paths[p];
+    CGPoint onPathPoint;
+    CGFloat onPathProgress;
+    CGFloat distance = path->getClosestOnPathPoint(&onPathPoint, &onPathProgress, offPathPoint, precision);
+    if (closestPathId == -1 || distance < closestDistance) {
+      closestPathId = p;
+      closestPoint = onPathPoint;
+      closestProgress = onPathProgress;
+      closestDistance = distance;
+    }
+  }
+
   if (onSegmentPoint) {
-    onSegmentPoint->x = onPathPoint.x * scale + self.position.x;
-    onSegmentPoint->y = onPathPoint.y * scale + self.position.y;
+    onSegmentPoint->x = closestPoint.x * scale + self.position.x;
+    onSegmentPoint->y = closestPoint.y * scale + self.position.y;
   }
   if (rotationRadians) {
-    *rotationRadians = path->getTangent(onPathProgress);
+    *rotationRadians = paths[closestPathId]->getTangent(closestProgress);
+  }
+  if (pathId) {
+    *pathId = closestPathId;
   }
   if (progress) {
-    *progress = onPathProgress;
+    *progress = closestProgress;
   }
-  return distance;
+  return closestDistance;
 }
 
-- (const FLPath *)FL_currentPath
+- (BOOL)getPath:(int *)pathId progress:(CGFloat *)progress forEndPoint:(CGPoint)endPoint rotation:(CGFloat)rotationRadians scale:(CGFloat)scale
+{
+  const FLPath *paths[FLSegmentNodePathsMax];
+  int pathCount = [self FL_allPaths:paths];
+
+  CGPoint pathEndPoint = CGPointMake((endPoint.x - self.position.x) / scale, (endPoint.y - self.position.y) / scale);
+
+  for (int p = 0; p < pathCount; ++p) {
+    const FLPath *path = paths[p];
+
+    // note: End points can (currently) only be in the corner of the unit square.  So no need
+    // for a tight comparison; really we just need to be within 0.5f (less an epsilon value
+    // for floating point error).  Similarly, rotations at end points can (currently) only
+    // be at right angles, so again, no need for a tight comparison.
+
+    CGPoint zeroProgressPoint = path->getPoint(0.0f);
+    if (fabsf(pathEndPoint.x - zeroProgressPoint.x) < 0.1f
+        && fabsf(pathEndPoint.y - zeroProgressPoint.y) < 0.1f) {
+      CGFloat zeroProgressRotation = path->getTangent(0.0f);
+      CGFloat rotationDifference = fabsf(fmodf(rotationRadians - zeroProgressRotation, M_PI));
+      if ((rotationDifference > -0.1f && rotationDifference < 0.1f)
+          || (rotationDifference > M_PI - 0.1f && rotationDifference < M_PI + 0.1f)) {
+        *pathId = p;
+        *progress = 0.0f;
+        return YES;
+      }
+    }
+
+    CGPoint oneProgressPoint = path->getPoint(1.0f);
+    if (fabsf(pathEndPoint.x - oneProgressPoint.x) < 0.1f
+        && fabsf(pathEndPoint.y - oneProgressPoint.y) < 0.1f) {
+      CGFloat oneProgressRotation = path->getTangent(1.0f);
+      CGFloat rotationDifference = fabsf(fmodf(rotationRadians - oneProgressRotation, M_PI));
+      if ((rotationDifference > -0.1f && rotationDifference < 0.1f)
+          || (rotationDifference > M_PI - 0.1f && rotationDifference < M_PI + 0.1f)) {
+        *pathId = p;
+        *progress = 1.0f;
+        return YES;
+      }
+    }
+  }
+  
+  return NO;
+}
+
+- (const FLPath *)FL_path:(int)pathId
 {
   FLPathType pathType;
   switch (_segmentType) {
@@ -100,8 +178,14 @@
       pathType = FLPathTypeStraight;
       break;
     case FLSegmentTypeCurve:
-    case FLSegmentTypeJoin:
       pathType = FLPathTypeCurve;
+      break;
+    case FLSegmentTypeJoin:
+      if (pathId == 0) {
+        pathType = FLPathTypeCurve;
+      } else {
+        pathType = FLPathTypeStraight;
+      }
       break;
     case FLSegmentTypeNone:
     default:
@@ -109,6 +193,28 @@
   }
   int rotationQuarters = convertRotationRadiansToQuarters(self.zRotation);
   return FLPathStore::sharedStore()->getPath(pathType, rotationQuarters);
+}
+
+- (int)FL_allPaths:(const FLPath **)paths
+{
+  // note: Increase FLSegmentNodePathsMax to match largest return value here.
+  int rotationQuarters = convertRotationRadiansToQuarters(self.zRotation);
+  switch (_segmentType) {
+    case FLSegmentTypeStraight:
+      paths[0] = FLPathStore::sharedStore()->getPath(FLPathTypeStraight, rotationQuarters);
+      return 1;
+    case FLSegmentTypeCurve:
+      paths[0] = FLPathStore::sharedStore()->getPath(FLPathTypeCurve, rotationQuarters);
+      return 1;
+    case FLSegmentTypeJoin:
+      paths[0] = FLPathStore::sharedStore()->getPath(FLPathTypeCurve, rotationQuarters);
+      paths[1] = FLPathStore::sharedStore()->getPath(FLPathTypeStraight, rotationQuarters);
+      return 2;
+    case FLSegmentTypeNone:
+    default:
+      [NSException raise:@"FLSegmentNodeSegmentTypeInvalid" format:@"Invalid segment type."];
+      return 0;
+  }
 }
 
 @end

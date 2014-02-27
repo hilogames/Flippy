@@ -7,26 +7,23 @@ circuits.
 
 Current
 
-Other
+  . Segment length calculations.
+
+  . Train acceleration.
 
   . Persist track.
 
-  . Save/load tracks/subtracks.
+  . New segments: Jog, Cross.  Add mirror transformation to track edit
+    menu, or else create a separate mirrored segment for "join".
 
-Train
+  . Switches!  Maybe new segment types for Input and Output, or maybe
+    those are just annotated Joins.
 
-  . Stop/pause, follow path.
+  . Save/load tracks/subtracks, probably via the creation toolbar.  A
+    pre-loaded folder of subtracks for logical gates; another for
+    larger circuits (half adder); another for user stuff.
 
-  . Train edit menu and gesture for turning the train around (and, if
-    multiple trains, for individual play/pause controls).
-
-Devices
-
-  . Art for retina devices.  Also note the terrain tiling graphics
-    context needs scaling options set for retina to successfully tile
-    things (I think).
-
-Track Editing and Composition
+Medium Priority
 
   . Pan world when track move goes to edge of scene.
 
@@ -35,11 +32,17 @@ Track Editing and Composition
     (Get the track edit menu to report its width, I guess, and then
     do the centering in the handleGesture method.)
 
-  . Add mirror transformation to track edit menu, or else create a
-    separate mirrored segment for "join".
-
   . Rotation gesture recognizer for rotation; flick for deletion;
     pinch or something for mirror.
+
+Low Priority
+
+  . If multiple trains, then train edit menu for play/pause controls
+    (and an explicit way to turn train around, perhaps).
+
+  . Art for retina devices.  Also note the terrain tiling graphics
+    context needs scaling options set for retina to successfully tile
+    things (I think).
 
   . Draw a line with your finger, segments created automatically.
     Better: A special "auto connect" path subtrack which

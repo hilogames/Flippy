@@ -10,16 +10,37 @@
 
 enum FLSegmentType { FLSegmentTypeNone, FLSegmentTypeStraight, FLSegmentTypeCurve, FLSegmentTypeJoin };
 
+inline int
+convertRotationRadiansToQuarters(CGFloat radians)
+{
+  // note: Radians are not constrained in range or sign; the error introduced by
+  // the epsilon value would eventually be an issue for large-magnitude radians.
+  // (However, choosing a smaller epsilon introduces problems for cumulative
+  // floating point error caused by repeatedly adding e.g. M_PI_2 and then hoping
+  // to get an exact number by dividing.  So . . . a compromise epsilon.)
+  return int(radians / (M_PI_2 - 0.0001f));
+}
+
+inline CGFloat
+convertRotationQuartersToRadians(int quarters)
+{
+  return quarters * M_PI_2;
+}
+
 @interface FLSegmentNode : SKSpriteNode
 
 @property (nonatomic) FLSegmentType segmentType;
+
+@property (nonatomic) int zRotationQuarters;
 
 - (id)initWithSegmentType:(FLSegmentType)segmentType;
 
 - (id)initWithTextureKey:(NSString *)textureKey;
 
-- (void)getPoint:(CGPoint *)point rotation:(CGFloat *)rotationRadians forProgress:(CGFloat)progress scale:(CGFloat)scale;
+- (void)getPoint:(CGPoint *)point rotation:(CGFloat *)rotationRadians forPath:(int)pathId progress:(CGFloat)progress scale:(CGFloat)scale;
 
-- (CGFloat)getClosestOnSegmentPoint:(CGPoint *)onSegmentPoint rotation:(CGFloat *)rotationRadians progress:(CGFloat *)progress forOffSegmentPoint:(CGPoint)offSegmentPoint scale:(CGFloat)scale precision:(CGFloat)precision;
+- (CGFloat)getClosestOnSegmentPoint:(CGPoint *)onSegmentPoint rotation:(CGFloat *)rotationRadians path:(int *)pathId progress:(CGFloat *)progress forOffSegmentPoint:(CGPoint)offSegmentPoint scale:(CGFloat)scale precision:(CGFloat)precision;
+
+- (BOOL)getPath:(int *)pathId progress:(CGFloat *)progress forEndPoint:(CGPoint)endPoint rotation:(CGFloat)rotationRadians scale:(CGFloat)scale;
 
 @end
