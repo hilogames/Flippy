@@ -81,7 +81,7 @@ static const unsigned int FLSegmentNodePathsMax = 2;
   }
 }
 
-- (CGFloat)getClosestOnSegmentPoint:(CGPoint *)onSegmentPoint rotation:(CGFloat *)rotationRadians path:(int *)pathId progress:(CGFloat *)progress forOffSegmentPoint:(CGPoint)offSegmentPoint scale:(CGFloat)scale precision:(CGFloat)precision
+- (CGFloat)getClosestOnTrackPoint:(CGPoint *)onTrackPoint rotation:(CGFloat *)rotationRadians path:(int *)pathId progress:(CGFloat *)progress forOffTrackPoint:(CGPoint)offTrackPoint scale:(CGFloat)scale precision:(CGFloat)progressPrecision
 {
   const FLPath *paths[FLSegmentNodePathsMax];
   int pathCount = [self FL_allPaths:paths];
@@ -89,8 +89,8 @@ static const unsigned int FLSegmentNodePathsMax = 2;
   // note: Again, note that path points are contained within the unit square centered on the origin.
   // Segment points, on the other hand, are in the segment's parent's coordinate system (that is,
   // comparable to the segment's position).
-  CGPoint offPathPoint = CGPointMake((offSegmentPoint.x - self.position.x) / scale,
-                                     (offSegmentPoint.y - self.position.y) / scale);
+  CGPoint offPathPoint = CGPointMake((offTrackPoint.x - self.position.x) / scale,
+                                     (offTrackPoint.y - self.position.y) / scale);
 
   int closestPathId = -1;
   CGPoint closestPoint;
@@ -100,7 +100,7 @@ static const unsigned int FLSegmentNodePathsMax = 2;
     const FLPath *path = paths[p];
     CGPoint onPathPoint;
     CGFloat onPathProgress;
-    CGFloat distance = path->getClosestOnPathPoint(&onPathPoint, &onPathProgress, offPathPoint, precision);
+    CGFloat distance = path->getClosestOnPathPoint(&onPathPoint, &onPathProgress, offPathPoint, progressPrecision);
     if (closestPathId == -1 || distance < closestDistance) {
       closestPathId = p;
       closestPoint = onPathPoint;
@@ -109,9 +109,9 @@ static const unsigned int FLSegmentNodePathsMax = 2;
     }
   }
 
-  if (onSegmentPoint) {
-    onSegmentPoint->x = closestPoint.x * scale + self.position.x;
-    onSegmentPoint->y = closestPoint.y * scale + self.position.y;
+  if (onTrackPoint) {
+    onTrackPoint->x = closestPoint.x * scale + self.position.x;
+    onTrackPoint->y = closestPoint.y * scale + self.position.y;
   }
   if (rotationRadians) {
     *rotationRadians = paths[closestPathId]->getTangent(closestProgress);
@@ -168,6 +168,11 @@ static const unsigned int FLSegmentNodePathsMax = 2;
   }
   
   return NO;
+}
+
+- (CGFloat)pathLengthForPath:(int)pathId
+{
+  return [self FL_path:pathId]->getLength();
 }
 
 - (const FLPath *)FL_path:(int)pathId

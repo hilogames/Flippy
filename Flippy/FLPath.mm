@@ -203,6 +203,21 @@ FLPath::getClosestOnPathPoint(CGPoint *onPathPoint, CGFloat *onPathProgress, CGP
   return 0.0f;
 }
 
+CGFloat
+FLPath::getLength() const
+{
+  switch (pathType_) {
+    case FLPathTypeStraight:
+      return 1.0f;
+    case FLPathTypeCurve:
+      return M_PI_2;
+    case FLPathTypeJog:
+    default:
+      break;
+  }
+  return 0.0f;
+}
+
 FLPathStore::FLPathStore()
 {
   // note: Path points are drawn within a unit square centered on the origin.

@@ -25,6 +25,7 @@ static const int FLTrainDirectionReverse = -1;
 
   FLSegmentNode *_lastSegmentNode;
   int _lastPathId;
+  CGFloat _lastPathLength;
   CGFloat _lastProgress;
   int _lastDirection;
 }
@@ -95,13 +96,13 @@ static const int FLTrainDirectionReverse = -1;
   // note: Current speed is constant in terms of progress.  This will be modified in
   // the future to account for path length, and probably also to allow acceleration
   // for fun.
-  const CGFloat FLTrainSpeedProgressPerSecond = 0.7f;
+  const CGFloat FLTrainSpeedPathLengthPerSecond = 1.4f;
   CGFloat deltaProgress;
   if (_firstUpdateSinceRunning) {
     deltaProgress = 0.0f;
     _firstUpdateSinceRunning = NO;
   } else {
-    deltaProgress = FLTrainSpeedProgressPerSecond * elapsedTime * _lastDirection;
+    deltaProgress = (FLTrainSpeedPathLengthPerSecond / _lastPathLength) * elapsedTime * _lastDirection;
   }
   _lastProgress += deltaProgress;
 
@@ -112,12 +113,6 @@ static const int FLTrainDirectionReverse = -1;
       self.running = NO;
       return;
     }
-    // note: One loose end here: The switch method carries over remaining progress
-    // from the last segment to the new one.  That will have to modified once
-    // path length is taken into account; the switch method should maybe instead
-    // return the remaining progress, and let us do the math.  Or maybe better,
-    // factor out the code to do the progression math, and both we and the switch
-    // method will call it.
   }
 
   // Show the train at the new position.
@@ -157,6 +152,7 @@ static const int FLTrainDirectionReverse = -1;
 
   _lastSegmentNode = segmentNode;
   _lastPathId = pathId;
+  _lastPathLength = [segmentNode pathLengthForPath:pathId];
   _lastProgress = progress;
   _lastDirection = direction;
 
@@ -168,22 +164,42 @@ static const int FLTrainDirectionReverse = -1;
   CGFloat endPointProgress = (_lastDirection == FLTrainDirectionForward ? 1.0f : 0.0f);
   FLSegmentNode *nextSegmentNode;
   int nextPathId;
-  CGFloat nextProgress;
+  CGFloat nextEndpointProgress;
   if (!trackGridFindConnecting(*_trackGrid,
                                _lastSegmentNode, _lastPathId, endPointProgress,
-                               &nextSegmentNode, &nextPathId, &nextProgress)) {
+                               &nextSegmentNode, &nextPathId, &nextEndpointProgress)) {
     return NO;
   }
 
-  int nextDirection = (nextProgress < 0.5f ? FLTrainDirectionForward : FLTrainDirectionReverse);
+  CGFloat nextPathLength = [nextSegmentNode pathLengthForPath:nextPathId];
+  int nextDirection = (nextEndpointProgress < 0.5f ? FLTrainDirectionForward : FLTrainDirectionReverse);
+
+  // note: lastExcessProgres is magnitude only, and not signed according to direction.
+  CGFloat lastExcessProgress;
+  if (_lastDirection == FLTrainDirectionForward) {
+    lastExcessProgress = _lastProgress - 1.0f;
+  } else {
+    lastExcessProgress = -_lastProgress;
+  }
+  CGFloat nextProgress;
+  if (nextDirection == FLTrainDirectionForward) {
+    nextProgress = lastExcessProgress * _lastPathLength / nextPathLength;
+  } else {
+    nextProgress = 1.0f - lastExcessProgress * _lastPathLength / nextPathLength;
+  }
+  
+  // commented out: Keep in case ever useful: A cute way to set next progress according
+  // to direction.  But doesn't scale according to path length.
+  //if (_lastDirection == nextDirection) {
+  //  _lastProgress = _lastProgress - _lastDirection;
+  //} else {
+  //  _lastProgress = 1.0f - _lastProgress + _lastDirection;
+  //}
 
   _lastSegmentNode = nextSegmentNode;
   _lastPathId = nextPathId;
-  if (_lastDirection == nextDirection) {
-    _lastProgress = _lastProgress - _lastDirection;
-  } else {
-    _lastProgress = 1.0f - _lastProgress + _lastDirection;
-  }
+  _lastPathLength = nextPathLength;
+  _lastProgress = nextProgress;
   _lastDirection = nextDirection;
 
   return YES;
