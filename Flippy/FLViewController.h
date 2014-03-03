@@ -11,4 +11,6 @@
 
 @interface FLViewController : UIViewController
 
+@property (nonatomic, readonly) SKView *skView;
+
 @end

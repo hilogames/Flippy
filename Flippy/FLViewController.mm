@@ -27,6 +27,11 @@
   [skView presentScene:scene];
 }
 
+- (SKView *)skView
+{
+  return (SKView *)self.view;
+}
+
 - (BOOL)shouldAutorotate
 {
   return YES;

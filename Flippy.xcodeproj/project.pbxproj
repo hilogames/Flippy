@@ -41,6 +41,7 @@
 		CBD707C418AD0EE00041B170 /* FLTrain.mm in Sources */ = {isa = PBXBuildFile; fileRef = CBD707C318AD0EE00041B170 /* FLTrain.mm */; };
 		CBE5A5E9185A0CAB00DC86B3 /* FLTextureStore.m in Sources */ = {isa = PBXBuildFile; fileRef = CBE5A5E8185A0CAB00DC86B3 /* FLTextureStore.m */; };
 		CBE5A5EC185A128100DC86B3 /* FLToolbarNode.m in Sources */ = {isa = PBXBuildFile; fileRef = CBE5A5EB185A128100DC86B3 /* FLToolbarNode.m */; };
+		CBEE13F018C4DBA400D1D42B /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CB0464A318AA6F7F00ABCA03 /* AVFoundation.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -110,6 +111,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CBEE13F018C4DBA400D1D42B /* AVFoundation.framework in Frameworks */,
 				CBB4B7FB183C00E1003C3444 /* CoreGraphics.framework in Frameworks */,
 				CBB4B7FD183C00E1003C3444 /* UIKit.framework in Frameworks */,
 				CBB4B7FF183C00E1003C3444 /* SpriteKit.framework in Frameworks */,
