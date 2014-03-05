@@ -9,7 +9,7 @@
 #import <SpriteKit/SpriteKit.h>
 #include "FLGestureTarget.h"
 
-@interface FLToolbarNode : SKSpriteNode
+@interface FLToolbarNode : SKSpriteNode <NSCoding>
 
 /**
  * The extra space added between the edge of the box (made for the tool) and the tool sprite.

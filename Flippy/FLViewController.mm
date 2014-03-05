@@ -11,9 +11,40 @@
 #import "FLTrackScene.h"
 
 @implementation FLViewController
+{
+  FLTrackScene *_trackScene;
+}
+
+- (id)init
+{
+  self = [super init];
+  if (self) {
+    self.restorationIdentifier = @"FLViewController";
+  }
+  return self;
+}
+
+- (void)encodeRestorableStateWithCoder:(NSCoder *)coder
+{
+  [super encodeRestorableStateWithCoder:coder];
+  [_trackScene save:@"current"];
+}
+
+- (void)decodeRestorableStateWithCoder:(NSCoder *)coder
+{
+  [super decodeRestorableStateWithCoder:coder];
+  FLTrackScene *trackScene = [FLTrackScene load:@"current"];
+  if (trackScene) {
+    _trackScene = trackScene;
+    SKView *skView = (SKView *)self.view;
+    [skView presentScene:_trackScene];
+  }
+}
 
 - (void)loadView
 {
+  NSLog(@"FLViewController loadView");
+
   SKView *skView = [[SKView alloc] init];
   skView.showsFPS = YES;
   skView.showsNodeCount = YES;
@@ -22,9 +53,9 @@
   self.view = skView;
 
   // noob: Initialize with empty size and use autolayout to fill screen?
-  SKScene *scene = [FLTrackScene sceneWithSize:[UIScreen mainScreen].bounds.size];
-  scene.scaleMode = SKSceneScaleModeResizeFill;
-  [skView presentScene:scene];
+  _trackScene = [FLTrackScene sceneWithSize:[UIScreen mainScreen].bounds.size];
+  _trackScene.scaleMode = SKSceneScaleModeResizeFill;
+  [skView presentScene:_trackScene];
 }
 
 - (SKView *)skView

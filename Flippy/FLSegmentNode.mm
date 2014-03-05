@@ -54,6 +54,21 @@ static const unsigned int FLSegmentNodePathsMax = 2;
   return self;
 }
 
+- (id)initWithCoder:(NSCoder *)aDecoder
+{
+  self = [super initWithCoder:aDecoder];
+  if (self) {
+    _segmentType = (FLSegmentType)[aDecoder decodeIntForKey:@"segmentType"];
+  }
+  return self;
+}
+
+- (void)encodeWithCoder:(NSCoder *)aCoder
+{
+  [super encodeWithCoder:aCoder];
+  [aCoder encodeInt:(int)_segmentType forKey:@"segmentType"];
+}
+
 - (int)zRotationQuarters
 {
   return convertRotationRadiansToQuarters(self.zRotation);

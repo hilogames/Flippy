@@ -119,6 +119,8 @@ public:
     return FLTrackGrid::convert(gridX, gridY, segmentSize_);
   }
 
+  void import(SKNode *parentNode);
+
 private:
 
   HLCommon::QuadTree<FLSegmentNode *> grid_;
@@ -221,5 +223,44 @@ bool
 trackGridFindConnecting(FLTrackGrid& trackGrid,
                         FLSegmentNode *startSegmentNode, int startPathId, CGFloat startProgress,
                         FLSegmentNode **connectingSegmentNode, int *connectingPathId, CGFloat *connectingProgress);
+
+/**
+ * An Objective_C wrapper for an FLTrackGrid.
+ *
+ * Of special note is the odd interface for setting or getting the track grid
+ * being wrapped.  In short: If we decode this wrapper into a stack variable,
+ * we then need to transfer ownership of its FLTrackGrid into the caller;
+ * using a shared pointer forces the caller to use a shared pointer, which is
+ * not necessary; using a raw pointer does not make the move semantics
+ * explicit.  For setting: If we initialize this object with the intention of
+ * encoding it, then we are not transferring ownership, and would like to be
+ * explicit about that (e.g. by using a raw pointer).  (The mirror setters and
+ * getters don't have a particular use case, but are included for symmetry.)
+ */
+
+/*
+@interface FLTrackGridWrapper : NSObject <NSCoding>
+
+// Initialize, transferring ownership of the resource to this object.
+- (id)initWithTrackGrid:(std::unique_ptr<FLTrackGrid>&)trackGrid;
+
+// Initialize without transferring ownership; pointer will be assumed
+// valid for lifetime of wrapper, and will not be managed.
+- (id)initWithRawTrackGrid:(const FLTrackGrid *)rawTrackGrid;
+
+// Returns a unique_ptr to the wrapper resource, but only if the
+// wrapper was initialized with a unique_ptr.  (Returns empty pointer
+// otherwise.)
+- (std::unique_ptr<FLTrackGrid>&)trackGrid;
+
+// Returns the raw pointer to the wrapper resource, but only if the
+// wrapper was initialized with a raw pointer.  (Throws an exception if
+// wrapper owns the resource; this serves to force the caller to use only
+// the unique_ptr access, which in turn forces the caller to be explicit
+// about claiming or borrowing ownership.)
+- (const FLTrackGrid *)rawTrackGrid;
+
+@end
+*/
 
 #endif /* defined(__Flippy__FLTrackGrid__) */

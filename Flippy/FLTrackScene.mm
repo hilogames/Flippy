@@ -19,6 +19,11 @@
 using namespace std;
 using namespace HLCommon;
 
+static const CGFloat FLArtSegmentSizeFull = 54.0f;
+static const CGFloat FLArtSegmentSizeBasic = 36.0f;
+static const CGFloat FLArtSegmentDrawnTrackNormalWidth = 14.0f;  // the pixel width of the drawn tracks (widest: sleepers) when orthagonal
+static const CGFloat FLArtScale = 2.0f;
+
 static const CGFloat FLWorldScaleMin = 0.125f;
 static const CGFloat FLWorldScaleMax = 2.0f;
 static const CGSize FLWorldSize = { 3000.0f, 3000.0f };
@@ -71,11 +76,12 @@ struct FLTrackMoveState
 
 struct FLTrackEditMenuState
 {
-  FLTrackEditMenuState() : editMenuNode(nil) {}
+  FLTrackEditMenuState() : editMenuNode(nil), showing(NO) {}
+  BOOL showing;
   FLToolbarNode *editMenuNode;
+  FLSegmentNode *lastSegmentNode;
   int lastGridX;
   int lastGridY;
-  CGPoint lastOrigin;
 };
 
 enum FLPanType { FLPanTypeNone, FLPanTypeWorld, FLPanTypeTrackMove };
@@ -107,11 +113,6 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   UIPanGestureRecognizer *_panRecognizer;
   UIPinchGestureRecognizer *_pinchRecognizer;
 
-  CGFloat _artSegmentSizeFull;
-  CGFloat _artSegmentSizeBasic;
-  CGFloat _artSegmentDrawnTrackNormalWidth;
-  CGFloat _artScale;
-
   FLCameraMode _cameraMode;
   BOOL _simulationRunning;
   CFTimeInterval _updateLastTime;
@@ -127,19 +128,125 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   FLTrain *_train;
 }
 
++ (FLTrackScene *)load:(NSString *)saveName
+{
+  NSString *savePath = [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0]
+                        stringByAppendingPathComponent:[saveName stringByAppendingPathExtension:@"archive"]];
+  if (![[NSFileManager defaultManager] fileExistsAtPath:savePath]) {
+    return nil;
+  }
+  return [NSKeyedUnarchiver unarchiveObjectWithFile:savePath];
+}
+
+- (void)save:(NSString *)saveName
+{
+  NSString *savePath = [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0]
+                        stringByAppendingPathComponent:[saveName stringByAppendingPathExtension:@"archive"]];
+  [NSKeyedArchiver archiveRootObject:self toFile:savePath];
+}
+
 - (id)initWithSize:(CGSize)size
 {
   self = [super initWithSize:size];
   if (self) {
-    _artSegmentSizeFull = 54.0f;
-    _artSegmentSizeBasic = 36.0f;
-    _artSegmentDrawnTrackNormalWidth = 14.0f;  // the pixel width of the drawn tracks (widest: sleepers) when orthagonal
-    _artScale = 2.0f;
     _cameraMode = FLCameraModeManual;
     _simulationRunning = NO;
-    _trackGrid.reset(new FLTrackGrid(_artSegmentSizeBasic * _artScale));
+    _trackGrid.reset(new FLTrackGrid(FLArtSegmentSizeBasic * FLArtScale));
   }
   return self;
+}
+
+- (id)initWithCoder:(NSCoder *)aDecoder
+{
+  self = [super initWithCoder:aDecoder];
+  if (self) {
+    _contentCreated = YES;
+
+    // Re-link special node pointers to objects already decoded in hierarchy.
+    _worldNode = [aDecoder decodeObjectForKey:@"worldNode"];
+    _trackNode = [aDecoder decodeObjectForKey:@"trackNode"];
+    
+    // Re-create nodes from the hierarchy that were removed during encoding.
+    [self FL_createTerrainNode];
+    [self FL_createHudNode];
+    [self FL_constructionToolbarSetVisible:YES];
+    [self FL_simulationToolbarSetVisible:YES];
+
+    _cameraMode = (FLCameraMode)[aDecoder decodeIntForKey:@"cameraMode"];
+    _simulationRunning = [aDecoder decodeBoolForKey:@"simulationRunning"];
+
+    // Re-create track grid based on segments in track node.
+    _trackGrid.reset(new FLTrackGrid(FLArtSegmentSizeBasic * FLArtScale));
+    _trackGrid->import(_trackNode);
+
+    _train = [aDecoder decodeObjectForKey:@"train"];
+    [_train resetTrackGrid:_trackGrid];
+    
+    if ([aDecoder decodeBoolForKey:@"trackSelectStateSelected"]) {
+      int gridX = [aDecoder decodeIntForKey:@"trackSelectStateGridX"];
+      int gridY = [aDecoder decodeIntForKey:@"trackSelectStateGridY"];
+      [self FL_trackSelectGridX:gridX gridY:gridY];
+    }
+    if ([aDecoder decodeBoolForKey:@"trackEditMenuStateShowing"]) {
+      int gridX = [aDecoder decodeIntForKey:@"trackEditMenuStateLastGridX"];
+      int gridY = [aDecoder decodeIntForKey:@"trackEditMenuStateLastGridY"];
+      FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY);
+      [self FL_trackEditMenuShowAtSegment:segmentNode gridX:gridX gridY:gridY animated:NO];
+    }
+  }
+  return self;
+}
+
+- (void)encodeWithCoder:(NSCoder *)aCoder
+{
+  if (!_contentCreated) {
+    return;
+  }
+
+  // noob: Call [super] and do opt-out, or skip [super] and do opt-in?  Going with
+  // the former for now.
+
+  // Remove nodes from hierarchy that should not be persisted.
+  SKNode *holdTerrainNode = [_worldNode childNodeWithName:@"terrain"];
+  [holdTerrainNode removeFromParent];
+  [_hudNode removeFromParent];
+  FLTrackSelectState holdTrackSelectState(_trackSelectState);
+  if (_trackSelectState.selected) {
+    [self FL_trackSelectClear];
+  }
+  FLTrackEditMenuState holdTrackEditMenuState(_trackEditMenuState);
+  if (_trackEditMenuState.showing) {
+    [self FL_trackEditMenuHideAnimated:NO];
+  }
+
+  // Persist SKScene (including current node hierarchy).
+  [super encodeWithCoder:aCoder];
+
+  // Add back nodes that were removed.
+  [_worldNode addChild:holdTerrainNode];
+  [self addChild:_hudNode];
+  if (holdTrackSelectState.selected) {
+    [self FL_trackSelectGridX:holdTrackSelectState.gridX gridY:holdTrackSelectState.gridY];
+  }
+  if (holdTrackEditMenuState.showing) {
+    [self FL_trackEditMenuShowAtSegment:holdTrackEditMenuState.lastSegmentNode gridX:holdTrackEditMenuState.lastGridX gridY:holdTrackEditMenuState.lastGridY animated:NO];
+  }
+
+  // Persist special node pointers (that should already been encoded
+  // as part of hierarchy).
+  [aCoder encodeObject:_worldNode forKey:@"worldNode"];
+  [aCoder encodeObject:_trackNode forKey:@"trackNode"];
+
+  // Encode other state.
+  [aCoder encodeInt:(int)_cameraMode forKey:@"cameraMode"];
+  [aCoder encodeBool:_simulationRunning forKey:@"simulationRunning"];
+  [aCoder encodeObject:_train forKey:@"train"];
+  [aCoder encodeBool:_trackSelectState.selected forKey:@"trackSelectStateSelected"];
+  [aCoder encodeInt:_trackSelectState.gridX forKey:@"trackSelectStateGridX"];
+  [aCoder encodeInt:_trackSelectState.gridY forKey:@"trackSelectStateGridY"];
+  [aCoder encodeBool:_trackEditMenuState.showing forKey:@"trackEditMenuStateShowing"];
+  [aCoder encodeInt:_trackEditMenuState.lastGridX forKey:@"trackEditMenuStateLastGridX"];
+  [aCoder encodeInt:_trackEditMenuState.lastGridY forKey:@"trackEditMenuStateLastGridY"];
 }
 
 - (void)didMoveToView:(SKView *)view
@@ -209,24 +316,6 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   _worldNode.zPosition = FLZPositionWorld;
   [self addChild:_worldNode];
 
-  UIImage *terrainTileImage = [UIImage imageNamed:@"grass.png"];
-  CGRect terrainTileRect = CGRectMake(0.0f, 0.0f, terrainTileImage.size.width, terrainTileImage.size.height);
-  CGImageRef terrainTileRef = [terrainTileImage CGImage];
-  // note: Begin context with scaling options for Retina display.
-  UIGraphicsBeginImageContext(FLWorldSize);
-  CGContextRef context = UIGraphicsGetCurrentContext();
-  CGContextDrawTiledImage(context, terrainTileRect, terrainTileRef);
-  UIImage *terrainImage = UIGraphicsGetImageFromCurrentImageContext();
-  UIGraphicsEndImageContext();
-  SKTexture *terrainTexture = [SKTexture textureWithCGImage:[terrainImage CGImage]];
-  SKSpriteNode *terrainNode = [SKSpriteNode spriteNodeWithTexture:terrainTexture];
-  terrainNode.zPosition = FLZPositionWorldTerrain;
-  // noob: Using a tip to use replace blend mode for opaque sprites, but since
-  // JPEGs don't have an alpha channel in the source, does this really do anything
-  // for JPEGs?
-  terrainNode.blendMode = SKBlendModeReplace;
-  [_worldNode addChild:terrainNode];
-
   // noob: See note near _worldNode above: We will probaly want to add/remove near/distant
   // child nodes based on our current camera location in the world.  Use our QuadTree
   // to implement, I expect.
@@ -234,20 +323,53 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   _trackNode.zPosition = FLZPositionWorldTrack;
   [_worldNode addChild:_trackNode];
 
+  [self FL_createTerrainNode];
+  
   // The HUD node contains everything pinned to the scene window, outside the world.
-  _hudNode = [SKNode node];
-  _hudNode.zPosition = FLZPositionHud;
-  [self addChild:_hudNode];
+  [self FL_createHudNode];
 
   // Create other content.
 
   _train = [[FLTrain alloc] initWithTrackGrid:_trackGrid];
-  _train.scale = _artScale;
+  _train.scale = FLArtScale;
   _train.zPosition = FLZPositionWorldTrain;
   [_worldNode addChild:_train];
 
   [self FL_constructionToolbarSetVisible:YES];
   [self FL_simulationToolbarSetVisible:YES];
+}
+
+- (void)FL_createTerrainNode
+{
+  UIImage *terrainTileImage = [UIImage imageNamed:@"grass.png"];
+  CGRect terrainTileRect = CGRectMake(0.0f, 0.0f, terrainTileImage.size.width, terrainTileImage.size.height);
+  CGImageRef terrainTileRef = [terrainTileImage CGImage];
+
+  // note: Begin context with scaling options for Retina display.
+  UIGraphicsBeginImageContext(FLWorldSize);
+  CGContextRef context = UIGraphicsGetCurrentContext();
+  CGContextDrawTiledImage(context, terrainTileRect, terrainTileRef);
+  UIImage *terrainImage = UIGraphicsGetImageFromCurrentImageContext();
+  UIGraphicsEndImageContext();
+
+  SKTexture *terrainTexture = [SKTexture textureWithCGImage:[terrainImage CGImage]];
+
+  SKSpriteNode *terrainNode = [SKSpriteNode spriteNodeWithTexture:terrainTexture];
+  terrainNode.name = @"terrain";
+  terrainNode.zPosition = FLZPositionWorldTerrain;
+  // noob: Using a tip to use replace blend mode for opaque sprites, but since
+  // JPEGs don't have an alpha channel in the source, does this really do anything
+  // for JPEGs?
+  terrainNode.blendMode = SKBlendModeReplace;
+
+  [_worldNode addChild:terrainNode];
+}
+
+- (void)FL_createHudNode
+{
+  _hudNode = [SKNode node];
+  _hudNode.zPosition = FLZPositionHud;
+  [self addChild:_hudNode];
 }
 
 - (void)didSimulatePhysics
@@ -705,8 +827,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
   // Track edit menu.
   CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
-  if (_trackEditMenuState.editMenuNode
-      && _trackEditMenuState.editMenuNode.parent
+  if (_trackEditMenuState.showing
       && [_trackEditMenuState.editMenuNode containsPoint:worldLocation]) {
     if ([gestureRecognizer isKindOfClass:[UITapGestureRecognizer class]]) {
       [gestureRecognizer removeTarget:nil action:nil];
@@ -856,7 +977,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   SKTexture *texture = [[FLTextureStore sharedStore] textureForKey:textureKey];
   SKSpriteNode *sprite = [SKSpriteNode spriteNodeWithTexture:texture];
   sprite.name = spriteName;
-  sprite.scale = _artScale;
+  sprite.scale = FLArtScale;
   //// note: The textureKey in user data is currently only used for debugging.
   //sprite.userData = [NSMutableDictionary dictionaryWithDictionary:@{ @"textureKey" : textureKey }];
   [parent addChild:sprite];
@@ -866,14 +987,14 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 - (FLSegmentNode *)FL_createSegmentWithSegmentType:(FLSegmentType)segmentType
 {
   FLSegmentNode *segmentNode = [[FLSegmentNode alloc] initWithSegmentType:segmentType];
-  segmentNode.scale = _artScale;
+  segmentNode.scale = FLArtScale;
   return segmentNode;
 }
 
 - (FLSegmentNode *)FL_createSegmentWithTextureKey:(NSString *)textureKey
 {
   FLSegmentNode *segmentNode = [[FLSegmentNode alloc] initWithTextureKey:textureKey];
-  segmentNode.scale = _artScale;
+  segmentNode.scale = FLArtScale;
   return segmentNode;
 }
 
@@ -887,19 +1008,19 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     _constructionToolbarState.toolbarNode.position = CGPointMake(0.0f, FLConstructionToolbarPad - self.size.height / 2.0f);
     _constructionToolbarState.toolbarNode.toolPad = -1.0f;
     
-    CGFloat artSegmentBasicInset = (_artSegmentSizeFull - _artSegmentSizeBasic) / 2.0f;
+    CGFloat artSegmentBasicInset = (FLArtSegmentSizeFull - FLArtSegmentSizeBasic) / 2.0f;
     // note: The straight segment runs along the visual edge of a square; we'd like to shift
     // it to the visual center of the tool image.  Half the full texture size is the middle,
     // but need to subtract out the amount that the (centerpoint of the) drawn tracks are already
     // inset from the edge of the texture.
-    CGFloat straightShift = (_artSegmentSizeFull / 2.0f) - artSegmentBasicInset;
+    CGFloat straightShift = (FLArtSegmentSizeFull / 2.0f) - artSegmentBasicInset;
     // note: For the curves: The track textures don't appear visually centered because the
     // drawn track is a full inset away from any perpendicular edge and only a small pad away
     // from any parallel edge.  The pad is the difference between the drawn track centerpoint
     // inset and half the width of the normal drawn track width.  So shift it inwards by half
     // the difference between the edges.  The math simplifies down a bit.  Rounded to prevent
     // aliasing (?).
-    CGFloat curveShift = floorf(_artSegmentDrawnTrackNormalWidth / 4.0f);
+    CGFloat curveShift = floorf(FLArtSegmentDrawnTrackNormalWidth / 4.0f);
     [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"straight", @"curve", @"join" ]
                                                              sizes:nil
                                                          rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2 ]
@@ -956,11 +1077,11 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     const CGFloat FLTrackSelectFadeDuration = 0.45f;
 
     _trackSelectState.visualSelectionNode = [SKSpriteNode spriteNodeWithColor:[UIColor colorWithWhite:0.2f alpha:1.0f]
-                                                               size:CGSizeMake(_artSegmentSizeBasic, _artSegmentSizeBasic)];
+                                                               size:CGSizeMake(FLArtSegmentSizeBasic, FLArtSegmentSizeBasic)];
     // note: This doesn't work well with light backgrounds.
     _trackSelectState.visualSelectionNode.blendMode = SKBlendModeAdd;
     _trackSelectState.visualSelectionNode.name = @"selection";
-    _trackSelectState.visualSelectionNode.scale = _artScale;
+    _trackSelectState.visualSelectionNode.scale = FLArtScale;
     _trackSelectState.visualSelectionNode.zPosition = FLZPositionWorldSelect;
     _trackSelectState.visualSelectionNode.alpha = FLTrackSelectAlphaMin;
 
@@ -1162,8 +1283,9 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   const CGFloat FLTrackEditMenuBottomPad = 0.0f;
   
   CGPoint worldLocation = CGPointMake(segmentNode.position.x, segmentNode.position.y + segmentNode.size.height / 2.0f + FLTrackEditMenuBottomPad);
-  if (!_trackEditMenuState.editMenuNode.parent) {
+  if (!_trackEditMenuState.showing) {
     [_worldNode addChild:_trackEditMenuState.editMenuNode];
+    _trackEditMenuState.showing = YES;
   }
   if (!animated) {
     _trackEditMenuState.editMenuNode.position = worldLocation;
@@ -1171,20 +1293,21 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     CGFloat fullScale = [self FL_trackEditMenuScaleForWorld];
     [_trackEditMenuState.editMenuNode runShowWithOrigin:segmentNode.position finalPosition:worldLocation fullScale:fullScale];
   }
-  _trackEditMenuState.lastOrigin = segmentNode.position;
+  _trackEditMenuState.lastSegmentNode = segmentNode;
   _trackEditMenuState.lastGridX = gridX;
   _trackEditMenuState.lastGridY = gridY;
 }
 
 - (void)FL_trackEditMenuHideAnimated:(BOOL)animated
 {
-  if (!_trackEditMenuState.editMenuNode.parent) {
+  if (!_trackEditMenuState.showing) {
     return;
   }
+  _trackEditMenuState.showing = NO;
   if (!animated) {
     [_trackEditMenuState.editMenuNode removeFromParent];
   } else {
-    [_trackEditMenuState.editMenuNode runHideWithOrigin:_trackEditMenuState.lastOrigin removeFromParent:YES];
+    [_trackEditMenuState.editMenuNode runHideWithOrigin:_trackEditMenuState.lastSegmentNode.position removeFromParent:YES];
   }
 }
 
@@ -1233,11 +1356,11 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     if (animated) {
       SKEmitterNode *sleeperDestruction = [NSKeyedUnarchiver unarchiveObjectWithFile:[[NSBundle mainBundle] pathForResource:@"sleeperDestruction" ofType:@"sks"]];
       SKEmitterNode *railDestruction = [NSKeyedUnarchiver unarchiveObjectWithFile:[[NSBundle mainBundle] pathForResource:@"railDestruction" ofType:@"sks"]];
-      // note: This kind of thing makes me think having an _artScale is a bad idea.  Resample the art instead.
-      sleeperDestruction.xScale = _artScale;
-      sleeperDestruction.yScale = _artScale;
-      railDestruction.xScale = _artScale;
-      railDestruction.yScale = _artScale;
+      // note: This kind of thing makes me think having an FLArtScale is a bad idea.  Resample the art instead.
+      sleeperDestruction.xScale = FLArtScale;
+      sleeperDestruction.yScale = FLArtScale;
+      railDestruction.xScale = FLArtScale;
+      railDestruction.yScale = FLArtScale;
       CGPoint worldLocation = _trackGrid->convert(gridX, gridY);
       sleeperDestruction.position = worldLocation;
       railDestruction.position = worldLocation;

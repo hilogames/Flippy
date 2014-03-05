@@ -22,11 +22,41 @@
   // noob: Placeholder to see where the green shows through.
   self.window.backgroundColor = [UIColor greenColor];
 
-  _flViewController = [[FLViewController alloc] init];
+  // note: Root view controller might already have been created by application
+  // state restoration process.
+  if (!_flViewController) {
+    _flViewController = [[FLViewController alloc] init];
+  }
   self.window.rootViewController = _flViewController;
   
   [self.window makeKeyAndVisible];
   return YES;
+}
+
+- (BOOL)application:(UIApplication *)application shouldSaveApplicationState:(NSCoder *)coder
+{
+  return YES;
+}
+
+- (BOOL)application:(UIApplication *)application shouldRestoreApplicationState:(NSCoder *)coder
+{
+  NSInteger version = [coder decodeIntegerForKey:@"version"];
+  return (version == 1);
+}
+
+- (void)application:(UIApplication *)application willEncodeRestorableStateWithCoder:(NSCoder *)coder
+{
+  [coder encodeInteger:1 forKey:@"version"];
+}
+
+- (UIViewController *)application:(UIApplication *)application viewControllerWithRestorationIdentifierPath:(NSArray *)identifierComponents coder:(NSCoder *)coder
+{
+  NSString *lastComponent = [identifierComponents lastObject];
+  if ([lastComponent isEqualToString:@"FLViewController"]) {
+    _flViewController = [[FLViewController alloc] init];
+    return _flViewController;
+  }
+  return nil;
 }
 
 - (void)applicationWillResignActive:(UIApplication *)application

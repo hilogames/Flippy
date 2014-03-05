@@ -8,7 +8,23 @@
 
 #include "FLTrackGrid.h"
 
+using namespace std;
+
 const size_t FLTrackGridAdjacentMax = 4;
+
+void
+FLTrackGrid::import(SKNode *parentNode)
+{
+  for (SKNode *childNode in [parentNode children]) {
+    if (![childNode isKindOfClass:[FLSegmentNode class]]) {
+      continue;
+    }
+    int gridX;
+    int gridY;
+    FLTrackGrid::convert(childNode.position, segmentSize_, &gridX, &gridY);
+    grid_[{ gridX, gridY }] = (FLSegmentNode *)childNode;
+  }
+}
 
 size_t
 trackGridFindAdjacent(FLTrackGrid& trackGrid, CGPoint worldLocation, __strong FLSegmentNode *adjacent[])
@@ -153,3 +169,60 @@ trackGridFindConnecting(FLTrackGrid& trackGrid,
   }
   return false;
 }
+
+/*
+@implementation FLTrackGridWrapper
+{
+  const FLTrackGrid *_rawTrackGrid;
+  unique_ptr<FLTrackGrid> _trackGrid;
+}
+
+- (id)initWithTrackGrid:(std::unique_ptr<FLTrackGrid> &)trackGrid
+{
+  self = [super init];
+  if (self) {
+    _trackGrid = std::move(trackGrid);
+    _rawTrackGrid = _trackGrid.get();
+  }
+  return self;
+}
+
+- (id)initWithRawTrackGrid:(const FLTrackGrid *)rawTrackGrid
+{
+  self = [super init];
+  if (self) {
+    _rawTrackGrid = rawTrackGrid;
+  }
+  return self;
+}
+
+- (id)initWithCoder:(NSCoder *)aDecoder
+{
+  self = [super init];
+  if (self) {
+    HERE HERE HERE
+    segmentSize
+    then...i guess a list of nodes in the quadtree.  maybe get quadtree to pack itself into a byte array?
+  }
+  return self;
+}
+
+- (void)encodeWithCoder:(NSCoder *)aCoder
+{
+}
+
+- (unique_ptr<FLTrackGrid>&)trackGrid
+{
+  return _trackGrid;
+}
+
+- (const FLTrackGrid *)rawTrackGrid
+{
+  if (_trackGrid) {
+    [NSException raise:@"FLTrackGridWrapperManaged" format:@"Raw pointer access not allowed when wrapper initialized with a managed pointer."];
+  }
+  return _rawTrackGrid;
+}
+
+@end
+*/

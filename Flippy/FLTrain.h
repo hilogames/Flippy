@@ -28,11 +28,13 @@ class FLTrackGrid;
  *    . zPosition
  */
 
-@interface FLTrain : SKSpriteNode
+@interface FLTrain : SKSpriteNode <NSCoding>
 
 @property (nonatomic) BOOL running;
 
 - (id)initWithTrackGrid:(std::shared_ptr<FLTrackGrid>&)trackGrid;
+
+- (void)resetTrackGrid:(std::shared_ptr<FLTrackGrid>&)trackGrid;
 
 - (void)update:(CFTimeInterval)elapsedTime;
 

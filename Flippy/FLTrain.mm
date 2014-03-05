@@ -21,7 +21,6 @@ static const int FLTrainDirectionReverse = -1;
   shared_ptr<FLTrackGrid> _trackGrid;
 
   BOOL _running;
-  BOOL _firstUpdateSinceRunning;
 
   FLSegmentNode *_lastSegmentNode;
   int _lastPathId;
@@ -42,11 +41,52 @@ static const int FLTrainDirectionReverse = -1;
   return self;
 }
 
+- (id)initWithCoder:(NSCoder *)aDecoder
+{
+  self = [super initWithCoder:aDecoder];
+  if (self) {
+    _running = [aDecoder decodeBoolForKey:@"running"];
+    _lastSegmentNode = [aDecoder decodeObjectForKey:@"lastSegmentNode"];
+//    BOOL lastSegmentNode = [aDecoder decodeBoolForKey:@"lastSegmentNode"];
+//    if (lastSegmentNode) {
+//      int gridX = [aDecoder decodeIntForKey:@"lastSegmentNodeGridX"];
+//      int gridY = [aDecoder decodeIntForKey:@"lastSegmentNodeGridY"];
+//      _lastSegmentNode = _trackGrid->get(gridX, gridY);
+//    }
+    _lastPathId = [aDecoder decodeIntForKey:@"lastPathId"];
+    _lastPathLength = [_lastSegmentNode pathLengthForPath:_lastPathId];
+    _lastProgress = [aDecoder decodeFloatForKey:@"lastProgress"];
+    _lastDirection = [aDecoder decodeIntForKey:@"lastDirection"];
+  }
+  return self;
+}
+
+- (void)encodeWithCoder:(NSCoder *)aCoder
+{
+  [super encodeWithCoder:aCoder];
+  
+  [aCoder encodeBool:_running forKey:@"running"];
+  [aCoder encodeObject:_lastSegmentNode forKey:@"lastSegmentNode"];
+//  [aCoder encodeBool:(_lastSegmentNode != nil) forKey:@"lastSegmentNode"];
+//  if (_lastSegmentNode) {
+//    int gridX;
+//    int gridY;
+//    _trackGrid->convert(_lastSegmentNode.position, &gridX, &gridY);
+//    [aCoder encodeInt:gridX forKey:@"lastSegmentNodeGridX"];
+//    [aCoder encodeInt:gridY forKey:@"lastSegmentNodeGridY"];
+//  }
+  [aCoder encodeInt:_lastPathId forKey:@"lastPathId"];
+  [aCoder encodeFloat:_lastProgress forKey:@"lastProgress"];
+  [aCoder encodeInt:_lastDirection forKey:@"lastDirection"];
+}
+
+- (void)resetTrackGrid:(std::shared_ptr<FLTrackGrid> &)trackGrid
+{
+  _trackGrid = trackGrid;
+}
+
 - (void)setRunning:(BOOL)running
 {
-  if (!_running && running) {
-    _firstUpdateSinceRunning = YES;
-  }
   _running = running;
 }
 
@@ -97,13 +137,7 @@ static const int FLTrainDirectionReverse = -1;
   // the future to account for path length, and probably also to allow acceleration
   // for fun.
   const CGFloat FLTrainSpeedPathLengthPerSecond = 1.4f;
-  CGFloat deltaProgress;
-  if (_firstUpdateSinceRunning) {
-    deltaProgress = 0.0f;
-    _firstUpdateSinceRunning = NO;
-  } else {
-    deltaProgress = (FLTrainSpeedPathLengthPerSecond / _lastPathLength) * elapsedTime * _lastDirection;
-  }
+  CGFloat deltaProgress = (FLTrainSpeedPathLengthPerSecond / _lastPathLength) * elapsedTime * _lastDirection;
   _lastProgress += deltaProgress;
 
   // If the train tries to go past the end of the segment, then attempt to

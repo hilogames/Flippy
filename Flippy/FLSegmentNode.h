@@ -27,7 +27,7 @@ convertRotationQuartersToRadians(int quarters)
   return quarters * M_PI_2;
 }
 
-@interface FLSegmentNode : SKSpriteNode
+@interface FLSegmentNode : SKSpriteNode <NSCoding>
 
 @property (nonatomic) FLSegmentType segmentType;
 
