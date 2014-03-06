@@ -288,6 +288,12 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   [view removeGestureRecognizer:_pinchRecognizer];
 }
 
+- (void)didChangeSize:(CGSize)oldSize
+{
+  [self FL_constructionToolbarSetVisible:YES];
+  [self FL_simulationToolbarSetVisible:YES];
+}
+
 - (void)FL_createSceneContents
 {
   self.backgroundColor = [SKColor colorWithRed:0.4 green:0.6 blue:0.0 alpha:1.0];
@@ -1001,11 +1007,8 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 - (void)FL_constructionToolbarSetVisible:(BOOL)visible
 {
   if (!_constructionToolbarState.toolbarNode) {
-    const CGFloat FLConstructionToolbarPad = 20.0f;
-    
     _constructionToolbarState.toolbarNode = [[FLToolbarNode alloc] init];
     _constructionToolbarState.toolbarNode.anchorPoint = CGPointMake(0.5f, 0.0f);
-    _constructionToolbarState.toolbarNode.position = CGPointMake(0.0f, FLConstructionToolbarPad - self.size.height / 2.0f);
     _constructionToolbarState.toolbarNode.toolPad = -1.0f;
     
     CGFloat artSegmentBasicInset = (FLArtSegmentSizeFull - FLArtSegmentSizeBasic) / 2.0f;
@@ -1034,6 +1037,9 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   }
   
   if (visible) {
+    // note: Might need to reposition for scene size changes (even if already added to parent).
+    const CGFloat FLConstructionToolbarPad = 20.0f;
+    _constructionToolbarState.toolbarNode.position = CGPointMake(0.0f, FLConstructionToolbarPad - self.size.height / 2.0f);
     if (!_constructionToolbarState.toolbarNode.parent) {
       [_hudNode addChild:_constructionToolbarState.toolbarNode];
     }
@@ -1047,11 +1053,8 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 - (void)FL_simulationToolbarSetVisible:(BOOL)visible
 {
   if (!_simulationToolbarState.toolbarNode) {
-    const CGFloat FLSimulationToolbarPad = 30.0f;
-    
     _simulationToolbarState.toolbarNode = [[FLToolbarNode alloc] init];
     _simulationToolbarState.toolbarNode.anchorPoint = CGPointMake(0.5f, 1.0f);
-    _simulationToolbarState.toolbarNode.position = CGPointMake(0.0f, self.size.height / 2.0f - FLSimulationToolbarPad);
     // note: To match appearance of construction toolbar, use similar sizes and pads.
     _simulationToolbarState.toolbarNode.toolPad = -1.0f;
 
@@ -1068,6 +1071,9 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   }
   
   if (visible) {
+    // note: Might need to reposition for scene size changes (even if already added to parent).
+    const CGFloat FLSimulationToolbarPad = 30.0f;
+    _simulationToolbarState.toolbarNode.position = CGPointMake(0.0f, self.size.height / 2.0f - FLSimulationToolbarPad);
     if (!_simulationToolbarState.toolbarNode.parent) {
       [_hudNode addChild:_simulationToolbarState.toolbarNode];
     }
