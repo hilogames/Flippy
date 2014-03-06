@@ -11,6 +11,8 @@
 #import "FLPath.h"
 #import "FLTextureStore.h"
 
+const int FLSegmentSwitchPathIdNone = -1;
+
 static const unsigned int FLSegmentNodePathsMax = 2;
 
 @implementation FLSegmentNode
@@ -18,6 +20,7 @@ static const unsigned int FLSegmentNodePathsMax = 2;
 - (id)initWithSegmentType:(FLSegmentType)segmentType
 {
   SKTexture *texture = nil;
+  int switchPathId = FLSegmentSwitchPathIdNone;
   switch (segmentType) {
     case FLSegmentTypeStraight:
       texture = [[FLTextureStore sharedStore] textureForKey:@"straight"];
@@ -27,9 +30,11 @@ static const unsigned int FLSegmentNodePathsMax = 2;
       break;
     case FLSegmentTypeJoinLeft:
       texture = [[FLTextureStore sharedStore] textureForKey:@"join-left"];
+      switchPathId = 0;
       break;
     case FLSegmentTypeJoinRight:
       texture = [[FLTextureStore sharedStore] textureForKey:@"join-right"];
+      switchPathId = 0;
       break;
     case FLSegmentTypeJogLeft:
       texture = [[FLTextureStore sharedStore] textureForKey:@"jog-left"];
@@ -46,31 +51,40 @@ static const unsigned int FLSegmentNodePathsMax = 2;
   self = [super initWithTexture:texture];
   if (self) {
     _segmentType = segmentType;
+    _switchPathId = switchPathId;
   }
   return self;
 }
 
 - (id)initWithTextureKey:(NSString *)textureKey
 {
+  FLSegmentType segmentType;
+  int switchPathId = FLSegmentSwitchPathIdNone;
   if ([textureKey isEqualToString:@"straight"]) {
-    _segmentType = FLSegmentTypeStraight;
+    segmentType = FLSegmentTypeStraight;
   } else if ([textureKey isEqualToString:@"curve"]) {
-    _segmentType = FLSegmentTypeCurve;
+    segmentType = FLSegmentTypeCurve;
   } else if ([textureKey isEqualToString:@"join-left"]) {
-    _segmentType = FLSegmentTypeJoinLeft;
+    segmentType = FLSegmentTypeJoinLeft;
+    switchPathId = 0;
   } else if ([textureKey isEqualToString:@"join-right"]) {
-    _segmentType = FLSegmentTypeJoinRight;
+    segmentType = FLSegmentTypeJoinRight;
+    switchPathId = 0;
   } else if ([textureKey isEqualToString:@"jog-left"]) {
-    _segmentType = FLSegmentTypeJogLeft;
+    segmentType = FLSegmentTypeJogLeft;
   } else if ([textureKey isEqualToString:@"jog-right"]) {
-    _segmentType = FLSegmentTypeJogRight;
+    segmentType = FLSegmentTypeJogRight;
   } else if ([textureKey isEqualToString:@"cross"]) {
-    _segmentType = FLSegmentTypeCross;
+    segmentType = FLSegmentTypeCross;
   } else {
     [NSException raise:@"FLSegmentNodeTexureKeyUnknown" format:@"Unknown segment texture key."];
   }
   SKTexture *texture = [[FLTextureStore sharedStore] textureForKey:textureKey];
   self = [super initWithTexture:texture];
+  if (self) {
+    _segmentType = segmentType;
+    _switchPathId = switchPathId;
+  }
   return self;
 }
 
@@ -79,6 +93,9 @@ static const unsigned int FLSegmentNodePathsMax = 2;
   self = [super initWithCoder:aDecoder];
   if (self) {
     _segmentType = (FLSegmentType)[aDecoder decodeIntForKey:@"segmentType"];
+    if ([aDecoder containsValueForKey:@"switchPathId"]) {
+      _switchPathId = [aDecoder decodeIntForKey:@"switchPathId"];
+    }
   }
   return self;
 }
@@ -87,6 +104,7 @@ static const unsigned int FLSegmentNodePathsMax = 2;
 {
   [super encodeWithCoder:aCoder];
   [aCoder encodeInt:(int)_segmentType forKey:@"segmentType"];
+  [aCoder encodeInt:_switchPathId forKey:@"switchPathId"];
 }
 
 - (int)zRotationQuarters
@@ -168,6 +186,11 @@ static const unsigned int FLSegmentNodePathsMax = 2;
   CGPoint pathEndPoint = CGPointMake((endPoint.x - self.position.x) / scale, (endPoint.y - self.position.y) / scale);
 
   for (int p = 0; p < pathCount; ++p) {
+
+    if (_switchPathId != FLSegmentSwitchPathIdNone && _switchPathId != p) {
+      continue;
+    }
+
     const FLPath *path = paths[p];
 
     // note: End points can (currently) only be in the corner of the unit square.  So no need

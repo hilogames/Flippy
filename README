@@ -7,8 +7,8 @@ circuits.
 
 Current
 
-  . Switches!  Maybe new segment types for Input and Output, or maybe
-    those are just annotated Joins.
+  . Switches!  Maybe new segment types for switch-left and -right, or
+    maybe those are just annotated joins.
 
   . Save/load tracks/subtracks, probably via the creation toolbar.  A
     pre-loaded folder of subtracks for logical gates; another for

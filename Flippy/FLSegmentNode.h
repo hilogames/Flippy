@@ -9,7 +9,7 @@
 #import <SpriteKit/SpriteKit.h>
 
 enum FLSegmentType {
-  FLSegmentTypeNone,
+  FLSegmentTypeNone = 0,
   FLSegmentTypeStraight,
   FLSegmentTypeCurve,
   FLSegmentTypeJoinLeft,
@@ -18,6 +18,8 @@ enum FLSegmentType {
   FLSegmentTypeJogRight,
   FLSegmentTypeCross
 };
+
+FOUNDATION_EXPORT const int FLSegmentSwitchPathIdNone;
 
 inline int
 convertRotationRadiansToQuarters(CGFloat radians)
@@ -41,6 +43,8 @@ convertRotationQuartersToRadians(int quarters)
 @property (nonatomic) FLSegmentType segmentType;
 
 @property (nonatomic) int zRotationQuarters;
+
+@property (nonatomic) int switchPathId;
 
 - (id)initWithSegmentType:(FLSegmentType)segmentType;
 
