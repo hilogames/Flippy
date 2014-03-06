@@ -222,9 +222,16 @@ static const unsigned int FLSegmentNodePathsMax = 2;
       pathType = FLPathTypeCurve;
       break;
     case FLSegmentTypeJoinLeft:
+      if (pathId == 0) {
+        pathType = FLPathTypeCurve;
+      } else {
+        pathType = FLPathTypeStraight;
+      }
+      break;
     case FLSegmentTypeJoinRight:
       if (pathId == 0) {
         pathType = FLPathTypeCurve;
+        ++rotationQuarters;
       } else {
         pathType = FLPathTypeStraight;
       }
@@ -265,7 +272,7 @@ static const unsigned int FLSegmentNodePathsMax = 2;
       paths[1] = FLPathStore::sharedStore()->getPath(FLPathTypeStraight, rotationQuarters);
       return 2;
     case FLSegmentTypeJoinRight:
-      paths[0] = FLPathStore::sharedStore()->getPath(FLPathTypeCurve, rotationQuarters - 1);
+      paths[0] = FLPathStore::sharedStore()->getPath(FLPathTypeCurve, rotationQuarters + 1);
       paths[1] = FLPathStore::sharedStore()->getPath(FLPathTypeStraight, rotationQuarters);
       return 2;
     case FLSegmentTypeJogLeft:
