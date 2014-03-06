@@ -7,17 +7,16 @@ circuits.
 
 Current
 
-  . Persist track.
-
-  . New segments: Jog, Cross.  Add mirror transformation to track edit
-    menu, or else create a separate mirrored segment for "join".
-
   . Switches!  Maybe new segment types for Input and Output, or maybe
     those are just annotated Joins.
 
   . Save/load tracks/subtracks, probably via the creation toolbar.  A
     pre-loaded folder of subtracks for logical gates; another for
-    larger circuits (half adder); another for user stuff.
+    larger circuits (half adder); another for user stuff.  Probably
+    "save/load" refers to the entire scene, whereas "export/import"
+    refers to just the track/subtrack.
+
+    . Pre-requisite might be multi-segment selection.
 
 Medium Priority
 
@@ -30,6 +29,8 @@ Medium Priority
 
   . Rotation gesture recognizer for rotation; flick for deletion;
     pinch or something for mirror.
+
+  . Train speed control.
 
 Low Priority
 

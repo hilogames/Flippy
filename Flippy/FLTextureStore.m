@@ -25,7 +25,11 @@
     // Segments.
     [sharedStore loadTextureForKey:@"straight" filteringMode:SKTextureFilteringNearest];
     [sharedStore loadTextureForKey:@"curve" filteringMode:SKTextureFilteringNearest];
-    [sharedStore loadTextureForKey:@"join" filteringMode:SKTextureFilteringNearest];
+    [sharedStore loadTextureForKey:@"join-left" filteringMode:SKTextureFilteringNearest];
+    [sharedStore loadTextureForKey:@"join-right" filteringMode:SKTextureFilteringNearest];
+    [sharedStore loadTextureForKey:@"jog-left" filteringMode:SKTextureFilteringNearest];
+    [sharedStore loadTextureForKey:@"jog-right" filteringMode:SKTextureFilteringNearest];
+    [sharedStore loadTextureForKey:@"cross" filteringMode:SKTextureFilteringNearest];
 
     // Tools.
     [sharedStore loadTextureForKey:@"play" filteringMode:SKTextureFilteringLinear];
@@ -61,7 +65,11 @@
 
 - (SKTexture *)textureForKey:(NSString *)key
 {
-  return [_textures objectForKey:key];
+  SKTexture *texture = [_textures objectForKey:key];
+  if (!texture) {
+    [NSException raise:@"FLTextureStoreMissingTexture" format:@"Texture key '%@' not found in store.", key];
+  }
+  return texture;
 }
 
 @end

@@ -162,6 +162,9 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   if (self) {
     _contentCreated = YES;
 
+    _cameraMode = (FLCameraMode)[aDecoder decodeIntForKey:@"cameraMode"];
+    _simulationRunning = [aDecoder decodeBoolForKey:@"simulationRunning"];
+    
     // Re-link special node pointers to objects already decoded in hierarchy.
     _worldNode = [aDecoder decodeObjectForKey:@"worldNode"];
     _trackNode = [aDecoder decodeObjectForKey:@"trackNode"];
@@ -171,9 +174,6 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     [self FL_createHudNode];
     [self FL_constructionToolbarSetVisible:YES];
     [self FL_simulationToolbarSetVisible:YES];
-
-    _cameraMode = (FLCameraMode)[aDecoder decodeIntForKey:@"cameraMode"];
-    _simulationRunning = [aDecoder decodeBoolForKey:@"simulationRunning"];
 
     // Re-create track grid based on segments in track node.
     _trackGrid.reset(new FLTrackGrid(FLArtSegmentSizeBasic * FLArtScale));
@@ -1021,12 +1021,16 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     // the difference between the edges.  The math simplifies down a bit.  Rounded to prevent
     // aliasing (?).
     CGFloat curveShift = floorf(FLArtSegmentDrawnTrackNormalWidth / 4.0f);
-    [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"straight", @"curve", @"join" ]
+    [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"straight", @"curve", @"join-left", @"join-right", @"jog-left", @"jog-right", @"cross" ]
                                                              sizes:nil
-                                                         rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2 ]
+                                                         rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2 ]
                                                            offsets:@[ [NSValue valueWithCGPoint:CGPointMake(straightShift, 0.0f)],
                                                                       [NSValue valueWithCGPoint:CGPointMake(curveShift, -curveShift)],
-                                                                      [NSValue valueWithCGPoint:CGPointMake(curveShift, -curveShift)] ]];
+                                                                      [NSValue valueWithCGPoint:CGPointMake(curveShift, -curveShift)],
+                                                                      [NSValue valueWithCGPoint:CGPointMake(curveShift, curveShift)],
+                                                                      [NSValue valueWithCGPoint:CGPointZero],
+                                                                      [NSValue valueWithCGPoint:CGPointZero],
+                                                                      [NSValue valueWithCGPoint:CGPointZero] ]];
   }
   
   if (visible) {
@@ -1043,7 +1047,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 - (void)FL_simulationToolbarSetVisible:(BOOL)visible
 {
   if (!_simulationToolbarState.toolbarNode) {
-    const CGFloat FLSimulationToolbarPad = 40.0f;
+    const CGFloat FLSimulationToolbarPad = 30.0f;
     
     _simulationToolbarState.toolbarNode = [[FLToolbarNode alloc] init];
     _simulationToolbarState.toolbarNode.anchorPoint = CGPointMake(0.5f, 1.0f);
@@ -1051,7 +1055,13 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     // note: To match appearance of construction toolbar, use similar sizes and pads.
     _simulationToolbarState.toolbarNode.toolPad = -1.0f;
 
-    [_simulationToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"play", @"center" ]
+    NSArray *textureKeys;
+    if (_simulationRunning) {
+      textureKeys = @[ @"pause", @"center" ];
+    } else {
+      textureKeys = @[ @"play", @"center" ];
+    }
+    [_simulationToolbarState.toolbarNode setToolsWithTextureKeys:textureKeys
                                                            sizes:nil
                                                        rotations:@[ @M_PI_2, @M_PI_2 ]
                                                          offsets:nil];
@@ -1397,8 +1407,13 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
           case FLSegmentTypeCurve:
             c = '/';
             break;
-          case FLSegmentTypeJoin:
+          case FLSegmentTypeJoinLeft:
+          case FLSegmentTypeJoinRight:
             c = 'Y';
+            break;
+          case FLSegmentTypeJogLeft:
+          case FLSegmentTypeJogRight:
+            c = 'S';
             break;
           case FLSegmentTypeNone:
             c = ' ';

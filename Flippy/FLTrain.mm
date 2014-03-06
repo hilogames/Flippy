@@ -136,7 +136,7 @@ static const int FLTrainDirectionReverse = -1;
   // note: Current speed is constant in terms of progress.  This will be modified in
   // the future to account for path length, and probably also to allow acceleration
   // for fun.
-  const CGFloat FLTrainSpeedPathLengthPerSecond = 1.4f;
+  const CGFloat FLTrainSpeedPathLengthPerSecond = 1.8f;
   CGFloat deltaProgress = (FLTrainSpeedPathLengthPerSecond / _lastPathLength) * elapsedTime * _lastDirection;
   _lastProgress += deltaProgress;
 
@@ -183,6 +183,7 @@ static const int FLTrainDirectionReverse = -1;
 
   self.position = location;
   self.zRotation = (direction == FLTrainDirectionForward ? rotationRadians : rotationRadians + M_PI);
+  //NSLog(@"progress %3.2f zRotation %.2f", progress, rotationRadians / M_PI * 180.0f);
 
   _lastSegmentNode = segmentNode;
   _lastPathId = pathId;

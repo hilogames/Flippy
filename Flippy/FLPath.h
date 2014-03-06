@@ -8,7 +8,13 @@
 
 #include <memory>
 
-enum FLPathType { FLPathTypeNone, FLPathTypeStraight, FLPathTypeCurve, FLPathTypeJog };
+enum FLPathType {
+  FLPathTypeNone,
+  FLPathTypeStraight,
+  FLPathTypeCurve,
+  FLPathTypeJogLeft,
+  FLPathTypeJogRight
+};
 
 /**
  * A path is one of a few different discrete curves, and supports some basic
@@ -55,5 +61,6 @@ public:
 private:
   FLPath straightPaths_[4];
   FLPath curvePaths_[4];
-  FLPath jogPaths_[4];
+  FLPath jogLeftPaths_[2];
+  FLPath jogRightPaths_[2];
 };

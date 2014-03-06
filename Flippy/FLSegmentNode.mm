@@ -25,8 +25,20 @@ static const unsigned int FLSegmentNodePathsMax = 2;
     case FLSegmentTypeCurve:
       texture = [[FLTextureStore sharedStore] textureForKey:@"curve"];
       break;
-    case FLSegmentTypeJoin:
-      texture = [[FLTextureStore sharedStore] textureForKey:@"join"];
+    case FLSegmentTypeJoinLeft:
+      texture = [[FLTextureStore sharedStore] textureForKey:@"join-left"];
+      break;
+    case FLSegmentTypeJoinRight:
+      texture = [[FLTextureStore sharedStore] textureForKey:@"join-right"];
+      break;
+    case FLSegmentTypeJogLeft:
+      texture = [[FLTextureStore sharedStore] textureForKey:@"jog-left"];
+      break;
+    case FLSegmentTypeJogRight:
+      texture = [[FLTextureStore sharedStore] textureForKey:@"jog-right"];
+      break;
+    case FLSegmentTypeCross:
+      texture = [[FLTextureStore sharedStore] textureForKey:@"cross"];
       break;
     default:
       [NSException raise:@"FLSegmentNodeSegmentTypeUnknown" format:@"Unknown segment type."];
@@ -44,8 +56,16 @@ static const unsigned int FLSegmentNodePathsMax = 2;
     _segmentType = FLSegmentTypeStraight;
   } else if ([textureKey isEqualToString:@"curve"]) {
     _segmentType = FLSegmentTypeCurve;
-  } else if ([textureKey isEqualToString:@"join"]) {
-    _segmentType = FLSegmentTypeJoin;
+  } else if ([textureKey isEqualToString:@"join-left"]) {
+    _segmentType = FLSegmentTypeJoinLeft;
+  } else if ([textureKey isEqualToString:@"join-right"]) {
+    _segmentType = FLSegmentTypeJoinRight;
+  } else if ([textureKey isEqualToString:@"jog-left"]) {
+    _segmentType = FLSegmentTypeJogLeft;
+  } else if ([textureKey isEqualToString:@"jog-right"]) {
+    _segmentType = FLSegmentTypeJogRight;
+  } else if ([textureKey isEqualToString:@"cross"]) {
+    _segmentType = FLSegmentTypeCross;
   } else {
     [NSException raise:@"FLSegmentNodeTexureKeyUnknown" format:@"Unknown segment texture key."];
   }
@@ -192,6 +212,7 @@ static const unsigned int FLSegmentNodePathsMax = 2;
 
 - (const FLPath *)FL_path:(int)pathId
 {
+  int rotationQuarters = convertRotationRadiansToQuarters(self.zRotation);
   FLPathType pathType;
   switch (_segmentType) {
     case FLSegmentTypeStraight:
@@ -200,18 +221,31 @@ static const unsigned int FLSegmentNodePathsMax = 2;
     case FLSegmentTypeCurve:
       pathType = FLPathTypeCurve;
       break;
-    case FLSegmentTypeJoin:
+    case FLSegmentTypeJoinLeft:
+    case FLSegmentTypeJoinRight:
       if (pathId == 0) {
         pathType = FLPathTypeCurve;
       } else {
         pathType = FLPathTypeStraight;
       }
       break;
+    case FLSegmentTypeJogLeft:
+      pathType = FLPathTypeJogLeft;
+      break;
+    case FLSegmentTypeJogRight:
+      pathType = FLPathTypeJogRight;
+      break;
+    case FLSegmentTypeCross:
+      if (pathId == 0) {
+        pathType = FLPathTypeJogLeft;
+      } else {
+        pathType = FLPathTypeJogRight;
+      }
+      break;
     case FLSegmentTypeNone:
     default:
       [NSException raise:@"FLSegmentNodeSegmentTypeInvalid" format:@"Invalid segment type."];
   }
-  int rotationQuarters = convertRotationRadiansToQuarters(self.zRotation);
   return FLPathStore::sharedStore()->getPath(pathType, rotationQuarters);
 }
 
@@ -226,9 +260,23 @@ static const unsigned int FLSegmentNodePathsMax = 2;
     case FLSegmentTypeCurve:
       paths[0] = FLPathStore::sharedStore()->getPath(FLPathTypeCurve, rotationQuarters);
       return 1;
-    case FLSegmentTypeJoin:
+    case FLSegmentTypeJoinLeft:
       paths[0] = FLPathStore::sharedStore()->getPath(FLPathTypeCurve, rotationQuarters);
       paths[1] = FLPathStore::sharedStore()->getPath(FLPathTypeStraight, rotationQuarters);
+      return 2;
+    case FLSegmentTypeJoinRight:
+      paths[0] = FLPathStore::sharedStore()->getPath(FLPathTypeCurve, rotationQuarters - 1);
+      paths[1] = FLPathStore::sharedStore()->getPath(FLPathTypeStraight, rotationQuarters);
+      return 2;
+    case FLSegmentTypeJogLeft:
+      paths[0] = FLPathStore::sharedStore()->getPath(FLPathTypeJogLeft, rotationQuarters);
+      return 1;
+    case FLSegmentTypeJogRight:
+      paths[0] = FLPathStore::sharedStore()->getPath(FLPathTypeJogRight, rotationQuarters);
+      return 1;
+    case FLSegmentTypeCross:
+      paths[0] = FLPathStore::sharedStore()->getPath(FLPathTypeJogLeft, rotationQuarters);
+      paths[1] = FLPathStore::sharedStore()->getPath(FLPathTypeJogRight, rotationQuarters);
       return 2;
     case FLSegmentTypeNone:
     default:

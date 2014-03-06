@@ -52,51 +52,67 @@ FLPath::FLPath(FLPathType pathType, int rotationQuarters) : pathType_(pathType)
     rotationQuarters += 4;
   }
 
+  bool precomputeCoefficients = true;
   switch (pathType_) {
     case FLPathTypeStraight: {
       points_[0] = { -0.5f, 0.5f };
       points_[1] = { 0.5f, 0.5f };
       rotatePoints(points_, 2, rotationQuarters);
+      precomputeCoefficients = false;
       break;
     }
     case FLPathTypeCurve: {
-      const CGFloat FLPathPointsCurveK = 4.0f / 3.0f * (M_SQRT2 - 1.0f) - 0.5f;
+      const CGFloat FLPathPointsCurveK = 4.0f / 3.0f * (M_SQRT2 - 1.0f);
       points_[0] = { 0.5f, -0.5f };
-      points_[1] = { 0.5f, FLPathPointsCurveK };
-      points_[2] = { FLPathPointsCurveK, 0.5f };
+      points_[1] = { 0.5f, -0.5f + FLPathPointsCurveK };
+      points_[2] = { -0.5f + FLPathPointsCurveK, 0.5f };
       points_[3] = { -0.5f, 0.5f };
       rotatePoints(points_, 4, rotationQuarters);
-      coefficientsX_[0] = points_[3].x - 3.0f * points_[2].x + 3.0f * points_[1].x - points_[0].x;
-      coefficientsX_[1] = 3.0f * points_[2].x - 6.0f * points_[1].x + 3.0f * points_[0].x;
-      coefficientsX_[2] = 3.0f * points_[1].x - 3.0f * points_[0].x;
-      coefficientsY_[0] = points_[3].y - 3.0f * points_[2].y + 3.0f * points_[1].y - points_[0].y;
-      coefficientsY_[1] = 3.0f * points_[2].y - 6.0f * points_[1].y + 3.0f * points_[0].y;
-      coefficientsY_[2] = 3.0f * points_[1].y - 3.0f * points_[0].y;
       break;
     }
-    case FLPathTypeJog:
+    case FLPathTypeJogLeft: {
+      const CGFloat FLPathPointsJogK = 0.6f;
+      points_[0] = { -0.5f, -0.5f };
+      points_[1] = { -0.5f + FLPathPointsJogK, -0.5f };
+      points_[2] = { 0.5f - FLPathPointsJogK, 0.5f };
+      points_[3] = { 0.5f, 0.5f };
+      rotatePoints(points_, 4, rotationQuarters);
+      break;
+    }
+    case FLPathTypeJogRight: {
+      const CGFloat FLPathPointsJogK = 0.6f;
+      points_[0] = { -0.5f, 0.5f };
+      points_[1] = { -0.5f + FLPathPointsJogK, 0.5f };
+      points_[2] = { 0.5f - FLPathPointsJogK, -0.5f };
+      points_[3] = { 0.5f, -0.5f };
+      rotatePoints(points_, 4, rotationQuarters);
+      break;
+    }
     case FLPathTypeNone:
     default:
       break;
   }
+  coefficientsX_[0] = points_[3].x - 3.0f * points_[2].x + 3.0f * points_[1].x - points_[0].x;
+  coefficientsX_[1] = 3.0f * points_[2].x - 6.0f * points_[1].x + 3.0f * points_[0].x;
+  coefficientsX_[2] = 3.0f * points_[1].x - 3.0f * points_[0].x;
+  coefficientsY_[0] = points_[3].y - 3.0f * points_[2].y + 3.0f * points_[1].y - points_[0].y;
+  coefficientsY_[1] = 3.0f * points_[2].y - 6.0f * points_[1].y + 3.0f * points_[0].y;
+  coefficientsY_[2] = 3.0f * points_[1].y - 3.0f * points_[0].y;
 }
 
 CGPoint
 FLPath::getPoint(CGFloat progress) const
 {
-  // note: Assuming that a switch is faster than virtual function table lookup.
-  // Consider templates if performance is an issue.
-  CGPoint result;
   switch (pathType_) {
     case FLPathTypeStraight:
       return getPointLinear(progress);
     case FLPathTypeCurve:
+    case FLPathTypeJogLeft:
+    case FLPathTypeJogRight:
       return getPointCubic(progress);
-    case FLPathTypeJog:
     default:
-      break;
+      return CGPointZero;
   }
-  return result;
 }
 
 CGPoint
@@ -127,15 +143,17 @@ FLPath::getTangent(CGFloat progress) const
       tangentPoint.x = points_[1].x - points_[0].x;
       tangentPoint.y = points_[1].y - points_[0].y;
       break;
-    case FLPathTypeCurve: {
+    case FLPathTypeCurve:
+    case FLPathTypeJogLeft:
+    case FLPathTypeJogRight: {
       // Cubic.
       CGFloat progressSquared = progress * progress;
       tangentPoint.x = 3.0f * coefficientsX_[0] * progressSquared + 2.0f * coefficientsX_[1] * progress + coefficientsX_[2];
       tangentPoint.y = 3.0f * coefficientsY_[0] * progressSquared + 2.0f * coefficientsY_[1] * progress + coefficientsY_[2];
       break;
     }
-    case FLPathTypeJog:
     default:
+      tangentPoint = CGPointZero;
       break;
   }
   return atan2f(tangentPoint.y, tangentPoint.x);
@@ -162,7 +180,8 @@ FLPath::getClosestOnPathPoint(CGPoint *onPathPoint, CGFloat *onPathProgress, CGP
       return sqrtf((offPathPoint.x - onPathPoint->x) * (offPathPoint.x - onPathPoint->x) + (offPathPoint.y - onPathPoint->y) * (offPathPoint.y - onPathPoint->y));
     }
     case FLPathTypeCurve:
-    case FLPathTypeJog: {
+    case FLPathTypeJogLeft:
+    case FLPathTypeJogRight: {
       // Binary search on cubic bezier.
       //
       // note: I've read that it's possible to do this closed form, also.  But math is hard.
@@ -211,11 +230,17 @@ FLPath::getLength() const
       return 1.0f;
     case FLPathTypeCurve:
       return M_PI_2;
-    case FLPathTypeJog:
+    case FLPathTypeJogLeft:
+    case FLPathTypeJogRight:
+      // note: Using a K value of 0.6 (for constant FLPathPointsJogK above), I used
+      // the graphical representation of Legendre-Gauss approximation on the Bezier
+      // curves primer page (<http://pomax.github.io/bezierinfo/#arclength>).  Shameful,
+      // but good enough for rock and roll.  Note M_PI_2 is reasonably close also, but
+      // that's an even more baseless way to approximate.
+      return 1.52f;
     default:
-      break;
+      return 0.0f;
   }
-  return 0.0f;
 }
 
 FLPathStore::FLPathStore()
@@ -233,6 +258,14 @@ FLPathStore::FLPathStore()
   curvePaths_[1] = { FLPathTypeCurve, 1 };
   curvePaths_[2] = { FLPathTypeCurve, 2 };
   curvePaths_[3] = { FLPathTypeCurve, 3 };
+  
+  // Jog-left paths.
+  jogLeftPaths_[0] = { FLPathTypeJogLeft, 0 };
+  jogLeftPaths_[1] = { FLPathTypeJogLeft, 1 };
+
+  // Jog-right paths.
+  jogRightPaths_[0] = { FLPathTypeJogRight, 0 };
+  jogRightPaths_[1] = { FLPathTypeJogRight, 1 };
 }
 
 shared_ptr<FLPathStore>
@@ -261,8 +294,10 @@ FLPathStore::getPath(FLPathType pathType, int rotationQuarters)
       return &straightPaths_[rotationQuarters];
     case FLPathTypeCurve:
       return &curvePaths_[rotationQuarters];
-    case FLPathTypeJog:
-      return &jogPaths_[rotationQuarters];
+    case FLPathTypeJogLeft:
+      return &jogLeftPaths_[rotationQuarters % 2];
+    case FLPathTypeJogRight:
+      return &jogRightPaths_[rotationQuarters % 2];
     default:
       return nullptr;
   }

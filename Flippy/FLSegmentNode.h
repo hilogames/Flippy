@@ -8,7 +8,16 @@
 
 #import <SpriteKit/SpriteKit.h>
 
-enum FLSegmentType { FLSegmentTypeNone, FLSegmentTypeStraight, FLSegmentTypeCurve, FLSegmentTypeJoin };
+enum FLSegmentType {
+  FLSegmentTypeNone,
+  FLSegmentTypeStraight,
+  FLSegmentTypeCurve,
+  FLSegmentTypeJoinLeft,
+  FLSegmentTypeJoinRight,
+  FLSegmentTypeJogLeft,
+  FLSegmentTypeJogRight,
+  FLSegmentTypeCross
+};
 
 inline int
 convertRotationRadiansToQuarters(CGFloat radians)
