@@ -15,6 +15,7 @@
 		CB4D531118A979550087E1F7 /* wooden-click-2.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB4D530C18A979550087E1F7 /* wooden-click-2.caf */; };
 		CB4D531318A979550087E1F7 /* wooden-clickity-2.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB4D530E18A979550087E1F7 /* wooden-clickity-2.caf */; };
 		CB50C21718BF8F140072DA30 /* FLTrackGrid.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB50C21518BF8F140072DA30 /* FLTrackGrid.mm */; };
+		CB5B70A218C956D20068F16D /* switch.png in Resources */ = {isa = PBXBuildFile; fileRef = CB5B70A118C956D20068F16D /* switch.png */; };
 		CB657E9A1843E8DB00399E34 /* track.atlas in Resources */ = {isa = PBXBuildFile; fileRef = CB657E991843E8DB00399E34 /* track.atlas */; };
 		CB88668F18A540130045FD7E /* grass.png in Resources */ = {isa = PBXBuildFile; fileRef = CB88668E18A540130045FD7E /* grass.png */; };
 		CB88669218A544530045FD7E /* sleeperDestruction.sks in Resources */ = {isa = PBXBuildFile; fileRef = CB88669018A544530045FD7E /* sleeperDestruction.sks */; };
@@ -67,6 +68,7 @@
 		CB4D530E18A979550087E1F7 /* wooden-clickity-2.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "wooden-clickity-2.caf"; sourceTree = "<group>"; };
 		CB50C21518BF8F140072DA30 /* FLTrackGrid.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLTrackGrid.mm; sourceTree = "<group>"; };
 		CB50C21618BF8F140072DA30 /* FLTrackGrid.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTrackGrid.h; sourceTree = "<group>"; };
+		CB5B70A118C956D20068F16D /* switch.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = switch.png; sourceTree = "<group>"; };
 		CB657E991843E8DB00399E34 /* track.atlas */ = {isa = PBXFileReference; lastKnownFileType = folder.skatlas; path = track.atlas; sourceTree = "<group>"; };
 		CB88668E18A540130045FD7E /* grass.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = grass.png; sourceTree = "<group>"; };
 		CB88669018A544530045FD7E /* sleeperDestruction.sks */ = {isa = PBXFileReference; lastKnownFileType = file.sks; path = sleeperDestruction.sks; sourceTree = "<group>"; };
@@ -146,6 +148,7 @@
 		CB4D531518A9799E0087E1F7 /* Images */ = {
 			isa = PBXGroup;
 			children = (
+				CB5B70A118C956D20068F16D /* switch.png */,
 				CB9F5F7818BD27C700EA91CE /* engine.png */,
 				CB657E991843E8DB00399E34 /* track.atlas */,
 				CB3E96BD189AB85900D0D567 /* tools.atlas */,
@@ -328,6 +331,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CB5B70A218C956D20068F16D /* switch.png in Resources */,
 				CB88669918A549150045FD7E /* railDestruction.sks in Resources */,
 				CB88668F18A540130045FD7E /* grass.png in Resources */,
 				CBB4B81B183C00E1003C3444 /* Images.xcassets in Resources */,

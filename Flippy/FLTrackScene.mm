@@ -19,11 +19,6 @@
 using namespace std;
 using namespace HLCommon;
 
-static const CGFloat FLArtSegmentSizeFull = 54.0f;
-static const CGFloat FLArtSegmentSizeBasic = 36.0f;
-static const CGFloat FLArtSegmentDrawnTrackNormalWidth = 14.0f;  // the pixel width of the drawn tracks (widest: sleepers) when orthagonal
-static const CGFloat FLArtScale = 2.0f;
-
 static const CGFloat FLWorldScaleMin = 0.125f;
 static const CGFloat FLWorldScaleMax = 2.0f;
 static const CGSize FLWorldSize = { 3000.0f, 3000.0f };
@@ -151,7 +146,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   if (self) {
     _cameraMode = FLCameraModeManual;
     _simulationRunning = NO;
-    _trackGrid.reset(new FLTrackGrid(FLArtSegmentSizeBasic * FLArtScale));
+    _trackGrid.reset(new FLTrackGrid(FLSegmentArtSizeBasic * FLSegmentArtScale));
   }
   return self;
 }
@@ -176,7 +171,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     [self FL_simulationToolbarSetVisible:YES];
 
     // Re-create track grid based on segments in track node.
-    _trackGrid.reset(new FLTrackGrid(FLArtSegmentSizeBasic * FLArtScale));
+    _trackGrid.reset(new FLTrackGrid(FLSegmentArtSizeBasic * FLSegmentArtScale));
     _trackGrid->import(_trackNode);
 
     _train = [aDecoder decodeObjectForKey:@"train"];
@@ -337,7 +332,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   // Create other content.
 
   _train = [[FLTrain alloc] initWithTrackGrid:_trackGrid];
-  _train.scale = FLArtScale;
+  _train.scale = FLSegmentArtScale;
   _train.zPosition = FLZPositionWorldTrain;
   [_worldNode addChild:_train];
 
@@ -983,7 +978,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   SKTexture *texture = [[FLTextureStore sharedStore] textureForKey:textureKey];
   SKSpriteNode *sprite = [SKSpriteNode spriteNodeWithTexture:texture];
   sprite.name = spriteName;
-  sprite.scale = FLArtScale;
+  sprite.scale = FLSegmentArtScale;
   //// note: The textureKey in user data is currently only used for debugging.
   //sprite.userData = [NSMutableDictionary dictionaryWithDictionary:@{ @"textureKey" : textureKey }];
   [parent addChild:sprite];
@@ -993,14 +988,14 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 - (FLSegmentNode *)FL_createSegmentWithSegmentType:(FLSegmentType)segmentType
 {
   FLSegmentNode *segmentNode = [[FLSegmentNode alloc] initWithSegmentType:segmentType];
-  segmentNode.scale = FLArtScale;
+  segmentNode.scale = FLSegmentArtScale;
   return segmentNode;
 }
 
 - (FLSegmentNode *)FL_createSegmentWithTextureKey:(NSString *)textureKey
 {
   FLSegmentNode *segmentNode = [[FLSegmentNode alloc] initWithTextureKey:textureKey];
-  segmentNode.scale = FLArtScale;
+  segmentNode.scale = FLSegmentArtScale;
   return segmentNode;
 }
 
@@ -1011,19 +1006,19 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     _constructionToolbarState.toolbarNode.anchorPoint = CGPointMake(0.5f, 0.0f);
     _constructionToolbarState.toolbarNode.toolPad = -1.0f;
     
-    CGFloat artSegmentBasicInset = (FLArtSegmentSizeFull - FLArtSegmentSizeBasic) / 2.0f;
+    CGFloat artSegmentBasicInset = (FLSegmentArtSizeFull - FLSegmentArtSizeBasic) / 2.0f;
     // note: The straight segment runs along the visual edge of a square; we'd like to shift
     // it to the visual center of the tool image.  Half the full texture size is the middle,
     // but need to subtract out the amount that the (centerpoint of the) drawn tracks are already
     // inset from the edge of the texture.
-    CGFloat straightShift = (FLArtSegmentSizeFull / 2.0f) - artSegmentBasicInset;
+    CGFloat straightShift = (FLSegmentArtSizeFull / 2.0f) - artSegmentBasicInset;
     // note: For the curves: The track textures don't appear visually centered because the
     // drawn track is a full inset away from any perpendicular edge and only a small pad away
     // from any parallel edge.  The pad is the difference between the drawn track centerpoint
     // inset and half the width of the normal drawn track width.  So shift it inwards by half
     // the difference between the edges.  The math simplifies down a bit.  Rounded to prevent
     // aliasing (?).
-    CGFloat curveShift = floorf(FLArtSegmentDrawnTrackNormalWidth / 4.0f);
+    CGFloat curveShift = floorf(FLSegmentArtDrawnTrackNormalWidth / 4.0f);
     [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"straight", @"curve", @"join-left", @"join-right", @"jog-left", @"jog-right", @"cross" ]
                                                              sizes:nil
                                                          rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2 ]
@@ -1093,11 +1088,11 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     const CGFloat FLTrackSelectFadeDuration = 0.45f;
 
     _trackSelectState.visualSelectionNode = [SKSpriteNode spriteNodeWithColor:[UIColor colorWithWhite:0.2f alpha:1.0f]
-                                                               size:CGSizeMake(FLArtSegmentSizeBasic, FLArtSegmentSizeBasic)];
+                                                               size:CGSizeMake(FLSegmentArtSizeBasic, FLSegmentArtSizeBasic)];
     // note: This doesn't work well with light backgrounds.
     _trackSelectState.visualSelectionNode.blendMode = SKBlendModeAdd;
     _trackSelectState.visualSelectionNode.name = @"selection";
-    _trackSelectState.visualSelectionNode.scale = FLArtScale;
+    _trackSelectState.visualSelectionNode.scale = FLSegmentArtScale;
     _trackSelectState.visualSelectionNode.zPosition = FLZPositionWorldSelect;
     _trackSelectState.visualSelectionNode.alpha = FLTrackSelectAlphaMin;
 
@@ -1372,11 +1367,11 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     if (animated) {
       SKEmitterNode *sleeperDestruction = [NSKeyedUnarchiver unarchiveObjectWithFile:[[NSBundle mainBundle] pathForResource:@"sleeperDestruction" ofType:@"sks"]];
       SKEmitterNode *railDestruction = [NSKeyedUnarchiver unarchiveObjectWithFile:[[NSBundle mainBundle] pathForResource:@"railDestruction" ofType:@"sks"]];
-      // note: This kind of thing makes me think having an FLArtScale is a bad idea.  Resample the art instead.
-      sleeperDestruction.xScale = FLArtScale;
-      sleeperDestruction.yScale = FLArtScale;
-      railDestruction.xScale = FLArtScale;
-      railDestruction.yScale = FLArtScale;
+      // note: This kind of thing makes me think having an FLSegmentArtScale is a bad idea.  Resample the art instead.
+      sleeperDestruction.xScale = FLSegmentArtScale;
+      sleeperDestruction.yScale = FLSegmentArtScale;
+      railDestruction.xScale = FLSegmentArtScale;
+      railDestruction.yScale = FLSegmentArtScale;
       CGPoint worldLocation = _trackGrid->convert(gridX, gridY);
       sleeperDestruction.position = worldLocation;
       railDestruction.position = worldLocation;

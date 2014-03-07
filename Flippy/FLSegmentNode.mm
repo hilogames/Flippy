@@ -11,6 +11,11 @@
 #import "FLPath.h"
 #import "FLTextureStore.h"
 
+const CGFloat FLSegmentArtSizeFull = 54.0f;
+const CGFloat FLSegmentArtSizeBasic = 36.0f;
+const CGFloat FLSegmentArtDrawnTrackNormalWidth = 14.0f;
+const CGFloat FLSegmentArtScale = 2.0f;
+
 const int FLSegmentSwitchPathIdNone = -1;
 
 static const unsigned int FLSegmentNodePathsMax = 2;
@@ -20,7 +25,6 @@ static const unsigned int FLSegmentNodePathsMax = 2;
 - (id)initWithSegmentType:(FLSegmentType)segmentType
 {
   SKTexture *texture = nil;
-  int switchPathId = FLSegmentSwitchPathIdNone;
   switch (segmentType) {
     case FLSegmentTypeStraight:
       texture = [[FLTextureStore sharedStore] textureForKey:@"straight"];
@@ -30,11 +34,9 @@ static const unsigned int FLSegmentNodePathsMax = 2;
       break;
     case FLSegmentTypeJoinLeft:
       texture = [[FLTextureStore sharedStore] textureForKey:@"join-left"];
-      switchPathId = 0;
       break;
     case FLSegmentTypeJoinRight:
       texture = [[FLTextureStore sharedStore] textureForKey:@"join-right"];
-      switchPathId = 0;
       break;
     case FLSegmentTypeJogLeft:
       texture = [[FLTextureStore sharedStore] textureForKey:@"jog-left"];
@@ -51,7 +53,10 @@ static const unsigned int FLSegmentNodePathsMax = 2;
   self = [super initWithTexture:texture];
   if (self) {
     _segmentType = segmentType;
-    _switchPathId = switchPathId;
+    _switchPathId = FLSegmentSwitchPathIdNone;
+    if (segmentType == FLSegmentTypeJoinLeft || segmentType == FLSegmentTypeJoinRight) {
+      self.switchPathId = 1;
+    }
   }
   return self;
 }
@@ -59,17 +64,14 @@ static const unsigned int FLSegmentNodePathsMax = 2;
 - (id)initWithTextureKey:(NSString *)textureKey
 {
   FLSegmentType segmentType;
-  int switchPathId = FLSegmentSwitchPathIdNone;
   if ([textureKey isEqualToString:@"straight"]) {
     segmentType = FLSegmentTypeStraight;
   } else if ([textureKey isEqualToString:@"curve"]) {
     segmentType = FLSegmentTypeCurve;
   } else if ([textureKey isEqualToString:@"join-left"]) {
     segmentType = FLSegmentTypeJoinLeft;
-    switchPathId = 0;
   } else if ([textureKey isEqualToString:@"join-right"]) {
     segmentType = FLSegmentTypeJoinRight;
-    switchPathId = 0;
   } else if ([textureKey isEqualToString:@"jog-left"]) {
     segmentType = FLSegmentTypeJogLeft;
   } else if ([textureKey isEqualToString:@"jog-right"]) {
@@ -83,7 +85,10 @@ static const unsigned int FLSegmentNodePathsMax = 2;
   self = [super initWithTexture:texture];
   if (self) {
     _segmentType = segmentType;
-    _switchPathId = switchPathId;
+    _switchPathId = FLSegmentSwitchPathIdNone;
+    if (segmentType == FLSegmentTypeJoinLeft || segmentType == FLSegmentTypeJoinRight) {
+      self.switchPathId = 1;
+    }
   }
   return self;
 }
@@ -93,9 +98,8 @@ static const unsigned int FLSegmentNodePathsMax = 2;
   self = [super initWithCoder:aDecoder];
   if (self) {
     _segmentType = (FLSegmentType)[aDecoder decodeIntForKey:@"segmentType"];
-    if ([aDecoder containsValueForKey:@"switchPathId"]) {
-      _switchPathId = [aDecoder decodeIntForKey:@"switchPathId"];
-    }
+    _switchPathId = FLSegmentSwitchPathIdNone;
+    self.switchPathId = [aDecoder decodeIntForKey:@"switchPathId"];
   }
   return self;
 }
@@ -105,6 +109,40 @@ static const unsigned int FLSegmentNodePathsMax = 2;
   [super encodeWithCoder:aCoder];
   [aCoder encodeInt:(int)_segmentType forKey:@"segmentType"];
   [aCoder encodeInt:_switchPathId forKey:@"switchPathId"];
+}
+
+- (void)setSwitchPathId:(int)switchPathId
+{
+  if (_switchPathId == switchPathId) {
+    return;
+  }
+  SKSpriteNode *switchNode;
+  if (_switchPathId == FLSegmentSwitchPathIdNone) {
+    switchNode = [SKSpriteNode spriteNodeWithTexture:[[FLTextureStore sharedStore] textureForKey:@"switch"]];
+    switchNode.name = @"switch";
+    CGFloat halfBasicSize = FLSegmentArtSizeBasic / 2.0f;
+    if (_segmentType == FLSegmentTypeJoinLeft) {
+      switchNode.position = CGPointMake(-halfBasicSize, halfBasicSize);
+    } else if (_segmentType == FLSegmentTypeJoinRight) {
+      switchNode.position = CGPointMake(halfBasicSize, halfBasicSize);
+    } else {
+      switchNode.position = CGPointZero;
+    }
+    switchNode.zPosition = 0.1f;
+    [self addChild:switchNode];
+  } else {
+    switchNode = (SKSpriteNode *)[self childNodeWithName:@"switch"];
+  }
+  if (switchPathId == FLSegmentSwitchPathIdNone) {
+    [switchNode removeFromParent];
+  } else {
+    if (_segmentType == FLSegmentTypeJoinLeft) {
+      switchNode.zRotation += (switchPathId - 1) * M_PI / 8.0f;
+    } else if (_segmentType == FLSegmentTypeJoinRight) {
+      switchNode.zRotation += M_PI + (1 - switchPathId) * M_PI / 8.0f;
+    }
+  }
+  _switchPathId = switchPathId;
 }
 
 - (int)zRotationQuarters

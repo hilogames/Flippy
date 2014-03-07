@@ -8,6 +8,14 @@
 
 #import <SpriteKit/SpriteKit.h>
 
+FOUNDATION_EXPORT const CGFloat FLSegmentArtSizeFull;
+FOUNDATION_EXPORT const CGFloat FLSegmentArtSizeBasic;
+// "Track normal width" is the pixel width of the drawn tracks (widest: sleepers).
+FOUNDATION_EXPORT const CGFloat FLSegmentArtDrawnTrackNormalWidth;
+FOUNDATION_EXPORT const CGFloat FLSegmentArtScale;
+
+FOUNDATION_EXPORT const int FLSegmentSwitchPathIdNone;
+
 enum FLSegmentType {
   FLSegmentTypeNone = 0,
   FLSegmentTypeStraight,
@@ -18,8 +26,6 @@ enum FLSegmentType {
   FLSegmentTypeJogRight,
   FLSegmentTypeCross
 };
-
-FOUNDATION_EXPORT const int FLSegmentSwitchPathIdNone;
 
 inline int
 convertRotationRadiansToQuarters(CGFloat radians)

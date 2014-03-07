@@ -38,6 +38,9 @@
     [sharedStore loadTextureForKey:@"delete" filteringMode:SKTextureFilteringLinear];
     [sharedStore loadTextureForKey:@"rotate-cw" filteringMode:SKTextureFilteringLinear];
     [sharedStore loadTextureForKey:@"rotate-ccw" filteringMode:SKTextureFilteringLinear];
+    
+    // Other.
+    [sharedStore loadTextureForKey:@"switch" filteringMode:SKTextureFilteringNearest];
   }
   return sharedStore;
 }
