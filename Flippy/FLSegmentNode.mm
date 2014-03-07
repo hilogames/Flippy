@@ -21,6 +21,9 @@ const int FLSegmentSwitchPathIdNone = -1;
 static const unsigned int FLSegmentNodePathsMax = 2;
 
 @implementation FLSegmentNode
+{
+  int _switchPathId;
+}
 
 - (id)initWithSegmentType:(FLSegmentType)segmentType
 {
@@ -55,7 +58,9 @@ static const unsigned int FLSegmentNodePathsMax = 2;
     _segmentType = segmentType;
     _switchPathId = FLSegmentSwitchPathIdNone;
     if (segmentType == FLSegmentTypeJoinLeft || segmentType == FLSegmentTypeJoinRight) {
-      self.switchPathId = 1;
+      // noob: Is it okay to be adding children nodes and stuff before finished initializating?
+      // Ditto in other init methods.
+      [self setSwitchPathId:1 animated:NO];
     }
   }
   return self;
@@ -87,7 +92,7 @@ static const unsigned int FLSegmentNodePathsMax = 2;
     _segmentType = segmentType;
     _switchPathId = FLSegmentSwitchPathIdNone;
     if (segmentType == FLSegmentTypeJoinLeft || segmentType == FLSegmentTypeJoinRight) {
-      self.switchPathId = 1;
+      [self setSwitchPathId:1 animated:NO];
     }
   }
   return self;
@@ -98,8 +103,7 @@ static const unsigned int FLSegmentNodePathsMax = 2;
   self = [super initWithCoder:aDecoder];
   if (self) {
     _segmentType = (FLSegmentType)[aDecoder decodeIntForKey:@"segmentType"];
-    _switchPathId = FLSegmentSwitchPathIdNone;
-    self.switchPathId = [aDecoder decodeIntForKey:@"switchPathId"];
+    [self setSwitchPathId:[aDecoder decodeIntForKey:@"switchPathId"] animated:NO];
   }
   return self;
 }
@@ -111,7 +115,12 @@ static const unsigned int FLSegmentNodePathsMax = 2;
   [aCoder encodeInt:_switchPathId forKey:@"switchPathId"];
 }
 
-- (void)setSwitchPathId:(int)switchPathId
+- (int)switchPathId
+{
+  return _switchPathId;
+}
+
+- (void)setSwitchPathId:(int)switchPathId animated:(BOOL)animated
 {
   if (_switchPathId == switchPathId) {
     return;
@@ -121,10 +130,11 @@ static const unsigned int FLSegmentNodePathsMax = 2;
     switchNode = [SKSpriteNode spriteNodeWithTexture:[[FLTextureStore sharedStore] textureForKey:@"switch"]];
     switchNode.name = @"switch";
     CGFloat halfBasicSize = FLSegmentArtSizeBasic / 2.0f;
+    CGFloat switchInset = FLSegmentArtSizeBasic / 6.0f;
     if (_segmentType == FLSegmentTypeJoinLeft) {
-      switchNode.position = CGPointMake(-halfBasicSize, halfBasicSize);
+      switchNode.position = CGPointMake(-halfBasicSize + switchInset, halfBasicSize);
     } else if (_segmentType == FLSegmentTypeJoinRight) {
-      switchNode.position = CGPointMake(halfBasicSize, halfBasicSize);
+      switchNode.position = CGPointMake(halfBasicSize - switchInset, halfBasicSize);
     } else {
       switchNode.position = CGPointZero;
     }
@@ -136,13 +146,32 @@ static const unsigned int FLSegmentNodePathsMax = 2;
   if (switchPathId == FLSegmentSwitchPathIdNone) {
     [switchNode removeFromParent];
   } else {
+    CGFloat newZRotation;
     if (_segmentType == FLSegmentTypeJoinLeft) {
-      switchNode.zRotation += (switchPathId - 1) * M_PI / 8.0f;
+      newZRotation = (switchPathId - 1) * M_PI / 8.0f;
     } else if (_segmentType == FLSegmentTypeJoinRight) {
-      switchNode.zRotation += M_PI + (1 - switchPathId) * M_PI / 8.0f;
+      newZRotation = M_PI + (1 - switchPathId) * M_PI / 8.0f;
+    }
+    if (_switchPathId == FLSegmentSwitchPathIdNone || !animated) {
+      switchNode.zRotation = newZRotation;
+    } else {
+      [switchNode runAction:[SKAction rotateToAngle:newZRotation duration:0.1 shortestUnitArc:YES]];
     }
   }
   _switchPathId = switchPathId;
+}
+
+- (void)toggleSwitchPathIdAnimated:(BOOL)animated
+{
+  if (_switchPathId == FLSegmentSwitchPathIdNone) {
+    return;
+  }
+  // note: Currently, there are only two switch positions.
+  if (_switchPathId == 0) {
+    [self setSwitchPathId:1 animated:animated];
+  } else {
+    [self setSwitchPathId:0 animated:animated];
+  }
 }
 
 - (int)zRotationQuarters
@@ -218,23 +247,28 @@ static const unsigned int FLSegmentNodePathsMax = 2;
 
 - (BOOL)getPath:(int *)pathId progress:(CGFloat *)progress forEndPoint:(CGPoint)endPoint rotation:(CGFloat)rotationRadians scale:(CGFloat)scale
 {
+  CGPoint pathEndPoint = CGPointMake((endPoint.x - self.position.x) / scale, (endPoint.y - self.position.y) / scale);
+
+  // note: The required information about the paths -- i.e the path's endpoints, with tangent and progress
+  // at those endpoints -- is known statically by the path itself.  Switch information -- i.e. which paths
+  // are being switched, and at which endpoints -- is known statically by the segment.  So this entire
+  // function could be written as a single static lookup table.  But it seems like more fun to do all
+  // tests dynamically, using simple getPoint() and getTangent() methods.
+
   const FLPath *paths[FLSegmentNodePathsMax];
   int pathCount = [self FL_allPaths:paths];
 
-  CGPoint pathEndPoint = CGPointMake((endPoint.x - self.position.x) / scale, (endPoint.y - self.position.y) / scale);
-
+  BOOL foundOne = NO;
   for (int p = 0; p < pathCount; ++p) {
-
-    if (_switchPathId != FLSegmentSwitchPathIdNone && _switchPathId != p) {
-      continue;
-    }
-
     const FLPath *path = paths[p];
 
     // note: End points can (currently) only be in the corner of the unit square.  So no need
     // for a tight comparison; really we just need to be within 0.5f (less an epsilon value
     // for floating point error).  Similarly, rotations at end points can (currently) only
     // be at right angles, so again, no need for a tight comparison.
+
+    // note: If there are two paths from this endpoint, then either there is a switch
+    // to choose between them, or else we choose the first one found.
 
     CGPoint zeroProgressPoint = path->getPoint(0.0f);
     if (fabsf(pathEndPoint.x - zeroProgressPoint.x) < 0.1f
@@ -243,9 +277,16 @@ static const unsigned int FLSegmentNodePathsMax = 2;
       CGFloat rotationDifference = fabsf(fmodf(rotationRadians - zeroProgressRotation, M_PI));
       if ((rotationDifference > -0.1f && rotationDifference < 0.1f)
           || (rotationDifference > M_PI - 0.1f && rotationDifference < M_PI + 0.1f)) {
-        *pathId = p;
-        *progress = 0.0f;
-        return YES;
+        if (!foundOne || _switchPathId == p) {
+          *pathId = p;
+          *progress = 0.0f;
+          foundOne = YES;
+        }
+        if (_switchPathId == FLSegmentSwitchPathIdNone) {
+          return YES;
+        } else {
+          continue;
+        }
       }
     }
 
@@ -256,14 +297,21 @@ static const unsigned int FLSegmentNodePathsMax = 2;
       CGFloat rotationDifference = fabsf(fmodf(rotationRadians - oneProgressRotation, M_PI));
       if ((rotationDifference > -0.1f && rotationDifference < 0.1f)
           || (rotationDifference > M_PI - 0.1f && rotationDifference < M_PI + 0.1f)) {
-        *pathId = p;
-        *progress = 1.0f;
-        return YES;
+        if (!foundOne || _switchPathId == p) {
+          *pathId = p;
+          *progress = 1.0f;
+          foundOne = YES;
+        }
+        if (_switchPathId == FLSegmentSwitchPathIdNone) {
+          return YES;
+        } else {
+          continue;
+        }
       }
     }
   }
   
-  return NO;
+  return foundOne;
 }
 
 - (CGFloat)pathLengthForPath:(int)pathId

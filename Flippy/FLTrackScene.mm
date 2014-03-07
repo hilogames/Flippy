@@ -104,6 +104,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
   FLGestureRecognizerState _gestureRecognizerState;
   UITapGestureRecognizer *_tapRecognizer;
+  UITapGestureRecognizer *_doubleTapRecognizer;
   UILongPressGestureRecognizer *_longPressRecognizer;
   UIPanGestureRecognizer *_panRecognizer;
   UIPinchGestureRecognizer *_pinchRecognizer;
@@ -159,11 +160,11 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
     _cameraMode = (FLCameraMode)[aDecoder decodeIntForKey:@"cameraMode"];
     _simulationRunning = [aDecoder decodeBoolForKey:@"simulationRunning"];
-    
+
     // Re-link special node pointers to objects already decoded in hierarchy.
     _worldNode = [aDecoder decodeObjectForKey:@"worldNode"];
     _trackNode = [aDecoder decodeObjectForKey:@"trackNode"];
-    
+
     // Re-create nodes from the hierarchy that were removed during encoding.
     [self FL_createTerrainNode];
     [self FL_createHudNode];
@@ -176,7 +177,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
     _train = [aDecoder decodeObjectForKey:@"train"];
     [_train resetTrackGrid:_trackGrid];
-    
+
     if ([aDecoder decodeBoolForKey:@"trackSelectStateSelected"]) {
       int gridX = [aDecoder decodeIntForKey:@"trackSelectStateGridX"];
       int gridY = [aDecoder decodeIntForKey:@"trackSelectStateGridY"];
@@ -251,25 +252,28 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     _contentCreated = YES;
   }
 
+  // note: No need for cancelsTouchesInView: Not currently handling any touches in the view.
+
+  _doubleTapRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleWorldDoubleTap:)];
+  _doubleTapRecognizer.numberOfTapsRequired = 2;
+  [view addGestureRecognizer:_doubleTapRecognizer];
+
   _tapRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleWorldTap:)];
   _tapRecognizer.delegate = self;
-  _tapRecognizer.cancelsTouchesInView = NO;
+  [_tapRecognizer requireGestureRecognizerToFail:_doubleTapRecognizer];
   [view addGestureRecognizer:_tapRecognizer];
-
+  
   _longPressRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleWorldLongPress:)];
   _longPressRecognizer.delegate = self;
-  _longPressRecognizer.cancelsTouchesInView = NO;
   [view addGestureRecognizer:_longPressRecognizer];
 
   _panRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handleWorldPan:)];
   _panRecognizer.delegate = self;
   _panRecognizer.maximumNumberOfTouches = 1;
-  _panRecognizer.cancelsTouchesInView = NO;
   [view addGestureRecognizer:_panRecognizer];
 
   _pinchRecognizer = [[UIPinchGestureRecognizer alloc] initWithTarget:self action:@selector(handleWorldPinch:)];
   _pinchRecognizer.delegate = self;
-  _pinchRecognizer.cancelsTouchesInView = NO;
   [view addGestureRecognizer:_pinchRecognizer];
 
   [self FL_preloadSound];
@@ -325,7 +329,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   [_worldNode addChild:_trackNode];
 
   [self FL_createTerrainNode];
-  
+
   // The HUD node contains everything pinned to the scene window, outside the world.
   [self FL_createHudNode];
 
@@ -445,6 +449,23 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     } else {
       [self FL_trackEditMenuHideAnimated:YES];
     }
+  }
+}
+
+- (void)handleWorldDoubleTap:(UIGestureRecognizer *)gestureRecognizer
+{
+  CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
+  CGPoint sceneLocation = [self convertPointFromView:viewLocation];
+  CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
+  
+  int gridX;
+  int gridY;
+  _trackGrid->convert(worldLocation, &gridX, &gridY);
+  NSLog(@"double tapped %d,%d", gridX, gridY);
+
+  FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY);
+  if (segmentNode && segmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
+    [segmentNode toggleSwitchPathIdAnimated:YES];
   }
 }
 
@@ -659,7 +680,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     _constructionToolbarState.toolInUseNode.zRotation = M_PI_2;
     _constructionToolbarState.toolInUseNode.alpha = 0.5f;
     _constructionToolbarState.toolInUseNode.position = sceneLocation;
-    
+
     FLSegmentNode *newSegmentNode = [self FL_createSegmentWithTextureKey:tool];
     newSegmentNode.zRotation = M_PI_2;
     [self FL_trackMoveBeganWithNode:newSegmentNode gridX:gridX gridY:gridY];
@@ -738,7 +759,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   CGPoint sceneLocation = [self convertPointFromView:viewLocation];
   CGPoint toolbarLocation = [_trackEditMenuState.editMenuNode convertPoint:sceneLocation fromNode:self];
   NSString *button = [_trackEditMenuState.editMenuNode toolAtLocation:toolbarLocation];
-  
+
   if ([button isEqualToString:@"rotate-cw"]) {
     [self FL_trackGridRotateGridX:_trackEditMenuState.lastGridX gridY:_trackEditMenuState.lastGridY rotateBy:-1 animated:YES];
   } else if ([button isEqualToString:@"rotate-ccw"]) {
@@ -760,24 +781,22 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer
 {
-  // A pan motion after a long press begins currently is considered the same as a regular pan,
-  // and so it is best recognized by the pan gesture recognizer.
-  if (gestureRecognizer == _panRecognizer && otherGestureRecognizer == _longPressRecognizer) {
-    return YES;
-  }
-  // I think this helps.  Otherwise it seems my pinch gesture sometimes gets interpreted as a pan.
-  // I think.
-  if (gestureRecognizer == _panRecognizer && otherGestureRecognizer == _pinchRecognizer) {
-    return YES;
-  }
-  // The way I wrote shouldReceiveTouch:, e.g. a tap on the train will get blocked because a train
-  // tap doesn't currently mean anything, but it doesn't let the tap fall through to anything below
-  // it.  I think that also means that the tap gesture doesn't get a chance to fail, which means the
-  // pan gesture never gets started at all.  Uuuuuuuunless I allow them to recognize simultaneously.
-  if (gestureRecognizer == _panRecognizer && otherGestureRecognizer == _tapRecognizer) {
-    return YES;
-  }
-  return NO;
+  // I'm adding these one at a time as discovered needful, but so far every pairing with
+  // pan seems to need it:
+  //
+  //  . Long press: A pan motion after a long press begins currently is considered the
+  //    same as a regular pan, and so it is best recognized by the pan gesture recognizer.
+  //
+  //  . Pinch: I think this helps.  Otherwise it seems my pinch gesture sometimes gets
+  //    interpreted as a pan.  I think.
+  //
+  //  . Taps: The way I wrote shouldReceiveTouch:, e.g. a tap on the train will get
+  //    blocked because a train tap doesn't currently mean anything, but it doesn't let
+  //    the tap fall through to anything below it.  I think that also means that the tap
+  //    gesture doesn't get a chance to fail, which means the pan gesture never gets
+  //    started at all.  Uuuuuuuunless I allow them to recognize simultaneously.  Ditto
+  //    for _doubleTapRecognizer?  Untested.
+  return gestureRecognizer == _panRecognizer;
 }
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch
@@ -794,7 +813,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   // registration system, where we register the component for a particular handler into a lookup table.
   // It doesn't seem linear would scale well, anyway, and so we might find ourselves maintaining a
   // lookup table regardless of the interface.
-  
+
   // note: Currently, a handler is selected based on quick and easy criteria, which means a single
   // handler can end up handling a few different actions (e.g. the world handler handles track moves
   // and world pans).  The argument for putting all the logic here, and making the handlers extremely
@@ -813,7 +832,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     }
     return NO;
   }
-  
+
   // Simulation toolbar.
   if (_simulationToolbarState.toolbarNode
       && _simulationToolbarState.toolbarNode.parent
@@ -848,11 +867,15 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     }
     return NO;
   }
-  
+
   // World (and track).
   if ([gestureRecognizer isKindOfClass:[UITapGestureRecognizer class]]) {
     [gestureRecognizer removeTarget:nil action:nil];
-    [gestureRecognizer addTarget:self action:@selector(handleWorldTap:)];
+    if (gestureRecognizer == _doubleTapRecognizer) {
+      [gestureRecognizer addTarget:self action:@selector(handleWorldDoubleTap:)];
+    } else {
+      [gestureRecognizer addTarget:self action:@selector(handleWorldTap:)];
+    }
     return YES;
   }
   if ([gestureRecognizer isKindOfClass:[UILongPressGestureRecognizer class]]) {
@@ -870,7 +893,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     [gestureRecognizer addTarget:self action:@selector(handleWorldPinch:)];
     return YES;
   }
-  
+
   // None.
   //
   // noob: So, what if we return NO?  We want the gesture recognizer to be disabled, and its target
@@ -1005,7 +1028,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     _constructionToolbarState.toolbarNode = [[FLToolbarNode alloc] init];
     _constructionToolbarState.toolbarNode.anchorPoint = CGPointMake(0.5f, 0.0f);
     _constructionToolbarState.toolbarNode.toolPad = -1.0f;
-    
+
     CGFloat artSegmentBasicInset = (FLSegmentArtSizeFull - FLSegmentArtSizeBasic) / 2.0f;
     // note: The straight segment runs along the visual edge of a square; we'd like to shift
     // it to the visual center of the tool image.  Half the full texture size is the middle,
@@ -1030,7 +1053,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
                                                                       [NSValue valueWithCGPoint:CGPointZero],
                                                                       [NSValue valueWithCGPoint:CGPointZero] ]];
   }
-  
+
   if (visible) {
     // note: Might need to reposition for scene size changes (even if already added to parent).
     const CGFloat FLConstructionToolbarPad = 20.0f;
@@ -1064,7 +1087,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
                                                        rotations:@[ @M_PI_2, @M_PI_2 ]
                                                          offsets:nil];
   }
-  
+
   if (visible) {
     // note: Might need to reposition for scene size changes (even if already added to parent).
     const CGFloat FLSimulationToolbarPad = 30.0f;
@@ -1290,9 +1313,9 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
                                                     rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2 ]
                                                       offsets:nil];
   }
-  
+
   const CGFloat FLTrackEditMenuBottomPad = 0.0f;
-  
+
   CGPoint worldLocation = CGPointMake(segmentNode.position.x, segmentNode.position.y + segmentNode.size.height / 2.0f + FLTrackEditMenuBottomPad);
   if (!_trackEditMenuState.showing) {
     [_worldNode addChild:_trackEditMenuState.editMenuNode];

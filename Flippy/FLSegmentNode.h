@@ -50,11 +50,14 @@ convertRotationQuartersToRadians(int quarters)
 
 @property (nonatomic) int zRotationQuarters;
 
-@property (nonatomic) int switchPathId;
-
 - (id)initWithSegmentType:(FLSegmentType)segmentType;
 
 - (id)initWithTextureKey:(NSString *)textureKey;
+
+- (int)switchPathId;
+
+- (void)setSwitchPathId:(int)switchPathId animated:(BOOL)animated;
+- (void)toggleSwitchPathIdAnimated:(BOOL)animated;
 
 - (void)getPoint:(CGPoint *)point rotation:(CGFloat *)rotationRadians forPath:(int)pathId progress:(CGFloat)progress scale:(CGFloat)scale;
 

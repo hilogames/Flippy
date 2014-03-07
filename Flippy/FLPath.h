@@ -17,6 +17,39 @@ enum FLPathType {
 };
 
 /**
+ * Rotates points clockwise in "quarters" (increments of 90 degrees).
+ *
+ * @param Array of points.
+ * @param Number of points in array.
+ * @param Quarters for rotation; must be between 0 and 3 inclusive.
+ */
+void
+rotatePoints(CGPoint *points, int pointCount, int rotateQuarters);
+
+/**
+ * Normalize a measurement of rotation (in units of "quarters", that is,
+ * increments of 90 degrees) to a number in the range [0,3].
+ *
+ * note: Some of the internal operations of FLPath require a normalized
+ * rotationQuarters measurement, but generally FLPath assumes that the
+ * caller does not have the same constraints.  So, in general, callers
+ * do not need to use this.  Rather, it is provided in case callers
+ * want it for some other reason.
+ *
+ * @param Rotation measurement; may be negative or large.
+ * @return Normalized rotation measurement in range [0,3].
+ */
+inline int
+normalizeRotationQuarters(int rotationQuarters)
+{
+  rotationQuarters %= 4;
+  if (rotationQuarters < 0) {
+    rotationQuarters += 4;
+  }
+  return rotationQuarters;
+}
+
+/**
  * A path is one of a few different discrete curves, and supports some basic
  * geometric operations like finding points and tangents along the curve.
  *

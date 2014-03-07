@@ -10,12 +10,7 @@
 
 using namespace std;
 
-/**
- * @param Array of points.
- * @param Number of points in array.
- * @param Quarters for rotation; must be between 0 and 3 inclusive.
- */
-static void
+void
 rotatePoints(CGPoint *points, int pointCount, int rotateQuarters)
 {
   switch (rotateQuarters) {
@@ -47,10 +42,7 @@ rotatePoints(CGPoint *points, int pointCount, int rotateQuarters)
 FLPath::FLPath(FLPathType pathType, int rotationQuarters) : pathType_(pathType)
 {
   // note: Normalize rotation within [0,3].
-  rotationQuarters = rotationQuarters % 4;
-  if (rotationQuarters < 0) {
-    rotationQuarters += 4;
-  }
+  rotationQuarters = normalizeRotationQuarters(rotationQuarters);
 
   bool precomputeCoefficients = true;
   switch (pathType_) {
@@ -284,10 +276,7 @@ FLPathStore::getPath(FLPathType pathType, int rotationQuarters)
   // rather than request it as a precondition.  This is because our caller is not currently
   // motivated to care.  If, in the future, the caller cares, then it would be better to
   // move this code up the call stack.
-  rotationQuarters = rotationQuarters % 4;
-  if (rotationQuarters < 0) {
-    rotationQuarters += 4;
-  }
+  rotationQuarters = normalizeRotationQuarters(rotationQuarters);
 
   switch (pathType) {
     case FLPathTypeStraight:
