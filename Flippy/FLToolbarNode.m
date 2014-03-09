@@ -101,6 +101,11 @@ static const CGFloat FLToolbarToolSeparatorSize = 3.0f;
   }
 }
 
+- (NSUInteger)toolCount
+{
+  return [_toolButtonNodes count];
+}
+
 - (NSString *)toolAtLocation:(CGPoint)location
 {
   for (SKSpriteNode *toolButtonNode in _toolButtonNodes) {

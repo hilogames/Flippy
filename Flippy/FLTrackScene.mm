@@ -260,6 +260,8 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
   _tapRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleWorldTap:)];
   _tapRecognizer.delegate = self;
+  // note: This slows down the single-tap recognizer noticeably.  Consider not using double-tap for this
+  // reason.
   [_tapRecognizer requireGestureRecognizerToFail:_doubleTapRecognizer];
   [view addGestureRecognizer:_tapRecognizer];
   
@@ -764,6 +766,8 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     [self FL_trackGridRotateGridX:_trackEditMenuState.lastGridX gridY:_trackEditMenuState.lastGridY rotateBy:-1 animated:YES];
   } else if ([button isEqualToString:@"rotate-ccw"]) {
     [self FL_trackGridRotateGridX:_trackEditMenuState.lastGridX gridY:_trackEditMenuState.lastGridY rotateBy:1 animated:YES];
+  } else if ([button isEqualToString:@"toggle-switch"]) {
+    [_trackEditMenuState.lastSegmentNode toggleSwitchPathIdAnimated:YES];
   } else if ([button isEqualToString:@"delete"]) {
     [self FL_trackGridEraseGridX:_trackEditMenuState.lastGridX gridY:_trackEditMenuState.lastGridY animated:YES];
   }
@@ -1029,6 +1033,8 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     _constructionToolbarState.toolbarNode.anchorPoint = CGPointMake(0.5f, 0.0f);
     _constructionToolbarState.toolbarNode.toolPad = -1.0f;
 
+    const CGSize FLConstructionMenuToolSize = { 48.0f, 48.0f };
+    NSValue *toolSize = [NSValue valueWithCGSize:FLConstructionMenuToolSize];
     CGFloat artSegmentBasicInset = (FLSegmentArtSizeFull - FLSegmentArtSizeBasic) / 2.0f;
     // note: The straight segment runs along the visual edge of a square; we'd like to shift
     // it to the visual center of the tool image.  Half the full texture size is the middle,
@@ -1043,7 +1049,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     // aliasing (?).
     CGFloat curveShift = floorf(FLSegmentArtDrawnTrackNormalWidth / 4.0f);
     [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"straight", @"curve", @"join-left", @"join-right", @"jog-left", @"jog-right", @"cross" ]
-                                                             sizes:nil
+                                                             sizes:@[ toolSize, toolSize, toolSize, toolSize, toolSize, toolSize, toolSize ]
                                                          rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2 ]
                                                            offsets:@[ [NSValue valueWithCGPoint:CGPointMake(straightShift, 0.0f)],
                                                                       [NSValue valueWithCGPoint:CGPointMake(curveShift, -curveShift)],
@@ -1076,6 +1082,8 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     // note: To match appearance of construction toolbar, use similar sizes and pads.
     _simulationToolbarState.toolbarNode.toolPad = -1.0f;
 
+    const CGSize FLSimulationMenuToolSize = { 48.0f, 48.0f };
+    NSValue *toolSize = [NSValue valueWithCGSize:FLSimulationMenuToolSize];
     NSArray *textureKeys;
     if (_simulationRunning) {
       textureKeys = @[ @"pause", @"center" ];
@@ -1083,7 +1091,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
       textureKeys = @[ @"play", @"center" ];
     }
     [_simulationToolbarState.toolbarNode setToolsWithTextureKeys:textureKeys
-                                                           sizes:nil
+                                                           sizes:@[ toolSize, toolSize ]
                                                        rotations:@[ @M_PI_2, @M_PI_2 ]
                                                          offsets:nil];
   }
@@ -1303,15 +1311,27 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 - (void)FL_trackEditMenuShowAtSegment:(FLSegmentNode *)segmentNode gridX:(int)gridX gridY:(int)gridY animated:(BOOL)animated
 {
   if (!_trackEditMenuState.editMenuNode) {
-    CGSize FLTrackEditMenuToolSize = { 48.0f, 48.0f };
     _trackEditMenuState.editMenuNode = [[FLToolbarNode alloc] init];
     _trackEditMenuState.editMenuNode.zPosition = FLZPositionWorldOverlay;
     _trackEditMenuState.editMenuNode.anchorPoint = CGPointMake(0.5f, 0.0f);
+  }
+
+  NSUInteger toolCount = [_trackEditMenuState.editMenuNode toolCount];
+  if ((segmentNode.switchPathId == FLSegmentSwitchPathIdNone && toolCount != 3)
+      || (segmentNode.switchPathId != FLSegmentSwitchPathIdNone && toolCount != 4)) {
+    CGSize FLTrackEditMenuToolSize = { 42.0f, 42.0f };
     NSValue *toolSize = [NSValue valueWithCGSize:FLTrackEditMenuToolSize];
-    [_trackEditMenuState.editMenuNode setToolsWithTextureKeys:@[ @"rotate-ccw", @"delete", @"rotate-cw" ]
-                                                        sizes:@[ toolSize, toolSize, toolSize ]
-                                                    rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2 ]
-                                                      offsets:nil];
+    if (segmentNode.switchPathId == FLSegmentSwitchPathIdNone) {
+      [_trackEditMenuState.editMenuNode setToolsWithTextureKeys:@[ @"rotate-ccw", @"delete", @"rotate-cw" ]
+                                                          sizes:@[ toolSize, toolSize, toolSize ]
+                                                      rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2 ]
+                                                        offsets:nil];
+    } else {
+      [_trackEditMenuState.editMenuNode setToolsWithTextureKeys:@[ @"rotate-ccw", @"toggle-switch", @"delete", @"rotate-cw" ]
+                                                          sizes:@[ toolSize, toolSize, toolSize, toolSize ]
+                                                      rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2 ]
+                                                        offsets:nil];
+    }
   }
 
   const CGFloat FLTrackEditMenuBottomPad = 0.0f;

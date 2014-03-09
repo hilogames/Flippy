@@ -31,6 +31,8 @@
  */
 - (NSString *)toolAtLocation:(CGPoint)location;
 
+- (NSUInteger)toolCount;
+
 - (void)runShowWithOrigin:(CGPoint)origin finalPosition:(CGPoint)finalPosition fullScale:(CGFloat)fullScale;
 
 - (void)runHideWithOrigin:(CGPoint)origin removeFromParent:(BOOL)removeFromParent;
