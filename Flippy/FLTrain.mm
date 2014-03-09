@@ -140,6 +140,35 @@ static const int FLTrainDirectionReverse = -1;
   CGFloat deltaProgress = (FLTrainSpeedPathLengthPerSecond / _lastPathLength) * elapsedTime * _lastDirection;
   _lastProgress += deltaProgress;
 
+  // If this segment has a switch, then set the switch according to the traveled path
+  // as we are leaving.
+  //
+  // note: Once would be enough.  Could set when entering, or when leaving, or at
+  // every point in between.  This seems to give a pleasing result.
+  //
+  // note: This only applies, of course, if we're traveling "backwards" against the
+  // switch; otherwise, the switch already would have chosen our direction for us.
+  //
+  // note: This operation is extremely important to the basic concept of the
+  // game, and so it seems a little funny that the segment doesn't know anything
+  // about it.  And yet, the real-life train set (this game is modeled on) behaved
+  // that way too: the segment determined the train's direction if it went one way,
+  // but the train determined the segment's direction if it went the other way.
+  // Another justification for having it here: The segment doesn't know what trains
+  // are on it; in order for the segment to effect a change based on the train
+  // position, we'd have to have the train give it some kind of callback anyway.
+  if (_lastSegmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
+    if (_lastDirection == FLTrainDirectionForward) {
+      if (_lastProgress > 0.9f) {
+        [_lastSegmentNode setSwitchPathId:_lastPathId animated:YES];
+      }
+    } else {
+      if (_lastProgress < 0.1f) {
+        [_lastSegmentNode setSwitchPathId:_lastPathId animated:YES];
+      }
+    }
+  }
+  
   // If the train tries to go past the end of the segment, then attempt to
   // switch to a connecting segment.
   if (_lastProgress < 0.0f || _lastProgress > 1.0f) {
