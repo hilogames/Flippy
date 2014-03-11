@@ -39,6 +39,7 @@
     [sharedStore loadTextureForKey:@"rotate-cw" filteringMode:SKTextureFilteringLinear];
     [sharedStore loadTextureForKey:@"rotate-ccw" filteringMode:SKTextureFilteringLinear];
     [sharedStore loadTextureForKey:@"toggle-switch" filteringMode:SKTextureFilteringLinear];
+    [sharedStore loadTextureForKey:@"link" filteringMode:SKTextureFilteringLinear];
     
     // Other.
     [sharedStore loadTextureForKey:@"switch" filteringMode:SKTextureFilteringNearest];

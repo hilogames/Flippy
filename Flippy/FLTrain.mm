@@ -144,7 +144,7 @@ static const int FLTrainDirectionReverse = -1;
   // as we are leaving.
   //
   // note: Once would be enough.  Could set when entering, or when leaving, or at
-  // every point in between.  This seems to give a pleasing result.
+  // every point in between.
   //
   // note: This only applies, of course, if we're traveling "backwards" against the
   // switch; otherwise, the switch already would have chosen our direction for us.

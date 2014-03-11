@@ -7,8 +7,9 @@ circuits.
 
 Current
 
-  . Switches!  Maybe new segment types for switch-left and -right, or
-    maybe those are just annotated joins.
+  . "Links" editing, for connecting switches.
+
+  . Train speed control.
 
   . Save/load tracks/subtracks, probably via the creation toolbar.  A
     pre-loaded folder of subtracks for logical gates; another for
@@ -16,7 +17,9 @@ Current
     "save/load" refers to the entire scene, whereas "export/import"
     refers to just the track/subtrack.
 
-    . Pre-requisite might be multi-segment selection.
+    . Pre-requisite might be multi-segment selection.  (Paint a
+      selection; draw a rectangle for selection; shift-click-type
+      selection; etc.)
 
 Medium Priority
 
@@ -29,8 +32,6 @@ Medium Priority
 
   . Rotation gesture recognizer for rotation; flick for deletion;
     pinch or something for mirror.
-
-  . Train speed control.
 
 Low Priority
 
@@ -45,11 +46,8 @@ Low Priority
     Better: A special "auto connect" path subtrack which
     calculates a path between two specified segments and maintains
     the connection following moves and rotations of those
-    segments.  (This might be out of the scope of the project.)
+    segments.
 
   . Undo stack.
-
-  . Multiple selection and editing.  (Paint a selection; draw a
-    rectangle for selection; shift-click-type selection; etc.)
 
   . Train acceleration.

@@ -31,7 +31,8 @@ static const CGFloat FLZPositionWorldTerrain = 0.0f;
 static const CGFloat FLZPositionWorldSelect = 1.0f;
 static const CGFloat FLZPositionWorldTrack = 2.0f;
 static const CGFloat FLZPositionWorldTrain = 3.0f;
-static const CGFloat FLZPositionWorldOverlay = 4.0f;
+static const CGFloat FLZPositionWorldLinks = 4.0f;
+static const CGFloat FLZPositionWorldOverlay = 5.0f;
 
 #pragma mark -
 #pragma mark States
@@ -79,13 +80,30 @@ struct FLTrackEditMenuState
   int lastGridY;
 };
 
-enum FLPanType { FLPanTypeNone, FLPanTypeWorld, FLPanTypeTrackMove };
-
-struct FLGestureRecognizerState
+struct FLLinkEditState
 {
-  FLGestureRecognizerState() {}
+  FLSegmentNode *addingBeginNode;
+  FLSegmentNode *addingEndNode;
+  SKShapeNode *addingConnectorNode;
+  SKShapeNode *addingBeginHighlightNode;
+  SKShapeNode *addingEndHighlightNode;
+};
+
+enum FLWorldPanType { FLWorldPanTypeNone, FLWorldPanTypeScroll, FLWorldPanTypeTrackMove, FLWorldPanTypeLink };
+
+enum FLWorldTool { FLWorldToolDefault, FLWorldToolLink };
+
+// note: This contains extra state information that seems too minor to split out
+// into a "component".  For instance, track selection and track movement are
+// caused by gestures in the world, but they are split out into their own
+// components, with their own FL_* methods.  Tracking the original center
+// of a pinch zoom, though, can stay here for now.
+struct FLWorldGestureState
+{
+  FLWorldGestureState() : worldTool(FLWorldToolDefault) {}
   CGPoint gestureFirstTouchLocation;
-  FLPanType panType;
+  FLWorldTool worldTool;
+  FLWorldPanType panType;
   CGPoint pinchZoomCenter;
 };
 
@@ -102,7 +120,6 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   SKNode *_trackNode;
   SKNode *_hudNode;
 
-  FLGestureRecognizerState _gestureRecognizerState;
   UITapGestureRecognizer *_tapRecognizer;
   UITapGestureRecognizer *_doubleTapRecognizer;
   UILongPressGestureRecognizer *_longPressRecognizer;
@@ -115,11 +132,13 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
   shared_ptr<FLTrackGrid> _trackGrid;
 
+  FLWorldGestureState _worldGestureState;
   FLConstructionToolbarState _constructionToolbarState;
   FLSimulationToolbarState _simulationToolbarState;
   FLTrackEditMenuState _trackEditMenuState;
   FLTrackSelectState _trackSelectState;
   FLTrackMoveState _trackMoveState;
+  FLLinkEditState _linkEditState;
 
   FLTrain *_train;
 }
@@ -260,9 +279,9 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
   _tapRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleWorldTap:)];
   _tapRecognizer.delegate = self;
-  // note: This slows down the single-tap recognizer noticeably.  Consider not using double-tap for this
-  // reason.
-  [_tapRecognizer requireGestureRecognizerToFail:_doubleTapRecognizer];
+  // note: This slows down the single-tap recognizer noticeably.  And yet it's not really nice to have
+  // the tap and double-tap fire together.  Consider not using double-tap for these reasons.
+  //[_tapRecognizer requireGestureRecognizerToFail:_doubleTapRecognizer];
   [view addGestureRecognizer:_tapRecognizer];
   
   _longPressRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleWorldLongPress:)];
@@ -496,58 +515,78 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
   if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
 
-    // Determine type of pan.
+    // Determine type of pan based on gesture location and current tool.
     //
     // note: The decision is based on the location of the first touch in the gesture, not the
     // current location (when the gesture is fully identified); they can be quite different.
     // (We could also set the initial translation of the pan based on the former, but instead we
     // let the gesture recognizer do its thing, assuming that's the interface standard.)
-    CGPoint viewLocation = _gestureRecognizerState.gestureFirstTouchLocation;
+    CGPoint viewLocation = _worldGestureState.gestureFirstTouchLocation;
     CGPoint sceneLocation = [self convertPointFromView:viewLocation];
     CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
     int gridX;
     int gridY;
     _trackGrid->convert(worldLocation, &gridX, &gridY);
-    int selectedGridX;
-    int selectedGridY;
-    if ([self FL_trackSelectGetCurrentGridX:&selectedGridX gridY:&selectedGridY]
-        && selectedGridX == gridX
-        && selectedGridY == gridY) {
-      FLSegmentNode *selectedSegmentNode = _trackGrid->get(gridX, gridY);
-      if (selectedSegmentNode) {
-        // Pan begins inside a selected track segment.
-        _gestureRecognizerState.panType = FLPanTypeTrackMove;
-        [selectedSegmentNode removeFromParent];
-        _trackGrid->erase(gridX, gridY);
-        [self FL_trackMoveBeganWithNode:selectedSegmentNode gridX:gridX gridY:gridY];
+    if (_worldGestureState.worldTool == FLWorldToolLink) {
+      FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY);
+      if (segmentNode && segmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
+        // Pan begins with link tool inside a segment that has a switch.
+        _worldGestureState.panType = FLWorldPanTypeLink;
+        [self FL_linkAddBeganWithNode:segmentNode];
       } else {
-        // Pan begins inside a track selection that has no segment.
-        _gestureRecognizerState.panType = FLPanTypeNone;
+        // Pan begins with link tool in a segment without a switch.
+        _worldGestureState.panType = FLWorldPanTypeScroll;
       }
     } else {
-      // Pan begins not inside a selected track segment.
-      _gestureRecognizerState.panType = FLPanTypeWorld;
+      // _worldGestureState.worldTool == FLWorldToolDefault
+      int selectedGridX;
+      int selectedGridY;
+      if ([self FL_trackSelectGetCurrentGridX:&selectedGridX gridY:&selectedGridY]
+          && selectedGridX == gridX
+          && selectedGridY == gridY) {
+        FLSegmentNode *selectedSegmentNode = _trackGrid->get(gridX, gridY);
+        if (selectedSegmentNode) {
+          // Pan begins inside a selected track segment.
+          _worldGestureState.panType = FLWorldPanTypeTrackMove;
+          [selectedSegmentNode removeFromParent];
+          _trackGrid->erase(gridX, gridY);
+          [self FL_trackMoveBeganWithNode:selectedSegmentNode gridX:gridX gridY:gridY];
+        } else {
+          // Pan begins inside a track selection that has no segment.
+          _worldGestureState.panType = FLWorldPanTypeNone;
+        }
+      } else {
+        // Pan begins not inside a selected track segment.
+        _worldGestureState.panType = FLWorldPanTypeScroll;
+      }
     }
 
   } else if (gestureRecognizer.state == UIGestureRecognizerStateChanged) {
 
-    switch (_gestureRecognizerState.panType) {
-      case FLPanTypeTrackMove: {
+    switch (_worldGestureState.panType) {
+      case FLWorldPanTypeTrackMove: {
         CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
         CGPoint sceneLocation = [self convertPointFromView:viewLocation];
         CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
         int gridX;
         int gridY;
         _trackGrid->convert(worldLocation, &gridX, &gridY);
-        [self FL_trackMoveContinuedWithGridX:gridX gridY:gridY];
+        [self FL_trackMoveChangedWithGridX:gridX gridY:gridY];
         break;
       }
-      case FLPanTypeWorld: {
+      case FLWorldPanTypeScroll: {
         CGPoint translation = [gestureRecognizer translationInView:self.view];
         CGPoint worldPosition = CGPointMake(_worldNode.position.x + translation.x / self.xScale,
                                             _worldNode.position.y - translation.y / self.yScale);
         _worldNode.position = worldPosition;
         [gestureRecognizer setTranslation:CGPointZero inView:self.view];
+        break;
+      }
+      case FLWorldPanTypeLink: {
+        CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
+        CGPoint sceneLocation = [self convertPointFromView:viewLocation];
+        CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
+        [self FL_linkAddChangedWithLocation:worldLocation];
         break;
       }
       default:
@@ -558,8 +597,8 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
   } else if (gestureRecognizer.state == UIGestureRecognizerStateEnded) {
 
-    switch (_gestureRecognizerState.panType) {
-      case FLPanTypeTrackMove: {
+    switch (_worldGestureState.panType) {
+      case FLWorldPanTypeTrackMove: {
         CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
         CGPoint sceneLocation = [self convertPointFromView:viewLocation];
         CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
@@ -569,8 +608,11 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
         [self FL_trackMoveEndedWithGridX:gridX gridY:gridY];
         break;
       }
-      case FLPanTypeWorld:
+      case FLWorldPanTypeScroll:
         // note: Nothing to do here.
+        break;
+      case FLWorldPanTypeLink:
+        [self FL_linkAddEnded];
         break;
       default:
         // note: This means the pan gesture was not actually doing anything,
@@ -580,8 +622,8 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
   } else if (gestureRecognizer.state == UIGestureRecognizerStateCancelled) {
 
-    switch (_gestureRecognizerState.panType) {
-      case FLPanTypeTrackMove: {
+    switch (_worldGestureState.panType) {
+      case FLWorldPanTypeTrackMove: {
         CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
         CGPoint sceneLocation = [self convertPointFromView:viewLocation];
         CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
@@ -591,8 +633,11 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
         [self FL_trackMoveCancelledWithGridX:gridX gridY:gridY];
         break;
       }
-      case FLPanTypeWorld:
+      case FLWorldPanTypeScroll:
         // note: Nothing to do here.
+        break;
+      case FLWorldPanTypeLink:
+        [self FL_linkAddCancelled];
         break;
       default:
         // note: This means the pan gesture was not actually doing anything,
@@ -632,10 +677,10 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     // anyway.  I like choosing my zoom center and then being able to move my fingers around on the
     // screen if I need more room for the gesture.  But probably there's a human interface guideline for
     // this which I should follow.
-    _gestureRecognizerState.pinchZoomCenter = CGPointZero;
+    _worldGestureState.pinchZoomCenter = CGPointZero;
     if (_cameraMode == FLCameraModeManual) {
       CGPoint centerViewLocation = [gestureRecognizer locationInView:self.view];
-      _gestureRecognizerState.pinchZoomCenter = [self convertPointFromView:centerViewLocation];
+      _worldGestureState.pinchZoomCenter = [self convertPointFromView:centerViewLocation];
     }
     return;
   }
@@ -653,8 +698,8 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
   // Zoom around previously-chosen center point.
   CGPoint worldPosition;
-  worldPosition.x = (handlePinchWorldPositionBegin.x - _gestureRecognizerState.pinchZoomCenter.x) * scaleFactor + _gestureRecognizerState.pinchZoomCenter.x;
-  worldPosition.y = (handlePinchWorldPositionBegin.y - _gestureRecognizerState.pinchZoomCenter.y) * scaleFactor + _gestureRecognizerState.pinchZoomCenter.y;
+  worldPosition.x = (handlePinchWorldPositionBegin.x - _worldGestureState.pinchZoomCenter.x) * scaleFactor + _worldGestureState.pinchZoomCenter.x;
+  worldPosition.y = (handlePinchWorldPositionBegin.y - _worldGestureState.pinchZoomCenter.y) * scaleFactor + _worldGestureState.pinchZoomCenter.y;
   _worldNode.position = worldPosition;
 }
 
@@ -669,14 +714,14 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
   if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
 
-    CGPoint firstTouchSceneLocation = [self convertPointFromView:_gestureRecognizerState.gestureFirstTouchLocation];
+    CGPoint firstTouchSceneLocation = [self convertPointFromView:_worldGestureState.gestureFirstTouchLocation];
     CGPoint firstTouchToolbarLocation = [_constructionToolbarState.toolbarNode convertPoint:firstTouchSceneLocation fromNode:self];
     NSString *tool = [_constructionToolbarState.toolbarNode toolAtLocation:firstTouchToolbarLocation];
     if (!tool) {
-      _gestureRecognizerState.panType = FLPanTypeNone;
+      _worldGestureState.panType = FLWorldPanTypeNone;
       return;
     }
-    _gestureRecognizerState.panType = FLPanTypeTrackMove;
+    _worldGestureState.panType = FLWorldPanTypeTrackMove;
 
     _constructionToolbarState.toolInUseNode = [self FL_createSprite:nil withTexture:tool parent:_hudNode];
     _constructionToolbarState.toolInUseNode.zRotation = M_PI_2;
@@ -690,14 +735,14 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     return;
   }
 
-  if (_gestureRecognizerState.panType != FLPanTypeTrackMove) {
+  if (_worldGestureState.panType != FLWorldPanTypeTrackMove) {
     return;
   }
 
   if (gestureRecognizer.state == UIGestureRecognizerStateChanged) {
 
     _constructionToolbarState.toolInUseNode.position = sceneLocation;
-    [self FL_trackMoveContinuedWithGridX:gridX gridY:gridY];
+    [self FL_trackMoveChangedWithGridX:gridX gridY:gridY];
 
   } else if (gestureRecognizer.state == UIGestureRecognizerStateEnded) {
 
@@ -711,6 +756,27 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     _constructionToolbarState.toolInUseNode = nil;
     [self FL_trackMoveCancelledWithGridX:gridX gridY:gridY];
 
+  }
+}
+
+- (void)handleConstructionToolbarTap:(UIGestureRecognizer *)gestureRecognizer
+{
+  CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
+  CGPoint sceneLocation = [self convertPointFromView:viewLocation];
+  CGPoint toolbarLocation = [_constructionToolbarState.toolbarNode convertPoint:sceneLocation fromNode:self];
+  NSString *tool = [_constructionToolbarState.toolbarNode toolAtLocation:toolbarLocation];
+  if (!tool) {
+    return;
+  }
+  
+  if ([tool isEqualToString:@"link"]) {
+    if (_worldGestureState.worldTool == FLWorldToolDefault) {
+      [_constructionToolbarState.toolbarNode setHighlight:YES forTool:tool];
+      _worldGestureState.worldTool = FLWorldToolLink;
+    } else {
+      [_constructionToolbarState.toolbarNode setHighlight:NO forTool:tool];
+      _worldGestureState.worldTool = FLWorldToolDefault;
+    }
   }
 }
 
@@ -810,7 +876,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
   // note: Remembering the first touch location is useful, for example, for a pan gesture recognizer,
   // which only knows where the gesture was first recognized (after possibly significant movement).
-  _gestureRecognizerState.gestureFirstTouchLocation = viewLocation;
+  _worldGestureState.gestureFirstTouchLocation = viewLocation;
 
   // note: Right now we just do a linear search through the various interface components to
   // see who wants to receive which gestures.  This could be replaced by some kind of general-purpose
@@ -832,6 +898,11 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     if ([gestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]]) {
       [gestureRecognizer removeTarget:nil action:nil];
       [gestureRecognizer addTarget:self action:@selector(handleConstructionToolbarPan:)];
+      return YES;
+    }
+    if ([gestureRecognizer isKindOfClass:[UITapGestureRecognizer class]]) {
+      [gestureRecognizer removeTarget:nil action:nil];
+      [gestureRecognizer addTarget:self action:@selector(handleConstructionToolbarTap:)];
       return YES;
     }
     return NO;
@@ -1048,13 +1119,14 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     // the difference between the edges.  The math simplifies down a bit.  Rounded to prevent
     // aliasing (?).
     CGFloat curveShift = floorf(FLSegmentArtDrawnTrackNormalWidth / 4.0f);
-    [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"straight", @"curve", @"join-left", @"join-right", @"jog-left", @"jog-right", @"cross" ]
-                                                             sizes:@[ toolSize, toolSize, toolSize, toolSize, toolSize, toolSize, toolSize ]
-                                                         rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2 ]
+    [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"straight", @"curve", @"join-left", @"join-right", @"jog-left", @"jog-right", @"cross", @"link" ]
+                                                             sizes:@[ toolSize, toolSize, toolSize, toolSize, toolSize, toolSize, toolSize, toolSize ]
+                                                         rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2 ]
                                                            offsets:@[ [NSValue valueWithCGPoint:CGPointMake(straightShift, 0.0f)],
                                                                       [NSValue valueWithCGPoint:CGPointMake(curveShift, -curveShift)],
                                                                       [NSValue valueWithCGPoint:CGPointMake(curveShift, -curveShift)],
                                                                       [NSValue valueWithCGPoint:CGPointMake(curveShift, curveShift)],
+                                                                      [NSValue valueWithCGPoint:CGPointZero],
                                                                       [NSValue valueWithCGPoint:CGPointZero],
                                                                       [NSValue valueWithCGPoint:CGPointZero],
                                                                       [NSValue valueWithCGPoint:CGPointZero] ]];
@@ -1196,7 +1268,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   [self FL_trackMoveUpdateWithGridX:gridX gridY:gridY];
 }
 
-- (void)FL_trackMoveContinuedWithGridX:(int)gridX gridY:(int)gridY
+- (void)FL_trackMoveChangedWithGridX:(int)gridX gridY:(int)gridY
 {
   if (!_trackMoveState.segmentMoving) {
     [NSException raise:@"FLTrackMoveBadState"
@@ -1399,6 +1471,116 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
       [segmentNode runAction:[SKAction rotateToAngle:(newRotationQuarters * M_PI_2) duration:0.1 shortestUnitArc:YES]];
       [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-click-1.caf" waitForCompletion:NO]];
     }
+  }
+}
+
+- (void)FL_linkAddBeganWithNode:(FLSegmentNode *)segmentNode
+{
+  // note: Precondition is that the passed node has a switch.
+  _linkEditState.addingBeginNode = segmentNode;
+
+  // Display a begin-segment highlight.
+  SKShapeNode *highlightNode = [[SKShapeNode alloc] init];
+  highlightNode.position = segmentNode.position;
+  highlightNode.zPosition = FLZPositionWorldLinks;
+  CGFloat highlightSideSize = FLSegmentArtSizeFull * FLSegmentArtScale;
+  CGPathRef highlightPath = CGPathCreateWithRect(CGRectMake(-highlightSideSize / 2.0f,
+                                                            -highlightSideSize / 2.0f,
+                                                            highlightSideSize,
+                                                            highlightSideSize),
+                                                 NULL);
+  highlightNode.strokeColor = [UIColor redColor];
+  highlightNode.path = highlightPath;
+  CGPathRelease(highlightPath);
+  [_worldNode addChild:highlightNode];
+  _linkEditState.addingBeginHighlightNode = highlightNode;
+
+  // note: No connector yet, until we move a bit.
+  _linkEditState.addingConnectorNode = nil;
+
+  // note: No ending node or highlight yet.
+  _linkEditState.addingEndNode = nil;
+}
+
+- (void)FL_linkAddChangedWithLocation:(CGPoint)worldLocation
+{
+  // note: Begin-segment highlight stays the same.
+  
+  // Display an end-segment highlight if the current node has a switch.
+  FLSegmentNode *endNode = trackGridConvertGet(*_trackGrid, worldLocation);
+  if (endNode && endNode.switchPathId != FLSegmentSwitchPathIdNone) {
+    if (endNode != _linkEditState.addingEndNode) {
+      [_linkEditState.addingEndHighlightNode removeFromParent];
+      SKShapeNode *highlightNode = [[SKShapeNode alloc] init];
+      highlightNode.position = endNode.position;
+      highlightNode.zPosition = FLZPositionWorldLinks;
+      CGFloat highlightSideSize = FLSegmentArtSizeFull * FLSegmentArtScale;
+      CGPathRef highlightPath = CGPathCreateWithRect(CGRectMake(-highlightSideSize / 2.0f,
+                                                                -highlightSideSize / 2.0f,
+                                                                highlightSideSize,
+                                                                highlightSideSize),
+                                                     NULL);
+      highlightNode.path = highlightPath;
+      highlightNode.strokeColor = [UIColor redColor];
+      CGPathRelease(highlightPath);
+      [_worldNode addChild:highlightNode];
+      _linkEditState.addingEndHighlightNode = highlightNode;
+      _linkEditState.addingEndNode = endNode;
+    }
+  } else {
+    if (_linkEditState.addingEndNode) {
+      [_linkEditState.addingEndHighlightNode removeFromParent];
+      _linkEditState.addingEndNode = nil;
+      _linkEditState.addingEndHighlightNode = nil;
+    }
+  }
+
+  // Display a connector (a line segment).
+  CGPoint beginSwitchPosition = _linkEditState.addingBeginNode.switchPosition;
+  CGPoint endSwitchPosition = (_linkEditState.addingEndNode ? _linkEditState.addingEndNode.switchPosition : worldLocation);
+  CGMutablePathRef linkPath = CGPathCreateMutable();
+  CGPathMoveToPoint(linkPath, NULL, beginSwitchPosition.x, beginSwitchPosition.y);
+  CGPathAddLineToPoint(linkPath, NULL, endSwitchPosition.x, endSwitchPosition.y);
+  SKShapeNode *linkNode = [[SKShapeNode alloc] init];
+  linkNode.zPosition = FLZPositionWorldLinks;
+  linkNode.position = CGPointZero;
+  linkNode.path = linkPath;
+  CGPathRelease(linkPath);
+  linkNode.strokeColor = [UIColor redColor];
+  if (_linkEditState.addingConnectorNode) {
+    [_linkEditState.addingConnectorNode removeFromParent];
+  }
+  _linkEditState.addingConnectorNode = linkNode;
+  [_worldNode addChild:linkNode];
+}
+
+- (void)FL_linkAddEnded
+{
+  [_linkEditState.addingBeginHighlightNode removeFromParent];
+  _linkEditState.addingBeginHighlightNode = nil;
+  if (_linkEditState.addingConnectorNode) {
+    [_linkEditState.addingConnectorNode removeFromParent];
+    _linkEditState.addingConnectorNode = nil;
+  }
+  if (_linkEditState.addingEndNode) {
+    [_linkEditState.addingEndHighlightNode removeFromParent];
+    _linkEditState.addingEndNode = nil;
+    _linkEditState.addingEndHighlightNode = nil;
+  }
+}
+
+- (void)FL_linkAddCancelled
+{
+  [_linkEditState.addingBeginHighlightNode removeFromParent];
+  _linkEditState.addingBeginHighlightNode = nil;
+  if (_linkEditState.addingConnectorNode) {
+    [_linkEditState.addingConnectorNode removeFromParent];
+    _linkEditState.addingConnectorNode = nil;
+  }
+  if (_linkEditState.addingEndNode) {
+    [_linkEditState.addingEndHighlightNode removeFromParent];
+    _linkEditState.addingEndNode = nil;
+    _linkEditState.addingEndHighlightNode = nil;
   }
 }
 

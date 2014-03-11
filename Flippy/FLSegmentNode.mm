@@ -10,6 +10,7 @@
 
 #import "FLPath.h"
 #import "FLTextureStore.h"
+#include <vector>
 
 const CGFloat FLSegmentArtSizeFull = 54.0f;
 const CGFloat FLSegmentArtSizeBasic = 36.0f;
@@ -20,9 +21,18 @@ const int FLSegmentSwitchPathIdNone = -1;
 
 static const unsigned int FLSegmentNodePathsMax = 2;
 
+using namespace std;
+
 @implementation FLSegmentNode
 {
+  // note: Every node is storing information about switches and links, whether
+  // they have a switch or not.  The obvious alternative, if space is a problem,
+  // is to derive a FLSwitchedSegmentNode from FLSegmentNode.  (The same goes for
+  // segmentType.)  Keep in mind that the derived class would be used to represent
+  // node types that CAN be switched, whether they are or not, so that, for instance,
+  // a particular join segment doesn't have to have a switch.
   int _switchPathId;
+  vector<FLSegmentNode *> _links;
 }
 
 - (id)initWithSegmentType:(FLSegmentType)segmentType
@@ -115,6 +125,16 @@ static const unsigned int FLSegmentNodePathsMax = 2;
   [aCoder encodeInt:_switchPathId forKey:@"switchPathId"];
 }
 
+- (int)zRotationQuarters
+{
+  return convertRotationRadiansToQuarters(self.zRotation);
+}
+
+- (void)setZRotationQuarters:(int)zRotationQuarters
+{
+  self.zRotation = convertRotationQuartersToRadians(zRotationQuarters);
+}
+
 - (int)switchPathId
 {
   return _switchPathId;
@@ -174,14 +194,13 @@ static const unsigned int FLSegmentNodePathsMax = 2;
   }
 }
 
-- (int)zRotationQuarters
+- (CGPoint)switchPosition
 {
-  return convertRotationRadiansToQuarters(self.zRotation);
-}
-
-- (void)setZRotationQuarters:(int)zRotationQuarters
-{
-  self.zRotation = convertRotationQuartersToRadians(zRotationQuarters);
+  SKNode *switchNode = [self childNodeWithName:@"switch"];
+  if (!switchNode) {
+    return CGPointZero;
+  }
+  return [self.parent convertPoint:switchNode.position fromNode:self];
 }
 
 - (void)getPoint:(CGPoint *)point rotation:(CGFloat *)rotationRadians forPath:(int)pathId progress:(CGFloat)progress scale:(CGFloat)scale
@@ -317,6 +336,30 @@ static const unsigned int FLSegmentNodePathsMax = 2;
 - (CGFloat)pathLengthForPath:(int)pathId
 {
   return [self FL_path:pathId]->getLength();
+}
+
+- (void)linkAdd:(FLSegmentNode *)segmentNode reciprocal:(BOOL)reciprocal
+{
+  _links.emplace_back(segmentNode);
+  if (reciprocal) {
+    [segmentNode linkAdd:self reciprocal:NO];
+  }
+}
+
+- (void)linkRemove:(FLSegmentNode *)segmentNode reciprocal:(BOOL)reciprocal
+{
+  auto r = std::find(_links.begin(), _links.end(), segmentNode);
+  if (r != _links.end()) {
+    _links.erase(r);
+  }
+  if (reciprocal) {
+    [segmentNode linkRemove:self reciprocal:NO];
+  }
+}
+
+- (vector<FLSegmentNode *>&)links
+{
+  return _links;
 }
 
 - (const FLPath *)FL_path:(int)pathId

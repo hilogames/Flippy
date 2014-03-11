@@ -17,17 +17,29 @@
 static const CGFloat FLToolbarBorderSize = 3.0f;
 static const CGFloat FLToolbarToolSeparatorSize = 3.0f;
 
+static UIColor *FLToolbarColorBackground;
+static UIColor *FLToolbarColorButtonNormal;
+static UIColor *FLToolbarColorButtonHighlighted;
+
 @implementation FLToolbarNode
 {
   NSMutableArray *_toolButtonNodes;
 }
 
++ (void)initialize
+{
+  FLToolbarColorBackground = [UIColor colorWithWhite:0.0f alpha:0.2f];
+  FLToolbarColorButtonNormal = [UIColor colorWithWhite:1.0f alpha:0.3f];
+  FLToolbarColorButtonHighlighted = [UIColor colorWithWhite:1.0f alpha:0.7f];
+}
+
 - (id)init
 {
   CGSize emptySize = CGSizeMake(FLToolbarBorderSize * 2, FLToolbarBorderSize * 2);
-  self = [super initWithColor:[UIColor colorWithWhite:0.0f alpha:0.2f] size:emptySize];
+  self = [super initWithColor:FLToolbarColorBackground size:emptySize];
   if (self) {
     _toolPad = 0.0f;
+    
   }
   return self;
 }
@@ -80,7 +92,7 @@ static const CGFloat FLToolbarToolSeparatorSize = 3.0f;
       [[offsets objectAtIndex:i] getValue:&offset];
     }
     
-    SKSpriteNode *toolButtonNode = [SKSpriteNode spriteNodeWithColor:[UIColor colorWithWhite:1.0f alpha:0.3f]
+    SKSpriteNode *toolButtonNode = [SKSpriteNode spriteNodeWithColor:FLToolbarColorButtonNormal
                                                                 size:CGSizeMake(toolNode.size.width + _toolPad * 2,
                                                                                 toolsHeight + _toolPad * 2)];
     toolButtonNode.name = key;
@@ -114,6 +126,19 @@ static const CGFloat FLToolbarToolSeparatorSize = 3.0f;
     }
   }
   return nil;
+}
+
+- (void)setHighlight:(BOOL)highlight forTool:(NSString *)key
+{
+  for (SKSpriteNode *toolButtonNode in _toolButtonNodes) {
+    if ([toolButtonNode.name isEqualToString:key]) {
+      if (highlight) {
+        toolButtonNode.color = FLToolbarColorButtonHighlighted;
+      } else {
+        toolButtonNode.color = FLToolbarColorButtonNormal;
+      }
+    }
+  }
 }
 
 - (void)runShowWithOrigin:(CGPoint)origin finalPosition:(CGPoint)finalPosition fullScale:(CGFloat)fullScale

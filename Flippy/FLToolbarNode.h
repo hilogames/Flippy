@@ -33,6 +33,8 @@
 
 - (NSUInteger)toolCount;
 
+- (void)setHighlight:(BOOL)highlight forTool:(NSString *)key;
+
 - (void)runShowWithOrigin:(CGPoint)origin finalPosition:(CGPoint)finalPosition fullScale:(CGFloat)fullScale;
 
 - (void)runHideWithOrigin:(CGPoint)origin removeFromParent:(BOOL)removeFromParent;
