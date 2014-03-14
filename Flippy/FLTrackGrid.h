@@ -92,6 +92,9 @@ class FLTrackGrid
 {
 public:
 
+  typedef HLCommon::QuadTree<FLSegmentNode *>::iterator iterator;
+  typedef HLCommon::QuadTree<FLSegmentNode *>::const_iterator const_iterator;
+
   inline static void convert(CGPoint worldLocation, CGFloat segmentSize, int *gridX, int *gridY) {
     *gridX = int(floorf(worldLocation.x / segmentSize + 0.5f));
     *gridY = int(floorf(worldLocation.y / segmentSize + 0.5f));
@@ -104,6 +107,12 @@ public:
   FLTrackGrid(CGFloat segmentSize) : segmentSize_(segmentSize) {}
 
   FLSegmentNode *get(int gridX, int gridY) const { return grid_.get(gridX, gridY, nil); }
+  
+  iterator begin() { return grid_.begin(); }
+  const_iterator begin() const { return grid_.begin(); }
+  
+  iterator end() { return grid_.end(); }
+  const_iterator end() const { return grid_.end(); }
 
   void set(int gridX, int gridY, FLSegmentNode *value) { grid_[{ gridX, gridY }] = value; }
 

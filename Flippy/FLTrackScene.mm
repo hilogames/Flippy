@@ -9,7 +9,9 @@
 #import "FLTrackScene.h"
 
 #include <memory>
+#include <unordered_set>
 
+#include "FLLinks.h"
 #import "FLSegmentNode.h"
 #import "FLTextureStore.h"
 #import "FLToolbarNode.h"
@@ -112,6 +114,17 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 #pragma mark -
 #pragma mark Scene
 
+struct PointerPairHash
+{
+  size_t operator()(const pair<void *, void *>& key) const {
+    size_t h = ((reinterpret_cast<uintptr_t>(key.first) & 0xFFFF) << 16) | (reinterpret_cast<uintptr_t>(key.second) & 0xFFFF);
+    h = ((h >> 16) ^ h) * 0x45d9f3b;
+    h = ((h >> 16) ^ h) * 0x45d9f3b;
+    h = ((h >> 16) ^ h);
+    return h;
+  }
+};
+
 @implementation FLTrackScene
 {
   BOOL _contentCreated;
@@ -119,6 +132,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   SKNode *_worldNode;
   SKNode *_trackNode;
   SKNode *_hudNode;
+  SKNode *_linksNode;
 
   UITapGestureRecognizer *_tapRecognizer;
   UITapGestureRecognizer *_doubleTapRecognizer;
@@ -131,6 +145,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   CFTimeInterval _updateLastTime;
 
   shared_ptr<FLTrackGrid> _trackGrid;
+  FLLinks _links;
 
   FLWorldGestureState _worldGestureState;
   FLConstructionToolbarState _constructionToolbarState;
@@ -187,6 +202,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     // Re-create nodes from the hierarchy that were removed during encoding.
     [self FL_createTerrainNode];
     [self FL_createHudNode];
+    [self FL_createLinksNode];
     [self FL_constructionToolbarSetVisible:YES];
     [self FL_simulationToolbarSetVisible:YES];
 
@@ -194,6 +210,24 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     _trackGrid.reset(new FLTrackGrid(FLSegmentArtSizeBasic * FLSegmentArtScale));
     _trackGrid->import(_trackNode);
 
+    // Decode links model and re-create links layer.
+    NSArray *links = [aDecoder decodeObjectForKey:@"links"];
+    int l = 0;
+    while (l < [links count]) {
+      FLSegmentNode *a = [links objectAtIndex:l];
+      ++l;
+      FLSegmentNode *b = [links objectAtIndex:l];
+      ++l;
+      SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:a.switchPosition toLocation:b.switchPosition];
+      _links.insert(a, b, connectorNode);
+    }
+    NSLog(@"decoded %lu links (from array size %lu)", _links.size(), (size_t)[links count]);
+    _worldGestureState.worldTool = (FLWorldTool)[aDecoder decodeIntForKey:@"worldGestureStateWorldTool"];
+    if (_worldGestureState.worldTool == FLWorldToolLink) {
+      [_constructionToolbarState.toolbarNode setHighlight:YES forTool:@"link"];
+      [_worldNode addChild:_linksNode];
+    }
+    
     _train = [aDecoder decodeObjectForKey:@"train"];
     [_train resetTrackGrid:_trackGrid];
 
@@ -233,6 +267,9 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   if (_trackEditMenuState.showing) {
     [self FL_trackEditMenuHideAnimated:NO];
   }
+  if (_worldGestureState.worldTool == FLWorldToolLink) {
+    [_linksNode removeFromParent];
+  }
 
   // Persist SKScene (including current node hierarchy).
   [super encodeWithCoder:aCoder];
@@ -246,11 +283,22 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   if (holdTrackEditMenuState.showing) {
     [self FL_trackEditMenuShowAtSegment:holdTrackEditMenuState.lastSegmentNode gridX:holdTrackEditMenuState.lastGridX gridY:holdTrackEditMenuState.lastGridY animated:NO];
   }
+  if (_worldGestureState.worldTool == FLWorldToolLink) {
+    [_worldNode addChild:_linksNode];
+  }
 
   // Persist special node pointers (that should already been encoded
   // as part of hierarchy).
   [aCoder encodeObject:_worldNode forKey:@"worldNode"];
   [aCoder encodeObject:_trackNode forKey:@"trackNode"];
+  
+  // Encode links.
+  NSMutableArray *links = [NSMutableArray array];
+  for (auto l = _links.begin(); l != _links.end(); ++l) {
+    [links addObject:(__bridge FLSegmentNode *)l->first.first];
+    [links addObject:(__bridge FLSegmentNode *)l->first.second];
+  }
+  [aCoder encodeObject:links forKey:@"links"];
 
   // Encode other state.
   [aCoder encodeInt:(int)_cameraMode forKey:@"cameraMode"];
@@ -262,6 +310,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   [aCoder encodeBool:_trackEditMenuState.showing forKey:@"trackEditMenuStateShowing"];
   [aCoder encodeInt:_trackEditMenuState.lastGridX forKey:@"trackEditMenuStateLastGridX"];
   [aCoder encodeInt:_trackEditMenuState.lastGridY forKey:@"trackEditMenuStateLastGridY"];
+  [aCoder encodeInt:(int)_worldGestureState.worldTool forKey:@"worldGestureStateWorldTool"];
 }
 
 - (void)didMoveToView:(SKView *)view
@@ -351,6 +400,8 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
   [self FL_createTerrainNode];
 
+  [self FL_createLinksNode];
+
   // The HUD node contains everything pinned to the scene window, outside the world.
   [self FL_createHudNode];
 
@@ -389,6 +440,12 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   terrainNode.blendMode = SKBlendModeReplace;
 
   [_worldNode addChild:terrainNode];
+}
+
+- (void)FL_createLinksNode
+{
+  _linksNode = [SKNode node];
+  _linksNode.zPosition = FLZPositionWorldLinks;
 }
 
 - (void)FL_createHudNode
@@ -773,9 +830,11 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
     if (_worldGestureState.worldTool == FLWorldToolDefault) {
       [_constructionToolbarState.toolbarNode setHighlight:YES forTool:tool];
       _worldGestureState.worldTool = FLWorldToolLink;
+      [_worldNode addChild:_linksNode];
     } else {
       [_constructionToolbarState.toolbarNode setHighlight:NO forTool:tool];
       _worldGestureState.worldTool = FLWorldToolDefault;
+      [_linksNode removeFromParent];
     }
   }
 }
@@ -1454,24 +1513,22 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   return 1.0f / powf(_worldNode.xScale, FLTrackEditMenuScaleFactor);
 }
 
-- (void)FL_trackGridRotateGridX:(int)gridX gridY:(int)gridY rotateBy:(int)rotateBy animated:(BOOL)animated
+- (SKShapeNode *)FL_linkDrawFromLocation:(CGPoint)fromWorldLocation toLocation:(CGPoint)toWorldLocation
 {
-  // note: rotateBy positive is in the counterclockwise direction, but current implementation
-  // will animate the shortest arc regardless of rotateBy sign.
-  FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY);
-  if (segmentNode) {
-    int newRotationQuarters = (segmentNode.zRotationQuarters + rotateBy) % 4;
-    // note: Repeatedly rotating by adding M_PI_2 * rotateBy leads to cumulative floating point
-    // error, which can be large enough over time to affect the calculation (e.g. if the epsilon
-    // value in convertRotationRadiansToQuarters is not large enough).  So: Don't just add the
-    // angle; recalculate it.
-    if (!animated) {
-      segmentNode.zRotationQuarters = newRotationQuarters;
-    } else {
-      [segmentNode runAction:[SKAction rotateToAngle:(newRotationQuarters * M_PI_2) duration:0.1 shortestUnitArc:YES]];
-      [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-click-1.caf" waitForCompletion:NO]];
-    }
-  }
+  SKShapeNode *linkNode = [[SKShapeNode alloc] init];
+  linkNode.position = CGPointZero;
+  
+  CGMutablePathRef linkPath = CGPathCreateMutable();
+  CGPathMoveToPoint(linkPath, NULL, fromWorldLocation.x, fromWorldLocation.y);
+  CGPathAddLineToPoint(linkPath, NULL, toWorldLocation.x, toWorldLocation.y);
+  linkNode.path = linkPath;
+  CGPathRelease(linkPath);
+  
+  linkNode.strokeColor = [UIColor redColor];
+  linkNode.glowWidth = 2.0f;
+  [_linksNode addChild:linkNode];
+  
+  return linkNode;
 }
 
 - (void)FL_linkAddBeganWithNode:(FLSegmentNode *)segmentNode
@@ -1482,7 +1539,6 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   // Display a begin-segment highlight.
   SKShapeNode *highlightNode = [[SKShapeNode alloc] init];
   highlightNode.position = segmentNode.position;
-  highlightNode.zPosition = FLZPositionWorldLinks;
   CGFloat highlightSideSize = FLSegmentArtSizeFull * FLSegmentArtScale;
   CGPathRef highlightPath = CGPathCreateWithRect(CGRectMake(-highlightSideSize / 2.0f,
                                                             -highlightSideSize / 2.0f,
@@ -1490,9 +1546,10 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
                                                             highlightSideSize),
                                                  NULL);
   highlightNode.strokeColor = [UIColor redColor];
+  highlightNode.glowWidth = 2.0f;
   highlightNode.path = highlightPath;
   CGPathRelease(highlightPath);
-  [_worldNode addChild:highlightNode];
+  [_linksNode addChild:highlightNode];
   _linkEditState.addingBeginHighlightNode = highlightNode;
 
   // note: No connector yet, until we move a bit.
@@ -1513,7 +1570,6 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
       [_linkEditState.addingEndHighlightNode removeFromParent];
       SKShapeNode *highlightNode = [[SKShapeNode alloc] init];
       highlightNode.position = endNode.position;
-      highlightNode.zPosition = FLZPositionWorldLinks;
       CGFloat highlightSideSize = FLSegmentArtSizeFull * FLSegmentArtScale;
       CGPathRef highlightPath = CGPathCreateWithRect(CGRectMake(-highlightSideSize / 2.0f,
                                                                 -highlightSideSize / 2.0f,
@@ -1522,8 +1578,9 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
                                                      NULL);
       highlightNode.path = highlightPath;
       highlightNode.strokeColor = [UIColor redColor];
+      highlightNode.glowWidth = 2.0f;
       CGPathRelease(highlightPath);
-      [_worldNode addChild:highlightNode];
+      [_linksNode addChild:highlightNode];
       _linkEditState.addingEndHighlightNode = highlightNode;
       _linkEditState.addingEndNode = endNode;
     }
@@ -1538,28 +1595,37 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   // Display a connector (a line segment).
   CGPoint beginSwitchPosition = _linkEditState.addingBeginNode.switchPosition;
   CGPoint endSwitchPosition = (_linkEditState.addingEndNode ? _linkEditState.addingEndNode.switchPosition : worldLocation);
-  CGMutablePathRef linkPath = CGPathCreateMutable();
-  CGPathMoveToPoint(linkPath, NULL, beginSwitchPosition.x, beginSwitchPosition.y);
-  CGPathAddLineToPoint(linkPath, NULL, endSwitchPosition.x, endSwitchPosition.y);
-  SKShapeNode *linkNode = [[SKShapeNode alloc] init];
-  linkNode.zPosition = FLZPositionWorldLinks;
-  linkNode.position = CGPointZero;
-  linkNode.path = linkPath;
-  CGPathRelease(linkPath);
-  linkNode.strokeColor = [UIColor redColor];
+  SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:beginSwitchPosition toLocation:endSwitchPosition];
   if (_linkEditState.addingConnectorNode) {
     [_linkEditState.addingConnectorNode removeFromParent];
   }
-  _linkEditState.addingConnectorNode = linkNode;
-  [_worldNode addChild:linkNode];
+  _linkEditState.addingConnectorNode = connectorNode;
 }
 
 - (void)FL_linkAddEnded
 {
+  BOOL preserveConnectorNode = NO;
+  if (_linkEditState.addingEndNode) {
+    SKShapeNode *connectorNode = _links.get(_linkEditState.addingBeginNode, _linkEditState.addingEndNode);
+    if (!connectorNode) {
+      connectorNode = _linkEditState.addingConnectorNode;
+      _links.insert(_linkEditState.addingBeginNode, _linkEditState.addingEndNode, connectorNode);
+      preserveConnectorNode = YES;
+    }
+    SKAction *blinkAction = [SKAction sequence:@[ [SKAction fadeOutWithDuration:0.1],
+                                                  [SKAction fadeInWithDuration:0.1],
+                                                  [SKAction fadeOutWithDuration:0.1],
+                                                  [SKAction fadeInWithDuration:0.1] ]];
+    [connectorNode runAction:blinkAction];
+  }
+
+  _linkEditState.addingBeginNode = nil;
   [_linkEditState.addingBeginHighlightNode removeFromParent];
   _linkEditState.addingBeginHighlightNode = nil;
   if (_linkEditState.addingConnectorNode) {
-    [_linkEditState.addingConnectorNode removeFromParent];
+    if (!preserveConnectorNode) {
+      [_linkEditState.addingConnectorNode removeFromParent];
+    }
     _linkEditState.addingConnectorNode = nil;
   }
   if (_linkEditState.addingEndNode) {
@@ -1571,6 +1637,7 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
 - (void)FL_linkAddCancelled
 {
+  _linkEditState.addingBeginNode = nil;
   [_linkEditState.addingBeginHighlightNode removeFromParent];
   _linkEditState.addingBeginHighlightNode = nil;
   if (_linkEditState.addingConnectorNode) {
@@ -1584,10 +1651,31 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
   }
 }
 
+- (void)FL_trackGridRotateGridX:(int)gridX gridY:(int)gridY rotateBy:(int)rotateBy animated:(BOOL)animated
+{
+  // note: rotateBy positive is in the counterclockwise direction, but current implementation
+  // will animate the shortest arc regardless of rotateBy sign.
+  FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY);
+  if (segmentNode) {
+    int newRotationQuarters = (segmentNode.zRotationQuarters + rotateBy) % 4;
+    // note: Repeatedly rotating by adding M_PI_2 * rotateBy leads to cumulative floating point
+    // error, which can be large enough over time to affect the calculation (e.g. if the epsilon
+    // value in convertRotationRadiansToQuarters is not large enough).  So: Don't just add the
+    // angle; recalculate it.
+    if (!animated) {
+      segmentNode.zRotationQuarters = newRotationQuarters;
+    } else {
+      [segmentNode runAction:[SKAction rotateToAngle:(newRotationQuarters * M_PI_2) duration:0.1 shortestUnitArc:YES]];
+      [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-click-1.caf" waitForCompletion:NO]];
+    }
+  }
+}
+
 - (void)FL_trackGridEraseGridX:(int)gridX gridY:(int)gridY animated:(BOOL)animated
 {
-  SKSpriteNode *segmentNode = _trackGrid->get(gridX, gridY);
+  FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY);
   if (segmentNode) {
+
     [segmentNode removeFromParent];
     if (animated) {
       SKEmitterNode *sleeperDestruction = [NSKeyedUnarchiver unarchiveObjectWithFile:[[NSBundle mainBundle] pathForResource:@"sleeperDestruction" ofType:@"sks"]];
@@ -1612,6 +1700,8 @@ enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
       [_trackNode runAction:sound];
     }
     _trackGrid->erase(gridX, gridY);
+    _links.erase(segmentNode);
+
     [self FL_trackEditMenuHideAnimated:YES];
   }
 }

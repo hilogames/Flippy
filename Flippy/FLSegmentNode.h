@@ -8,6 +8,8 @@
 
 #import <SpriteKit/SpriteKit.h>
 
+#include <vector>
+
 FOUNDATION_EXPORT const CGFloat FLSegmentArtSizeFull;
 FOUNDATION_EXPORT const CGFloat FLSegmentArtSizeBasic;
 // "Track normal width" is the pixel width of the drawn tracks (widest: sleepers).
@@ -68,9 +70,5 @@ convertRotationQuartersToRadians(int quarters)
 - (BOOL)getPath:(int *)pathId progress:(CGFloat *)progress forEndPoint:(CGPoint)endPoint rotation:(CGFloat)rotationRadians scale:(CGFloat)scale;
 
 - (CGFloat)pathLengthForPath:(int)pathId;
-
-- (void)linkAdd:(FLSegmentNode *)segmentNode reciprocal:(BOOL)reciprocal;
-
-- (void)linkRemove:(FLSegmentNode *)segmentNode reciprocal:(BOOL)reciprocal;
 
 @end

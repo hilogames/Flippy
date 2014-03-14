@@ -82,14 +82,17 @@ FLPath::FLPath(FLPathType pathType, int rotationQuarters) : pathType_(pathType)
     }
     case FLPathTypeNone:
     default:
+      precomputeCoefficients = false;
       break;
   }
-  coefficientsX_[0] = points_[3].x - 3.0f * points_[2].x + 3.0f * points_[1].x - points_[0].x;
-  coefficientsX_[1] = 3.0f * points_[2].x - 6.0f * points_[1].x + 3.0f * points_[0].x;
-  coefficientsX_[2] = 3.0f * points_[1].x - 3.0f * points_[0].x;
-  coefficientsY_[0] = points_[3].y - 3.0f * points_[2].y + 3.0f * points_[1].y - points_[0].y;
-  coefficientsY_[1] = 3.0f * points_[2].y - 6.0f * points_[1].y + 3.0f * points_[0].y;
-  coefficientsY_[2] = 3.0f * points_[1].y - 3.0f * points_[0].y;
+  if (precomputeCoefficients) {
+    coefficientsX_[0] = points_[3].x - 3.0f * points_[2].x + 3.0f * points_[1].x - points_[0].x;
+    coefficientsX_[1] = 3.0f * points_[2].x - 6.0f * points_[1].x + 3.0f * points_[0].x;
+    coefficientsX_[2] = 3.0f * points_[1].x - 3.0f * points_[0].x;
+    coefficientsY_[0] = points_[3].y - 3.0f * points_[2].y + 3.0f * points_[1].y - points_[0].y;
+    coefficientsY_[1] = 3.0f * points_[2].y - 6.0f * points_[1].y + 3.0f * points_[0].y;
+    coefficientsY_[2] = 3.0f * points_[1].y - 3.0f * points_[0].y;
+  }
 }
 
 CGPoint

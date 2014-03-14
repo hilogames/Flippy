@@ -10,7 +10,6 @@
 
 #import "FLPath.h"
 #import "FLTextureStore.h"
-#include <vector>
 
 const CGFloat FLSegmentArtSizeFull = 54.0f;
 const CGFloat FLSegmentArtSizeBasic = 36.0f;
@@ -25,14 +24,13 @@ using namespace std;
 
 @implementation FLSegmentNode
 {
-  // note: Every node is storing information about switches and links, whether
+  // note: Every node is storing information about switches, whether
   // they have a switch or not.  The obvious alternative, if space is a problem,
   // is to derive a FLSwitchedSegmentNode from FLSegmentNode.  (The same goes for
   // segmentType.)  Keep in mind that the derived class would be used to represent
   // node types that CAN be switched, whether they are or not, so that, for instance,
   // a particular join segment doesn't have to have a switch.
   int _switchPathId;
-  vector<FLSegmentNode *> _links;
 }
 
 - (id)initWithSegmentType:(FLSegmentType)segmentType
@@ -166,7 +164,7 @@ using namespace std;
   if (switchPathId == FLSegmentSwitchPathIdNone) {
     [switchNode removeFromParent];
   } else {
-    CGFloat newZRotation;
+    CGFloat newZRotation = 0.0f;
     if (_segmentType == FLSegmentTypeJoinLeft) {
       newZRotation = (switchPathId - 1) * M_PI / 8.0f;
     } else if (_segmentType == FLSegmentTypeJoinRight) {
@@ -336,30 +334,6 @@ using namespace std;
 - (CGFloat)pathLengthForPath:(int)pathId
 {
   return [self FL_path:pathId]->getLength();
-}
-
-- (void)linkAdd:(FLSegmentNode *)segmentNode reciprocal:(BOOL)reciprocal
-{
-  _links.emplace_back(segmentNode);
-  if (reciprocal) {
-    [segmentNode linkAdd:self reciprocal:NO];
-  }
-}
-
-- (void)linkRemove:(FLSegmentNode *)segmentNode reciprocal:(BOOL)reciprocal
-{
-  auto r = std::find(_links.begin(), _links.end(), segmentNode);
-  if (r != _links.end()) {
-    _links.erase(r);
-  }
-  if (reciprocal) {
-    [segmentNode linkRemove:self reciprocal:NO];
-  }
-}
-
-- (vector<FLSegmentNode *>&)links
-{
-  return _links;
 }
 
 - (const FLPath *)FL_path:(int)pathId
