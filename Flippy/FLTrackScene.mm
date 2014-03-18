@@ -1356,8 +1356,18 @@ struct PointerPairHash
   // location?
   [self FL_trackMoveUpdateWithGridX:gridX gridY:gridY];
 
-  // note: Current selection unchanged.
+  // note: Currently interface doesn't allow movement of track when links are visible,
+  // so this only needs to be done when ended/cancelled.
+  //
+  // note: Small optimization possible: Could test to see if segmentMoving actually
+  // moved at all before bothering to redraw links.
+  [self FL_linkRedrawForSegment:_trackMoveState.segmentMoving];
+  if (_trackMoveState.segmentRemoving) {
+    _links.erase(_trackMoveState.segmentRemoving);
+  }
+
   [self FL_trackEditMenuShowAtSegment:_trackMoveState.segmentMoving gridX:gridX gridY:gridY animated:YES];
+  // note: Current selection unchanged.
   _trackMoveState.segmentMoving = nil;
   _trackMoveState.segmentRemoving = nil;
   [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-clickity-2.caf" waitForCompletion:NO]];
@@ -1381,6 +1391,7 @@ struct PointerPairHash
     if (!_trackMoveState.segmentRemoving) {
       _trackGrid->erase(gridX, gridY);
     }
+    _links.erase(_trackMoveState.segmentMoving);
     _trackMoveState.segmentMoving = nil;
 
     if (_trackMoveState.segmentRemoving) {
@@ -1539,6 +1550,16 @@ struct PointerPairHash
   return linkNode;
 }
 
+- (void)FL_linkRedrawForSegment:(FLSegmentNode *)segmentNode
+{
+  vector<FLSegmentNode *> links;
+  _links.get(segmentNode, &links);
+  for (auto link : links) {
+    SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:segmentNode.switchPosition toLocation:link.switchPosition];
+    _links.set(segmentNode, link, connectorNode);
+  }
+}
+
 - (void)FL_linkEditBeganWithNode:(FLSegmentNode *)segmentNode
 {
   // note: Precondition is that the passed node has a switch.
@@ -1613,7 +1634,7 @@ struct PointerPairHash
 - (void)FL_linkEditEnded
 {
   BOOL preserveConnectorNode = NO;
-  if (_linkEditState.endNode) {
+  if (_linkEditState.endNode && _linkEditState.beginNode != _linkEditState.endNode) {
     // Connecting segments once creates a link; twice deletes it.
     SKShapeNode *oldConnectorNode = _links.get(_linkEditState.beginNode, _linkEditState.endNode);
     if (oldConnectorNode) {

@@ -12,23 +12,46 @@
 
 using namespace std;
 
+void
+FLLinks::set(FLSegmentNode *a, FLSegmentNode *b, SKShapeNode *connector)
+{
+  pair<iterator, bool> emplacement;
+  if (a < b) {
+    emplacement = links_.emplace(std::make_pair((__bridge void *)a, (__bridge void *)b), connector);
+  } else {
+    emplacement = links_.emplace(std::make_pair((__bridge void *)b, (__bridge void *)a), connector);
+  }
+  if (!emplacement.second && emplacement.first->second != connector) {
+    [emplacement.first->second removeFromParent];
+    emplacement.first->second = connector;
+  }
+}
+
 bool
 FLLinks::insert(FLSegmentNode *a, FLSegmentNode *b, SKShapeNode *connector)
 {
-  pair<iterator, bool> emplacement = links_.emplace(std::make_pair((__bridge void *)a, (__bridge void *)b), connector);
+  pair<iterator, bool> emplacement;
+  if (a < b) {
+    emplacement = links_.emplace(std::make_pair((__bridge void *)a, (__bridge void *)b), connector);
+  } else {
+    emplacement = links_.emplace(std::make_pair((__bridge void *)b, (__bridge void *)a), connector);
+  }
   return emplacement.second;
 }
 
 SKShapeNode *
 FLLinks::get(FLSegmentNode *a, FLSegmentNode *b) const
 {
-  auto link = links_.find(std::make_pair((__bridge void *)a, (__bridge void *)b));
-  if (link != links_.end()) {
-    return link->second;
-  }
-  link = links_.find(std::make_pair((__bridge void *)b, (__bridge void *)a));
-  if (link != links_.end()) {
-    return link->second;
+  if (a < b) {
+    auto link = links_.find(std::make_pair((__bridge void *)a, (__bridge void *)b));
+    if (link != links_.end()) {
+      return link->second;
+    }
+  } else {
+    auto link = links_.find(std::make_pair((__bridge void *)b, (__bridge void *)a));
+    if (link != links_.end()) {
+      return link->second;
+    }
   }
   return nil;
 }
@@ -53,17 +76,20 @@ FLLinks::get(FLSegmentNode *a, std::vector<FLSegmentNode *> *b) const
 void
 FLLinks::erase(FLSegmentNode *a, FLSegmentNode *b)
 {
-  auto link = links_.find(std::make_pair((__bridge void *)a, (__bridge void *)b));
-  if (link != links_.end()) {
-    [link->second removeFromParent];
-    links_.erase(link);
-    return;
-  }
-  link = links_.find(std::make_pair((__bridge void *)b, (__bridge void *)a));
-  if (link != links_.end()) {
-    [link->second removeFromParent];
-    links_.erase(link);
-    return;
+  if (a < b) {
+    auto link = links_.find(std::make_pair((__bridge void *)a, (__bridge void *)b));
+    if (link != links_.end()) {
+      [link->second removeFromParent];
+      links_.erase(link);
+      return;
+    }
+  } else {
+    auto link = links_.find(std::make_pair((__bridge void *)b, (__bridge void *)a));
+    if (link != links_.end()) {
+      [link->second removeFromParent];
+      links_.erase(link);
+      return;
+    }
   }
 }
 

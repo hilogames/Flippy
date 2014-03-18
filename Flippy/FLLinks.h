@@ -34,6 +34,8 @@ public:
   typedef std::unordered_map<std::pair<void *, void *>, SKShapeNode *, FLLinksPointerPairHash>::iterator iterator;
   typedef std::unordered_map<std::pair<void *, void *>, SKShapeNode *, FLLinksPointerPairHash>::const_iterator const_iterator;
 
+  void set(FLSegmentNode *a, FLSegmentNode *b, SKShapeNode *connector);
+
   bool insert(FLSegmentNode *a, FLSegmentNode *b, SKShapeNode *connector);
 
   SKShapeNode *get(FLSegmentNode *a, FLSegmentNode *b) const;
