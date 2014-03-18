@@ -61,7 +61,7 @@ convertRotationQuartersToRadians(int quarters)
 - (id)initWithTextureKey:(NSString *)textureKey;
 
 - (void)setSwitchPathId:(int)switchPathId animated:(BOOL)animated;
-- (void)toggleSwitchPathIdAnimated:(BOOL)animated;
+- (int)toggleSwitchPathIdAnimated:(BOOL)animated;
 
 - (void)getPoint:(CGPoint *)point rotation:(CGFloat *)rotationRadians forPath:(int)pathId progress:(CGFloat)progress scale:(CGFloat)scale;
 

@@ -8,6 +8,8 @@
 
 #include "FLLinks.h"
 
+#import "FLSegmentNode.h"
+
 using namespace std;
 
 bool
@@ -31,20 +33,22 @@ FLLinks::get(FLSegmentNode *a, FLSegmentNode *b) const
   return nil;
 }
 
-//void
-//FLLinks::get(FLSegmentNode *a, std::vector<FLSegmentNode *> *b) const
-//{
-//  // note: It would be faster, but more complicated, to define an iterator interface.
-//  
-//  // note: Implemented as a nasty linear thing for now.
-//  for (auto& link : links_) {
-//    if ((__bridge void *)a == link.first.first) {
-//      b->emplace_back((__bridge FLSegmentNode *)link.first.second);
-//    } else if ((__bridge void *)a == link.first.second) {
-//      b->emplace_back((__bridge FLSegmentNode *)link.first.first);
-//    }
-//  }
-//}
+void
+FLLinks::get(FLSegmentNode *a, std::vector<FLSegmentNode *> *b) const
+{
+  // note: It would be faster, but more complicated, to define an iterator interface
+  // rather than copying pointers into a vector.
+  
+  // note: Implemented as a nasty linear thing for now.
+
+  for (auto link = links_.begin(); link != links_.end(); ++link) {
+    if ((__bridge void *)a == link->first.first) {
+      b->emplace_back((__bridge FLSegmentNode *)link->first.second);
+    } else if ((__bridge void *)a == link->first.second) {
+      b->emplace_back((__bridge FLSegmentNode *)link->first.first);
+    }
+  }
+}
 
 void
 FLLinks::erase(FLSegmentNode *a, FLSegmentNode *b)

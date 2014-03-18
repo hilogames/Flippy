@@ -179,16 +179,18 @@ using namespace std;
   _switchPathId = switchPathId;
 }
 
-- (void)toggleSwitchPathIdAnimated:(BOOL)animated
+- (int)toggleSwitchPathIdAnimated:(BOOL)animated
 {
   if (_switchPathId == FLSegmentSwitchPathIdNone) {
-    return;
+    return FLSegmentSwitchPathIdNone;
   }
   // note: Currently, there are only two switch positions.
   if (_switchPathId == 0) {
     [self setSwitchPathId:1 animated:animated];
+    return 1;
   } else {
     [self setSwitchPathId:0 animated:animated];
+    return 0;
   }
 }
 

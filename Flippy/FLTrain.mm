@@ -47,12 +47,6 @@ static const int FLTrainDirectionReverse = -1;
   if (self) {
     _running = [aDecoder decodeBoolForKey:@"running"];
     _lastSegmentNode = [aDecoder decodeObjectForKey:@"lastSegmentNode"];
-//    BOOL lastSegmentNode = [aDecoder decodeBoolForKey:@"lastSegmentNode"];
-//    if (lastSegmentNode) {
-//      int gridX = [aDecoder decodeIntForKey:@"lastSegmentNodeGridX"];
-//      int gridY = [aDecoder decodeIntForKey:@"lastSegmentNodeGridY"];
-//      _lastSegmentNode = _trackGrid->get(gridX, gridY);
-//    }
     _lastPathId = [aDecoder decodeIntForKey:@"lastPathId"];
     _lastPathLength = [_lastSegmentNode pathLengthForPath:_lastPathId];
     _lastProgress = [aDecoder decodeFloatForKey:@"lastProgress"];
@@ -67,14 +61,6 @@ static const int FLTrainDirectionReverse = -1;
   
   [aCoder encodeBool:_running forKey:@"running"];
   [aCoder encodeObject:_lastSegmentNode forKey:@"lastSegmentNode"];
-//  [aCoder encodeBool:(_lastSegmentNode != nil) forKey:@"lastSegmentNode"];
-//  if (_lastSegmentNode) {
-//    int gridX;
-//    int gridY;
-//    _trackGrid->convert(_lastSegmentNode.position, &gridX, &gridY);
-//    [aCoder encodeInt:gridX forKey:@"lastSegmentNodeGridX"];
-//    [aCoder encodeInt:gridY forKey:@"lastSegmentNodeGridY"];
-//  }
   [aCoder encodeInt:_lastPathId forKey:@"lastPathId"];
   [aCoder encodeFloat:_lastProgress forKey:@"lastProgress"];
   [aCoder encodeInt:_lastDirection forKey:@"lastDirection"];
@@ -144,7 +130,8 @@ static const int FLTrainDirectionReverse = -1;
   // as we are leaving.
   //
   // note: Once would be enough.  Could set when entering, or when leaving, or at
-  // every point in between.
+  // every point in between.  Currently, we set it repeatedly during a range while
+  // close to leaving.
   //
   // note: This only applies, of course, if we're traveling "backwards" against the
   // switch; otherwise, the switch already would have chosen our direction for us.
@@ -157,14 +144,21 @@ static const int FLTrainDirectionReverse = -1;
   // Another justification for having it here: The segment doesn't know what trains
   // are on it; in order for the segment to effect a change based on the train
   // position, we'd have to have the train give it some kind of callback anyway.
-  if (_lastSegmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
+  if (_lastSegmentNode.switchPathId != FLSegmentSwitchPathIdNone
+      && _lastSegmentNode.switchPathId != _lastPathId) {
     if (_lastDirection == FLTrainDirectionForward) {
       if (_lastProgress > 0.9f) {
         [_lastSegmentNode setSwitchPathId:_lastPathId animated:YES];
+        if (_delegate) {
+          [_delegate train:self didSwitchSegment:_lastSegmentNode toPathId:_lastPathId];
+        }
       }
     } else {
       if (_lastProgress < 0.1f) {
         [_lastSegmentNode setSwitchPathId:_lastPathId animated:YES];
+        if (_delegate) {
+          [_delegate train:self didSwitchSegment:_lastSegmentNode toPathId:_lastPathId];
+        }
       }
     }
   }

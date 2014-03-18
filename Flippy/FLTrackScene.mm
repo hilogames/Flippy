@@ -16,7 +16,6 @@
 #import "FLTextureStore.h"
 #import "FLToolbarNode.h"
 #include "FLTrackGrid.h"
-#import "FLTrain.h"
 
 using namespace std;
 using namespace HLCommon;
@@ -221,7 +220,6 @@ struct PointerPairHash
       SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:a.switchPosition toLocation:b.switchPosition];
       _links.insert(a, b, connectorNode);
     }
-    NSLog(@"decoded %lu links (from array size %lu)", _links.size(), (size_t)[links count]);
     _worldGestureState.worldTool = (FLWorldTool)[aDecoder decodeIntForKey:@"worldGestureStateWorldTool"];
     if (_worldGestureState.worldTool == FLWorldToolLink) {
       [_constructionToolbarState.toolbarNode setHighlight:YES forTool:@"link"];
@@ -229,6 +227,7 @@ struct PointerPairHash
     }
     
     _train = [aDecoder decodeObjectForKey:@"train"];
+    _train.delegate = self;
     [_train resetTrackGrid:_trackGrid];
 
     if ([aDecoder decodeBoolForKey:@"trackSelectStateSelected"]) {
@@ -408,6 +407,7 @@ struct PointerPairHash
   // Create other content.
 
   _train = [[FLTrain alloc] initWithTrackGrid:_trackGrid];
+  _train.delegate = self;
   _train.scale = FLSegmentArtScale;
   _train.zPosition = FLZPositionWorldTrain;
   [_worldNode addChild:_train];
@@ -543,7 +543,7 @@ struct PointerPairHash
 
   FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY);
   if (segmentNode && segmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
-    [segmentNode toggleSwitchPathIdAnimated:YES];
+    [self FL_linkToggleSwitch:segmentNode animated:YES];
   }
 }
 
@@ -892,7 +892,7 @@ struct PointerPairHash
   } else if ([button isEqualToString:@"rotate-ccw"]) {
     [self FL_trackGridRotateGridX:_trackEditMenuState.lastGridX gridY:_trackEditMenuState.lastGridY rotateBy:1 animated:YES];
   } else if ([button isEqualToString:@"toggle-switch"]) {
-    [_trackEditMenuState.lastSegmentNode toggleSwitchPathIdAnimated:YES];
+    [self FL_linkToggleSwitch:_trackEditMenuState.lastSegmentNode animated:YES];
   } else if ([button isEqualToString:@"delete"]) {
     [self FL_trackGridEraseGridX:_trackEditMenuState.lastGridX gridY:_trackEditMenuState.lastGridY animated:YES];
   }
@@ -1109,6 +1109,14 @@ struct PointerPairHash
 //    return [target shouldHandleGesture:gestureRecognizer firstTouch:touch];
 //  }
 //}
+
+#pragma mark -
+#pragma mark FLTrainDelegate
+
+- (void)train:(FLTrain *)train didSwitchSegment:(FLSegmentNode *)segmentNode toPathId:(int)pathId
+{
+  [self FL_linkSetSwitch:segmentNode pathId:pathId animated:YES];
+}
 
 #pragma mark -
 #pragma mark Common
@@ -1648,6 +1656,26 @@ struct PointerPairHash
     [_linkEditState.addingEndHighlightNode removeFromParent];
     _linkEditState.addingEndNode = nil;
     _linkEditState.addingEndHighlightNode = nil;
+  }
+}
+
+- (void)FL_linkSetSwitch:(FLSegmentNode *)segmentNode pathId:(int)pathId animated:(BOOL)animated
+{
+  [segmentNode setSwitchPathId:pathId animated:animated];
+  vector<FLSegmentNode *> links;
+  _links.get(segmentNode, &links);
+  for (auto link : links) {
+    [link setSwitchPathId:pathId animated:animated];
+  }
+}
+
+- (void)FL_linkToggleSwitch:(FLSegmentNode *)segmentNode animated:(BOOL)animated
+{
+  int pathId = [segmentNode toggleSwitchPathIdAnimated:animated];
+  vector<FLSegmentNode *> links;
+  _links.get(segmentNode, &links);
+  for (auto link : links) {
+    [link setSwitchPathId:pathId animated:animated];
   }
 }
 

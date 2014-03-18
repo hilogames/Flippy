@@ -10,6 +10,8 @@
 #import <SpriteKit/SpriteKit.h>
 
 class FLTrackGrid;
+@class FLSegmentNode;
+@protocol FLTrainDelegate;
 
 /**
  * A train running on a track grid.
@@ -30,6 +32,8 @@ class FLTrackGrid;
 
 @interface FLTrain : SKSpriteNode <NSCoding>
 
+@property (nonatomic, weak) id<FLTrainDelegate> delegate;
+
 @property (nonatomic) BOOL running;
 
 - (id)initWithTrackGrid:(std::shared_ptr<FLTrackGrid>&)trackGrid;
@@ -39,5 +43,11 @@ class FLTrackGrid;
 - (void)update:(CFTimeInterval)elapsedTime;
 
 - (BOOL)moveToClosestOnTrackLocationForLocation:(CGPoint)worldLocation;
+
+@end
+
+@protocol FLTrainDelegate
+
+- (void)train:(FLTrain *)train didSwitchSegment:(FLSegmentNode *)segmentNode toPathId:(int)pathId;
 
 @end

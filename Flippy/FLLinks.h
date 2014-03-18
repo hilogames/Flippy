@@ -38,7 +38,7 @@ public:
 
   SKShapeNode *get(FLSegmentNode *a, FLSegmentNode *b) const;
 
-  //void get(FLSegmentNode *a, std::vector<FLSegmentNode *> *b) const;
+  void get(FLSegmentNode *a, std::vector<FLSegmentNode *> *b) const;
 
   iterator begin() { return links_.begin(); }
   const_iterator begin() const { return links_.begin(); }
