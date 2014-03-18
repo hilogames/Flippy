@@ -83,11 +83,11 @@ struct FLTrackEditMenuState
 
 struct FLLinkEditState
 {
-  FLSegmentNode *addingBeginNode;
-  FLSegmentNode *addingEndNode;
-  SKShapeNode *addingConnectorNode;
-  SKShapeNode *addingBeginHighlightNode;
-  SKShapeNode *addingEndHighlightNode;
+  FLSegmentNode *beginNode;
+  FLSegmentNode *endNode;
+  SKShapeNode *connectorNode;
+  SKShapeNode *beginHighlightNode;
+  SKShapeNode *endHighlightNode;
 };
 
 enum FLWorldPanType { FLWorldPanTypeNone, FLWorldPanTypeScroll, FLWorldPanTypeTrackMove, FLWorldPanTypeLink };
@@ -589,7 +589,7 @@ struct PointerPairHash
       if (segmentNode && segmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
         // Pan begins with link tool inside a segment that has a switch.
         _worldGestureState.panType = FLWorldPanTypeLink;
-        [self FL_linkAddBeganWithNode:segmentNode];
+        [self FL_linkEditBeganWithNode:segmentNode];
       } else {
         // Pan begins with link tool in a segment without a switch.
         _worldGestureState.panType = FLWorldPanTypeScroll;
@@ -643,7 +643,7 @@ struct PointerPairHash
         CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
         CGPoint sceneLocation = [self convertPointFromView:viewLocation];
         CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
-        [self FL_linkAddChangedWithLocation:worldLocation];
+        [self FL_linkEditChangedWithLocation:worldLocation];
         break;
       }
       default:
@@ -669,7 +669,7 @@ struct PointerPairHash
         // note: Nothing to do here.
         break;
       case FLWorldPanTypeLink:
-        [self FL_linkAddEnded];
+        [self FL_linkEditEnded];
         break;
       default:
         // note: This means the pan gesture was not actually doing anything,
@@ -694,7 +694,7 @@ struct PointerPairHash
         // note: Nothing to do here.
         break;
       case FLWorldPanTypeLink:
-        [self FL_linkAddCancelled];
+        [self FL_linkEditCancelled];
         break;
       default:
         // note: This means the pan gesture was not actually doing anything,
@@ -1539,10 +1539,10 @@ struct PointerPairHash
   return linkNode;
 }
 
-- (void)FL_linkAddBeganWithNode:(FLSegmentNode *)segmentNode
+- (void)FL_linkEditBeganWithNode:(FLSegmentNode *)segmentNode
 {
   // note: Precondition is that the passed node has a switch.
-  _linkEditState.addingBeginNode = segmentNode;
+  _linkEditState.beginNode = segmentNode;
 
   // Display a begin-segment highlight.
   SKShapeNode *highlightNode = [[SKShapeNode alloc] init];
@@ -1558,24 +1558,24 @@ struct PointerPairHash
   highlightNode.path = highlightPath;
   CGPathRelease(highlightPath);
   [_linksNode addChild:highlightNode];
-  _linkEditState.addingBeginHighlightNode = highlightNode;
+  _linkEditState.beginHighlightNode = highlightNode;
 
   // note: No connector yet, until we move a bit.
-  _linkEditState.addingConnectorNode = nil;
+  _linkEditState.connectorNode = nil;
 
   // note: No ending node or highlight yet.
-  _linkEditState.addingEndNode = nil;
+  _linkEditState.endNode = nil;
 }
 
-- (void)FL_linkAddChangedWithLocation:(CGPoint)worldLocation
+- (void)FL_linkEditChangedWithLocation:(CGPoint)worldLocation
 {
   // note: Begin-segment highlight stays the same.
   
   // Display an end-segment highlight if the current node has a switch.
   FLSegmentNode *endNode = trackGridConvertGet(*_trackGrid, worldLocation);
   if (endNode && endNode.switchPathId != FLSegmentSwitchPathIdNone) {
-    if (endNode != _linkEditState.addingEndNode) {
-      [_linkEditState.addingEndHighlightNode removeFromParent];
+    if (endNode != _linkEditState.endNode) {
+      [_linkEditState.endHighlightNode removeFromParent];
       SKShapeNode *highlightNode = [[SKShapeNode alloc] init];
       highlightNode.position = endNode.position;
       CGFloat highlightSideSize = FLSegmentArtSizeFull * FLSegmentArtScale;
@@ -1589,73 +1589,77 @@ struct PointerPairHash
       highlightNode.glowWidth = 2.0f;
       CGPathRelease(highlightPath);
       [_linksNode addChild:highlightNode];
-      _linkEditState.addingEndHighlightNode = highlightNode;
-      _linkEditState.addingEndNode = endNode;
+      _linkEditState.endHighlightNode = highlightNode;
+      _linkEditState.endNode = endNode;
     }
   } else {
-    if (_linkEditState.addingEndNode) {
-      [_linkEditState.addingEndHighlightNode removeFromParent];
-      _linkEditState.addingEndNode = nil;
-      _linkEditState.addingEndHighlightNode = nil;
+    if (_linkEditState.endNode) {
+      [_linkEditState.endHighlightNode removeFromParent];
+      _linkEditState.endNode = nil;
+      _linkEditState.endHighlightNode = nil;
     }
   }
 
   // Display a connector (a line segment).
-  CGPoint beginSwitchPosition = _linkEditState.addingBeginNode.switchPosition;
-  CGPoint endSwitchPosition = (_linkEditState.addingEndNode ? _linkEditState.addingEndNode.switchPosition : worldLocation);
+  CGPoint beginSwitchPosition = _linkEditState.beginNode.switchPosition;
+  CGPoint endSwitchPosition = (_linkEditState.endNode ? _linkEditState.endNode.switchPosition : worldLocation);
   SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:beginSwitchPosition toLocation:endSwitchPosition];
-  if (_linkEditState.addingConnectorNode) {
-    [_linkEditState.addingConnectorNode removeFromParent];
+  if (_linkEditState.connectorNode) {
+    [_linkEditState.connectorNode removeFromParent];
   }
-  _linkEditState.addingConnectorNode = connectorNode;
+  _linkEditState.connectorNode = connectorNode;
 }
 
-- (void)FL_linkAddEnded
+- (void)FL_linkEditEnded
 {
   BOOL preserveConnectorNode = NO;
-  if (_linkEditState.addingEndNode) {
-    SKShapeNode *connectorNode = _links.get(_linkEditState.addingBeginNode, _linkEditState.addingEndNode);
-    if (!connectorNode) {
-      connectorNode = _linkEditState.addingConnectorNode;
-      _links.insert(_linkEditState.addingBeginNode, _linkEditState.addingEndNode, connectorNode);
+  if (_linkEditState.endNode) {
+    // Connecting segments once creates a link; twice deletes it.
+    SKShapeNode *oldConnectorNode = _links.get(_linkEditState.beginNode, _linkEditState.endNode);
+    if (oldConnectorNode) {
+      _links.erase(_linkEditState.beginNode, _linkEditState.endNode);
+    } else {
+      SKAction *blinkAction = [SKAction sequence:@[ [SKAction fadeOutWithDuration:0.1],
+                                                    [SKAction fadeInWithDuration:0.1],
+                                                    [SKAction fadeOutWithDuration:0.1],
+                                                    [SKAction fadeInWithDuration:0.1] ]];
+      [_linkEditState.connectorNode runAction:blinkAction];
+      _links.insert(_linkEditState.beginNode, _linkEditState.endNode, _linkEditState.connectorNode);
       preserveConnectorNode = YES;
     }
-    SKAction *blinkAction = [SKAction sequence:@[ [SKAction fadeOutWithDuration:0.1],
-                                                  [SKAction fadeInWithDuration:0.1],
-                                                  [SKAction fadeOutWithDuration:0.1],
-                                                  [SKAction fadeInWithDuration:0.1] ]];
-    [connectorNode runAction:blinkAction];
   }
 
-  _linkEditState.addingBeginNode = nil;
-  [_linkEditState.addingBeginHighlightNode removeFromParent];
-  _linkEditState.addingBeginHighlightNode = nil;
-  if (_linkEditState.addingConnectorNode) {
+  _linkEditState.beginNode = nil;
+  [_linkEditState.beginHighlightNode removeFromParent];
+  _linkEditState.beginHighlightNode = nil;
+  if (_linkEditState.connectorNode) {
     if (!preserveConnectorNode) {
-      [_linkEditState.addingConnectorNode removeFromParent];
+      [_linkEditState.connectorNode removeFromParent];
     }
-    _linkEditState.addingConnectorNode = nil;
+    _linkEditState.connectorNode = nil;
   }
-  if (_linkEditState.addingEndNode) {
-    [_linkEditState.addingEndHighlightNode removeFromParent];
-    _linkEditState.addingEndNode = nil;
-    _linkEditState.addingEndHighlightNode = nil;
+  if (_linkEditState.endNode) {
+    [_linkEditState.endHighlightNode removeFromParent];
+    _linkEditState.endNode = nil;
+    _linkEditState.endHighlightNode = nil;
   }
+  
+  NSLog(@"%lu links", _links.size());
 }
 
-- (void)FL_linkAddCancelled
+- (void)FL_linkEditCancelled
 {
-  _linkEditState.addingBeginNode = nil;
-  [_linkEditState.addingBeginHighlightNode removeFromParent];
-  _linkEditState.addingBeginHighlightNode = nil;
-  if (_linkEditState.addingConnectorNode) {
-    [_linkEditState.addingConnectorNode removeFromParent];
-    _linkEditState.addingConnectorNode = nil;
+  _linkEditState.beginNode = nil;
+  [_linkEditState.beginHighlightNode removeFromParent];
+  _linkEditState.beginHighlightNode = nil;
+  if (_linkEditState.connectorNode) {
+    [_linkEditState.connectorNode removeFromParent];
+    _linkEditState.connectorNode = nil;
   }
-  if (_linkEditState.addingEndNode) {
-    [_linkEditState.addingEndHighlightNode removeFromParent];
-    _linkEditState.addingEndNode = nil;
-    _linkEditState.addingEndHighlightNode = nil;
+  if (_linkEditState.endNode) {
+    [_linkEditState.endHighlightNode removeFromParent];
+    _linkEditState.endNode = nil;
+    _linkEditState.endHighlightNode = nil;
   }
 }
 
