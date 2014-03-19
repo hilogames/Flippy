@@ -7,10 +7,6 @@ circuits.
 
 Current
 
-  . "Links" editing, for connecting switches.
-
-  . Train speed control.
-
   . Save/load tracks/subtracks, probably via the creation toolbar.  A
     pre-loaded folder of subtracks for logical gates; another for
     larger circuits (half adder); another for user stuff.  Probably
@@ -20,6 +16,9 @@ Current
     . Pre-requisite might be multi-segment selection.  (Paint a
       selection; draw a rectangle for selection; shift-click-type
       selection; etc.)
+
+  . Special input and output segments which have switches but no
+    track (and perhaps have a readout of binary value).
 
 Medium Priority
 

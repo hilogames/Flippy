@@ -40,7 +40,7 @@ class FLTrackGrid;
 
 - (void)resetTrackGrid:(std::shared_ptr<FLTrackGrid>&)trackGrid;
 
-- (void)update:(CFTimeInterval)elapsedTime;
+- (void)update:(CFTimeInterval)elapsedTime simulationSpeed:(int)simulationSpeed;
 
 - (BOOL)moveToClosestOnTrackLocationForLocation:(CGPoint)worldLocation;
 
@@ -49,5 +49,7 @@ class FLTrackGrid;
 @protocol FLTrainDelegate
 
 - (void)train:(FLTrain *)train didSwitchSegment:(FLSegmentNode *)segmentNode toPathId:(int)pathId;
+
+- (void)train:(FLTrain *)train crashedAtSegment:(FLSegmentNode *)segmentNode;
 
 @end

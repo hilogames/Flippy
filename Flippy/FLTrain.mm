@@ -76,7 +76,7 @@ static const int FLTrainDirectionReverse = -1;
   _running = running;
 }
 
-- (void)update:(CFTimeInterval)elapsedTime
+- (void)update:(CFTimeInterval)elapsedTime simulationSpeed:(int)simulationSpeed
 {
   if (!_running) {
     return;
@@ -84,7 +84,7 @@ static const int FLTrainDirectionReverse = -1;
 
   // If never put on track, then crash.
   if (!_lastSegmentNode) {
-    self.running = NO;
+    [self FL_crash];
     return;
   }
   
@@ -113,7 +113,7 @@ static const int FLTrainDirectionReverse = -1;
     }
   }
   if (!foundLastSegmentNode) {
-    self.running = NO;
+    [self FL_crash];
     return;
   }
 
@@ -122,8 +122,9 @@ static const int FLTrainDirectionReverse = -1;
   // note: Current speed is constant in terms of progress.  This will be modified in
   // the future to account for path length, and probably also to allow acceleration
   // for fun.
-  const CGFloat FLTrainSpeedPathLengthPerSecond = 1.8f;
-  CGFloat deltaProgress = (FLTrainSpeedPathLengthPerSecond / _lastPathLength) * elapsedTime * _lastDirection;
+  const CGFloat FLTrainNormalSpeedPathLengthPerSecond = 1.8f;
+  CGFloat speedPathLengthPerSecond = FLTrainNormalSpeedPathLengthPerSecond * (1.0f + simulationSpeed * simulationSpeed);
+  CGFloat deltaProgress = (speedPathLengthPerSecond / _lastPathLength) * elapsedTime * _lastDirection;
   _lastProgress += deltaProgress;
 
   // If this segment has a switch, then set the switch according to the traveled path
@@ -167,7 +168,7 @@ static const int FLTrainDirectionReverse = -1;
   // switch to a connecting segment.
   if (_lastProgress < 0.0f || _lastProgress > 1.0f) {
     if (![self FL_switchToConnectingSegment]) {
-      self.running = NO;
+      [self FL_crash];
       return;
     }
   }
@@ -215,6 +216,14 @@ static const int FLTrainDirectionReverse = -1;
   _lastDirection = direction;
 
   return YES;
+}
+
+- (void)FL_crash
+{
+  _running = NO;
+  if (_delegate) {
+    [_delegate train:self crashedAtSegment:_lastSegmentNode];
+  }
 }
 
 - (BOOL)FL_switchToConnectingSegment

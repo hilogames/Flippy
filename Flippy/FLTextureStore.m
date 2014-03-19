@@ -34,6 +34,8 @@
     // Tools.
     [sharedStore loadTextureForKey:@"play" filteringMode:SKTextureFilteringLinear];
     [sharedStore loadTextureForKey:@"pause" filteringMode:SKTextureFilteringLinear];
+    [sharedStore loadTextureForKey:@"ff" filteringMode:SKTextureFilteringLinear];
+    [sharedStore loadTextureForKey:@"fff" filteringMode:SKTextureFilteringLinear];
     [sharedStore loadTextureForKey:@"center" filteringMode:SKTextureFilteringLinear];
     [sharedStore loadTextureForKey:@"delete" filteringMode:SKTextureFilteringLinear];
     [sharedStore loadTextureForKey:@"rotate-cw" filteringMode:SKTextureFilteringLinear];

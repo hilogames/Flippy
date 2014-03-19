@@ -141,6 +141,7 @@ struct PointerPairHash
 
   FLCameraMode _cameraMode;
   BOOL _simulationRunning;
+  int _simulationSpeed;
   CFTimeInterval _updateLastTime;
 
   shared_ptr<FLTrackGrid> _trackGrid;
@@ -180,6 +181,7 @@ struct PointerPairHash
   if (self) {
     _cameraMode = FLCameraModeManual;
     _simulationRunning = NO;
+    _simulationSpeed = 0;
     _trackGrid.reset(new FLTrackGrid(FLSegmentArtSizeBasic * FLSegmentArtScale));
   }
   return self;
@@ -193,6 +195,8 @@ struct PointerPairHash
 
     _cameraMode = (FLCameraMode)[aDecoder decodeIntForKey:@"cameraMode"];
     _simulationRunning = [aDecoder decodeBoolForKey:@"simulationRunning"];
+    _simulationSpeed = [aDecoder decodeIntForKey:@"simulationSpeed"];
+    [self FL_simulationToolbarUpdateTools];
 
     // Re-link special node pointers to objects already decoded in hierarchy.
     _worldNode = [aDecoder decodeObjectForKey:@"worldNode"];
@@ -266,6 +270,8 @@ struct PointerPairHash
   if (_worldGestureState.worldTool == FLWorldToolLink) {
     [_linksNode removeFromParent];
   }
+  [self FL_simulationToolbarSetVisible:NO];
+  [self FL_constructionToolbarSetVisible:NO];
 
   // Persist SKScene (including current node hierarchy).
   [super encodeWithCoder:aCoder];
@@ -282,6 +288,8 @@ struct PointerPairHash
   if (_worldGestureState.worldTool == FLWorldToolLink) {
     [_worldNode addChild:_linksNode];
   }
+  [self FL_simulationToolbarSetVisible:YES];
+  [self FL_constructionToolbarSetVisible:YES];
 
   // Persist special node pointers (that should already been encoded
   // as part of hierarchy).
@@ -299,6 +307,7 @@ struct PointerPairHash
   // Encode other state.
   [aCoder encodeInt:(int)_cameraMode forKey:@"cameraMode"];
   [aCoder encodeBool:_simulationRunning forKey:@"simulationRunning"];
+  [aCoder encodeInt:_simulationSpeed forKey:@"simulationSpeed"];
   [aCoder encodeObject:_train forKey:@"train"];
   [aCoder encodeBool:_trackSelectState.selected forKey:@"trackSelectStateSelected"];
   [aCoder encodeInt:_trackSelectState.gridX forKey:@"trackSelectStateGridX"];
@@ -319,6 +328,7 @@ struct PointerPairHash
   // note: No need for cancelsTouchesInView: Not currently handling any touches in the view.
 
   _doubleTapRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleWorldDoubleTap:)];
+  _doubleTapRecognizer.delegate = self;
   _doubleTapRecognizer.numberOfTapsRequired = 2;
   [view addGestureRecognizer:_doubleTapRecognizer];
 
@@ -347,6 +357,7 @@ struct PointerPairHash
 
 - (void)willMoveFromView:(SKView *)view
 {
+  [view removeGestureRecognizer:_doubleTapRecognizer];
   [view removeGestureRecognizer:_tapRecognizer];
   [view removeGestureRecognizer:_longPressRecognizer];
   [view removeGestureRecognizer:_panRecognizer];
@@ -487,12 +498,8 @@ struct PointerPairHash
   }
 
   if (_simulationRunning) {
-    [_train update:elapsedTime];
+    [_train update:elapsedTime simulationSpeed:_simulationSpeed];
   }
-}
-
-- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event
-{
 }
 
 #pragma mark -
@@ -847,20 +854,28 @@ struct PointerPairHash
 
     _simulationRunning = YES;
     _train.running = YES;
-    [_simulationToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"pause", @"center" ]
-                                                           sizes:nil
-                                                       rotations:@[ @M_PI_2, @M_PI_2 ]
-                                                         offsets:nil];
+    [self FL_simulationToolbarUpdateTools];
 
   } else if ([tool isEqualToString:@"pause"]) {
 
     _simulationRunning = NO;
     _train.running = NO;
-    [_simulationToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"play", @"center" ]
-                                                           sizes:nil
-                                                       rotations:@[ @M_PI_2, @M_PI_2 ]
-                                                         offsets:nil];
+    [self FL_simulationToolbarUpdateTools];
 
+  } else if ([tool isEqualToString:@"ff"]) {
+
+    if (_simulationSpeed == 0) {
+      _simulationSpeed = 1;
+    } else {
+      _simulationSpeed = 2;
+    }
+    [self FL_simulationToolbarUpdateTools];
+
+  } else if ([tool isEqualToString:@"fff"]) {
+
+    _simulationSpeed = 0;
+    [self FL_simulationToolbarUpdateTools];
+  
   } else if ([tool isEqualToString:@"center"]) {
 
     CGPoint trainSceneLocation = [self convertPoint:_train.position fromNode:_worldNode];
@@ -948,12 +963,12 @@ struct PointerPairHash
   if (_constructionToolbarState.toolbarNode
       && _constructionToolbarState.toolbarNode.parent
       && [_constructionToolbarState.toolbarNode containsPoint:sceneLocation]) {
-    if ([gestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]]) {
+    if (gestureRecognizer == _panRecognizer) {
       [gestureRecognizer removeTarget:nil action:nil];
       [gestureRecognizer addTarget:self action:@selector(handleConstructionToolbarPan:)];
       return YES;
     }
-    if ([gestureRecognizer isKindOfClass:[UITapGestureRecognizer class]]) {
+    if (gestureRecognizer == _tapRecognizer) {
       [gestureRecognizer removeTarget:nil action:nil];
       [gestureRecognizer addTarget:self action:@selector(handleConstructionToolbarTap:)];
       return YES;
@@ -965,7 +980,7 @@ struct PointerPairHash
   if (_simulationToolbarState.toolbarNode
       && _simulationToolbarState.toolbarNode.parent
       && [_simulationToolbarState.toolbarNode containsPoint:sceneLocation]) {
-    if ([gestureRecognizer isKindOfClass:[UITapGestureRecognizer class]]) {
+    if (gestureRecognizer == _tapRecognizer) {
       [gestureRecognizer removeTarget:nil action:nil];
       [gestureRecognizer addTarget:self action:@selector(handleSimulationToolbarTap:)];
       return YES;
@@ -977,7 +992,7 @@ struct PointerPairHash
   CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
   if (_trackEditMenuState.showing
       && [_trackEditMenuState.editMenuNode containsPoint:worldLocation]) {
-    if ([gestureRecognizer isKindOfClass:[UITapGestureRecognizer class]]) {
+    if (gestureRecognizer == _tapRecognizer) {
       [gestureRecognizer removeTarget:nil action:nil];
       [gestureRecognizer addTarget:self action:@selector(handleTrackEditMenuTap:)];
       return YES;
@@ -988,7 +1003,7 @@ struct PointerPairHash
   // Train.
   if (_train.parent
       && [_train containsPoint:worldLocation]) {
-    if ([gestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]]) {
+    if (gestureRecognizer == _panRecognizer) {
       [gestureRecognizer removeTarget:nil action:nil];
       [gestureRecognizer addTarget:self action:@selector(handleTrainPan:)];
       return YES;
@@ -997,26 +1012,27 @@ struct PointerPairHash
   }
 
   // World (and track).
-  if ([gestureRecognizer isKindOfClass:[UITapGestureRecognizer class]]) {
+  if (gestureRecognizer == _tapRecognizer) {
     [gestureRecognizer removeTarget:nil action:nil];
-    if (gestureRecognizer == _doubleTapRecognizer) {
-      [gestureRecognizer addTarget:self action:@selector(handleWorldDoubleTap:)];
-    } else {
-      [gestureRecognizer addTarget:self action:@selector(handleWorldTap:)];
-    }
+    [gestureRecognizer addTarget:self action:@selector(handleWorldTap:)];
     return YES;
   }
-  if ([gestureRecognizer isKindOfClass:[UILongPressGestureRecognizer class]]) {
+  if (gestureRecognizer == _doubleTapRecognizer) {
+    [gestureRecognizer removeTarget:nil action:nil];
+    [gestureRecognizer addTarget:self action:@selector(handleWorldDoubleTap:)];
+    return YES;
+  }
+  if (gestureRecognizer == _longPressRecognizer) {
     [gestureRecognizer removeTarget:nil action:nil];
     [gestureRecognizer addTarget:self action:@selector(handleWorldLongPress:)];
     return YES;
   }
-  if ([gestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]]) {
+  if (gestureRecognizer == _panRecognizer) {
     [gestureRecognizer removeTarget:nil action:nil];
     [gestureRecognizer addTarget:self action:@selector(handleWorldPan:)];
     return YES;
   }
-  if ([gestureRecognizer isKindOfClass:[UIPinchGestureRecognizer class]]) {
+  if (gestureRecognizer == _pinchRecognizer) {
     [gestureRecognizer removeTarget:nil action:nil];
     [gestureRecognizer addTarget:self action:@selector(handleWorldPinch:)];
     return YES;
@@ -1110,6 +1126,13 @@ struct PointerPairHash
 - (void)train:(FLTrain *)train didSwitchSegment:(FLSegmentNode *)segmentNode toPathId:(int)pathId
 {
   [self FL_linkSetSwitch:segmentNode pathId:pathId animated:YES];
+}
+
+- (void)train:(FLTrain *)train crashedAtSegment:(FLSegmentNode *)segmentNode
+{
+  // note: Currently only one train, so if train stops then stop the whole simulation.
+  _simulationRunning = NO;
+  [self FL_simulationToolbarUpdateTools];
 }
 
 #pragma mark -
@@ -1214,19 +1237,7 @@ struct PointerPairHash
     _simulationToolbarState.toolbarNode.anchorPoint = CGPointMake(0.5f, 1.0f);
     // note: To match appearance of construction toolbar, use similar sizes and pads.
     _simulationToolbarState.toolbarNode.toolPad = -1.0f;
-
-    const CGSize FLSimulationMenuToolSize = { 48.0f, 48.0f };
-    NSValue *toolSize = [NSValue valueWithCGSize:FLSimulationMenuToolSize];
-    NSArray *textureKeys;
-    if (_simulationRunning) {
-      textureKeys = @[ @"pause", @"center" ];
-    } else {
-      textureKeys = @[ @"play", @"center" ];
-    }
-    [_simulationToolbarState.toolbarNode setToolsWithTextureKeys:textureKeys
-                                                           sizes:@[ toolSize, toolSize ]
-                                                       rotations:@[ @M_PI_2, @M_PI_2 ]
-                                                         offsets:nil];
+    [self FL_simulationToolbarUpdateTools];
   }
 
   if (visible) {
@@ -1241,6 +1252,31 @@ struct PointerPairHash
       [_simulationToolbarState.toolbarNode removeFromParent];
     }
   }
+}
+
+- (void)FL_simulationToolbarUpdateTools
+{
+  const CGSize FLSimulationMenuToolSize = { 48.0f, 48.0f };
+  NSValue *toolSize = [NSValue valueWithCGSize:FLSimulationMenuToolSize];
+  NSMutableArray *textureKeys = [NSMutableArray array];
+  if (_simulationRunning) {
+    [textureKeys addObject:@"pause"];
+  } else {
+    [textureKeys addObject:@"play"];
+  }
+  NSString *speedTool;
+  if (_simulationSpeed <= 1) {
+    speedTool = @"ff";
+  } else {
+    speedTool = @"fff";
+  }
+  [textureKeys addObject:speedTool];
+  [textureKeys addObject:@"center"];
+  [_simulationToolbarState.toolbarNode setToolsWithTextureKeys:textureKeys
+                                                         sizes:@[ toolSize, toolSize, toolSize ]
+                                                     rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2 ]
+                                                       offsets:nil];
+  [_simulationToolbarState.toolbarNode setHighlight:(_simulationSpeed > 0) forTool:speedTool];
 }
 
 - (void)FL_worldToolSet:(FLWorldTool)worldTool
