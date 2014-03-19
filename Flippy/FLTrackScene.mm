@@ -220,11 +220,8 @@ struct PointerPairHash
       SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:a.switchPosition toLocation:b.switchPosition];
       _links.insert(a, b, connectorNode);
     }
-    _worldGestureState.worldTool = (FLWorldTool)[aDecoder decodeIntForKey:@"worldGestureStateWorldTool"];
-    if (_worldGestureState.worldTool == FLWorldToolLink) {
-      [_constructionToolbarState.toolbarNode setHighlight:YES forTool:@"link"];
-      [_worldNode addChild:_linksNode];
-    }
+    FLWorldTool worldTool = (FLWorldTool)[aDecoder decodeIntForKey:@"worldGestureStateWorldTool"];
+    [self FL_worldToolSet:worldTool];
     
     _train = [aDecoder decodeObjectForKey:@"train"];
     _train.delegate = self;
@@ -774,10 +771,11 @@ struct PointerPairHash
     CGPoint firstTouchSceneLocation = [self convertPointFromView:_worldGestureState.gestureFirstTouchLocation];
     CGPoint firstTouchToolbarLocation = [_constructionToolbarState.toolbarNode convertPoint:firstTouchSceneLocation fromNode:self];
     NSString *tool = [_constructionToolbarState.toolbarNode toolAtLocation:firstTouchToolbarLocation];
-    if (!tool) {
+    if (!tool || [tool isEqualToString:@"link"]) {
       _worldGestureState.panType = FLWorldPanTypeNone;
       return;
     }
+    [self FL_worldToolSet:FLWorldToolDefault];
     _worldGestureState.panType = FLWorldPanTypeTrackMove;
 
     _constructionToolbarState.toolInUseNode = [self FL_createSprite:nil withTexture:tool parent:_hudNode];
@@ -828,13 +826,9 @@ struct PointerPairHash
   
   if ([tool isEqualToString:@"link"]) {
     if (_worldGestureState.worldTool == FLWorldToolDefault) {
-      [_constructionToolbarState.toolbarNode setHighlight:YES forTool:tool];
-      _worldGestureState.worldTool = FLWorldToolLink;
-      [_worldNode addChild:_linksNode];
+      [self FL_worldToolSet:FLWorldToolLink];
     } else {
-      [_constructionToolbarState.toolbarNode setHighlight:NO forTool:tool];
-      _worldGestureState.worldTool = FLWorldToolDefault;
-      [_linksNode removeFromParent];
+      [self FL_worldToolSet:FLWorldToolDefault];
     }
   }
 }
@@ -1247,6 +1241,32 @@ struct PointerPairHash
       [_simulationToolbarState.toolbarNode removeFromParent];
     }
   }
+}
+
+- (void)FL_worldToolSet:(FLWorldTool)worldTool
+{
+  if (worldTool == _worldGestureState.worldTool) {
+    return;
+  }
+
+  switch (_worldGestureState.worldTool) {
+    case FLWorldToolLink:
+      [_constructionToolbarState.toolbarNode setHighlight:NO forTool:@"link"];
+      [_linksNode removeFromParent];
+      break;
+    case FLWorldToolDefault:
+      break;
+  }
+
+  switch (worldTool) {
+    case FLWorldToolLink:
+      [_constructionToolbarState.toolbarNode setHighlight:YES forTool:@"link"];
+      [_worldNode addChild:_linksNode];
+      break;
+    case FLWorldToolDefault:
+      break;
+  }
+  _worldGestureState.worldTool = worldTool;
 }
 
 - (void)FL_trackSelectGridX:(int)gridX gridY:(int)gridY
