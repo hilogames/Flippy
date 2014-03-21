@@ -9,7 +9,6 @@
 #import "FLTrackScene.h"
 
 #include <memory>
-#include <unordered_set>
 
 #include "FLLinks.h"
 #import "FLSegmentNode.h"
@@ -44,9 +43,8 @@ static const CGFloat FLZPositionWorldOverlay = 5.0f;
 
 struct FLConstructionToolbarState
 {
-  FLConstructionToolbarState() : toolbarNode(nil), toolInUseNode(nil) {}
+  FLConstructionToolbarState() : toolbarNode(nil) {}
   FLToolbarNode *toolbarNode;
-  SKSpriteNode *toolInUseNode;
 };
 
 struct FLSimulationToolbarState
@@ -66,9 +64,17 @@ struct FLTrackSelectState
 
 struct FLTrackMoveState
 {
-  FLTrackMoveState() : segmentMoving(nil), segmentRemoving(nil) {}
-  FLSegmentNode *segmentMoving;
-  FLSegmentNode *segmentRemoving;
+  FLTrackMoveState() : segmentNodes(nil), cursorNode(nil) {}
+  SKNode *cursorNode;
+  NSSet *segmentNodes;
+  int beganGridX;
+  int beganGridY;
+  BOOL attempted;
+  int attemptedTranslationGridX;
+  int attemptedTranslationGridY;
+  BOOL placed;
+  int placedTranslationGridX;
+  int placedTranslationGridY;
 };
 
 struct FLTrackEditMenuState
@@ -580,14 +586,14 @@ struct PointerPairHash
     //
     // note: The decision is based on the location of the first touch in the gesture, not the
     // current location (when the gesture is fully identified); they can be quite different.
-    // (We could also set the initial translation of the pan based on the former, but instead we
-    // let the gesture recognizer do its thing, assuming that's the interface standard.)
-    CGPoint viewLocation = _worldGestureState.gestureFirstTouchLocation;
-    CGPoint sceneLocation = [self convertPointFromView:viewLocation];
-    CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
+    // (Whether or not to use the first touch location or the current touch location for
+    // interpreting the pan is left as separate decision.)
+    CGPoint firstTouchViewLocation = _worldGestureState.gestureFirstTouchLocation;
+    CGPoint firstTouchSceneLocation = [self convertPointFromView:firstTouchViewLocation];
+    CGPoint firstTouchWorldLocation = [_worldNode convertPoint:firstTouchSceneLocation fromNode:self];
     int gridX;
     int gridY;
-    _trackGrid->convert(worldLocation, &gridX, &gridY);
+    _trackGrid->convert(firstTouchWorldLocation, &gridX, &gridY);
     if (_worldGestureState.worldTool == FLWorldToolLink) {
       FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY);
       if (segmentNode && segmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
@@ -608,16 +614,22 @@ struct PointerPairHash
         FLSegmentNode *selectedSegmentNode = _trackGrid->get(gridX, gridY);
         if (selectedSegmentNode) {
           // Pan begins inside a selected track segment.
+          //
+          // note: Here we use the first touch location to start the pan, because the translation of
+          // the pan is calculated by gridlines crossed not distance moved, and we wouldn't want to
+          // miss a gridline.
           _worldGestureState.panType = FLWorldPanTypeTrackMove;
-          [selectedSegmentNode removeFromParent];
-          _trackGrid->erase(gridX, gridY);
-          [self FL_trackMoveBeganWithNode:selectedSegmentNode gridX:gridX gridY:gridY];
+          [self FL_trackMoveBeganWithNodes:[NSSet setWithObject:selectedSegmentNode] location:firstTouchWorldLocation];
         } else {
           // Pan begins inside a track selection that has no segment.
           _worldGestureState.panType = FLWorldPanTypeNone;
         }
       } else {
         // Pan begins not inside a selected track segment.
+        //
+        // note: We end up not using the first touch location as the start of the scroll;
+        // if we wanted to, we could offset the starting translation right now based on
+        // the difference.
         _worldGestureState.panType = FLWorldPanTypeScroll;
       }
     }
@@ -629,10 +641,7 @@ struct PointerPairHash
         CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
         CGPoint sceneLocation = [self convertPointFromView:viewLocation];
         CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
-        int gridX;
-        int gridY;
-        _trackGrid->convert(worldLocation, &gridX, &gridY);
-        [self FL_trackMoveChangedWithGridX:gridX gridY:gridY];
+        [self FL_trackMoveChangedWithLocation:worldLocation];
         break;
       }
       case FLWorldPanTypeScroll: {
@@ -663,10 +672,7 @@ struct PointerPairHash
         CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
         CGPoint sceneLocation = [self convertPointFromView:viewLocation];
         CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
-        int gridX;
-        int gridY;
-        _trackGrid->convert(worldLocation, &gridX, &gridY);
-        [self FL_trackMoveEndedWithGridX:gridX gridY:gridY];
+        [self FL_trackMoveEndedWithLocation:worldLocation];
         break;
       }
       case FLWorldPanTypeScroll:
@@ -688,10 +694,7 @@ struct PointerPairHash
         CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
         CGPoint sceneLocation = [self convertPointFromView:viewLocation];
         CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
-        int gridX;
-        int gridY;
-        _trackGrid->convert(worldLocation, &gridX, &gridY);
-        [self FL_trackMoveCancelledWithGridX:gridX gridY:gridY];
+        [self FL_trackMoveCancelledWithLocation:worldLocation];
         break;
       }
       case FLWorldPanTypeScroll:
@@ -764,14 +767,11 @@ struct PointerPairHash
   _worldNode.position = worldPosition;
 }
 
-- (void)handleConstructionToolbarPan:(UIGestureRecognizer *)gestureRecognizer
+- (void)handleConstructionToolbarPan:(UIPanGestureRecognizer *)gestureRecognizer
 {
   CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
   CGPoint sceneLocation = [self convertPointFromView:viewLocation];
   CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
-  int gridX;
-  int gridY;
-  _trackGrid->convert(worldLocation, &gridX, &gridY);
 
   if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
 
@@ -785,14 +785,16 @@ struct PointerPairHash
     [self FL_worldToolSet:FLWorldToolDefault];
     _worldGestureState.panType = FLWorldPanTypeTrackMove;
 
-    _constructionToolbarState.toolInUseNode = [self FL_createSprite:nil withTexture:tool parent:_hudNode];
-    _constructionToolbarState.toolInUseNode.zRotation = M_PI_2;
-    _constructionToolbarState.toolInUseNode.alpha = 0.5f;
-    _constructionToolbarState.toolInUseNode.position = sceneLocation;
-
     FLSegmentNode *newSegmentNode = [self FL_createSegmentWithTextureKey:tool];
     newSegmentNode.zRotation = M_PI_2;
-    [self FL_trackMoveBeganWithNode:newSegmentNode gridX:gridX gridY:gridY];
+    // note: Locate the new segment underneath the current touch, even though it's
+    // not added to the node hierarchy.  (The track move routines translate nodes
+    // relative to their current position.)
+    int gridX;
+    int gridY;
+    _trackGrid->convert(worldLocation, &gridX, &gridY);
+    newSegmentNode.position = _trackGrid->convert(gridX, gridY);
+    [self FL_trackMoveBeganWithNodes:[NSSet setWithObject:newSegmentNode] location:worldLocation];
 
     return;
   }
@@ -802,22 +804,11 @@ struct PointerPairHash
   }
 
   if (gestureRecognizer.state == UIGestureRecognizerStateChanged) {
-
-    _constructionToolbarState.toolInUseNode.position = sceneLocation;
-    [self FL_trackMoveChangedWithGridX:gridX gridY:gridY];
-
+    [self FL_trackMoveChangedWithLocation:worldLocation];
   } else if (gestureRecognizer.state == UIGestureRecognizerStateEnded) {
-
-    [_constructionToolbarState.toolInUseNode removeFromParent];
-    _constructionToolbarState.toolInUseNode = nil;
-    [self FL_trackMoveEndedWithGridX:gridX gridY:gridY];
-
+    [self FL_trackMoveEndedWithLocation:worldLocation];
   } else if (gestureRecognizer.state == UIGestureRecognizerStateCancelled) {
-
-    [_constructionToolbarState.toolInUseNode removeFromParent];
-    _constructionToolbarState.toolInUseNode = nil;
-    [self FL_trackMoveCancelledWithGridX:gridX gridY:gridY];
-
+    [self FL_trackMoveCancelledWithLocation:worldLocation];
   }
 }
 
@@ -1305,6 +1296,16 @@ struct PointerPairHash
   _worldGestureState.worldTool = worldTool;
 }
 
+- (void)FL_trackSelectSegments:(NSSet *)segmentNodes
+{
+  // TODO
+  FLSegmentNode *anySegmentNode = [segmentNodes anyObject];
+  int gridX;
+  int gridY;
+  _trackGrid->convert(anySegmentNode.position, &gridX, &gridY);
+  [self FL_trackSelectGridX:gridX gridY:gridY];
+}
+
 - (void)FL_trackSelectGridX:(int)gridX gridY:(int)gridY
 {
   // Create the visuals if not already created.
@@ -1363,155 +1364,190 @@ struct PointerPairHash
 }
 
 /**
- * Begins a move of a track segment sprite.
+ * Begins a move of one or more track segments.
  *
- * @param The segment sprite, assumed to have no parent and not be part of the grid.
+ * @param The segment nodes to move.  They are assumed to either all be new (not set in _trackGrid
+ *        and with no node parent) or else all old (set in _trackGrid and with parent set to _trackNode).
  *
- * @param The location of the start of the move in track grid coordinates.
- *
- * @param The location of the start of the move in track grid coordinates.
+ * @param The location of the gesture which started the move.
  */
-- (void)FL_trackMoveBeganWithNode:(FLSegmentNode *)segmentMovingNode gridX:(int)gridX gridY:(int)gridY
+- (void)FL_trackMoveBeganWithNodes:(NSSet *)segmentNodes location:(CGPoint)worldLocation
 {
-  if (_trackMoveState.segmentMoving) {
+  if (!segmentNodes || [segmentNodes count] == 0) {
+    [NSException raise:@"FLTrackMoveInvalidArgument"
+                format:@"Track move requires a non-empty set of segment nodes to move."];
+  }
+  if (_trackMoveState.segmentNodes) {
     [NSException raise:@"FLTrackMoveBadState"
                 format:@"Beginning track move, but previous move not completed."];
   }
-  if (segmentMovingNode.parent) {
-    [NSException raise:@"FLTrackMoveBadState"
-                format:@"Segment node assumed to have no parent on track move begin."];
+
+  _trackMoveState.segmentNodes = segmentNodes;
+  
+  _trackGrid->convert(worldLocation, &_trackMoveState.beganGridX, &_trackMoveState.beganGridY);
+  _trackMoveState.attempted = NO;
+  _trackMoveState.attemptedTranslationGridX = 0;
+  _trackMoveState.attemptedTranslationGridY = 0;
+  FLSegmentNode *anySegmentNode = [segmentNodes anyObject];
+  if (anySegmentNode.parent) {
+    // note: Okay, pretty big assumption here, but it's a precondition of the function.
+    _trackMoveState.placed = YES;
+  } else {
+    _trackMoveState.placed = NO;
   }
+  _trackMoveState.placedTranslationGridX = 0;
+  _trackMoveState.placedTranslationGridY = 0;
 
-  _trackMoveState.segmentMoving = segmentMovingNode;
-
+  if (!_trackMoveState.cursorNode) {
+    _trackMoveState.cursorNode = [SKNode node];
+    _trackMoveState.cursorNode.alpha = 0.4f;
+  }
+  for (FLSegmentNode *segmentNode in segmentNodes) {
+    [_trackMoveState.cursorNode addChild:[segmentNode copy]];
+  }
+  [_trackNode addChild:_trackMoveState.cursorNode];
+  
   [self FL_trackEditMenuHideAnimated:YES];
 
-  // note: The update call will detect no parent and know that the segmentMovingNode has
-  // not yet been added to the grid.
-  [self FL_trackMoveUpdateWithGridX:gridX gridY:gridY];
+  [self FL_trackMoveUpdateWithLocation:worldLocation];
 }
 
-- (void)FL_trackMoveChangedWithGridX:(int)gridX gridY:(int)gridY
+- (void)FL_trackMoveChangedWithLocation:(CGPoint)worldLocation
 {
-  if (!_trackMoveState.segmentMoving) {
+  if (!_trackMoveState.segmentNodes) {
     [NSException raise:@"FLTrackMoveBadState"
                 format:@"Continuing track move, but track move not begun."];
   }
-  [self FL_trackMoveUpdateWithGridX:gridX gridY:gridY];
+  [self FL_trackMoveUpdateWithLocation:worldLocation];
 }
 
-- (void)FL_trackMoveEndedWithGridX:(int)gridX gridY:(int)gridY
+- (void)FL_trackMoveEndedWithLocation:(CGPoint)worldLocation
 {
-  if (!_trackMoveState.segmentMoving) {
+  if (!_trackMoveState.segmentNodes) {
     [NSException raise:@"FLTrackMoveBadState"
                 format:@"Ended track move, but track move not begun."];
   }
-
-  // noob: Does the platform guarantee this behavior already, to wit, that an "ended" call
-  // with a certain location will always be preceeded by a "moved" call at that same
-  // location?
-  [self FL_trackMoveUpdateWithGridX:gridX gridY:gridY];
-
-  // note: Currently interface doesn't allow movement of track when links are visible,
-  // so this only needs to be done when ended/cancelled.
-  //
-  // note: Small optimization possible: Could test to see if segmentMoving actually
-  // moved at all before bothering to redraw links.
-  [self FL_linkRedrawForSegment:_trackMoveState.segmentMoving];
-  if (_trackMoveState.segmentRemoving) {
-    _links.erase(_trackMoveState.segmentRemoving);
-  }
-
-  [self FL_trackEditMenuShowAtSegment:_trackMoveState.segmentMoving gridX:gridX gridY:gridY animated:YES];
-  // note: Current selection unchanged.
-  _trackMoveState.segmentMoving = nil;
-  _trackMoveState.segmentRemoving = nil;
+  [self FL_trackMoveEndedCommonWithLocation:worldLocation];
+  [_trackMoveState.cursorNode removeAllChildren];
+  [_trackMoveState.cursorNode removeFromParent];
   [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-clickity-2.caf" waitForCompletion:NO]];
 }
 
-- (void)FL_trackMoveCancelledWithGridX:(int)gridX gridY:(int)gridY
+- (void)FL_trackMoveCancelledWithLocation:(CGPoint)worldLocation
 {
-  if (!_trackMoveState.segmentMoving) {
+  if (!_trackMoveState.segmentNodes) {
     [NSException raise:@"FLTrackMoveBadState"
                 format:@"Cancelled track move, but track move not begun."];
   }
+  [_trackMoveState.cursorNode removeAllChildren];
+  [_trackMoveState.cursorNode removeFromParent];
+  [self FL_trackMoveEndedCommonWithLocation:worldLocation];
+}
 
+- (void)FL_trackMoveEndedCommonWithLocation:(CGPoint)worldLocation
+{
   // noob: Does the platform guarantee this behavior already, to wit, that an "ended" call
   // with a certain location will always be preceeded by a "moved" call at that same
   // location?
-  [self FL_trackMoveUpdateWithGridX:gridX gridY:gridY];
-
-  if (_trackMoveState.segmentMoving.parent) {
-
-    [_trackMoveState.segmentMoving removeFromParent];
-    if (!_trackMoveState.segmentRemoving) {
-      _trackGrid->erase(gridX, gridY);
+  [self FL_trackMoveUpdateWithLocation:worldLocation];
+  
+  // note: Currently interface doesn't allow movement of track when links are visible,
+  // so this only needs to be done when ended/cancelled.
+  if (_trackMoveState.placed) {
+    // note: Could skip this if no movement actually took place.
+    for (FLSegmentNode *segmentNode : _trackMoveState.segmentNodes) {
+      [self FL_linkRedrawForSegment:segmentNode];
     }
-    _links.erase(_trackMoveState.segmentMoving);
-    _trackMoveState.segmentMoving = nil;
-
-    if (_trackMoveState.segmentRemoving) {
-      _trackGrid->set(gridX, gridY, _trackMoveState.segmentRemoving);
-      [_trackNode addChild:_trackMoveState.segmentRemoving];
-      _trackMoveState.segmentRemoving = nil;
-    }
-
-    [self FL_trackSelectClear];
   }
-
-  [self FL_trackGridDump];
+  
+  [self FL_trackEditMenuShowAtSegments:_trackMoveState.segmentNodes animated:YES];
+  _trackMoveState.segmentNodes = nil;
 }
 
-/**
- * Updates the location of the moving track according to the passed grid location.
- *
- * @precondition: The track move state contains a non-nil moving segment.
- *
- * @precondition: The track move segment has no SKNode parent iff this is the first time
- *                this method has been called for this particular move.
- */
-- (void)FL_trackMoveUpdateWithGridX:(int)gridX gridY:(int)gridY
+- (void)FL_trackMoveUpdateWithLocation:(CGPoint)worldLocation
 {
-  FLSegmentNode *segmentOccupying = _trackGrid->get(gridX, gridY);
+  CGFloat segmentSize = _trackGrid->segmentSize();
 
-  if (segmentOccupying == _trackMoveState.segmentMoving) {
-    // The move updated within the same grid square; nothing has changed.
+  // Update cursor.
+  //
+  // note: Consider having cursor snap to grid alignment.
+  _trackMoveState.cursorNode.position = CGPointMake(worldLocation.x - _trackMoveState.beganGridX * segmentSize,
+                                                    worldLocation.y - _trackMoveState.beganGridY * segmentSize);
+
+  // Find translation.
+  //
+  // note: The translation is based on gridlines crossed by the gesture, not
+  // total distance moved.
+  int gridX;
+  int gridY;
+  _trackGrid->convert(worldLocation, &gridX, &gridY);
+  int translationGridX = gridX - _trackMoveState.beganGridX;
+  int translationGridY = gridY - _trackMoveState.beganGridY;
+
+  // Return early if we've already attempted placement for this translation.
+  //
+  // note: As written, we will re-attempt each translation the first time
+  // the controlling gesture enters a new grid square, even if we've already
+  // tried the new grid square previously.  Small waste; no big deal.
+  if (_trackMoveState.attempted
+      && translationGridX == _trackMoveState.attemptedTranslationGridX
+      && translationGridY == _trackMoveState.attemptedTranslationGridY) {
     return;
   }
+  _trackMoveState.attempted = YES;
+  _trackMoveState.attemptedTranslationGridX = translationGridX;
+  _trackMoveState.attemptedTranslationGridY = translationGridY;
 
-  // Update the previous grid location.
-  if (!_trackMoveState.segmentMoving.parent) {
-    // The moving segment has not yet been shown on the track layer, and so nothing needs to
-    // be done at the "previous" grid location.  Instead, add the moving segment as a child
-    // of the track layer (which is assumed below).
-    [_trackNode addChild:_trackMoveState.segmentMoving];
-  } else if (_trackMoveState.segmentRemoving) {
-    // At the previous grid location, an occupying segment was removed; restore it.  (This
-    // will overwrite the moving segment that had been shown there in its place).
-    CGPoint oldLocation = _trackMoveState.segmentRemoving.position;
-    trackGridConvertSet(*_trackGrid, oldLocation, _trackMoveState.segmentRemoving);
-    [_trackNode addChild:_trackMoveState.segmentRemoving];
-  } else {
-    // At the previous grid location, no segment was displaced by the moving segment; clear
-    // out the moving segment.
-    CGPoint oldLocation = _trackMoveState.segmentMoving.position;
-    trackGridConvertErase(*_trackGrid, oldLocation);
+  // Check placement at new (or initial, if not placed) translation.
+  int deltaTranslationGridX = translationGridX - _trackMoveState.placedTranslationGridX;
+  int deltaTranslationGridY = translationGridY - _trackMoveState.placedTranslationGridY;
+  for (FLSegmentNode *segmentNode : _trackMoveState.segmentNodes) {
+    // note: Rather than recalculating grid coordinates every loop, could
+    // store them in the segmentNodes structure.
+    int gridX;
+    int gridY;
+    _trackGrid->convert(segmentNode.position, &gridX, &gridY);
+    int placementGridX = gridX + deltaTranslationGridX;
+    int placementGridY = gridY + deltaTranslationGridY;
+    FLSegmentNode *occupyingSegmentNode = _trackGrid->get(placementGridX, placementGridY);
+    if (occupyingSegmentNode && ![_trackMoveState.segmentNodes containsObject:occupyingSegmentNode]) {
+      return;
+    }
   }
 
-  // Update the new grid location.
-  if (segmentOccupying) {
-    [segmentOccupying removeFromParent];
-    _trackGrid->erase(gridX, gridY);
-    _trackMoveState.segmentRemoving = segmentOccupying;
-  } else {
-    _trackMoveState.segmentRemoving = nil;
+  // Remove from old placement (if any).
+  if (_trackMoveState.placed) {
+    for (FLSegmentNode *segmentNode : _trackMoveState.segmentNodes) {
+      trackGridConvertErase(*_trackGrid, segmentNode.position);
+    }
   }
-  _trackGrid->set(gridX, gridY, _trackMoveState.segmentMoving);
-  _trackMoveState.segmentMoving.position = _trackGrid->convert(gridX, gridY);
+
+  // Place at new (or initial, if not placed) translation.
+  for (FLSegmentNode *segmentNode : _trackMoveState.segmentNodes) {
+    segmentNode.position = CGPointMake(segmentNode.position.x + deltaTranslationGridX * segmentSize,
+                                       segmentNode.position.y + deltaTranslationGridY * segmentSize);
+    trackGridConvertSet(*_trackGrid, segmentNode.position, segmentNode);
+    if (!_trackMoveState.placed) {
+      [_trackNode addChild:segmentNode];
+    }
+  }
+  _trackMoveState.placed = YES;
+  _trackMoveState.placedTranslationGridX = translationGridX;
+  _trackMoveState.placedTranslationGridY = translationGridY;
   [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-click-2.caf" waitForCompletion:NO]];
 
   // Update selection.
-  [self FL_trackSelectGridX:gridX gridY:gridY];
+  [self FL_trackSelectSegments:_trackMoveState.segmentNodes];
+}
+
+- (void)FL_trackEditMenuShowAtSegments:(NSSet *)segmentNodes animated:(BOOL)animated
+{
+  // TODO
+  FLSegmentNode *anySegmentNode = [segmentNodes anyObject];
+  int gridX;
+  int gridY;
+  _trackGrid->convert(anySegmentNode.position, &gridX, &gridY);
+  [self FL_trackEditMenuShowAtSegment:anySegmentNode gridX:gridX gridY:gridY animated:animated];
 }
 
 - (void)FL_trackEditMenuShowAtSegment:(FLSegmentNode *)segmentNode gridX:(int)gridX gridY:(int)gridY animated:(BOOL)animated
