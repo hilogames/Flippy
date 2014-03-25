@@ -43,8 +43,6 @@
 
 - (void)loadView
 {
-  NSLog(@"FLViewController loadView");
-
   SKView *skView = [[SKView alloc] init];
   skView.showsFPS = YES;
   skView.showsNodeCount = YES;

@@ -55,11 +55,10 @@ struct FLSimulationToolbarState
 
 struct FLTrackSelectState
 {
-  FLTrackSelectState() : visualSelectionNode(nil), selected(NO) {}
-  SKSpriteNode *visualSelectionNode;
-  BOOL selected;
-  int gridX;
-  int gridY;
+  FLTrackSelectState() : selectedSegments(nil), visualParentNode(nil) {}
+  NSMutableSet *selectedSegments;
+  SKNode *visualParentNode;
+  NSMutableDictionary *visualSquareNodes;
 };
 
 struct FLTrackMoveState
@@ -233,15 +232,18 @@ struct PointerPairHash
     FLWorldTool worldTool = (FLWorldTool)[aDecoder decodeIntForKey:@"worldGestureStateWorldTool"];
     [self FL_worldToolSet:worldTool];
     
+    // Decode train.
     _train = [aDecoder decodeObjectForKey:@"train"];
     _train.delegate = self;
     [_train resetTrackGrid:_trackGrid];
 
-    if ([aDecoder decodeBoolForKey:@"trackSelectStateSelected"]) {
-      int gridX = [aDecoder decodeIntForKey:@"trackSelectStateGridX"];
-      int gridY = [aDecoder decodeIntForKey:@"trackSelectStateGridY"];
-      [self FL_trackSelectGridX:gridX gridY:gridY];
+    // Decode current selection.
+    NSMutableSet *selectedSegments = [aDecoder decodeObjectForKey:@"trackSelectStateSelectedSegments"];
+    if (selectedSegments && [selectedSegments count] > 0) {
+      [self FL_trackSelect:selectedSegments];
     }
+
+    // Decode current track edit menu.
     if ([aDecoder decodeBoolForKey:@"trackEditMenuStateShowing"]) {
       int gridX = [aDecoder decodeIntForKey:@"trackEditMenuStateLastGridX"];
       int gridY = [aDecoder decodeIntForKey:@"trackEditMenuStateLastGridY"];
@@ -266,7 +268,7 @@ struct PointerPairHash
   [holdTerrainNode removeFromParent];
   [_hudNode removeFromParent];
   FLTrackSelectState holdTrackSelectState(_trackSelectState);
-  if (_trackSelectState.selected) {
+  if (_trackSelectState.selectedSegments) {
     [self FL_trackSelectClear];
   }
   FLTrackEditMenuState holdTrackEditMenuState(_trackEditMenuState);
@@ -285,8 +287,8 @@ struct PointerPairHash
   // Add back nodes that were removed.
   [_worldNode addChild:holdTerrainNode];
   [self addChild:_hudNode];
-  if (holdTrackSelectState.selected) {
-    [self FL_trackSelectGridX:holdTrackSelectState.gridX gridY:holdTrackSelectState.gridY];
+  if (holdTrackSelectState.selectedSegments) {
+    [self FL_trackSelect:holdTrackSelectState.selectedSegments];
   }
   if (holdTrackEditMenuState.showing) {
     [self FL_trackEditMenuShowAtSegment:holdTrackEditMenuState.lastSegmentNode gridX:holdTrackEditMenuState.lastGridX gridY:holdTrackEditMenuState.lastGridY animated:NO];
@@ -315,9 +317,7 @@ struct PointerPairHash
   [aCoder encodeBool:_simulationRunning forKey:@"simulationRunning"];
   [aCoder encodeInt:_simulationSpeed forKey:@"simulationSpeed"];
   [aCoder encodeObject:_train forKey:@"train"];
-  [aCoder encodeBool:_trackSelectState.selected forKey:@"trackSelectStateSelected"];
-  [aCoder encodeInt:_trackSelectState.gridX forKey:@"trackSelectStateGridX"];
-  [aCoder encodeInt:_trackSelectState.gridY forKey:@"trackSelectStateGridY"];
+  [aCoder encodeObject:_trackSelectState.selectedSegments forKey:@"trackSelectStateSelectedSegments"];
   [aCoder encodeBool:_trackEditMenuState.showing forKey:@"trackEditMenuStateShowing"];
   [aCoder encodeInt:_trackEditMenuState.lastGridX forKey:@"trackEditMenuStateLastGridX"];
   [aCoder encodeInt:_trackEditMenuState.lastGridY forKey:@"trackEditMenuStateLastGridY"];
@@ -516,27 +516,16 @@ struct PointerPairHash
   CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
   CGPoint sceneLocation = [self convertPointFromView:viewLocation];
   CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
+  FLSegmentNode *segmentNode = trackGridConvertGet(*_trackGrid, worldLocation);
 
-  int gridX;
-  int gridY;
-  _trackGrid->convert(worldLocation, &gridX, &gridY);
-  NSLog(@"tapped %d,%d", gridX, gridY);
-
-  int selectedGridX;
-  int selectedGridY;
-  if ([self FL_trackSelectGetCurrentGridX:&selectedGridX gridY:&selectedGridY]
-      && selectedGridX == gridX
-      && selectedGridY == gridY) {
+  if (!segmentNode || [self FL_trackSelected:segmentNode]) {
     [self FL_trackSelectClear];
     [self FL_trackEditMenuHideAnimated:YES];
   } else {
-    [self FL_trackSelectGridX:gridX gridY:gridY];
-    FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY);
-    if (segmentNode) {
-      [self FL_trackEditMenuShowAtSegment:segmentNode gridX:gridX gridY:gridY animated:YES];
-    } else {
-      [self FL_trackEditMenuHideAnimated:YES];
-    }
+    [self FL_trackSelectClear];
+    NSSet *segmentNodeSet = [NSSet setWithObject:segmentNode];
+    [self FL_trackSelect:segmentNodeSet];
+    [self FL_trackEditMenuShowAtSegments:segmentNodeSet animated:YES];
   }
 }
 
@@ -559,19 +548,17 @@ struct PointerPairHash
 
 - (void)handleWorldLongPress:(UILongPressGestureRecognizer *)gestureRecognizer
 {
-  CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
-  CGPoint sceneLocation = [self convertPointFromView:viewLocation];
-  CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
-
   if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
-
-    int gridX;
-    int gridY;
-    _trackGrid->convert(worldLocation, &gridX, &gridY);
-    [self FL_trackSelectGridX:gridX gridY:gridY];
-    FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY);
+    CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
+    CGPoint sceneLocation = [self convertPointFromView:viewLocation];
+    CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
+    FLSegmentNode *segmentNode = trackGridConvertGet(*_trackGrid, worldLocation);
     if (segmentNode) {
-      [self FL_trackEditMenuShowAtSegment:segmentNode gridX:gridX gridY:gridY animated:YES];
+      if ([self FL_trackSelected:segmentNode]) {
+        [self FL_trackSelectErase:segmentNode];
+      } else {
+        [self FL_trackSelect:[NSSet setWithObject:segmentNode]];
+      }
     }
   }
 }
@@ -591,11 +578,8 @@ struct PointerPairHash
     CGPoint firstTouchViewLocation = _worldGestureState.gestureFirstTouchLocation;
     CGPoint firstTouchSceneLocation = [self convertPointFromView:firstTouchViewLocation];
     CGPoint firstTouchWorldLocation = [_worldNode convertPoint:firstTouchSceneLocation fromNode:self];
-    int gridX;
-    int gridY;
-    _trackGrid->convert(firstTouchWorldLocation, &gridX, &gridY);
+    FLSegmentNode *segmentNode = trackGridConvertGet(*_trackGrid, firstTouchWorldLocation);
     if (_worldGestureState.worldTool == FLWorldToolLink) {
-      FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY);
       if (segmentNode && segmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
         // Pan begins with link tool inside a segment that has a switch.
         _worldGestureState.panType = FLWorldPanTypeLink;
@@ -606,24 +590,14 @@ struct PointerPairHash
       }
     } else {
       // _worldGestureState.worldTool == FLWorldToolDefault
-      int selectedGridX;
-      int selectedGridY;
-      if ([self FL_trackSelectGetCurrentGridX:&selectedGridX gridY:&selectedGridY]
-          && selectedGridX == gridX
-          && selectedGridY == gridY) {
-        FLSegmentNode *selectedSegmentNode = _trackGrid->get(gridX, gridY);
-        if (selectedSegmentNode) {
-          // Pan begins inside a selected track segment.
-          //
-          // note: Here we use the first touch location to start the pan, because the translation of
-          // the pan is calculated by gridlines crossed not distance moved, and we wouldn't want to
-          // miss a gridline.
-          _worldGestureState.panType = FLWorldPanTypeTrackMove;
-          [self FL_trackMoveBeganWithNodes:[NSSet setWithObject:selectedSegmentNode] location:firstTouchWorldLocation];
-        } else {
-          // Pan begins inside a track selection that has no segment.
-          _worldGestureState.panType = FLWorldPanTypeNone;
-        }
+      if ([self FL_trackSelected:segmentNode]) {
+        // Pan begins inside a selected track segment.
+        //
+        // note: Here we use the first touch location to start the pan, because the translation of
+        // the pan is calculated by gridlines crossed (not distance moved), and we wouldn't want to
+        // miss a gridline.
+        _worldGestureState.panType = FLWorldPanTypeTrackMove;
+        [self FL_trackMoveBeganWithNodes:_trackSelectState.selectedSegments location:firstTouchWorldLocation];
       } else {
         // Pan begins not inside a selected track segment.
         //
@@ -1296,71 +1270,72 @@ struct PointerPairHash
   _worldGestureState.worldTool = worldTool;
 }
 
-- (void)FL_trackSelectSegments:(NSSet *)segmentNodes
+- (void)FL_trackSelect:(NSSet *)segmentNodes
 {
-  // TODO
-  FLSegmentNode *anySegmentNode = [segmentNodes anyObject];
-  int gridX;
-  int gridY;
-  _trackGrid->convert(anySegmentNode.position, &gridX, &gridY);
-  [self FL_trackSelectGridX:gridX gridY:gridY];
-}
+  if (!_trackSelectState.visualParentNode) {
+    _trackSelectState.visualParentNode = [SKNode node];
+    _trackSelectState.visualParentNode.zPosition = FLZPositionWorldSelect;
 
-- (void)FL_trackSelectGridX:(int)gridX gridY:(int)gridY
-{
-  // Create the visuals if not already created.
-  if (!_trackSelectState.visualSelectionNode) {
     const CGFloat FLTrackSelectAlphaMin = 0.7f;
     const CGFloat FLTrackSelectAlphaMax = 1.0f;
     const CGFloat FLTrackSelectFadeDuration = 0.45f;
-
-    _trackSelectState.visualSelectionNode = [SKSpriteNode spriteNodeWithColor:[UIColor colorWithWhite:0.2f alpha:1.0f]
-                                                               size:CGSizeMake(FLSegmentArtSizeBasic, FLSegmentArtSizeBasic)];
-    // note: This doesn't work well with light backgrounds.
-    _trackSelectState.visualSelectionNode.blendMode = SKBlendModeAdd;
-    _trackSelectState.visualSelectionNode.name = @"selection";
-    _trackSelectState.visualSelectionNode.scale = FLSegmentArtScale;
-    _trackSelectState.visualSelectionNode.zPosition = FLZPositionWorldSelect;
-    _trackSelectState.visualSelectionNode.alpha = FLTrackSelectAlphaMin;
-
     SKAction *pulseIn = [SKAction fadeAlphaTo:FLTrackSelectAlphaMax duration:FLTrackSelectFadeDuration];
     pulseIn.timingMode = SKActionTimingEaseOut;
     SKAction *pulseOut = [SKAction fadeAlphaTo:FLTrackSelectAlphaMin duration:FLTrackSelectFadeDuration];
     pulseOut.timingMode = SKActionTimingEaseIn;
     SKAction *pulseOnce = [SKAction sequence:@[ pulseIn, pulseOut ]];
     SKAction *pulseForever = [SKAction repeatActionForever:pulseOnce];
-    [_trackSelectState.visualSelectionNode runAction:pulseForever];
+    [_trackSelectState.visualParentNode runAction:pulseForever];
+
+    // note: This doesn't work well with light backgrounds.
+    [_worldNode addChild:_trackSelectState.visualParentNode];
   }
 
-  if (!_trackSelectState.visualSelectionNode.parent) {
-    [_worldNode addChild:_trackSelectState.visualSelectionNode];
+  if (!_trackSelectState.visualSquareNodes) {
+    _trackSelectState.visualSquareNodes = [NSMutableDictionary dictionary];
   }
-  _trackSelectState.visualSelectionNode.position = _trackGrid->convert(gridX, gridY);
-  _trackSelectState.selected = YES;
-  _trackSelectState.gridX = gridX;
-  _trackSelectState.gridY = gridY;
+  for (FLSegmentNode *segmentNode in segmentNodes) {
+    SKSpriteNode *selectionSquare = [_trackSelectState.visualSquareNodes objectForKey:[NSValue valueWithPointer:(void *)segmentNode]];
+    if (!selectionSquare) {
+      selectionSquare = [SKSpriteNode spriteNodeWithColor:[UIColor colorWithWhite:0.2f alpha:1.0f]
+                                                     size:CGSizeMake(FLSegmentArtSizeBasic * FLSegmentArtScale,
+                                                                     FLSegmentArtSizeBasic * FLSegmentArtScale)];
+      selectionSquare.blendMode = SKBlendModeAdd;
+      [_trackSelectState.visualSquareNodes setObject:selectionSquare forKey:[NSValue valueWithPointer:(void *)segmentNode]];
+      [_trackSelectState.visualParentNode addChild:selectionSquare];
+    }
+    selectionSquare.position = segmentNode.position;
+  }
+  if (_trackSelectState.selectedSegments) {
+    [_trackSelectState.selectedSegments unionSet:segmentNodes];
+  } else {
+    _trackSelectState.selectedSegments = [NSMutableSet setWithSet:segmentNodes];
+  }
+}
+
+- (void)FL_trackSelectErase:(FLSegmentNode *)segmentNode
+{
+  if (!_trackSelectState.selectedSegments) {
+    return;
+  }
+  SKSpriteNode *selectionSquare = [_trackSelectState.visualSquareNodes objectForKey:[NSValue valueWithPointer:(void *)segmentNode]];
+  if (selectionSquare) {
+    [_trackSelectState.selectedSegments removeObject:segmentNode];
+    [_trackSelectState.visualSquareNodes removeObjectForKey:[NSValue valueWithPointer:(void *)segmentNode]];
+    [selectionSquare removeFromParent];
+  }
 }
 
 - (void)FL_trackSelectClear
 {
-  if (_trackSelectState.selected) {
-    [_trackSelectState.visualSelectionNode removeFromParent];
-    _trackSelectState.selected = NO;
-  }
+  _trackSelectState.selectedSegments = nil;
+  _trackSelectState.visualSquareNodes = nil;
+  [_trackSelectState.visualParentNode removeAllChildren];
 }
 
-- (BOOL)FL_trackSelectGetCurrentGridX:(int *)gridX gridY:(int *)gridY
+- (BOOL)FL_trackSelected:(FLSegmentNode *)segmentNode
 {
-  if (_trackSelectState.selected) {
-    if (gridX) {
-      *gridX = _trackSelectState.gridX;
-    }
-    if (gridY) {
-      *gridY = _trackSelectState.gridY;
-    }
-    return YES;
-  }
-  return NO;
+  return [_trackSelectState.selectedSegments containsObject:segmentNode];
 }
 
 /**
@@ -1484,9 +1459,16 @@ struct PointerPairHash
   int translationGridX = gridX - _trackMoveState.beganGridX;
   int translationGridY = gridY - _trackMoveState.beganGridY;
 
+  // Return early if the gesture translation is not different than the current placement.
+  if (_trackMoveState.placed
+      && translationGridX == _trackMoveState.placedTranslationGridX
+      && translationGridY == _trackMoveState.placedTranslationGridY) {
+    return;
+  }
+
   // Return early if we've already attempted placement for this translation.
   //
-  // note: As written, we will re-attempt each translation the first time
+  // note: As written, we will re-attempt each new translation the first time
   // the controlling gesture enters a new grid square, even if we've already
   // tried the new grid square previously.  Small waste; no big deal.
   if (_trackMoveState.attempted
@@ -1537,7 +1519,7 @@ struct PointerPairHash
   [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-click-2.caf" waitForCompletion:NO]];
 
   // Update selection.
-  [self FL_trackSelectSegments:_trackMoveState.segmentNodes];
+  [self FL_trackSelect:_trackMoveState.segmentNodes];
 }
 
 - (void)FL_trackEditMenuShowAtSegments:(NSSet *)segmentNodes animated:(BOOL)animated
@@ -1585,6 +1567,7 @@ struct PointerPairHash
   }
   if (!animated) {
     _trackEditMenuState.editMenuNode.position = worldLocation;
+    [self FL_trackEditMenuScaleToWorld];
   } else {
     CGFloat fullScale = [self FL_trackEditMenuScaleForWorld];
     [_trackEditMenuState.editMenuNode runShowWithOrigin:segmentNode.position finalPosition:worldLocation fullScale:fullScale];

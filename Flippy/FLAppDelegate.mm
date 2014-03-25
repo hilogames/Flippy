@@ -35,11 +35,13 @@
 
 - (BOOL)application:(UIApplication *)application shouldSaveApplicationState:(NSCoder *)coder
 {
+  NSLog(@"saving application state");
   return YES;
 }
 
 - (BOOL)application:(UIApplication *)application shouldRestoreApplicationState:(NSCoder *)coder
 {
+  NSLog(@"restoring application state");
   NSInteger version = [coder decodeIntegerForKey:@"version"];
   return (version == 1);
 }
