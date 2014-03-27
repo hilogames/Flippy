@@ -74,6 +74,7 @@ struct FLTrackMoveState
   BOOL placed;
   int placedTranslationGridX;
   int placedTranslationGridY;
+  NSMutableArray *conflictNodes;
 };
 
 struct FLTrackEditMenuState
@@ -1397,6 +1398,7 @@ struct PointerPairHash
   }
 
   _trackMoveState.segmentNodes = segmentNodes;
+  _trackMoveState.conflictNodes = [NSMutableArray array];
   
   _trackGrid->convert(worldLocation, &_trackMoveState.beganGridX, &_trackMoveState.beganGridY);
   _trackMoveState.attempted = NO;
@@ -1465,6 +1467,9 @@ struct PointerPairHash
   // location?
   [self FL_trackMoveUpdateWithLocation:worldLocation];
   
+  [_trackMoveState.conflictNodes makeObjectsPerformSelector:@selector(removeFromParent)];
+  _trackMoveState.conflictNodes = nil;
+
   // note: Currently interface doesn't allow movement of track when links are visible,
   // so this only needs to be done when ended/cancelled.
   if (_trackMoveState.placed) {
@@ -1498,13 +1503,6 @@ struct PointerPairHash
   int translationGridX = gridX - _trackMoveState.beganGridX;
   int translationGridY = gridY - _trackMoveState.beganGridY;
 
-  // Return early if the gesture translation is not different than the current placement.
-  if (_trackMoveState.placed
-      && translationGridX == _trackMoveState.placedTranslationGridX
-      && translationGridY == _trackMoveState.placedTranslationGridY) {
-    return;
-  }
-
   // Return early if we've already attempted placement for this translation.
   //
   // note: As written, we will re-attempt each new translation the first time
@@ -1519,6 +1517,15 @@ struct PointerPairHash
   _trackMoveState.attemptedTranslationGridX = translationGridX;
   _trackMoveState.attemptedTranslationGridY = translationGridY;
 
+  // Return early if the gesture translation is not different than the current placement.
+  [_trackMoveState.conflictNodes makeObjectsPerformSelector:@selector(removeFromParent)];
+  [_trackMoveState.conflictNodes removeAllObjects];
+  if (_trackMoveState.placed
+      && translationGridX == _trackMoveState.placedTranslationGridX
+      && translationGridY == _trackMoveState.placedTranslationGridY) {
+    return;
+  }
+  
   // Check placement at new (or initial, if not placed) translation.
   int deltaTranslationGridX = translationGridX - _trackMoveState.placedTranslationGridX;
   int deltaTranslationGridY = translationGridY - _trackMoveState.placedTranslationGridY;
@@ -1532,8 +1539,18 @@ struct PointerPairHash
     int placementGridY = gridY + deltaTranslationGridY;
     FLSegmentNode *occupyingSegmentNode = _trackGrid->get(placementGridX, placementGridY);
     if (occupyingSegmentNode && ![_trackMoveState.segmentNodes containsObject:occupyingSegmentNode]) {
-      return;
+      SKSpriteNode *conflictNode = [SKSpriteNode spriteNodeWithColor:[UIColor colorWithRed:1.0f green:0.0f blue:0.0f alpha:1.0f]
+                                                                size:CGSizeMake(FLSegmentArtSizeBasic * FLSegmentArtScale,
+                                                                                FLSegmentArtSizeBasic * FLSegmentArtScale)];
+      conflictNode.zPosition = FLZPositionWorldSelect;
+      conflictNode.position = occupyingSegmentNode.position;
+      conflictNode.alpha = 0.4f;
+      [_worldNode addChild:conflictNode];
+      [_trackMoveState.conflictNodes addObject:conflictNode];
     }
+  }
+  if ([_trackMoveState.conflictNodes count] > 0) {
+    return;
   }
 
   // Remove from old placement (if any).
