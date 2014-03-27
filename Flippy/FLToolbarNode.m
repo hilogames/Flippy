@@ -171,18 +171,27 @@ static UIColor *FLToolbarColorButtonHighlighted;
   SKAction *move = [SKAction moveTo:origin duration:FLToolbarNodeHideDuration];
   SKAction *hideGroup = [SKAction group:@[ shrink, move]];
   hideGroup.timingMode = SKActionTimingEaseIn;
-  SKAction *hideSequence;
-  if (removeFromParent) {
-    SKAction *remove = [SKAction removeFromParent];
-    hideSequence = [SKAction sequence:@[ hideGroup, remove ]];
-  } else {
-    hideSequence = hideGroup;
-  }
-  [self runAction:hideSequence completion:^{
+  SKAction *completion = [SKAction runBlock:^{
     self.xScale = originalXScale;
     self.yScale = originalYScale;
     self.position = originalPosition;
   }];
+  SKAction *hideSequence;
+  if (removeFromParent) {
+    SKAction *remove = [SKAction removeFromParent];
+    hideSequence = [SKAction sequence:@[ hideGroup, remove, completion ]];
+  } else {
+    hideSequence = [SKAction sequence:@[ hideGroup, completion ]];
+  }
+  [self runAction:hideSequence withKey:@"hide"];
+}
+
+- (void)cancelHideWithRemoveFromParent:(BOOL)removeFromParent
+{
+  [self removeActionForKey:@"hide"];
+  if (removeFromParent) {
+    [self removeFromParent];
+  }
 }
 
 @end

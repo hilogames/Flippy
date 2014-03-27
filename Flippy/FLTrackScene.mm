@@ -81,9 +81,7 @@ struct FLTrackEditMenuState
   FLTrackEditMenuState() : editMenuNode(nil), showing(NO) {}
   BOOL showing;
   FLToolbarNode *editMenuNode;
-  FLSegmentNode *lastSegmentNode;
-  int lastGridX;
-  int lastGridY;
+  CGPoint lastOrigin;
 };
 
 struct FLLinkEditState
@@ -96,6 +94,8 @@ struct FLLinkEditState
 };
 
 enum FLWorldPanType { FLWorldPanTypeNone, FLWorldPanTypeScroll, FLWorldPanTypeTrackMove, FLWorldPanTypeLink };
+
+enum FLWorldLongPressMode { FLWorldLongPressModeNone, FLWorldLongPressModeAdd, FLWorldLongPressModeErase };
 
 enum FLWorldTool { FLWorldToolDefault, FLWorldToolLink };
 
@@ -111,6 +111,7 @@ struct FLWorldGestureState
   FLWorldTool worldTool;
   FLWorldPanType panType;
   CGPoint pinchZoomCenter;
+  FLWorldLongPressMode longPressMode;
 };
 
 enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
@@ -245,10 +246,7 @@ struct PointerPairHash
 
     // Decode current track edit menu.
     if ([aDecoder decodeBoolForKey:@"trackEditMenuStateShowing"]) {
-      int gridX = [aDecoder decodeIntForKey:@"trackEditMenuStateLastGridX"];
-      int gridY = [aDecoder decodeIntForKey:@"trackEditMenuStateLastGridY"];
-      FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY);
-      [self FL_trackEditMenuShowAtSegment:segmentNode gridX:gridX gridY:gridY animated:NO];
+      [self FL_trackEditMenuShowAnimated:NO];
     }
   }
   return self;
@@ -291,7 +289,7 @@ struct PointerPairHash
     [self FL_trackSelect:holdTrackSelectState.selectedSegments];
   }
   if (holdTrackEditMenuState.showing) {
-    [self FL_trackEditMenuShowAtSegment:holdTrackEditMenuState.lastSegmentNode gridX:holdTrackEditMenuState.lastGridX gridY:holdTrackEditMenuState.lastGridY animated:NO];
+    [self FL_trackEditMenuShowAnimated:NO];
   }
   if (_worldGestureState.worldTool == FLWorldToolLink) {
     [_worldNode addChild:_linksNode];
@@ -319,8 +317,7 @@ struct PointerPairHash
   [aCoder encodeObject:_train forKey:@"train"];
   [aCoder encodeObject:_trackSelectState.selectedSegments forKey:@"trackSelectStateSelectedSegments"];
   [aCoder encodeBool:_trackEditMenuState.showing forKey:@"trackEditMenuStateShowing"];
-  [aCoder encodeInt:_trackEditMenuState.lastGridX forKey:@"trackEditMenuStateLastGridX"];
-  [aCoder encodeInt:_trackEditMenuState.lastGridY forKey:@"trackEditMenuStateLastGridY"];
+  [aCoder encodeCGPoint:_trackEditMenuState.lastOrigin forKey:@"trackEditMenuStateLastOrigin"];
   [aCoder encodeInt:(int)_worldGestureState.worldTool forKey:@"worldGestureStateWorldTool"];
 }
 
@@ -525,7 +522,7 @@ struct PointerPairHash
     [self FL_trackSelectClear];
     NSSet *segmentNodeSet = [NSSet setWithObject:segmentNode];
     [self FL_trackSelect:segmentNodeSet];
-    [self FL_trackEditMenuShowAtSegments:segmentNodeSet animated:YES];
+    [self FL_trackEditMenuShowAnimated:YES];
   }
 }
 
@@ -549,17 +546,44 @@ struct PointerPairHash
 - (void)handleWorldLongPress:(UILongPressGestureRecognizer *)gestureRecognizer
 {
   if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
+
     CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
     CGPoint sceneLocation = [self convertPointFromView:viewLocation];
     CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
     FLSegmentNode *segmentNode = trackGridConvertGet(*_trackGrid, worldLocation);
     if (segmentNode) {
       if ([self FL_trackSelected:segmentNode]) {
+        _worldGestureState.longPressMode = FLWorldLongPressModeErase;
         [self FL_trackSelectErase:segmentNode];
       } else {
+        _worldGestureState.longPressMode = FLWorldLongPressModeAdd;
         [self FL_trackSelect:[NSSet setWithObject:segmentNode]];
       }
+      [self FL_trackEditMenuHideAnimated:YES];
+    } else {
+      _worldGestureState.longPressMode = FLWorldLongPressModeNone;
     }
+
+  } else if (gestureRecognizer.state == UIGestureRecognizerStateChanged) {
+
+    if (_worldGestureState.longPressMode != FLWorldLongPressModeNone) {
+      CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
+      CGPoint sceneLocation = [self convertPointFromView:viewLocation];
+      CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
+      FLSegmentNode *segmentNode = trackGridConvertGet(*_trackGrid, worldLocation);
+      if (segmentNode) {
+        if (_worldGestureState.longPressMode == FLWorldLongPressModeAdd) {
+          [self FL_trackSelect:[NSSet setWithObject:segmentNode]];
+        } else {
+          [self FL_trackSelectErase:segmentNode];
+        }
+      }
+    }
+
+  } else if (gestureRecognizer.state == UIGestureRecognizerStateEnded) {
+    [self FL_trackEditMenuUpdateAnimated:YES];
+  } else if (gestureRecognizer.state == UIGestureRecognizerStateCancelled) {
+    [self FL_trackEditMenuUpdateAnimated:YES];
   }
 }
 
@@ -862,13 +886,22 @@ struct PointerPairHash
   NSString *button = [_trackEditMenuState.editMenuNode toolAtLocation:toolbarLocation];
 
   if ([button isEqualToString:@"rotate-cw"]) {
-    [self FL_trackGridRotateGridX:_trackEditMenuState.lastGridX gridY:_trackEditMenuState.lastGridY rotateBy:-1 animated:YES];
+    for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
+      [self FL_trackGridRotate:segmentNode rotateBy:-1 animated:YES];
+    }
   } else if ([button isEqualToString:@"rotate-ccw"]) {
-    [self FL_trackGridRotateGridX:_trackEditMenuState.lastGridX gridY:_trackEditMenuState.lastGridY rotateBy:1 animated:YES];
+    for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
+      [self FL_trackGridRotate:segmentNode rotateBy:1 animated:YES];
+    }
   } else if ([button isEqualToString:@"toggle-switch"]) {
-    [self FL_linkToggleSwitch:_trackEditMenuState.lastSegmentNode animated:YES];
+    for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
+      [self FL_linkToggleSwitch:segmentNode animated:YES];
+    }
   } else if ([button isEqualToString:@"delete"]) {
-    [self FL_trackGridEraseGridX:_trackEditMenuState.lastGridX gridY:_trackEditMenuState.lastGridY animated:YES];
+    for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
+      [self FL_trackGridErase:segmentNode animated:YES];
+    }
+    [self FL_trackSelectClear];
   }
 }
 
@@ -884,11 +917,8 @@ struct PointerPairHash
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer
 {
-  // I'm adding these one at a time as discovered needful, but so far every pairing with
-  // pan seems to need it:
-  //
-  //  . Long press: A pan motion after a long press begins currently is considered the
-  //    same as a regular pan, and so it is best recognized by the pan gesture recognizer.
+  // I'm adding these one at a time as discovered needful, but so far things organize
+  // themselves around the pan gesture recognizer:
   //
   //  . Pinch: I think this helps.  Otherwise it seems my pinch gesture sometimes gets
   //    interpreted as a pan.  I think.
@@ -899,7 +929,10 @@ struct PointerPairHash
   //    gesture doesn't get a chance to fail, which means the pan gesture never gets
   //    started at all.  Uuuuuuuunless I allow them to recognize simultaneously.  Ditto
   //    for _doubleTapRecognizer?  Untested.
-  return gestureRecognizer == _panRecognizer;
+  //
+  //  . Long press: A pan motion after a long press should be handled only by the long
+  //    press gesture recognizer, so no simultaneous recognition with pan.
+  return gestureRecognizer == _panRecognizer && otherGestureRecognizer != _longPressRecognizer;
 }
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch
@@ -1318,10 +1351,16 @@ struct PointerPairHash
   if (!_trackSelectState.selectedSegments) {
     return;
   }
+  
   SKSpriteNode *selectionSquare = [_trackSelectState.visualSquareNodes objectForKey:[NSValue valueWithPointer:(void *)segmentNode]];
   if (selectionSquare) {
-    [_trackSelectState.selectedSegments removeObject:segmentNode];
-    [_trackSelectState.visualSquareNodes removeObjectForKey:[NSValue valueWithPointer:(void *)segmentNode]];
+    if ([_trackSelectState.visualSquareNodes count] == 1) {
+      _trackSelectState.selectedSegments = nil;
+      _trackSelectState.visualSquareNodes = nil;
+    } else {
+      [_trackSelectState.selectedSegments removeObject:segmentNode];
+      [_trackSelectState.visualSquareNodes removeObjectForKey:[NSValue valueWithPointer:(void *)segmentNode]];
+    }
     [selectionSquare removeFromParent];
   }
 }
@@ -1435,7 +1474,7 @@ struct PointerPairHash
     }
   }
   
-  [self FL_trackEditMenuShowAtSegments:_trackMoveState.segmentNodes animated:YES];
+  [self FL_trackEditMenuShowAnimated:YES];
   _trackMoveState.segmentNodes = nil;
 }
 
@@ -1522,30 +1561,86 @@ struct PointerPairHash
   [self FL_trackSelect:_trackMoveState.segmentNodes];
 }
 
-- (void)FL_trackEditMenuShowAtSegments:(NSSet *)segmentNodes animated:(BOOL)animated
+/**
+ * Shows or hides the track edit menu based on the current selection.
+ *
+ * The track edit menu visibility and position is always related to the current track
+ * selection; however, the caller can still hide the menu, or choose not to update its
+ * position.  A typical scenario: During multiple selection the caller might want to
+ * keep the track edit menu hidden; the caller might only want to update the track edit
+ * menu on touch-up.
+ *
+ * The FL_trackEditMenuShow* FL_trackEditMenuHide* methods may be called when the
+ * size of the current selection is known to the caller; otherwise, call this method.
+ */
+- (void)FL_trackEditMenuUpdateAnimated:(BOOL)animated
 {
-  // TODO
-  FLSegmentNode *anySegmentNode = [segmentNodes anyObject];
-  int gridX;
-  int gridY;
-  _trackGrid->convert(anySegmentNode.position, &gridX, &gridY);
-  [self FL_trackEditMenuShowAtSegment:anySegmentNode gridX:gridX gridY:gridY animated:animated];
+  if (!_trackSelectState.selectedSegments) {
+    [self FL_trackEditMenuHideAnimated:animated];
+  } else {
+    [self FL_trackEditMenuShowAnimated:animated];
+  }
 }
 
-- (void)FL_trackEditMenuShowAtSegment:(FLSegmentNode *)segmentNode gridX:(int)gridX gridY:(int)gridY animated:(BOOL)animated
+- (void)FL_trackEditMenuShowAnimated:(BOOL)animated
 {
+  // note: It might be reasonable to be defensive here and return without error
+  // even if there is no selection.  But I'd like to prove first there's a good reason.
+  if (!_trackSelectState.selectedSegments || [_trackSelectState.selectedSegments count] == 0) {
+    [NSException raise:@"FLTrackEditMenuShowWithoutSelection" format:@"No current selection for track edit menu."];
+  }
+
   if (!_trackEditMenuState.editMenuNode) {
     _trackEditMenuState.editMenuNode = [[FLToolbarNode alloc] init];
     _trackEditMenuState.editMenuNode.zPosition = FLZPositionWorldOverlay;
     _trackEditMenuState.editMenuNode.anchorPoint = CGPointMake(0.5f, 0.0f);
   }
 
+  // note: An animated hide might be currently running.  If so, cancel it.
+  if (!_trackEditMenuState.showing) {
+    [_trackEditMenuState.editMenuNode cancelHideWithRemoveFromParent:YES];
+  }
+
+  // Collect information about selected segments.
+  NSSet *segmentNodes = _trackSelectState.selectedSegments;
+  BOOL hasSwitch = NO;
+  BOOL firstSegment = YES;
+  CGFloat segmentsPositionTop;
+  CGFloat segmentsPositionBottom;
+  CGFloat segmentsPositionLeft;
+  CGFloat segmentsPositionRight;
+  for (FLSegmentNode *segmentNode in segmentNodes) {
+    if (segmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
+      hasSwitch = YES;
+    }
+    if (firstSegment) {
+      firstSegment = NO;
+      segmentsPositionLeft = segmentNode.position.x;
+      segmentsPositionRight = segmentNode.position.x;
+      segmentsPositionTop = segmentNode.position.y;
+      segmentsPositionBottom = segmentNode.position.y;
+    } else {
+      // noob: I assume CGRectUnion is slighlty slower than custom code here.
+      if (segmentNode.position.x < segmentsPositionLeft) {
+        segmentsPositionLeft = segmentNode.position.x;
+      } else if (segmentNode.position.x > segmentsPositionRight) {
+        segmentsPositionRight = segmentNode.position.x;
+      }
+      if (segmentNode.position.y < segmentsPositionBottom) {
+        segmentsPositionBottom = segmentNode.position.y;
+      } else if (segmentNode.position.y > segmentsPositionTop) {
+        segmentsPositionTop = segmentNode.position.y;
+      }
+    }
+  }
+
+  // Update tool list according to selection.
   NSUInteger toolCount = [_trackEditMenuState.editMenuNode toolCount];
-  if ((segmentNode.switchPathId == FLSegmentSwitchPathIdNone && toolCount != 3)
-      || (segmentNode.switchPathId != FLSegmentSwitchPathIdNone && toolCount != 4)) {
+  if ((hasSwitch && toolCount != 4)
+      || (!hasSwitch && toolCount != 3)) {
     CGSize FLTrackEditMenuToolSize = { 42.0f, 42.0f };
     NSValue *toolSize = [NSValue valueWithCGSize:FLTrackEditMenuToolSize];
-    if (segmentNode.switchPathId == FLSegmentSwitchPathIdNone) {
+    if (!hasSwitch) {
       [_trackEditMenuState.editMenuNode setToolsWithTextureKeys:@[ @"rotate-ccw", @"delete", @"rotate-cw" ]
                                                           sizes:@[ toolSize, toolSize, toolSize ]
                                                       rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2 ]
@@ -1558,23 +1653,26 @@ struct PointerPairHash
     }
   }
 
-  const CGFloat FLTrackEditMenuBottomPad = 0.0f;
-
-  CGPoint worldLocation = CGPointMake(segmentNode.position.x, segmentNode.position.y + segmentNode.size.height / 2.0f + FLTrackEditMenuBottomPad);
+  // Show menu.
+  const CGFloat FLTrackEditMenuBottomPad = 10.0f;
   if (!_trackEditMenuState.showing) {
     [_worldNode addChild:_trackEditMenuState.editMenuNode];
     _trackEditMenuState.showing = YES;
   }
+  CGFloat segmentsPositionMidX = (segmentsPositionLeft + segmentsPositionRight) / 2.0f;
+  CGFloat segmentsPositionMidY = (segmentsPositionBottom + segmentsPositionTop) / 2.0f;
+  CGPoint position = CGPointMake(segmentsPositionMidX, segmentsPositionTop + _trackGrid->segmentSize() / 2.0f + FLTrackEditMenuBottomPad);
+  CGPoint origin = CGPointMake(segmentsPositionMidX, segmentsPositionMidY);
   if (!animated) {
-    _trackEditMenuState.editMenuNode.position = worldLocation;
+    _trackEditMenuState.editMenuNode.position = position;
     [self FL_trackEditMenuScaleToWorld];
   } else {
     CGFloat fullScale = [self FL_trackEditMenuScaleForWorld];
-    [_trackEditMenuState.editMenuNode runShowWithOrigin:segmentNode.position finalPosition:worldLocation fullScale:fullScale];
+    [_trackEditMenuState.editMenuNode runShowWithOrigin:origin
+                                          finalPosition:position
+                                              fullScale:fullScale];
   }
-  _trackEditMenuState.lastSegmentNode = segmentNode;
-  _trackEditMenuState.lastGridX = gridX;
-  _trackEditMenuState.lastGridY = gridY;
+  _trackEditMenuState.lastOrigin = origin;
 }
 
 - (void)FL_trackEditMenuHideAnimated:(BOOL)animated
@@ -1586,7 +1684,7 @@ struct PointerPairHash
   if (!animated) {
     [_trackEditMenuState.editMenuNode removeFromParent];
   } else {
-    [_trackEditMenuState.editMenuNode runHideWithOrigin:_trackEditMenuState.lastSegmentNode.position removeFromParent:YES];
+    [_trackEditMenuState.editMenuNode runHideWithOrigin:_trackEditMenuState.lastOrigin removeFromParent:YES];
   }
 }
 
@@ -1779,11 +1877,10 @@ struct PointerPairHash
   }
 }
 
-- (void)FL_trackGridRotateGridX:(int)gridX gridY:(int)gridY rotateBy:(int)rotateBy animated:(BOOL)animated
+- (void)FL_trackGridRotate:(FLSegmentNode *)segmentNode rotateBy:(int)rotateBy animated:(BOOL)animated
 {
   // note: rotateBy positive is in the counterclockwise direction, but current implementation
   // will animate the shortest arc regardless of rotateBy sign.
-  FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY);
   if (segmentNode) {
     int newRotationQuarters = (segmentNode.zRotationQuarters + rotateBy) % 4;
     // note: Repeatedly rotating by adding M_PI_2 * rotateBy leads to cumulative floating point
@@ -1799,9 +1896,8 @@ struct PointerPairHash
   }
 }
 
-- (void)FL_trackGridEraseGridX:(int)gridX gridY:(int)gridY animated:(BOOL)animated
+- (void)FL_trackGridErase:(FLSegmentNode *)segmentNode animated:(BOOL)animated
 {
-  FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY);
   if (segmentNode) {
 
     [segmentNode removeFromParent];
@@ -1813,9 +1909,8 @@ struct PointerPairHash
       sleeperDestruction.yScale = FLSegmentArtScale;
       railDestruction.xScale = FLSegmentArtScale;
       railDestruction.yScale = FLSegmentArtScale;
-      CGPoint worldLocation = _trackGrid->convert(gridX, gridY);
-      sleeperDestruction.position = worldLocation;
-      railDestruction.position = worldLocation;
+      sleeperDestruction.position = segmentNode.position;
+      railDestruction.position = segmentNode.position;
       [_trackNode addChild:sleeperDestruction];
       [_trackNode addChild:railDestruction];
       // noob: I read it is recommended to remove emitter nodes when they aren't visible.  I'm not sure if that applies
@@ -1827,7 +1922,7 @@ struct PointerPairHash
       SKAction *sound = [SKAction playSoundFileNamed:@"wooden-clatter-1.caf" waitForCompletion:NO];
       [_trackNode runAction:sound];
     }
-    _trackGrid->erase(gridX, gridY);
+    trackGridConvertErase(*_trackGrid, segmentNode.position);
     _links.erase(segmentNode);
 
     [self FL_trackEditMenuHideAnimated:YES];

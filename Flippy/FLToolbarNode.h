@@ -39,4 +39,6 @@
 
 - (void)runHideWithOrigin:(CGPoint)origin removeFromParent:(BOOL)removeFromParent;
 
+- (void)cancelHideWithRemoveFromParent:(BOOL)removeFromParent;
+
 @end
