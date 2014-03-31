@@ -11,6 +11,7 @@
 #include <memory>
 
 #include "FLLinks.h"
+#import "FLPath.h"
 #import "FLSegmentNode.h"
 #import "FLTextureStore.h"
 #import "FLToolbarNode.h"
@@ -33,6 +34,8 @@ static const CGFloat FLZPositionWorldTrack = 2.0f;
 static const CGFloat FLZPositionWorldTrain = 3.0f;
 static const CGFloat FLZPositionWorldLinks = 4.0f;
 static const CGFloat FLZPositionWorldOverlay = 5.0f;
+
+static const NSTimeInterval FLTrackRotateDuration = 0.1;
 
 #pragma mark -
 #pragma mark States
@@ -61,6 +64,12 @@ struct FLTrackSelectState
   NSMutableDictionary *visualSquareNodes;
 };
 
+struct FLTrackConflictState
+{
+  FLTrackConflictState() { conflictNodes = [NSMutableArray array]; }
+  NSMutableArray *conflictNodes;
+};
+
 struct FLTrackMoveState
 {
   FLTrackMoveState() : segmentNodes(nil), cursorNode(nil) {}
@@ -74,7 +83,6 @@ struct FLTrackMoveState
   BOOL placed;
   int placedTranslationGridX;
   int placedTranslationGridY;
-  NSMutableArray *conflictNodes;
 };
 
 struct FLTrackEditMenuState
@@ -159,6 +167,7 @@ struct PointerPairHash
   FLSimulationToolbarState _simulationToolbarState;
   FLTrackEditMenuState _trackEditMenuState;
   FLTrackSelectState _trackSelectState;
+  FLTrackConflictState _trackConflictState;
   FLTrackMoveState _trackMoveState;
   FLLinkEditState _linkEditState;
 
@@ -279,6 +288,7 @@ struct PointerPairHash
   }
   [self FL_simulationToolbarSetVisible:NO];
   [self FL_constructionToolbarSetVisible:NO];
+  [self FL_trackConflictClear];
 
   // Persist SKScene (including current node hierarchy).
   [super encodeWithCoder:aCoder];
@@ -887,21 +897,16 @@ struct PointerPairHash
   NSString *button = [_trackEditMenuState.editMenuNode toolAtLocation:toolbarLocation];
 
   if ([button isEqualToString:@"rotate-cw"]) {
-    for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
-      [self FL_trackGridRotate:segmentNode rotateBy:-1 animated:YES];
-    }
+    [self FL_trackRotateSegments:_trackSelectState.selectedSegments rotateBy:-1 animated:YES];
   } else if ([button isEqualToString:@"rotate-ccw"]) {
-    for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
-      [self FL_trackGridRotate:segmentNode rotateBy:1 animated:YES];
-    }
+    [self FL_trackRotateSegments:_trackSelectState.selectedSegments rotateBy:1 animated:YES];
   } else if ([button isEqualToString:@"toggle-switch"]) {
     for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
       [self FL_linkToggleSwitch:segmentNode animated:YES];
     }
   } else if ([button isEqualToString:@"delete"]) {
-    for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
-      [self FL_trackGridErase:segmentNode animated:YES];
-    }
+    [self FL_trackEraseSegments:_trackSelectState.selectedSegments animated:YES];
+    [self FL_trackEditMenuHideAnimated:NO];
     [self FL_trackSelectClear];
   }
 }
@@ -929,11 +934,14 @@ struct PointerPairHash
   //    the tap fall through to anything below it.  I think that also means that the tap
   //    gesture doesn't get a chance to fail, which means the pan gesture never gets
   //    started at all.  Uuuuuuuunless I allow them to recognize simultaneously.  Ditto
-  //    for _doubleTapRecognizer?  Untested.
+  //    for _doubleTapRecognizer?  Untested.  But no, wait: Now I'm having problems where
+  //    I'm in the middle of a pan (say, moving a track), and then suddenly the tap
+  //    gesture recognizer fires (if I pan only a very short distance).  That's no good.
+  //    So let's try no simultaneous again for a while.
   //
   //  . Long press: A pan motion after a long press should be handled only by the long
   //    press gesture recognizer, so no simultaneous recognition with pan.
-  return gestureRecognizer == _panRecognizer && otherGestureRecognizer != _longPressRecognizer;
+  return gestureRecognizer == _panRecognizer && otherGestureRecognizer == _pinchRecognizer;
 }
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch
@@ -1378,6 +1386,24 @@ struct PointerPairHash
   return [_trackSelectState.selectedSegments containsObject:segmentNode];
 }
 
+- (void)FL_trackConflictShow:(FLSegmentNode *)segmentNode
+{
+  SKSpriteNode *conflictNode = [SKSpriteNode spriteNodeWithColor:[UIColor colorWithRed:1.0f green:0.0f blue:0.0f alpha:1.0f]
+                                                            size:CGSizeMake(FLSegmentArtSizeBasic * FLSegmentArtScale,
+                                                                            FLSegmentArtSizeBasic * FLSegmentArtScale)];
+  conflictNode.zPosition = FLZPositionWorldSelect;
+  conflictNode.position = segmentNode.position;
+  conflictNode.alpha = 0.4f;
+  [_worldNode addChild:conflictNode];
+  [_trackConflictState.conflictNodes addObject:conflictNode];
+}
+
+- (void)FL_trackConflictClear
+{
+  [_trackConflictState.conflictNodes makeObjectsPerformSelector:@selector(removeFromParent)];
+  [_trackConflictState.conflictNodes removeAllObjects];
+}
+
 /**
  * Begins a move of one or more track segments.
  *
@@ -1398,7 +1424,6 @@ struct PointerPairHash
   }
 
   _trackMoveState.segmentNodes = segmentNodes;
-  _trackMoveState.conflictNodes = [NSMutableArray array];
   
   _trackGrid->convert(worldLocation, &_trackMoveState.beganGridX, &_trackMoveState.beganGridY);
   _trackMoveState.attempted = NO;
@@ -1455,9 +1480,9 @@ struct PointerPairHash
     [NSException raise:@"FLTrackMoveBadState"
                 format:@"Cancelled track move, but track move not begun."];
   }
+  [self FL_trackMoveEndedCommonWithLocation:worldLocation];
   [_trackMoveState.cursorNode removeAllChildren];
   [_trackMoveState.cursorNode removeFromParent];
-  [self FL_trackMoveEndedCommonWithLocation:worldLocation];
 }
 
 - (void)FL_trackMoveEndedCommonWithLocation:(CGPoint)worldLocation
@@ -1467,14 +1492,13 @@ struct PointerPairHash
   // location?
   [self FL_trackMoveUpdateWithLocation:worldLocation];
   
-  [_trackMoveState.conflictNodes makeObjectsPerformSelector:@selector(removeFromParent)];
-  _trackMoveState.conflictNodes = nil;
+  [self FL_trackConflictClear];
 
   // note: Currently interface doesn't allow movement of track when links are visible,
   // so this only needs to be done when ended/cancelled.
   if (_trackMoveState.placed) {
     // note: Could skip this if no movement actually took place.
-    for (FLSegmentNode *segmentNode : _trackMoveState.segmentNodes) {
+    for (FLSegmentNode *segmentNode in _trackMoveState.segmentNodes) {
       [self FL_linkRedrawForSegment:segmentNode];
     }
   }
@@ -1518,8 +1542,7 @@ struct PointerPairHash
   _trackMoveState.attemptedTranslationGridY = translationGridY;
 
   // Return early if the gesture translation is not different than the current placement.
-  [_trackMoveState.conflictNodes makeObjectsPerformSelector:@selector(removeFromParent)];
-  [_trackMoveState.conflictNodes removeAllObjects];
+  [self FL_trackConflictClear];
   if (_trackMoveState.placed
       && translationGridX == _trackMoveState.placedTranslationGridX
       && translationGridY == _trackMoveState.placedTranslationGridY) {
@@ -1529,6 +1552,7 @@ struct PointerPairHash
   // Check placement at new (or initial, if not placed) translation.
   int deltaTranslationGridX = translationGridX - _trackMoveState.placedTranslationGridX;
   int deltaTranslationGridY = translationGridY - _trackMoveState.placedTranslationGridY;
+  BOOL hasConflict = NO;
   for (FLSegmentNode *segmentNode : _trackMoveState.segmentNodes) {
     // note: Rather than recalculating grid coordinates every loop, could
     // store them in the segmentNodes structure.
@@ -1539,17 +1563,11 @@ struct PointerPairHash
     int placementGridY = gridY + deltaTranslationGridY;
     FLSegmentNode *occupyingSegmentNode = _trackGrid->get(placementGridX, placementGridY);
     if (occupyingSegmentNode && ![_trackMoveState.segmentNodes containsObject:occupyingSegmentNode]) {
-      SKSpriteNode *conflictNode = [SKSpriteNode spriteNodeWithColor:[UIColor colorWithRed:1.0f green:0.0f blue:0.0f alpha:1.0f]
-                                                                size:CGSizeMake(FLSegmentArtSizeBasic * FLSegmentArtScale,
-                                                                                FLSegmentArtSizeBasic * FLSegmentArtScale)];
-      conflictNode.zPosition = FLZPositionWorldSelect;
-      conflictNode.position = occupyingSegmentNode.position;
-      conflictNode.alpha = 0.4f;
-      [_worldNode addChild:conflictNode];
-      [_trackMoveState.conflictNodes addObject:conflictNode];
+      [self FL_trackConflictShow:occupyingSegmentNode];
+      hasConflict = YES;
     }
   }
-  if ([_trackMoveState.conflictNodes count] > 0) {
+  if (hasConflict) {
     return;
   }
 
@@ -1603,6 +1621,10 @@ struct PointerPairHash
 {
   // note: It might be reasonable to be defensive here and return without error
   // even if there is no selection.  But I'd like to prove first there's a good reason.
+  //
+  //   . Got a crash here once with selectedSegments = nil.  Couldn't reproduce.  Hypothesis
+  //     that I was moving a segment with world pan but the long press recognizer was also
+  //     firing and it erased my selection while I was moving.
   if (!_trackSelectState.selectedSegments || [_trackSelectState.selectedSegments count] == 0) {
     [NSException raise:@"FLTrackEditMenuShowWithoutSelection" format:@"No current selection for track edit menu."];
   }
@@ -1637,7 +1659,6 @@ struct PointerPairHash
       segmentsPositionTop = segmentNode.position.y;
       segmentsPositionBottom = segmentNode.position.y;
     } else {
-      // noob: I assume CGRectUnion is slighlty slower than custom code here.
       if (segmentNode.position.x < segmentsPositionLeft) {
         segmentsPositionLeft = segmentNode.position.x;
       } else if (segmentNode.position.x > segmentsPositionRight) {
@@ -1671,7 +1692,7 @@ struct PointerPairHash
   }
 
   // Show menu.
-  const CGFloat FLTrackEditMenuBottomPad = 10.0f;
+  const CGFloat FLTrackEditMenuBottomPad = 20.0f;
   if (!_trackEditMenuState.showing) {
     [_worldNode addChild:_trackEditMenuState.editMenuNode];
     _trackEditMenuState.showing = YES;
@@ -1894,56 +1915,216 @@ struct PointerPairHash
   }
 }
 
-- (void)FL_trackGridRotate:(FLSegmentNode *)segmentNode rotateBy:(int)rotateBy animated:(BOOL)animated
+- (void)FL_trackRotateSegment:(FLSegmentNode *)segmentNode rotateBy:(int)rotateBy animated:(BOOL)animated
 {
   // note: rotateBy positive is in the counterclockwise direction, but current implementation
   // will animate the shortest arc regardless of rotateBy sign.
-  if (segmentNode) {
-    int newRotationQuarters = (segmentNode.zRotationQuarters + rotateBy) % 4;
-    // note: Repeatedly rotating by adding M_PI_2 * rotateBy leads to cumulative floating point
-    // error, which can be large enough over time to affect the calculation (e.g. if the epsilon
-    // value in convertRotationRadiansToQuarters is not large enough).  So: Don't just add the
-    // angle; recalculate it.
-    if (!animated) {
-      segmentNode.zRotationQuarters = newRotationQuarters;
-    } else {
-      [segmentNode runAction:[SKAction rotateToAngle:(newRotationQuarters * M_PI_2) duration:0.1 shortestUnitArc:YES]];
-      [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-click-1.caf" waitForCompletion:NO]];
-    }
+  int newRotationQuarters = (segmentNode.zRotationQuarters + rotateBy) % 4;
+  // note: Repeatedly rotating by adding M_PI_2 * rotateBy leads to cumulative floating point
+  // error, which can be large enough over time to affect the calculation (e.g. if the epsilon
+  // value in convertRotationRadiansToQuarters is not large enough).  So: Don't just add the
+  // angle; recalculate it.
+  if (!animated) {
+    segmentNode.zRotationQuarters = newRotationQuarters;
+    [self FL_linkRedrawForSegment:segmentNode];
+  } else {
+    [segmentNode runAction:[SKAction rotateToAngle:(newRotationQuarters * M_PI_2) duration:FLTrackRotateDuration shortestUnitArc:YES] completion:^{
+      [self FL_linkRedrawForSegment:segmentNode];
+    }];
+    [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-click-1.caf" waitForCompletion:NO]];
   }
 }
 
-- (void)FL_trackGridErase:(FLSegmentNode *)segmentNode animated:(BOOL)animated
+- (void)FL_trackRotateSegments:(NSSet *)segmentNodes rotateBy:(int)rotateBy animated:(BOOL)animated
 {
-  if (segmentNode) {
-
-    [segmentNode removeFromParent];
-    if (animated) {
-      SKEmitterNode *sleeperDestruction = [NSKeyedUnarchiver unarchiveObjectWithFile:[[NSBundle mainBundle] pathForResource:@"sleeperDestruction" ofType:@"sks"]];
-      SKEmitterNode *railDestruction = [NSKeyedUnarchiver unarchiveObjectWithFile:[[NSBundle mainBundle] pathForResource:@"railDestruction" ofType:@"sks"]];
-      // note: This kind of thing makes me think having an FLSegmentArtScale is a bad idea.  Resample the art instead.
-      sleeperDestruction.xScale = FLSegmentArtScale;
-      sleeperDestruction.yScale = FLSegmentArtScale;
-      railDestruction.xScale = FLSegmentArtScale;
-      railDestruction.yScale = FLSegmentArtScale;
-      sleeperDestruction.position = segmentNode.position;
-      railDestruction.position = segmentNode.position;
-      [_trackNode addChild:sleeperDestruction];
-      [_trackNode addChild:railDestruction];
-      // noob: I read it is recommended to remove emitter nodes when they aren't visible.  I'm not sure if that applies
-      // to emitter nodes that have reached their numParticlesToEmit maximum, but it certainly seems like a best practice.
-      SKAction *removeAfterWait = [SKAction sequence:@[ [SKAction waitForDuration:(sleeperDestruction.particleLifetime * 1.0)],
-                                                        [SKAction removeFromParent] ]];
-      [sleeperDestruction runAction:removeAfterWait];
-      [railDestruction runAction:removeAfterWait];
-      SKAction *sound = [SKAction playSoundFileNamed:@"wooden-clatter-1.caf" waitForCompletion:NO];
-      [_trackNode runAction:sound];
-    }
-    trackGridConvertErase(*_trackGrid, segmentNode.position);
-    _links.erase(segmentNode);
-
-    [self FL_trackEditMenuHideAnimated:YES];
+  if ([segmentNodes count] == 1) {
+    [self FL_trackRotateSegment:[segmentNodes anyObject] rotateBy:rotateBy animated:animated];
+    return;
   }
+
+  // Collect information about segments.
+  BOOL firstSegment = YES;
+  CGFloat segmentsPositionTop;
+  CGFloat segmentsPositionBottom;
+  CGFloat segmentsPositionLeft;
+  CGFloat segmentsPositionRight;
+  for (FLSegmentNode *segmentNode in segmentNodes) {
+    if (firstSegment) {
+      firstSegment = NO;
+      segmentsPositionLeft = segmentNode.position.x;
+      segmentsPositionRight = segmentNode.position.x;
+      segmentsPositionTop = segmentNode.position.y;
+      segmentsPositionBottom = segmentNode.position.y;
+    } else {
+      if (segmentNode.position.x < segmentsPositionLeft) {
+        segmentsPositionLeft = segmentNode.position.x;
+      } else if (segmentNode.position.x > segmentsPositionRight) {
+        segmentsPositionRight = segmentNode.position.x;
+      }
+      if (segmentNode.position.y < segmentsPositionBottom) {
+        segmentsPositionBottom = segmentNode.position.y;
+      } else if (segmentNode.position.y > segmentsPositionTop) {
+        segmentsPositionTop = segmentNode.position.y;
+      }
+    }
+  }
+  // note: isSymmetryRotation just in terms of the bounding box, which will be the same
+  // after the rotation as before the rotation.
+  BOOL isSymmetricRotation = (rotateBy % 2 == 0) || (fabs(segmentsPositionRight - segmentsPositionLeft - segmentsPositionTop + segmentsPositionBottom) < 0.001f);
+
+  // Calculate a good pivot point for the group of segments.
+  CGPoint pivot = CGPointMake((segmentsPositionLeft + segmentsPositionRight) / 2.0f,
+                              (segmentsPositionBottom + segmentsPositionTop) / 2.0f);
+  if (!isSymmetricRotation) {
+    CGFloat segmentSize = _trackGrid->segmentSize();
+    // commented out: I think this won't work, since due to floating point error fmodf() can return
+    // either a value like 0.000000001 or 0.9999999999.  And yet the below code seems so cumbersome.
+    //if (fabsf(fmodf(pivot.x, segmentSize) - fmodf(pivot.y, segmentSize)) > 0.1f) {
+    //  pivot.x += segmentSize / 2.0f;
+    //}
+    CGFloat pivotXRemainder = fmodf(pivot.x, segmentSize) / segmentSize;
+    BOOL pivotXUnaligned = (pivotXRemainder > 0.4f && pivotXRemainder < 0.6f) || (pivotXRemainder < -0.4f && pivotXRemainder > -0.6f);
+    CGFloat pivotYRemainder = fmodf(pivot.y, segmentSize) / segmentSize;
+    BOOL pivotYUnaligned = (pivotYRemainder > 0.4f && pivotYRemainder < 0.6f) || (pivotYRemainder < -0.4f && pivotYRemainder > -0.6f);
+    if (pivotXUnaligned != pivotYUnaligned) {
+      // note: Choose a good pivot.  Later we'll check for conflict, where a good pivot will
+      // mean a pivot that allows the rotation to occur.  But even if this selection is rotating
+      // on an empty field, we still need a good pivot: Such that rotating four times will bring
+      // us back to the original position.  For that we need state, at least until the selection
+      // changes.  Well, okay, let's steal some state that already exists: The zRotation of the
+      // first segment in the set.
+      CGPoint offsetPivot = CGPointMake(segmentSize / 2.0f, 0.0f);
+      int normalRotationQuarters = normalizeRotationQuarters([[segmentNodes anyObject] zRotationQuarters]);
+      rotatePoints(&offsetPivot, 1, normalRotationQuarters);
+      pivot.x += offsetPivot.x;
+      pivot.y += offsetPivot.y;
+    }
+  }
+  
+  // Check proposed rotation for conflicts.
+  //
+  // TODO: Search for nearby pivot that would work without conflicts?  Should be pretty
+  // quick to check a few.
+  int normalRotationQuarters = normalizeRotationQuarters(rotateBy);
+  BOOL hasConflict = NO;
+  for (FLSegmentNode *segmentNode in segmentNodes) {
+    CGPoint positionRelativeToPivot = CGPointMake(segmentNode.position.x - pivot.x, segmentNode.position.y - pivot.y);
+    rotatePoints(&positionRelativeToPivot, 1, normalRotationQuarters);
+    CGPoint finalPosition = CGPointMake(positionRelativeToPivot.x + pivot.x, positionRelativeToPivot.y + pivot.y);
+    // note: Could store final position to be used below.  My instinct, though, is that
+    // recalculating it is fast enough to be okay (or perhaps even as good).
+    FLSegmentNode *occupyingSegmentNode = trackGridConvertGet(*_trackGrid, finalPosition);
+    if (occupyingSegmentNode && ![segmentNodes containsObject:occupyingSegmentNode]) {
+      [self FL_trackConflictShow:occupyingSegmentNode];
+      hasConflict = YES;
+    }
+  }
+  if (hasConflict) {
+    [self performSelector:@selector(FL_trackConflictClear) withObject:nil afterDelay:0.5];
+    return;
+  }
+
+  // Prepare finalization code block.
+  void (^finalizeRotation)(void) = ^{
+    for (FLSegmentNode *segmentNode in segmentNodes) {
+      trackGridConvertErase(*_trackGrid, segmentNode.position);
+      CGPoint positionRelativeToPivot = CGPointMake(segmentNode.position.x - pivot.x, segmentNode.position.y - pivot.y);
+      rotatePoints(&positionRelativeToPivot, 1, normalRotationQuarters);
+      segmentNode.position = CGPointMake(positionRelativeToPivot.x + pivot.x, positionRelativeToPivot.y + pivot.y);
+      segmentNode.zRotationQuarters = (segmentNode.zRotationQuarters + rotateBy) % 4;
+      trackGridConvertSet(*_trackGrid, segmentNode.position, segmentNode);
+    }
+    for (FLSegmentNode *segmentNode in segmentNodes) {
+      [self FL_linkRedrawForSegment:segmentNode];
+    }
+    [self FL_trackSelect:segmentNodes];
+    if (!isSymmetricRotation) {
+      [self FL_trackEditMenuShowAnimated:YES];
+    }
+  };
+
+  // Rotate.
+  if (animated) {
+
+    [self FL_trackSelectClear];
+    if (!isSymmetricRotation) {
+      [self FL_trackEditMenuHideAnimated:NO];
+    }
+
+    // Copy segments into a temporary parent node.
+    SKNode *rotateNode = [SKNode node];
+    [_trackNode addChild:rotateNode];
+    for (FLSegmentNode *segmentNode in segmentNodes) {
+      [segmentNode removeFromParent];
+      // noob: Unless I make a copy, something gets screwed up with my segmentNodes: They end up
+      // with a null self.scene, and the coordinate conversions (e.g. by the segmentNode's
+      // switchPosition method, trying to use [self.parent convert*]) give bogus results in
+      // some circumstances (e.g. in the completion block of the rotation action, below).  This
+      // copying business is a workaround, but it seems low-impact, so I'm not pursuing it further
+      // for now.
+      FLSegmentNode *segmentNodeCopy = [segmentNode copy];
+      segmentNodeCopy.position = CGPointMake(segmentNode.position.x - pivot.x, segmentNode.position.y - pivot.y);
+      [rotateNode addChild:segmentNodeCopy];
+    }
+    rotateNode.position = pivot;
+
+    // Rotate the temporary parent node and then finalize segment position.
+    [rotateNode runAction:[SKAction rotateToAngle:(rotateBy * M_PI_2) duration:FLTrackRotateDuration shortestUnitArc:YES] completion:^{
+      for (FLSegmentNode *segmentNode in segmentNodes) {
+        [_trackNode addChild:segmentNode];
+      }
+      finalizeRotation();
+      [rotateNode removeFromParent];
+    }];
+    [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-click-1.caf" waitForCompletion:NO]];
+
+  } else {
+    finalizeRotation();
+  }
+}
+
+- (void)FL_trackEraseSegment:(FLSegmentNode *)segmentNode animated:(BOOL)animated
+{
+  [self FL_trackEraseCommon:segmentNode animated:animated];
+  if (animated) {
+    [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-clatter-1.caf" waitForCompletion:NO]];
+  }
+}
+
+- (void)FL_trackEraseSegments:(NSSet *)segmentNodes animated:(BOOL)animated
+{
+  for (FLSegmentNode *segmentNode in segmentNodes) {
+    [self FL_trackEraseCommon:segmentNode animated:animated];
+  }
+  if (animated) {
+    [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-clatter-1.caf" waitForCompletion:NO]];
+  }
+}
+
+- (void)FL_trackEraseCommon:(FLSegmentNode *)segmentNode animated:(BOOL)animated
+{
+  [segmentNode removeFromParent];
+  if (animated) {
+    SKEmitterNode *sleeperDestruction = [NSKeyedUnarchiver unarchiveObjectWithFile:[[NSBundle mainBundle] pathForResource:@"sleeperDestruction" ofType:@"sks"]];
+    SKEmitterNode *railDestruction = [NSKeyedUnarchiver unarchiveObjectWithFile:[[NSBundle mainBundle] pathForResource:@"railDestruction" ofType:@"sks"]];
+    // note: This kind of thing makes me think having an FLSegmentArtScale is a bad idea.  Resample the art instead.
+    sleeperDestruction.xScale = FLSegmentArtScale;
+    sleeperDestruction.yScale = FLSegmentArtScale;
+    railDestruction.xScale = FLSegmentArtScale;
+    railDestruction.yScale = FLSegmentArtScale;
+    sleeperDestruction.position = segmentNode.position;
+    railDestruction.position = segmentNode.position;
+    [_trackNode addChild:sleeperDestruction];
+    [_trackNode addChild:railDestruction];
+    // noob: I read it is recommended to remove emitter nodes when they aren't visible.  I'm not sure if that applies
+    // to emitter nodes that have reached their numParticlesToEmit maximum, but it certainly seems like a best practice.
+    SKAction *removeAfterWait = [SKAction sequence:@[ [SKAction waitForDuration:(sleeperDestruction.particleLifetime * 1.0)],
+                                                      [SKAction removeFromParent] ]];
+    [sleeperDestruction runAction:removeAfterWait];
+    [railDestruction runAction:removeAfterWait];
+  }
+  trackGridConvertErase(*_trackGrid, segmentNode.position);
+  _links.erase(segmentNode);
 }
 
 - (void)FL_trackGridDump
