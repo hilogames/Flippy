@@ -7,10 +7,6 @@ circuits.
 
 Current
 
-  . Multiple selection: long press.  Panning afterwards extends
-    selection.  Rewrite track move code to be able to move all
-    selected segments.
-
   . Import subtracks: Tap tool in creation toolbar to choose a
     subtrack (through a couple popups).  Drag it to import it.  Would
     be nice to group subtracks into folders: prefab gates, prefab
@@ -27,19 +23,23 @@ Current
   . Special input and output segments which have switches but no
     track (and perhaps have a readout of binary value).
 
-Medium Priority
-
-  . Pan world when track move goes to edge of scene.
+  . Pan world when track move (or multi-selection, or any pan gesture)
+    goes to edge of scene.
 
   . Consider recentering world as needed when construction tool is
     released, so that track edit popup menu can fit fully onscreen.
     (Get the track edit menu to report its width, I guess, and then
     do the centering in the handleGesture method.)
 
+Lower Priority
+
+  . Intertia for scrolling pan motion.
+
+  . Better interface fitting on iPhone, especially portrait: Expanding
+    toolbars?
+
   . Rotation gesture recognizer for rotation; flick for deletion;
     pinch or something for mirror.
-
-Low Priority
 
   . If multiple trains, then train edit menu for play/pause controls
     (and an explicit way to turn train around, perhaps).

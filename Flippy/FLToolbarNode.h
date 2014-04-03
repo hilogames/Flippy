@@ -31,14 +31,16 @@
  */
 - (NSString *)toolAtLocation:(CGPoint)location;
 
+- (CGRect)toolFrame:(NSString *)key;
+
 - (NSUInteger)toolCount;
 
 - (void)setHighlight:(BOOL)highlight forTool:(NSString *)key;
 
-- (void)runShowWithOrigin:(CGPoint)origin finalPosition:(CGPoint)finalPosition fullScale:(CGFloat)fullScale;
+- (void)setEnabled:(BOOL)enabled forTool:(NSString *)key;
 
-- (void)runHideWithOrigin:(CGPoint)origin removeFromParent:(BOOL)removeFromParent;
+- (void)showWithOrigin:(CGPoint)origin finalPosition:(CGPoint)finalPosition fullScale:(CGFloat)fullScale animated:(BOOL)animated;
 
-- (void)cancelHideWithRemoveFromParent:(BOOL)removeFromParent;
+- (void)hideAnimated:(BOOL)animated;
 
 @end

@@ -24,6 +24,7 @@ static UIColor *FLToolbarColorButtonHighlighted;
 @implementation FLToolbarNode
 {
   NSMutableArray *_toolButtonNodes;
+  CGPoint _lastOrigin;
 }
 
 + (void)initialize
@@ -39,7 +40,6 @@ static UIColor *FLToolbarColorButtonHighlighted;
   self = [super initWithColor:FLToolbarColorBackground size:emptySize];
   if (self) {
     _toolPad = 0.0f;
-    
   }
   return self;
 }
@@ -96,18 +96,18 @@ static UIColor *FLToolbarColorButtonHighlighted;
                                                                 size:CGSizeMake(toolNode.size.width + _toolPad * 2,
                                                                                 toolsHeight + _toolPad * 2)];
     toolButtonNode.name = key;
-    toolButtonNode.zPosition = self.zPosition + 1.0f;
+    toolButtonNode.zPosition = 0.1f;
     toolButtonNode.anchorPoint = CGPointMake(0.0f, 0.0f);
     toolButtonNode.position = CGPointMake(x, y);
     [self addChild:toolButtonNode];
     [_toolButtonNodes addObject:toolButtonNode];
 
-    toolNode.zPosition = self.zPosition + 2.0f;
+    toolNode.zPosition = 0.1f;
     toolNode.anchorPoint = CGPointMake(0.5f, 0.5f);
-    toolNode.position = CGPointMake(x + toolNode.size.width / 2.0f + _toolPad + offset.x,
-                                    y + toolNode.size.height / 2.0f + _toolPad + offset.y);
+    toolNode.position = CGPointMake(toolNode.size.width / 2.0f + _toolPad + offset.x,
+                                    toolNode.size.height / 2.0f + _toolPad + offset.y);
     toolNode.zRotation = rotation;
-    [self addChild:toolNode];
+    [toolButtonNode addChild:toolNode];
 
     x += toolNode.size.width + _toolPad * 2 + FLToolbarToolSeparatorSize;
   }
@@ -128,6 +128,16 @@ static UIColor *FLToolbarColorButtonHighlighted;
   return nil;
 }
 
+- (CGRect)toolFrame:(NSString *)key
+{
+  for (SKSpriteNode *toolButtonNode in _toolButtonNodes) {
+    if ([toolButtonNode.name isEqualToString:key]) {
+      return toolButtonNode.frame;
+    }
+  }
+  return CGRectZero;
+}
+
 - (void)setHighlight:(BOOL)highlight forTool:(NSString *)key
 {
   for (SKSpriteNode *toolButtonNode in _toolButtonNodes) {
@@ -137,59 +147,64 @@ static UIColor *FLToolbarColorButtonHighlighted;
       } else {
         toolButtonNode.color = FLToolbarColorButtonNormal;
       }
+      break;
     }
   }
 }
 
-- (void)runShowWithOrigin:(CGPoint)origin finalPosition:(CGPoint)finalPosition fullScale:(CGFloat)fullScale
+- (void)setEnabled:(BOOL)enabled forTool:(NSString *)key
 {
-  // noob: I'm encapsulating this animation within the toolbar, since the toolbar might know cool ways to make itself
-  // appear.  But the owner of this toolbar knows the anchor, position, size, and scale of this toolbar, which then
-  // all needs to be communicated to this animation method.  Kind of a pain.
-  const NSTimeInterval FLToolbarNodeShowDuration = 0.15;
-  self.xScale = 0.0f;
-  self.yScale = 0.0f;
-  SKAction *grow = [SKAction scaleTo:fullScale duration:FLToolbarNodeShowDuration];
-  self.position = origin;
-  SKAction *move = [SKAction moveTo:finalPosition duration:FLToolbarNodeShowDuration];
-  SKAction *showGroup = [SKAction group:@[ grow, move ]];
-  showGroup.timingMode = SKActionTimingEaseOut;
-  [self runAction:showGroup];
-}
-
-- (void)runHideWithOrigin:(CGPoint)origin removeFromParent:(BOOL)removeFromParent
-{
-  // noob: After removing the node from the parent, we restore everything we changed, so from the owner's point
-  // of view, the node looks the same when re-added.  Not sure if this is the right way to think of this; perhaps
-  // instead we should own more of our own appearance properties, or maybe expose a show: method which restores
-  // these things if necessary.
-  const NSTimeInterval FLToolbarNodeHideDuration = 0.15;
-  CGFloat originalXScale = self.xScale;
-  CGFloat originalYScale = self.yScale;
-  CGPoint originalPosition = self.position;
-  SKAction *shrink = [SKAction scaleTo:0.0f duration:FLToolbarNodeHideDuration];
-  SKAction *move = [SKAction moveTo:origin duration:FLToolbarNodeHideDuration];
-  SKAction *hideGroup = [SKAction group:@[ shrink, move]];
-  hideGroup.timingMode = SKActionTimingEaseIn;
-  SKAction *completion = [SKAction runBlock:^{
-    self.xScale = originalXScale;
-    self.yScale = originalYScale;
-    self.position = originalPosition;
-  }];
-  SKAction *hideSequence;
-  if (removeFromParent) {
-    SKAction *remove = [SKAction removeFromParent];
-    hideSequence = [SKAction sequence:@[ hideGroup, remove, completion ]];
-  } else {
-    hideSequence = [SKAction sequence:@[ hideGroup, completion ]];
+  for (SKSpriteNode *toolButtonNode in _toolButtonNodes) {
+    if ([toolButtonNode.name isEqualToString:key]) {
+      if (enabled) {
+        toolButtonNode.alpha = 1.0f;
+      } else {
+        toolButtonNode.alpha = 0.4f;
+      }
+      break;
+    }
   }
-  [self runAction:hideSequence withKey:@"hide"];
 }
 
-- (void)cancelHideWithRemoveFromParent:(BOOL)removeFromParent
+- (void)showWithOrigin:(CGPoint)origin finalPosition:(CGPoint)finalPosition fullScale:(CGFloat)fullScale animated:(BOOL)animated
 {
+  // noob: I'm encapsulating this animation within the toolbar, since the toolbar knows cool ways to make itself
+  // appear, and can track some useful state.  But the owner of this toolbar knows the anchor, position, size, and
+  // scale of this toolbar, which then all needs to be communicated to this animation method.  Kind of a pain.
+
+  // noob: I assume this will always take effect before we are removed from parent (at the end of the hide).
   [self removeActionForKey:@"hide"];
-  if (removeFromParent) {
+  
+  if (animated) {
+    const NSTimeInterval FLToolbarNodeShowDuration = 0.15;
+    self.xScale = 0.0f;
+    self.yScale = 0.0f;
+    SKAction *grow = [SKAction scaleTo:fullScale duration:FLToolbarNodeShowDuration];
+    self.position = origin;
+    SKAction *move = [SKAction moveTo:finalPosition duration:FLToolbarNodeShowDuration];
+    SKAction *showGroup = [SKAction group:@[ grow, move ]];
+    showGroup.timingMode = SKActionTimingEaseOut;
+    [self runAction:showGroup];
+  } else {
+    self.position = finalPosition;
+    self.xScale = fullScale;
+    self.yScale = fullScale;
+  }
+  _lastOrigin = origin;
+}
+
+- (void)hideAnimated:(BOOL)animated
+{
+  if (animated) {
+    const NSTimeInterval FLToolbarNodeHideDuration = 0.15;
+    SKAction *shrink = [SKAction scaleTo:0.0f duration:FLToolbarNodeHideDuration];
+    SKAction *move = [SKAction moveTo:_lastOrigin duration:FLToolbarNodeHideDuration];
+    SKAction *hideGroup = [SKAction group:@[ shrink, move]];
+    hideGroup.timingMode = SKActionTimingEaseIn;
+    SKAction *remove = [SKAction removeFromParent];
+    SKAction *hideSequence = [SKAction sequence:@[ hideGroup, remove ]];
+    [self runAction:hideSequence withKey:@"hide"];
+  } else {
     [self removeFromParent];
   }
 }

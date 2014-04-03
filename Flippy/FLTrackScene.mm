@@ -46,8 +46,9 @@ static const NSTimeInterval FLTrackRotateDuration = 0.1;
 
 struct FLConstructionToolbarState
 {
-  FLConstructionToolbarState() : toolbarNode(nil) {}
+  FLConstructionToolbarState() : toolbarNode(nil), fileOperationsToolbarNode(nil) {}
   FLToolbarNode *toolbarNode;
+  FLToolbarNode *fileOperationsToolbarNode;
 };
 
 struct FLSimulationToolbarState
@@ -90,7 +91,6 @@ struct FLTrackEditMenuState
   FLTrackEditMenuState() : editMenuNode(nil), showing(NO) {}
   BOOL showing;
   FLToolbarNode *editMenuNode;
-  CGPoint lastOrigin;
 };
 
 struct FLLinkEditState
@@ -328,7 +328,6 @@ struct PointerPairHash
   [aCoder encodeObject:_train forKey:@"train"];
   [aCoder encodeObject:_trackSelectState.selectedSegments forKey:@"trackSelectStateSelectedSegments"];
   [aCoder encodeBool:_trackEditMenuState.showing forKey:@"trackEditMenuStateShowing"];
-  [aCoder encodeCGPoint:_trackEditMenuState.lastOrigin forKey:@"trackEditMenuStateLastOrigin"];
   [aCoder encodeInt:(int)_worldGestureState.worldTool forKey:@"worldGestureStateWorldTool"];
 }
 
@@ -787,11 +786,12 @@ struct PointerPairHash
     CGPoint firstTouchSceneLocation = [self convertPointFromView:_worldGestureState.gestureFirstTouchLocation];
     CGPoint firstTouchToolbarLocation = [_constructionToolbarState.toolbarNode convertPoint:firstTouchSceneLocation fromNode:self];
     NSString *tool = [_constructionToolbarState.toolbarNode toolAtLocation:firstTouchToolbarLocation];
-    if (!tool || [tool isEqualToString:@"link"]) {
+    if (!tool || [tool isEqualToString:@"link"] || [tool isEqualToString:@"file-operations"]) {
       _worldGestureState.panType = FLWorldPanTypeNone;
       return;
     }
     [self FL_worldToolSet:FLWorldToolDefault];
+    [self FL_trackSelectClear];
     _worldGestureState.panType = FLWorldPanTypeTrackMove;
 
     FLSegmentNode *newSegmentNode = [self FL_createSegmentWithTextureKey:tool];
@@ -837,7 +837,29 @@ struct PointerPairHash
     } else {
       [self FL_worldToolSet:FLWorldToolDefault];
     }
+  } else if ([tool isEqualToString:@"file-operations"]) {
+    if (!_constructionToolbarState.fileOperationsToolbarNode.parent) {
+      CGRect toolFrame = [_constructionToolbarState.toolbarNode toolFrame:tool];
+      // note: Assume toolbar and scene scales are the same so only origin needs conversion.
+      toolFrame.origin = [self convertPoint:toolFrame.origin fromNode:_constructionToolbarState.toolbarNode];
+      [self FL_fileOperationToolbarShow:toolFrame];
+    } else {
+      [self FL_fileOperationToolbarHide];
+    }
   }
+}
+
+- (void)handleFileOperationsToolbarTap:(UIGestureRecognizer *)gestureRecognizer
+{
+  CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
+  CGPoint sceneLocation = [self convertPointFromView:viewLocation];
+  CGPoint toolbarLocation = [_constructionToolbarState.fileOperationsToolbarNode convertPoint:sceneLocation fromNode:self];
+  NSString *tool = [_constructionToolbarState.fileOperationsToolbarNode toolAtLocation:toolbarLocation];
+  if (!tool) {
+    return;
+  }
+
+  NSLog(@"tapped %@", tool);
 }
 
 - (void)handleSimulationToolbarTap:(UIGestureRecognizer *)gestureRecognizer
@@ -966,6 +988,25 @@ struct PointerPairHash
   // instance, maybe it takes a sophisticated check to determine if a tap within the bounds of a toolbar
   // should count as a tap on the toolbar or a tap on the world behind it.
 
+  // File operations toolbar.
+  if (_constructionToolbarState.fileOperationsToolbarNode
+      && _constructionToolbarState.fileOperationsToolbarNode.parent) {
+    if ([_constructionToolbarState.fileOperationsToolbarNode containsPoint:sceneLocation]) {
+      if (gestureRecognizer == _tapRecognizer) {
+        [gestureRecognizer removeTarget:nil action:nil];
+        [gestureRecognizer addTarget:self action:@selector(handleFileOperationsToolbarTap:)];
+        return YES;
+      }
+      return NO;
+    } else {
+      // noob: This is dorky: Any gesture, anywhere, hides the toolbar?  User interface problem.  Probably
+      // what I want is a series of temporary popups that are all part of a single pan gesture, like selecting
+      // from submenus in a Finder menubar, or dragging a file into spring-loaded folders.  On the other hand,
+      // note that Finder now allows clicks rather than drags to select submenus, so I dunno.
+      [self FL_fileOperationToolbarHide];
+    }
+  }
+
   // Construction toolbar.
   if (_constructionToolbarState.toolbarNode
       && _constructionToolbarState.toolbarNode.parent
@@ -982,7 +1023,7 @@ struct PointerPairHash
     }
     return NO;
   }
-
+  
   // Simulation toolbar.
   if (_simulationToolbarState.toolbarNode
       && _simulationToolbarState.toolbarNode.parent
@@ -1195,8 +1236,8 @@ struct PointerPairHash
     _constructionToolbarState.toolbarNode.anchorPoint = CGPointMake(0.5f, 0.0f);
     _constructionToolbarState.toolbarNode.toolPad = -1.0f;
 
-    const CGSize FLConstructionMenuToolSize = { 48.0f, 48.0f };
-    NSValue *toolSize = [NSValue valueWithCGSize:FLConstructionMenuToolSize];
+    const CGSize FLConstructionToolbarToolSize = { 48.0f, 48.0f };
+    NSValue *toolSize = [NSValue valueWithCGSize:FLConstructionToolbarToolSize];
     CGFloat artSegmentBasicInset = (FLSegmentArtSizeFull - FLSegmentArtSizeBasic) / 2.0f;
     // note: The straight segment runs along the visual edge of a square; we'd like to shift
     // it to the visual center of the tool image.  Half the full texture size is the middle,
@@ -1210,13 +1251,14 @@ struct PointerPairHash
     // the difference between the edges.  The math simplifies down a bit.  Rounded to prevent
     // aliasing (?).
     CGFloat curveShift = floorf(FLSegmentArtDrawnTrackNormalWidth / 4.0f);
-    [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"straight", @"curve", @"join-left", @"join-right", @"jog-left", @"jog-right", @"cross", @"link" ]
-                                                             sizes:@[ toolSize, toolSize, toolSize, toolSize, toolSize, toolSize, toolSize, toolSize ]
-                                                         rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2 ]
+    [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"straight", @"curve", @"join-left", @"join-right", @"jog-left", @"jog-right", @"cross", @"link", @"file-operations" ]
+                                                             sizes:@[ toolSize, toolSize, toolSize, toolSize, toolSize, toolSize, toolSize, toolSize, toolSize ]
+                                                         rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2 ]
                                                            offsets:@[ [NSValue valueWithCGPoint:CGPointMake(straightShift, 0.0f)],
                                                                       [NSValue valueWithCGPoint:CGPointMake(curveShift, -curveShift)],
                                                                       [NSValue valueWithCGPoint:CGPointMake(curveShift, -curveShift)],
                                                                       [NSValue valueWithCGPoint:CGPointMake(curveShift, curveShift)],
+                                                                      [NSValue valueWithCGPoint:CGPointZero],
                                                                       [NSValue valueWithCGPoint:CGPointZero],
                                                                       [NSValue valueWithCGPoint:CGPointZero],
                                                                       [NSValue valueWithCGPoint:CGPointZero],
@@ -1235,6 +1277,38 @@ struct PointerPairHash
       [_constructionToolbarState.toolbarNode removeFromParent];
     }
   }
+}
+
+- (void)FL_fileOperationToolbarShow:(CGRect)sceneFrame
+{
+  if (!_constructionToolbarState.fileOperationsToolbarNode) {
+    const CGSize FLFileOperationsToolbarToolSize = { 48.0f, 48.0f };
+    NSValue *toolSize = [NSValue valueWithCGSize:FLFileOperationsToolbarToolSize];
+    FLToolbarNode *fileOperationsToolbar = [[FLToolbarNode alloc] init];
+    fileOperationsToolbar.anchorPoint = CGPointMake(0.5f, 0.0f);
+    // note: To match appearance of construction toolbar, use similar sizes and pads.
+    fileOperationsToolbar.toolPad = -1.0f;
+    [fileOperationsToolbar setToolsWithTextureKeys:@[ @"import", @"export" ]
+                                             sizes:@[ toolSize, toolSize ]
+                                         rotations:@[ @M_PI_2, @M_PI_2 ]
+                                           offsets:nil];
+    _constructionToolbarState.fileOperationsToolbarNode = fileOperationsToolbar;
+  }
+  [_constructionToolbarState.fileOperationsToolbarNode setEnabled:(![self FL_trackSelectedNone]) forTool:@"export"];
+
+  if (!_constructionToolbarState.fileOperationsToolbarNode.parent) {
+    [_hudNode addChild:_constructionToolbarState.fileOperationsToolbarNode];
+  }
+
+  CGFloat sceneFrameMidX = CGRectGetMidX(sceneFrame);
+  CGPoint origin = CGPointMake(sceneFrameMidX, CGRectGetMidY(sceneFrame));
+  CGPoint finalPosition = CGPointMake(sceneFrameMidX, CGRectGetMaxY(sceneFrame));
+  [_constructionToolbarState.fileOperationsToolbarNode showWithOrigin:origin finalPosition:finalPosition fullScale:1.0f animated:YES];
+}
+
+- (void)FL_fileOperationToolbarHide
+{
+  [_constructionToolbarState.fileOperationsToolbarNode hideAnimated:YES];
 }
 
 - (void)FL_simulationToolbarSetVisible:(BOOL)visible
@@ -1263,8 +1337,8 @@ struct PointerPairHash
 
 - (void)FL_simulationToolbarUpdateTools
 {
-  const CGSize FLSimulationMenuToolSize = { 48.0f, 48.0f };
-  NSValue *toolSize = [NSValue valueWithCGSize:FLSimulationMenuToolSize];
+  const CGSize FLSimulationToolbarToolSize = { 48.0f, 48.0f };
+  NSValue *toolSize = [NSValue valueWithCGSize:FLSimulationToolbarToolSize];
   NSMutableArray *textureKeys = [NSMutableArray array];
   if (_simulationRunning) {
     [textureKeys addObject:@"pause"];
@@ -1383,7 +1457,15 @@ struct PointerPairHash
 
 - (BOOL)FL_trackSelected:(FLSegmentNode *)segmentNode
 {
+  if (!_trackSelectState.selectedSegments) {
+    return NO;
+  }
   return [_trackSelectState.selectedSegments containsObject:segmentNode];
+}
+
+- (BOOL)FL_trackSelectedNone
+{
+  return (_trackSelectState.selectedSegments == nil);
 }
 
 - (void)FL_trackConflictShow:(FLSegmentNode *)segmentNode
@@ -1635,11 +1717,6 @@ struct PointerPairHash
     _trackEditMenuState.editMenuNode.anchorPoint = CGPointMake(0.5f, 0.0f);
   }
 
-  // note: An animated hide might be currently running.  If so, cancel it.
-  if (!_trackEditMenuState.showing) {
-    [_trackEditMenuState.editMenuNode cancelHideWithRemoveFromParent:YES];
-  }
-
   // Collect information about selected segments.
   NSSet *segmentNodes = _trackSelectState.selectedSegments;
   BOOL hasSwitch = NO;
@@ -1701,16 +1778,11 @@ struct PointerPairHash
   CGFloat segmentsPositionMidY = (segmentsPositionBottom + segmentsPositionTop) / 2.0f;
   CGPoint position = CGPointMake(segmentsPositionMidX, segmentsPositionTop + _trackGrid->segmentSize() / 2.0f + FLTrackEditMenuBottomPad);
   CGPoint origin = CGPointMake(segmentsPositionMidX, segmentsPositionMidY);
-  if (!animated) {
-    _trackEditMenuState.editMenuNode.position = position;
-    [self FL_trackEditMenuScaleToWorld];
-  } else {
-    CGFloat fullScale = [self FL_trackEditMenuScaleForWorld];
-    [_trackEditMenuState.editMenuNode runShowWithOrigin:origin
-                                          finalPosition:position
-                                              fullScale:fullScale];
-  }
-  _trackEditMenuState.lastOrigin = origin;
+  CGFloat fullScale = [self FL_trackEditMenuScaleForWorld];
+  [_trackEditMenuState.editMenuNode showWithOrigin:origin
+                                     finalPosition:position
+                                         fullScale:fullScale
+                                          animated:animated];
 }
 
 - (void)FL_trackEditMenuHideAnimated:(BOOL)animated
@@ -1719,11 +1791,7 @@ struct PointerPairHash
     return;
   }
   _trackEditMenuState.showing = NO;
-  if (!animated) {
-    [_trackEditMenuState.editMenuNode removeFromParent];
-  } else {
-    [_trackEditMenuState.editMenuNode runHideWithOrigin:_trackEditMenuState.lastOrigin removeFromParent:YES];
-  }
+  [_trackEditMenuState.editMenuNode hideAnimated:NO];
 }
 
 - (void)FL_trackEditMenuScaleToWorld
@@ -2003,8 +2071,8 @@ struct PointerPairHash
   
   // Check proposed rotation for conflicts.
   //
-  // TODO: Search for nearby pivot that would work without conflicts?  Should be pretty
-  // quick to check a few.
+  // TODO: Search for nearby pivot that would work without conflicts?
+  // Shouldn't be hard to check a few anyway.
   int normalRotationQuarters = normalizeRotationQuarters(rotateBy);
   BOOL hasConflict = NO;
   for (FLSegmentNode *segmentNode in segmentNodes) {

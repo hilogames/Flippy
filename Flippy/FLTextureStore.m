@@ -42,6 +42,9 @@
     [sharedStore loadTextureForKey:@"rotate-ccw" filteringMode:SKTextureFilteringLinear];
     [sharedStore loadTextureForKey:@"toggle-switch" filteringMode:SKTextureFilteringLinear];
     [sharedStore loadTextureForKey:@"link" filteringMode:SKTextureFilteringLinear];
+    [sharedStore loadTextureForKey:@"file-operations" filteringMode:SKTextureFilteringLinear];
+    [sharedStore loadTextureForKey:@"import" filteringMode:SKTextureFilteringLinear];
+    [sharedStore loadTextureForKey:@"export" filteringMode:SKTextureFilteringLinear];
     
     // Other.
     [sharedStore loadTextureForKey:@"switch" filteringMode:SKTextureFilteringNearest];
