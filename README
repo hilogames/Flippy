@@ -7,15 +7,7 @@ circuits.
 
 Current
 
-  . Import subtracks: Tap tool in creation toolbar to choose a
-    subtrack (through a couple popups).  Drag it to import it.  Would
-    be nice to group subtracks into folders: prefab gates, prefab
-    circuits (half adder, full adder, two-bit adder), and
-    user-exported custom circuits.
-
-  . Export subtrack: A button next to the import button, which uses
-    current selection.  (Not part of context-sensitive popup, I don't
-    think.)
+  . Duplicate selection.
 
   . Start splash and start menu, with save/load/new options.  Button
     in simulation toolbar to return to start menu.
@@ -31,7 +23,14 @@ Current
     (Get the track edit menu to report its width, I guess, and then
     do the centering in the handleGesture method.)
 
+If It Ships
+
+  . Low memory warning.
+
 Lower Priority
+
+  . A tool/gesture for selecting everything connected to the current
+    segment.
 
   . Intertia for scrolling pan motion.
 

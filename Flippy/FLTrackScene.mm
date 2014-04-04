@@ -797,7 +797,7 @@ struct PointerPairHash
     FLSegmentNode *newSegmentNode = [self FL_createSegmentWithTextureKey:tool];
     newSegmentNode.zRotation = M_PI_2;
     // note: Locate the new segment underneath the current touch, even though it's
-    // not added to the node hierarchy.  (The track move routines translate nodes
+    // not yet added to the node hierarchy.  (The track move routines translate nodes
     // relative to their current position.)
     int gridX;
     int gridY;
@@ -859,7 +859,84 @@ struct PointerPairHash
     return;
   }
 
-  NSLog(@"tapped %@", tool);
+  if ([tool isEqualToString:@"export"]) {
+    [self FL_exportWithFilename:@"test"];
+  }
+}
+
+- (void)handleFileOperationsToolbarPan:(UIPanGestureRecognizer *)gestureRecognizer
+{
+  CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
+  CGPoint sceneLocation = [self convertPointFromView:viewLocation];
+  CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
+  
+  if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
+    
+    CGPoint firstTouchSceneLocation = [self convertPointFromView:_worldGestureState.gestureFirstTouchLocation];
+    CGPoint firstTouchToolbarLocation = [_constructionToolbarState.fileOperationsToolbarNode convertPoint:firstTouchSceneLocation fromNode:self];
+    NSString *tool = [_constructionToolbarState.fileOperationsToolbarNode toolAtLocation:firstTouchToolbarLocation];
+    if (!tool || ![tool isEqualToString:@"import"]) {
+      _worldGestureState.panType = FLWorldPanTypeNone;
+      return;
+    }
+    [self FL_worldToolSet:FLWorldToolDefault];
+    [self FL_trackSelectClear];
+    _worldGestureState.panType = FLWorldPanTypeTrackMove;
+    
+    NSSet *newSegmentNodes = [self FL_importWithFilename:@"test"];
+    
+    // Find position-aligned center point of the imported segment set.
+    //
+    // note: Locate the new segments underneath the current touch, even though they
+    // are not yet added to the node hierarchy.  (The track move routines translate nodes
+    // relative to their current position.)
+    CGFloat segmentsPositionTop;
+    CGFloat segmentsPositionBottom;
+    CGFloat segmentsPositionLeft;
+    CGFloat segmentsPositionRight;
+    [self FL_getSegmentsExtremes:newSegmentNodes left:&segmentsPositionLeft right:&segmentsPositionRight top:&segmentsPositionTop bottom:&segmentsPositionBottom];
+    CGFloat segmentSize = _trackGrid->segmentSize();
+    int widthUnits = (segmentsPositionRight - segmentsPositionLeft + 0.00001f) / segmentSize;
+    int heightUnits = (segmentsPositionTop - segmentsPositionBottom + 0.00001f) / segmentSize;
+    // note: Width and height of position differences, so for instance a width of one means
+    // the group is two segments wide.
+    CGPoint segmentsAlignedCenter = CGPointMake((segmentsPositionLeft + segmentsPositionRight) / 2.0f,
+                                                (segmentsPositionBottom + segmentsPositionTop) / 2.0f);
+    if (widthUnits % 2 == 1) {
+      segmentsAlignedCenter.x -= (segmentSize / 2.0f);
+    }
+    if (heightUnits % 2 == 1) {
+      segmentsAlignedCenter.y -= (segmentSize / 2.0f);
+    }
+
+    // Shift segments to the touch gesture (using calculated center).
+    int gridX;
+    int gridY;
+    _trackGrid->convert(worldLocation, &gridX, &gridY);
+    CGPoint touchAlignedCenter = _trackGrid->convert(gridX, gridY);
+    CGPoint shift = CGPointMake(touchAlignedCenter.x - segmentsAlignedCenter.x,
+                                touchAlignedCenter.y - segmentsAlignedCenter.y);
+    for (FLSegmentNode *segmentNode in newSegmentNodes) {
+      segmentNode.position = CGPointMake(segmentNode.position.x + shift.x,
+                                         segmentNode.position.y + shift.y);
+    }
+
+    [self FL_trackMoveBeganWithNodes:newSegmentNodes location:worldLocation];
+    
+    return;
+  }
+  
+  if (_worldGestureState.panType != FLWorldPanTypeTrackMove) {
+    return;
+  }
+  
+  if (gestureRecognizer.state == UIGestureRecognizerStateChanged) {
+    [self FL_trackMoveChangedWithLocation:worldLocation];
+  } else if (gestureRecognizer.state == UIGestureRecognizerStateEnded) {
+    [self FL_trackMoveEndedWithLocation:worldLocation];
+  } else if (gestureRecognizer.state == UIGestureRecognizerStateCancelled) {
+    [self FL_trackMoveCancelledWithLocation:worldLocation];
+  }
 }
 
 - (void)handleSimulationToolbarTap:(UIGestureRecognizer *)gestureRecognizer
@@ -992,6 +1069,11 @@ struct PointerPairHash
   if (_constructionToolbarState.fileOperationsToolbarNode
       && _constructionToolbarState.fileOperationsToolbarNode.parent) {
     if ([_constructionToolbarState.fileOperationsToolbarNode containsPoint:sceneLocation]) {
+      if (gestureRecognizer == _panRecognizer) {
+        [gestureRecognizer removeTarget:nil action:nil];
+        [gestureRecognizer addTarget:self action:@selector(handleFileOperationsToolbarPan:)];
+        return YES;
+      }
       if (gestureRecognizer == _tapRecognizer) {
         [gestureRecognizer removeTarget:nil action:nil];
         [gestureRecognizer addTarget:self action:@selector(handleFileOperationsToolbarTap:)];
@@ -1196,6 +1278,73 @@ struct PointerPairHash
   [SKAction playSoundFileNamed:@"wooden-clatter-1.caf" waitForCompletion:NO];
 }
 
+- (BOOL)FL_exportWithFilename:(NSString *)exportName
+{
+  // TODO: Blink button or something to indicate result.
+  if ([self FL_trackSelectedNone]) {
+    return NO;
+  }
+
+  NSString * const FLExportDirectoryName = @"exports";
+  NSString *exportDirectory = [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0]
+                               stringByAppendingPathComponent:FLExportDirectoryName];
+  NSFileManager *fileManager = [NSFileManager defaultManager];
+  if (![fileManager fileExistsAtPath:exportDirectory]) {
+    [fileManager createDirectoryAtPath:exportDirectory withIntermediateDirectories:NO attributes:nil error:NULL];
+  }
+  NSString *exportPath = [exportDirectory stringByAppendingPathComponent:[exportName stringByAppendingPathExtension:@"archive"]];
+  // TODO: Only allow a new file, etc.
+  //if (![[NSFileManager defaultManager] fileExistsAtPath:exportPath]) {
+
+  NSMutableData *archiveData = [NSMutableData data];
+  NSKeyedArchiver *aCoder = [[NSKeyedArchiver alloc] initForWritingWithMutableData:archiveData];
+
+  // note: Could normalize segment position so that, say, the lower-leftmost in the
+  // selection had position (0,0), but since a respositioning always happens on import,
+  // there doesn't seem to be a need for anything other than preserving relative
+  // position.
+  [aCoder encodeObject:_trackSelectState.selectedSegments forKey:@"segmentNodes"];
+
+  NSMutableArray *links = [NSMutableArray array];
+  for (auto link : _links) {
+    FLSegmentNode *fromSegmentNode = (__bridge FLSegmentNode *)link.first.first;
+    FLSegmentNode *toSegmentNode = (__bridge FLSegmentNode *)link.first.second;
+    if ([_trackSelectState.selectedSegments containsObject:fromSegmentNode]
+        && [_trackSelectState.selectedSegments containsObject:toSegmentNode]) {
+      [links addObject:fromSegmentNode];
+      [links addObject:toSegmentNode];
+    }
+  }
+  [aCoder encodeObject:links forKey:@"links"];
+
+  [aCoder finishEncoding];
+  [archiveData writeToFile:exportPath atomically:NO];
+
+  NSLog(@"exported %d segments (with %d links)", [_trackSelectState.selectedSegments count], [links count]);
+  return YES;
+}
+
+- (NSMutableSet *)FL_importWithFilename:(NSString *)importName
+{
+  NSString * const FLExportDirectoryName = @"exports";
+  NSString *exportDirectory = [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0]
+                               stringByAppendingPathComponent:FLExportDirectoryName];
+  NSString *exportPath = [exportDirectory stringByAppendingPathComponent:[importName stringByAppendingPathExtension:@"archive"]];
+  if (![[NSFileManager defaultManager] fileExistsAtPath:exportPath]) {
+    return nil;
+  }
+
+  NSData *archiveData = [NSData dataWithContentsOfFile:exportPath];
+  NSKeyedUnarchiver *aDecoder = [[NSKeyedUnarchiver alloc] initForReadingWithData:archiveData];
+
+  NSMutableSet *segmentNodes = [aDecoder decodeObjectForKey:@"segmentNodes"];
+  //NSMutableArray *links = [aDecoder decodeObjectForKey:@"links"];
+  // TODO: Add links if track move is successful; add a callback to the move process?
+  NSLog(@"imported %d segments (with 0 links)", [segmentNodes count]);
+
+  return segmentNodes;
+}
+
 /**
  * Creates a sprite using the shared texture store.
  *
@@ -1227,6 +1376,31 @@ struct PointerPairHash
   FLSegmentNode *segmentNode = [[FLSegmentNode alloc] initWithTextureKey:textureKey];
   segmentNode.scale = FLSegmentArtScale;
   return segmentNode;
+}
+
+- (void)FL_getSegmentsExtremes:(NSSet *)segmentNodes left:(CGFloat *)left right:(CGFloat *)right top:(CGFloat *)top bottom:(CGFloat *)bottom
+{
+  BOOL firstSegment = YES;
+  for (FLSegmentNode *segmentNode in segmentNodes) {
+    if (firstSegment) {
+      firstSegment = NO;
+      *left = segmentNode.position.x;
+      *right = segmentNode.position.x;
+      *top = segmentNode.position.y;
+      *bottom = segmentNode.position.y;
+    } else {
+      if (segmentNode.position.x < *left) {
+        *left = segmentNode.position.x;
+      } else if (segmentNode.position.x > *right) {
+        *right = segmentNode.position.x;
+      }
+      if (segmentNode.position.y < *bottom) {
+        *bottom = segmentNode.position.y;
+      } else if (segmentNode.position.y > *top) {
+        *top = segmentNode.position.y;
+      }
+    }
+  }
 }
 
 - (void)FL_constructionToolbarSetVisible:(BOOL)visible
@@ -1553,7 +1727,9 @@ struct PointerPairHash
   [self FL_trackMoveEndedCommonWithLocation:worldLocation];
   [_trackMoveState.cursorNode removeAllChildren];
   [_trackMoveState.cursorNode removeFromParent];
-  [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-clickity-2.caf" waitForCompletion:NO]];
+  if (_trackMoveState.placed) {
+    [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-clickity-2.caf" waitForCompletion:NO]];
+  }
 }
 
 - (void)FL_trackMoveCancelledWithLocation:(CGPoint)worldLocation
@@ -1585,7 +1761,7 @@ struct PointerPairHash
     }
   }
   
-  [self FL_trackEditMenuShowAnimated:YES];
+  [self FL_trackEditMenuUpdateAnimated:YES];
   _trackMoveState.segmentNodes = nil;
 }
 
@@ -1719,33 +1895,16 @@ struct PointerPairHash
 
   // Collect information about selected segments.
   NSSet *segmentNodes = _trackSelectState.selectedSegments;
-  BOOL hasSwitch = NO;
-  BOOL firstSegment = YES;
   CGFloat segmentsPositionTop;
   CGFloat segmentsPositionBottom;
   CGFloat segmentsPositionLeft;
   CGFloat segmentsPositionRight;
+  [self FL_getSegmentsExtremes:segmentNodes left:&segmentsPositionLeft right:&segmentsPositionRight top:&segmentsPositionTop bottom:&segmentsPositionBottom];
+  BOOL hasSwitch = NO;
   for (FLSegmentNode *segmentNode in segmentNodes) {
     if (segmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
       hasSwitch = YES;
-    }
-    if (firstSegment) {
-      firstSegment = NO;
-      segmentsPositionLeft = segmentNode.position.x;
-      segmentsPositionRight = segmentNode.position.x;
-      segmentsPositionTop = segmentNode.position.y;
-      segmentsPositionBottom = segmentNode.position.y;
-    } else {
-      if (segmentNode.position.x < segmentsPositionLeft) {
-        segmentsPositionLeft = segmentNode.position.x;
-      } else if (segmentNode.position.x > segmentsPositionRight) {
-        segmentsPositionRight = segmentNode.position.x;
-      }
-      if (segmentNode.position.y < segmentsPositionBottom) {
-        segmentsPositionBottom = segmentNode.position.y;
-      } else if (segmentNode.position.y > segmentsPositionTop) {
-        segmentsPositionTop = segmentNode.position.y;
-      }
+      break;
     }
   }
 
@@ -2011,31 +2170,11 @@ struct PointerPairHash
   }
 
   // Collect information about segments.
-  BOOL firstSegment = YES;
   CGFloat segmentsPositionTop;
   CGFloat segmentsPositionBottom;
   CGFloat segmentsPositionLeft;
   CGFloat segmentsPositionRight;
-  for (FLSegmentNode *segmentNode in segmentNodes) {
-    if (firstSegment) {
-      firstSegment = NO;
-      segmentsPositionLeft = segmentNode.position.x;
-      segmentsPositionRight = segmentNode.position.x;
-      segmentsPositionTop = segmentNode.position.y;
-      segmentsPositionBottom = segmentNode.position.y;
-    } else {
-      if (segmentNode.position.x < segmentsPositionLeft) {
-        segmentsPositionLeft = segmentNode.position.x;
-      } else if (segmentNode.position.x > segmentsPositionRight) {
-        segmentsPositionRight = segmentNode.position.x;
-      }
-      if (segmentNode.position.y < segmentsPositionBottom) {
-        segmentsPositionBottom = segmentNode.position.y;
-      } else if (segmentNode.position.y > segmentsPositionTop) {
-        segmentsPositionTop = segmentNode.position.y;
-      }
-    }
-  }
+  [self FL_getSegmentsExtremes:segmentNodes left:&segmentsPositionLeft right:&segmentsPositionRight top:&segmentsPositionTop bottom:&segmentsPositionBottom];
   // note: isSymmetryRotation just in terms of the bounding box, which will be the same
   // after the rotation as before the rotation.
   BOOL isSymmetricRotation = (rotateBy % 2 == 0) || (fabs(segmentsPositionRight - segmentsPositionLeft - segmentsPositionTop + segmentsPositionBottom) < 0.001f);
@@ -2045,20 +2184,13 @@ struct PointerPairHash
                               (segmentsPositionBottom + segmentsPositionTop) / 2.0f);
   if (!isSymmetricRotation) {
     CGFloat segmentSize = _trackGrid->segmentSize();
-    // commented out: I think this won't work, since due to floating point error fmodf() can return
-    // either a value like 0.000000001 or 0.9999999999.  And yet the below code seems so cumbersome.
-    //if (fabsf(fmodf(pivot.x, segmentSize) - fmodf(pivot.y, segmentSize)) > 0.1f) {
-    //  pivot.x += segmentSize / 2.0f;
-    //}
-    CGFloat pivotXRemainder = fmodf(pivot.x, segmentSize) / segmentSize;
-    BOOL pivotXUnaligned = (pivotXRemainder > 0.4f && pivotXRemainder < 0.6f) || (pivotXRemainder < -0.4f && pivotXRemainder > -0.6f);
-    CGFloat pivotYRemainder = fmodf(pivot.y, segmentSize) / segmentSize;
-    BOOL pivotYUnaligned = (pivotYRemainder > 0.4f && pivotYRemainder < 0.6f) || (pivotYRemainder < -0.4f && pivotYRemainder > -0.6f);
-    if (pivotXUnaligned != pivotYUnaligned) {
-      // note: Choose a good pivot.  Later we'll check for conflict, where a good pivot will
+    int widthUnits = (segmentsPositionRight - segmentsPositionLeft + 0.00001f) / segmentSize;
+    int heightUnits = (segmentsPositionTop - segmentsPositionBottom + 0.00001f) / segmentSize;
+    if (widthUnits % 2 != heightUnits % 2) {
+      // note: Choose a good nearby pivot.  Later we'll check for conflict, where a good pivot will
       // mean a pivot that allows the rotation to occur.  But even if this selection is rotating
-      // on an empty field, we still need a good pivot: Such that rotating four times will bring
-      // us back to the original position.  For that we need state, at least until the selection
+      // on a conflict-free field, we still need a good pivot, to wit, such that rotating four times will
+      // bring us back to the original position.  For that we need state, at least until the selection
       // changes.  Well, okay, let's steal some state that already exists: The zRotation of the
       // first segment in the set.
       CGPoint offsetPivot = CGPointMake(segmentSize / 2.0f, 0.0f);
