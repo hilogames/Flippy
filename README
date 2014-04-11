@@ -7,7 +7,17 @@ circuits.
 
 Current
 
-  . Duplicate selection.
+  . Menuing: construction toolbar has "segments", "gates", "circuits",
+    links tool, and export tool.  Each of the first three highlights
+    when tapped, with perhaps some help text, and pops up another
+    toolbar.  (Perhaps they should replace the construction toolbar,
+    come to think of it, to save screen space, and then have a back
+    button.  Certain outside touches could return to base bar, too.)
+    Tapping on each insertable item brings up a name; dragging it
+    inserts a copy.
+
+  . Make a copy/duplicate of current selection.  Insert the same way
+    as an import, so factor out that code.
 
   . Start splash and start menu, with save/load/new options.  Button
     in simulation toolbar to return to start menu.
@@ -28,6 +38,10 @@ If It Ships
   . Low memory warning.
 
 Lower Priority
+
+  . Mirror tool especially for mirroring a large selection.  (And
+    maybe then remove mirror images from segment construction
+    toolbar, since it would work for single segments, too.)
 
   . A tool/gesture for selecting everything connected to the current
     segment.

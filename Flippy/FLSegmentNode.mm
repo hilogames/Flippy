@@ -14,7 +14,20 @@
 const CGFloat FLSegmentArtSizeFull = 54.0f;
 const CGFloat FLSegmentArtSizeBasic = 36.0f;
 const CGFloat FLSegmentArtDrawnTrackNormalWidth = 14.0f;
-const CGFloat FLSegmentArtScale = 2.0f;
+
+const CGFloat FLSegmentArtBasicInset = (FLSegmentArtSizeFull - FLSegmentArtSizeBasic) / 2.0f;
+// note: The straight segment runs along the visual edge of a square; we'd like to shift
+// it to the visual center of the tool image.  Half the full texture size is the middle,
+// but need to subtract out the amount that the (centerpoint of the) drawn tracks are already
+// inset from the edge of the texture.
+const CGFloat FLSegmentArtStraightShift = (FLSegmentArtSizeFull / 2.0f) - FLSegmentArtBasicInset;
+// note: For the curves: The track textures don't appear visually centered because the
+// drawn track is a full inset away from any perpendicular edge and only a small pad away
+// from any parallel edge.  The pad is the difference between the drawn track centerpoint
+// inset and half the width of the normal drawn track width.  So shift it inwards by half
+// the difference between the edges.  The math simplifies down a bit.  Rounded to prevent
+// aliasing (?).
+const CGFloat FLSegmentArtCurveShift = floorf(FLSegmentArtDrawnTrackNormalWidth / 4.0f);
 
 const int FLSegmentSwitchPathIdNone = -1;
 
@@ -35,32 +48,8 @@ using namespace std;
 
 - (id)initWithSegmentType:(FLSegmentType)segmentType
 {
-  SKTexture *texture = nil;
-  switch (segmentType) {
-    case FLSegmentTypeStraight:
-      texture = [[FLTextureStore sharedStore] textureForKey:@"straight"];
-      break;
-    case FLSegmentTypeCurve:
-      texture = [[FLTextureStore sharedStore] textureForKey:@"curve"];
-      break;
-    case FLSegmentTypeJoinLeft:
-      texture = [[FLTextureStore sharedStore] textureForKey:@"join-left"];
-      break;
-    case FLSegmentTypeJoinRight:
-      texture = [[FLTextureStore sharedStore] textureForKey:@"join-right"];
-      break;
-    case FLSegmentTypeJogLeft:
-      texture = [[FLTextureStore sharedStore] textureForKey:@"jog-left"];
-      break;
-    case FLSegmentTypeJogRight:
-      texture = [[FLTextureStore sharedStore] textureForKey:@"jog-right"];
-      break;
-    case FLSegmentTypeCross:
-      texture = [[FLTextureStore sharedStore] textureForKey:@"cross"];
-      break;
-    default:
-      [NSException raise:@"FLSegmentNodeSegmentTypeUnknown" format:@"Unknown segment type."];
-  }
+  NSString *key = [FLSegmentNode keyForSegmentType:segmentType];
+  SKTexture *texture = [[FLTextureStore sharedStore] textureForKey:key];
   self = [super initWithTexture:texture];
   if (self) {
     _segmentType = segmentType;
@@ -76,24 +65,7 @@ using namespace std;
 
 - (id)initWithTextureKey:(NSString *)textureKey
 {
-  FLSegmentType segmentType;
-  if ([textureKey isEqualToString:@"straight"]) {
-    segmentType = FLSegmentTypeStraight;
-  } else if ([textureKey isEqualToString:@"curve"]) {
-    segmentType = FLSegmentTypeCurve;
-  } else if ([textureKey isEqualToString:@"join-left"]) {
-    segmentType = FLSegmentTypeJoinLeft;
-  } else if ([textureKey isEqualToString:@"join-right"]) {
-    segmentType = FLSegmentTypeJoinRight;
-  } else if ([textureKey isEqualToString:@"jog-left"]) {
-    segmentType = FLSegmentTypeJogLeft;
-  } else if ([textureKey isEqualToString:@"jog-right"]) {
-    segmentType = FLSegmentTypeJogRight;
-  } else if ([textureKey isEqualToString:@"cross"]) {
-    segmentType = FLSegmentTypeCross;
-  } else {
-    [NSException raise:@"FLSegmentNodeTexureKeyUnknown" format:@"Unknown segment texture key."];
-  }
+  FLSegmentType segmentType = [FLSegmentNode segmentTypeForKey:textureKey];
   SKTexture *texture = [[FLTextureStore sharedStore] textureForKey:textureKey];
   self = [super initWithTexture:texture];
   if (self) {
@@ -121,6 +93,57 @@ using namespace std;
   [super encodeWithCoder:aCoder];
   [aCoder encodeInt:(int)_segmentType forKey:@"segmentType"];
   [aCoder encodeInt:_switchPathId forKey:@"switchPathId"];
+}
+
++ (NSString *)keyForSegmentType:(FLSegmentType)segmentType
+{
+  switch (segmentType) {
+    case FLSegmentTypeStraight:
+      return @"straight";
+    case FLSegmentTypeCurve:
+      return @"curve";
+    case FLSegmentTypeJoinLeft:
+      return @"join-left";
+    case FLSegmentTypeJoinRight:
+      return @"join-right";
+    case FLSegmentTypeJogLeft:
+      return @"jog-left";
+    case FLSegmentTypeJogRight:
+      return @"jog-right";
+    case FLSegmentTypeCross:
+      return @"cross";
+    case FLSegmentTypeNone:
+    default:
+      break;
+  }
+  [NSException raise:@"FLSegmentNodeSegmentTypeUnknown" format:@"Unknown segment type."];
+  return nil;
+}
+
++ (FLSegmentType)segmentTypeForKey:(NSString *)key
+{
+  if ([key isEqualToString:@"straight"]) {
+    return FLSegmentTypeStraight;
+  } else if ([key isEqualToString:@"curve"]) {
+    return FLSegmentTypeCurve;
+  } else if ([key isEqualToString:@"join-left"]) {
+    return FLSegmentTypeJoinLeft;
+  } else if ([key isEqualToString:@"join-right"]) {
+    return FLSegmentTypeJoinRight;
+  } else if ([key isEqualToString:@"jog-left"]) {
+    return FLSegmentTypeJogLeft;
+  } else if ([key isEqualToString:@"jog-right"]) {
+    return FLSegmentTypeJogRight;
+  } else if ([key isEqualToString:@"cross"]) {
+    return FLSegmentTypeCross;
+  }
+  [NSException raise:@"FLSegmentNodeTexureKeyUnknown" format:@"Unknown segment texture key."];
+  return FLSegmentTypeNone;
+}
+
+- (NSString *)segmentKey
+{
+  return [FLSegmentNode keyForSegmentType:_segmentType];
 }
 
 - (int)zRotationQuarters

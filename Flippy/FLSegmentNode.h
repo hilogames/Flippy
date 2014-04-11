@@ -14,7 +14,9 @@ FOUNDATION_EXPORT const CGFloat FLSegmentArtSizeFull;
 FOUNDATION_EXPORT const CGFloat FLSegmentArtSizeBasic;
 // "Track normal width" is the pixel width of the drawn tracks (widest: sleepers).
 FOUNDATION_EXPORT const CGFloat FLSegmentArtDrawnTrackNormalWidth;
-FOUNDATION_EXPORT const CGFloat FLSegmentArtScale;
+FOUNDATION_EXPORT const CGFloat FLSegmentArtBasicInset;
+FOUNDATION_EXPORT const CGFloat FLSegmentArtStraightShift;
+FOUNDATION_EXPORT const CGFloat FLSegmentArtCurveShift;
 
 FOUNDATION_EXPORT const int FLSegmentSwitchPathIdNone;
 
@@ -50,11 +52,17 @@ convertRotationQuartersToRadians(int quarters)
 
 @property (nonatomic) FLSegmentType segmentType;
 
+@property (nonatomic, readonly) NSString *segmentKey;
+
 @property (nonatomic) int zRotationQuarters;
 
 @property (nonatomic, readonly) int switchPathId;
 
 @property (nonatomic, readonly) CGPoint switchPosition;
+
++ (NSString *)keyForSegmentType:(FLSegmentType)segmentType;
+
++ (FLSegmentType)segmentTypeForKey:(NSString *)key;
 
 - (id)initWithSegmentType:(FLSegmentType)segmentType;
 

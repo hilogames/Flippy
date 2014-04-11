@@ -11,6 +11,7 @@
 @implementation FLTextureStore
 {
   NSDictionary *_textures;
+  NSDictionary *_images;
 }
 
 + (FLTextureStore *)sharedStore
@@ -41,9 +42,12 @@
     [sharedStore loadTextureForKey:@"rotate-cw" filteringMode:SKTextureFilteringLinear];
     [sharedStore loadTextureForKey:@"rotate-ccw" filteringMode:SKTextureFilteringLinear];
     [sharedStore loadTextureForKey:@"toggle-switch" filteringMode:SKTextureFilteringLinear];
+    [sharedStore loadTextureForKey:@"main" filteringMode:SKTextureFilteringLinear];
+    [sharedStore loadTextureForKey:@"segments" filteringMode:SKTextureFilteringLinear];
+    [sharedStore loadTextureForKey:@"gates" filteringMode:SKTextureFilteringLinear];
+    [sharedStore loadTextureForKey:@"circuits" filteringMode:SKTextureFilteringLinear];
+    [sharedStore loadTextureForKey:@"exports" filteringMode:SKTextureFilteringLinear];
     [sharedStore loadTextureForKey:@"link" filteringMode:SKTextureFilteringLinear];
-    [sharedStore loadTextureForKey:@"file-operations" filteringMode:SKTextureFilteringLinear];
-    [sharedStore loadTextureForKey:@"import" filteringMode:SKTextureFilteringLinear];
     [sharedStore loadTextureForKey:@"export" filteringMode:SKTextureFilteringLinear];
     
     // Other.
@@ -57,29 +61,52 @@
   self = [super init];
   if (self) {
     _textures = [[NSMutableDictionary alloc] init];
+    _images = [[NSMutableDictionary alloc] init];
   }
   return self;
 }
 
 - (void)loadTextureForKey:(NSString *)key filteringMode:(SKTextureFilteringMode)filteringMode
 {
-  // Perhaps we should just allow the object owner to configure the texture arbitrarily
-  // before setting it.  But for now, make the store the expert.
-  NSString *imageName = [key stringByAppendingPathExtension:@"png"];
-  SKTexture *texture = [SKTexture textureWithImageNamed:imageName];
-  if (texture) {
-    texture.filteringMode = filteringMode;
-    [_textures setValue:texture forKey:key];
+  // Load texture first, so that it will look in texture atlases as appropriate.
+  SKTexture *texture = [SKTexture textureWithImageNamed:key];
+  if (!texture) {
+    [NSException raise:@"FLTextureStoreTextureNotFound" format:@"Could not find texture with key '%@'.", key];
   }
+
+  // Now, separately, load the image.  Use a special name to keep it separate from the texture
+  // atlas version.  It is only required if requested later, so don't throw an exception until
+  // then if not found.
+  NSString *imageName = [key stringByAppendingString:@"-nonatlas"];
+  UIImage *image = [UIImage imageNamed:imageName];
+
+  texture.filteringMode = filteringMode;
+  [_textures setValue:texture forKey:key];
+  [_images setValue:image forKey:key];
 }
 
 - (SKTexture *)textureForKey:(NSString *)key
 {
-  SKTexture *texture = [_textures objectForKey:key];
-  if (!texture) {
-    [NSException raise:@"FLTextureStoreMissingTexture" format:@"Texture key '%@' not found in store.", key];
+  return [_textures objectForKey:key];
+}
+
+- (void)setTextureWithImage:(UIImage *)image forKey:(NSString *)key filteringMode:(SKTextureFilteringMode)filteringMode
+{
+  SKTexture *texture = [SKTexture textureWithImage:image];
+  if (texture) {
+    texture.filteringMode = filteringMode;
+    [_textures setValue:texture forKey:key];
+    [_images setValue:image forKey:key];
   }
-  return texture;
+}
+
+- (UIImage *)imageForKey:(NSString *)key
+{
+  UIImage *image = [_images objectForKey:key];
+  if (!image) {
+    [NSException raise:@"FLTextureStoreImageNotFound" format:@"Could not find image with key '%@'.  (If the image is part of a texture atlas, it must also be included as a resource in the application bundle with the suffix '-nonatlas'.)", key];
+  }
+  return [_images objectForKey:key];
 }
 
 @end

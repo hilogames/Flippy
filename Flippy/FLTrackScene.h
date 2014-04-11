@@ -11,7 +11,7 @@
 #import "FLToolbarNode.h"
 #import "FLTrain.h"
 
-@interface FLTrackScene : SKScene <NSCoding, UIGestureRecognizerDelegate, FLGestureTarget, FLTrainDelegate>
+@interface FLTrackScene : SKScene <NSCoding, UIAlertViewDelegate, UIGestureRecognizerDelegate, FLGestureTarget, FLTrainDelegate>
 
 + (FLTrackScene *)load:(NSString *)saveName;
 

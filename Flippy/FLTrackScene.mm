@@ -24,6 +24,11 @@ static const CGFloat FLWorldScaleMin = 0.125f;
 static const CGFloat FLWorldScaleMax = 2.0f;
 static const CGSize FLWorldSize = { 3000.0f, 3000.0f };
 
+// note: The art scale is used within the track layer to intentionally pixelate
+// the art for train and segments.  It should not be considered intrinsic to the
+// segment art, but only added privately here when part of the track scene.
+static const CGFloat FLTrackArtScale = 2.0f;
+
 // Main layers.
 static const CGFloat FLZPositionWorld = 0.0f;
 static const CGFloat FLZPositionHud = 10.0f;
@@ -36,6 +41,16 @@ static const CGFloat FLZPositionWorldLinks = 4.0f;
 static const CGFloat FLZPositionWorldOverlay = 5.0f;
 
 static const NSTimeInterval FLTrackRotateDuration = 0.1;
+static const NSTimeInterval FLBlinkHalfCycleDuration = 0.1;
+
+// noob: The tool art uses a somewhat arbitrary size.  The display height is
+// chosen based on the screen layout.  Perhaps scaling like that is a bad idea.
+const CGFloat FLMainToolbarToolArtSize = 54.0f;
+const CGFloat FLMainToolbarToolHeight = 48.0f;
+
+static NSString *FLGatesDirectoryPath;
+static NSString *FLCircuitsDirectoryPath;
+static NSString *FLExportsDirectoryPath;
 
 #pragma mark -
 #pragma mark States
@@ -44,11 +59,23 @@ static const NSTimeInterval FLTrackRotateDuration = 0.1;
 // a simple public struct, and the associated functionality is implemented in
 // private methods of the scene.
 
+enum FLToolbarToolType { FLToolbarToolTypeNone, FLToolbarToolTypeActionTap, FLToolbarToolTypeActionPan, FLToolbarToolTypeNavigation, FLToolbarToolTypeMode };
+
 struct FLConstructionToolbarState
 {
-  FLConstructionToolbarState() : toolbarNode(nil), fileOperationsToolbarNode(nil) {}
+  FLConstructionToolbarState() : toolbarNode(nil), currentNavigation(@"main"), currentPage(0) {
+    navigationTools = [NSMutableSet set];
+    actionTapTools = [NSMutableSet set];
+    actionPanTools = [NSMutableDictionary dictionary];
+    modeTools = [NSMutableSet set];
+  }
   FLToolbarNode *toolbarNode;
-  FLToolbarNode *fileOperationsToolbarNode;
+  NSString *currentNavigation;
+  int currentPage;
+  NSMutableSet *navigationTools;
+  NSMutableSet *actionTapTools;
+  NSMutableDictionary *actionPanTools;
+  NSMutableSet *modeTools;
 };
 
 struct FLSimulationToolbarState
@@ -84,6 +111,7 @@ struct FLTrackMoveState
   BOOL placed;
   int placedTranslationGridX;
   int placedTranslationGridY;
+  void (^completion)(BOOL);
 };
 
 struct FLTrackEditMenuState
@@ -106,8 +134,6 @@ enum FLWorldPanType { FLWorldPanTypeNone, FLWorldPanTypeScroll, FLWorldPanTypeTr
 
 enum FLWorldLongPressMode { FLWorldLongPressModeNone, FLWorldLongPressModeAdd, FLWorldLongPressModeErase };
 
-enum FLWorldTool { FLWorldToolDefault, FLWorldToolLink };
-
 // note: This contains extra state information that seems too minor to split out
 // into a "component".  For instance, track selection and track movement are
 // caused by gestures in the world, but they are split out into their own
@@ -115,9 +141,7 @@ enum FLWorldTool { FLWorldToolDefault, FLWorldToolLink };
 // of a pinch zoom, though, can stay here for now.
 struct FLWorldGestureState
 {
-  FLWorldGestureState() : worldTool(FLWorldToolDefault) {}
   CGPoint gestureFirstTouchLocation;
-  FLWorldTool worldTool;
   FLWorldPanType panType;
   CGPoint pinchZoomCenter;
   FLWorldLongPressMode longPressMode;
@@ -142,7 +166,7 @@ struct PointerPairHash
 @implementation FLTrackScene
 {
   BOOL _contentCreated;
-
+  
   SKNode *_worldNode;
   SKNode *_trackNode;
   SKNode *_hudNode;
@@ -174,6 +198,15 @@ struct PointerPairHash
   FLTrain *_train;
 }
 
++ (void)initialize
+{
+  NSString *bundleDirectory = [[NSBundle mainBundle] bundlePath];
+  FLGatesDirectoryPath = [bundleDirectory stringByAppendingPathComponent:@"gates"];
+  FLCircuitsDirectoryPath = [bundleDirectory stringByAppendingPathComponent:@"circuits"];
+  NSString *documentsDirectory = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0];
+  FLExportsDirectoryPath = [documentsDirectory stringByAppendingPathComponent:@"exports"];
+}
+
 + (FLTrackScene *)load:(NSString *)saveName
 {
   NSString *savePath = [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0]
@@ -198,7 +231,7 @@ struct PointerPairHash
     _cameraMode = FLCameraModeManual;
     _simulationRunning = NO;
     _simulationSpeed = 0;
-    _trackGrid.reset(new FLTrackGrid(FLSegmentArtSizeBasic * FLSegmentArtScale));
+    _trackGrid.reset(new FLTrackGrid(FLSegmentArtSizeBasic * FLTrackArtScale));
   }
   return self;
 }
@@ -226,13 +259,13 @@ struct PointerPairHash
     [self FL_simulationToolbarSetVisible:YES];
 
     // Re-create track grid based on segments in track node.
-    _trackGrid.reset(new FLTrackGrid(FLSegmentArtSizeBasic * FLSegmentArtScale));
+    _trackGrid.reset(new FLTrackGrid(FLSegmentArtSizeBasic * FLTrackArtScale));
     _trackGrid->import(_trackNode);
 
     // Decode links model and re-create links layer.
     NSArray *links = [aDecoder decodeObjectForKey:@"links"];
-    int l = 0;
-    while (l < [links count]) {
+    NSUInteger l = 0;
+    while (l + 1 < [links count]) {
       FLSegmentNode *a = [links objectAtIndex:l];
       ++l;
       FLSegmentNode *b = [links objectAtIndex:l];
@@ -240,8 +273,6 @@ struct PointerPairHash
       SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:a.switchPosition toLocation:b.switchPosition];
       _links.insert(a, b, connectorNode);
     }
-    FLWorldTool worldTool = (FLWorldTool)[aDecoder decodeIntForKey:@"worldGestureStateWorldTool"];
-    [self FL_worldToolSet:worldTool];
     
     // Decode train.
     _train = [aDecoder decodeObjectForKey:@"train"];
@@ -257,6 +288,25 @@ struct PointerPairHash
     // Decode current track edit menu.
     if ([aDecoder decodeBoolForKey:@"trackEditMenuStateShowing"]) {
       [self FL_trackEditMenuShowAnimated:NO];
+    }
+    
+    // Decode current construction toolbar state.
+    //
+    // note: A bit awkward.  The various subtoolbars initialize themselves on-demand before being shown; we
+    // must traverse the hierarchy in order to initialize the parents before attempting to show the current
+    // toolbar.  This seems a bit silly, since we're messing with display.  But right now it's pretty simple:
+    // The main toolbar was already shown with the call to FL_constructionToolbarSetVisible above, and now
+    // we merely have to traverse down one level if required.
+    _constructionToolbarState.currentNavigation = [aDecoder decodeObjectForKey:@"constructionToolbarStateCurrentNavigation"];
+    _constructionToolbarState.currentPage = [aDecoder decodeIntForKey:@"constructionToolbarStateCurrentPage"];
+    if (![_constructionToolbarState.currentNavigation isEqualToString:@"main"]
+        || _constructionToolbarState.currentPage != 0) {
+      [self FL_constructionToolbarUpdateTools];
+    }
+    BOOL linksVisible = [aDecoder decodeBoolForKey:@"constructionToolbarStateLinksVisible"];
+    if (linksVisible) {
+      [_constructionToolbarState.toolbarNode setHighlight:YES forTool:@"link"];
+      [_worldNode addChild:_linksNode];
     }
   }
   return self;
@@ -283,7 +333,8 @@ struct PointerPairHash
   if (_trackEditMenuState.showing) {
     [self FL_trackEditMenuHideAnimated:NO];
   }
-  if (_worldGestureState.worldTool == FLWorldToolLink) {
+  BOOL linksVisible = (_linksNode.parent != nil);
+  if (linksVisible) {
     [_linksNode removeFromParent];
   }
   [self FL_simulationToolbarSetVisible:NO];
@@ -302,7 +353,7 @@ struct PointerPairHash
   if (holdTrackEditMenuState.showing) {
     [self FL_trackEditMenuShowAnimated:NO];
   }
-  if (_worldGestureState.worldTool == FLWorldToolLink) {
+  if (linksVisible) {
     [_worldNode addChild:_linksNode];
   }
   [self FL_simulationToolbarSetVisible:YES];
@@ -328,7 +379,9 @@ struct PointerPairHash
   [aCoder encodeObject:_train forKey:@"train"];
   [aCoder encodeObject:_trackSelectState.selectedSegments forKey:@"trackSelectStateSelectedSegments"];
   [aCoder encodeBool:_trackEditMenuState.showing forKey:@"trackEditMenuStateShowing"];
-  [aCoder encodeInt:(int)_worldGestureState.worldTool forKey:@"worldGestureStateWorldTool"];
+  [aCoder encodeBool:linksVisible forKey:@"constructionToolbarStateLinksVisible"];
+  [aCoder encodeObject:_constructionToolbarState.currentNavigation forKey:@"constructionToolbarStateCurrentNavigation"];
+  [aCoder encodeInt:_constructionToolbarState.currentPage forKey:@"constructionToolbarStateCurrentPage"];
 }
 
 - (void)didMoveToView:(SKView *)view
@@ -379,8 +432,8 @@ struct PointerPairHash
 
 - (void)didChangeSize:(CGSize)oldSize
 {
-  [self FL_constructionToolbarSetVisible:YES];
-  [self FL_simulationToolbarSetVisible:YES];
+  [self FL_constructionToolbarUpdateGeometry];
+  [self FL_simulationToolbarUpdateGeometry];
 }
 
 - (void)FL_createSceneContents
@@ -429,7 +482,7 @@ struct PointerPairHash
 
   _train = [[FLTrain alloc] initWithTrackGrid:_trackGrid];
   _train.delegate = self;
-  _train.scale = FLSegmentArtScale;
+  _train.scale = FLTrackArtScale;
   _train.zPosition = FLZPositionWorldTrain;
   [_worldNode addChild:_train];
 
@@ -443,7 +496,7 @@ struct PointerPairHash
   CGRect terrainTileRect = CGRectMake(0.0f, 0.0f, terrainTileImage.size.width, terrainTileImage.size.height);
   CGImageRef terrainTileRef = [terrainTileImage CGImage];
 
-  // note: Begin context with scaling options for Retina display.
+  // note: Should begin context with scaling options for Retina display.
   UIGraphicsBeginImageContext(FLWorldSize);
   CGContextRef context = UIGraphicsGetCurrentContext();
   CGContextDrawTiledImage(context, terrainTileRect, terrainTileRef);
@@ -512,6 +565,17 @@ struct PointerPairHash
 
   if (_simulationRunning) {
     [_train update:elapsedTime simulationSpeed:_simulationSpeed];
+  }
+}
+
+#pragma mark -
+#pragma mark UIAlertViewDelegate
+
+- (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex
+{
+  NSString *trackDescription = [alertView textFieldAtIndex:0].text;
+  if (buttonIndex == 1 && trackDescription && trackDescription.length > 0) {
+    [self FL_exportWithDescription:trackDescription];
   }
 }
 
@@ -613,7 +677,7 @@ struct PointerPairHash
     CGPoint firstTouchSceneLocation = [self convertPointFromView:firstTouchViewLocation];
     CGPoint firstTouchWorldLocation = [_worldNode convertPoint:firstTouchSceneLocation fromNode:self];
     FLSegmentNode *segmentNode = trackGridConvertGet(*_trackGrid, firstTouchWorldLocation);
-    if (_worldGestureState.worldTool == FLWorldToolLink) {
+    if (_linksNode.parent) {
       if (segmentNode && segmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
         // Pan begins with link tool inside a segment that has a switch.
         _worldGestureState.panType = FLWorldPanTypeLink;
@@ -623,7 +687,7 @@ struct PointerPairHash
         _worldGestureState.panType = FLWorldPanTypeScroll;
       }
     } else {
-      // _worldGestureState.worldTool == FLWorldToolDefault
+      // Pan is not using link tool.
       if ([self FL_trackSelected:segmentNode]) {
         // Pan begins inside a selected track segment.
         //
@@ -631,7 +695,7 @@ struct PointerPairHash
         // the pan is calculated by gridlines crossed (not distance moved), and we wouldn't want to
         // miss a gridline.
         _worldGestureState.panType = FLWorldPanTypeTrackMove;
-        [self FL_trackMoveBeganWithNodes:_trackSelectState.selectedSegments location:firstTouchWorldLocation];
+        [self FL_trackMoveBeganWithNodes:_trackSelectState.selectedSegments location:firstTouchWorldLocation completion:nil];
       } else {
         // Pan begins not inside a selected track segment.
         //
@@ -775,6 +839,89 @@ struct PointerPairHash
   _worldNode.position = worldPosition;
 }
 
+- (void)handleConstructionToolbarTap:(UITapGestureRecognizer *)gestureRecognizer
+{
+  CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
+  CGPoint sceneLocation = [self convertPointFromView:viewLocation];
+  CGPoint toolbarLocation = [_constructionToolbarState.toolbarNode convertPoint:sceneLocation fromNode:self];
+  NSString *tool = [_constructionToolbarState.toolbarNode toolAtLocation:toolbarLocation];
+  if (!tool) {
+    return;
+  }
+
+  FLToolbarToolType toolType = FLToolbarToolTypeNone;
+  if ([_constructionToolbarState.navigationTools containsObject:tool]) {
+    toolType = FLToolbarToolTypeNavigation;
+  } else if ([_constructionToolbarState.actionTapTools containsObject:tool]) {
+    toolType = FLToolbarToolTypeActionTap;
+  } else if ([_constructionToolbarState.actionPanTools objectForKey:tool]) {
+    toolType = FLToolbarToolTypeActionPan;
+  } else if ([_constructionToolbarState.modeTools containsObject:tool]) {
+    toolType = FLToolbarToolTypeMode;
+  } else {
+    [NSException raise:@"FLToolbarToolTypeUnknown" format:@"Tool '%@' not registered with a tool type.", tool];
+  }
+  
+  // Reset state on all mode buttons.
+  if (![tool isEqualToString:@"link"] && _linksNode.parent) {
+    [_linksNode removeFromParent];
+    // note: Right now, must be looking at main toolbar tools, or else links node
+    // wouldn't have been added to parent.  So no need to check.
+    [_constructionToolbarState.toolbarNode setHighlight:NO forTool:@"link"];
+  }
+  
+  if (toolType == FLToolbarToolTypeNavigation) {
+    
+    NSString *newNavigation;
+    int newPage;
+    if ([tool isEqualToString:@"next"]) {
+      newNavigation = _constructionToolbarState.currentNavigation;
+      newPage = _constructionToolbarState.currentPage + 1;
+    } else if ([tool isEqualToString:@"previous"]) {
+      newNavigation = _constructionToolbarState.currentNavigation;
+      newPage = _constructionToolbarState.currentPage - 1;
+    } else {
+      newNavigation = tool;
+      newPage = 0;
+    }
+    
+    if ([newNavigation isEqualToString:_constructionToolbarState.currentNavigation]
+        && newPage == _constructionToolbarState.currentPage) {
+      return;
+    }
+    
+    _constructionToolbarState.currentNavigation = newNavigation;
+    _constructionToolbarState.currentPage = newPage;
+    [self FL_constructionToolbarUpdateTools];
+    
+  } else if (toolType == FLToolbarToolTypeActionTap) {
+    
+    if ([tool isEqualToString:@"export"]) {
+      if ([self FL_trackSelectedNone]) {
+        [self FL_messageShow:@"Export Track: First select track segments to export."];
+      } else {
+        [self FL_export];
+      }
+    }
+
+  } else if (toolType == FLToolbarToolTypeActionPan) {
+
+    [self FL_messageShow:[_constructionToolbarState.actionPanTools objectForKey:tool]];
+    
+  } else if (toolType == FLToolbarToolTypeMode) {
+    
+    if ([tool isEqualToString:@"link"]) {
+      [_constructionToolbarState.toolbarNode setHighlight:(_linksNode.parent == nil) forTool:@"link"];
+      if (_linksNode.parent) {
+        [_linksNode removeFromParent];
+      } else {
+        [_worldNode addChild:_linksNode];
+      }
+    }
+    
+  }
+}
+
 - (void)handleConstructionToolbarPan:(UIPanGestureRecognizer *)gestureRecognizer
 {
   CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
@@ -786,24 +933,93 @@ struct PointerPairHash
     CGPoint firstTouchSceneLocation = [self convertPointFromView:_worldGestureState.gestureFirstTouchLocation];
     CGPoint firstTouchToolbarLocation = [_constructionToolbarState.toolbarNode convertPoint:firstTouchSceneLocation fromNode:self];
     NSString *tool = [_constructionToolbarState.toolbarNode toolAtLocation:firstTouchToolbarLocation];
-    if (!tool || [tool isEqualToString:@"link"] || [tool isEqualToString:@"file-operations"]) {
+    if (!tool || ![_constructionToolbarState.actionPanTools objectForKey:tool]) {
       _worldGestureState.panType = FLWorldPanTypeNone;
       return;
     }
-    [self FL_worldToolSet:FLWorldToolDefault];
     [self FL_trackSelectClear];
     _worldGestureState.panType = FLWorldPanTypeTrackMove;
 
-    FLSegmentNode *newSegmentNode = [self FL_createSegmentWithTextureKey:tool];
-    newSegmentNode.zRotation = M_PI_2;
-    // note: Locate the new segment underneath the current touch, even though it's
-    // not yet added to the node hierarchy.  (The track move routines translate nodes
-    // relative to their current position.)
-    int gridX;
-    int gridY;
-    _trackGrid->convert(worldLocation, &gridX, &gridY);
-    newSegmentNode.position = _trackGrid->convert(gridX, gridY);
-    [self FL_trackMoveBeganWithNodes:[NSSet setWithObject:newSegmentNode] location:worldLocation];
+    if ([_constructionToolbarState.currentNavigation isEqualToString:@"segments"]) {
+
+      FLSegmentNode *newSegmentNode = [self FL_createSegmentWithTextureKey:tool];
+      newSegmentNode.zRotation = M_PI_2;
+      // note: Locate the new segment underneath the current touch, even though it's
+      // not yet added to the node hierarchy.  (The track move routines translate nodes
+      // relative to their current position.)
+      int gridX;
+      int gridY;
+      _trackGrid->convert(worldLocation, &gridX, &gridY);
+      newSegmentNode.position = _trackGrid->convert(gridX, gridY);
+      [self FL_trackMoveBeganWithNodes:[NSSet setWithObject:newSegmentNode] location:worldLocation completion:nil];
+
+    } else {
+
+      NSString *importPath;
+      if ([_constructionToolbarState.currentNavigation isEqualToString:@"gates"]) {
+        importPath = [FLGatesDirectoryPath stringByAppendingPathComponent:[tool stringByAppendingPathExtension:@"archive"]];
+      } else if ([_constructionToolbarState.currentNavigation isEqualToString:@"circuits"]) {
+        importPath = [FLCircuitsDirectoryPath stringByAppendingPathComponent:[tool stringByAppendingPathExtension:@"archive"]];
+      } else if ([_constructionToolbarState.currentNavigation isEqualToString:@"exports"]) {
+        importPath = [FLExportsDirectoryPath stringByAppendingPathComponent:[tool stringByAppendingPathExtension:@"archive"]];
+      } else {
+        [NSException raise:@"FLConstructionToolbarInvalidNavigation" format:@"Unrecognized navigation '%@'.", _constructionToolbarState.currentNavigation];
+      }
+      NSString *description;
+      NSArray *links;
+      NSSet *newSegmentNodes = [self FL_importWithPath:importPath description:&description links:&links];
+      
+      // Find position-aligned center point of the imported segment set.
+      //
+      // note: Locate the new segments underneath the current touch, even though they
+      // are not yet added to the node hierarchy.  (The track move routines translate nodes
+      // relative to their current position.)
+      CGFloat segmentsPositionTop;
+      CGFloat segmentsPositionBottom;
+      CGFloat segmentsPositionLeft;
+      CGFloat segmentsPositionRight;
+      [self FL_getSegmentsExtremes:newSegmentNodes left:&segmentsPositionLeft right:&segmentsPositionRight top:&segmentsPositionTop bottom:&segmentsPositionBottom];
+      CGFloat segmentSize = _trackGrid->segmentSize();
+      int widthUnits = (segmentsPositionRight - segmentsPositionLeft + 0.00001f) / segmentSize;
+      int heightUnits = (segmentsPositionTop - segmentsPositionBottom + 0.00001f) / segmentSize;
+      // note: Width and height of position differences, so for instance a width of one means
+      // the group is two segments wide.
+      CGPoint segmentsAlignedCenter = CGPointMake((segmentsPositionLeft + segmentsPositionRight) / 2.0f,
+                                                  (segmentsPositionBottom + segmentsPositionTop) / 2.0f);
+      if (widthUnits % 2 == 1) {
+        segmentsAlignedCenter.x -= (segmentSize / 2.0f);
+      }
+      if (heightUnits % 2 == 1) {
+        segmentsAlignedCenter.y -= (segmentSize / 2.0f);
+      }
+      
+      // Shift segments to the touch gesture (using calculated center).
+      int gridX;
+      int gridY;
+      _trackGrid->convert(worldLocation, &gridX, &gridY);
+      CGPoint touchAlignedCenter = _trackGrid->convert(gridX, gridY);
+      CGPoint shift = CGPointMake(touchAlignedCenter.x - segmentsAlignedCenter.x,
+                                  touchAlignedCenter.y - segmentsAlignedCenter.y);
+      for (FLSegmentNode *segmentNode in newSegmentNodes) {
+        segmentNode.position = CGPointMake(segmentNode.position.x + shift.x,
+                                           segmentNode.position.y + shift.y);
+      }
+      
+      [self FL_messageShow:[NSString stringWithFormat:@"Added '%@' to track." , description]];
+      [self FL_trackMoveBeganWithNodes:newSegmentNodes location:worldLocation completion:^(BOOL placed){
+        if (placed) {
+          NSUInteger l = 0;
+          while (l + 1 < [links count]) {
+            FLSegmentNode *a = [links objectAtIndex:l];
+            ++l;
+            FLSegmentNode *b = [links objectAtIndex:l];
+            ++l;
+            SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:a.switchPosition toLocation:b.switchPosition];
+            _links.insert(a, b, connectorNode);
+          }
+        }
+      }];
+    }
 
     return;
   }
@@ -812,124 +1028,6 @@ struct PointerPairHash
     return;
   }
 
-  if (gestureRecognizer.state == UIGestureRecognizerStateChanged) {
-    [self FL_trackMoveChangedWithLocation:worldLocation];
-  } else if (gestureRecognizer.state == UIGestureRecognizerStateEnded) {
-    [self FL_trackMoveEndedWithLocation:worldLocation];
-  } else if (gestureRecognizer.state == UIGestureRecognizerStateCancelled) {
-    [self FL_trackMoveCancelledWithLocation:worldLocation];
-  }
-}
-
-- (void)handleConstructionToolbarTap:(UIGestureRecognizer *)gestureRecognizer
-{
-  CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
-  CGPoint sceneLocation = [self convertPointFromView:viewLocation];
-  CGPoint toolbarLocation = [_constructionToolbarState.toolbarNode convertPoint:sceneLocation fromNode:self];
-  NSString *tool = [_constructionToolbarState.toolbarNode toolAtLocation:toolbarLocation];
-  if (!tool) {
-    return;
-  }
-  
-  if ([tool isEqualToString:@"link"]) {
-    if (_worldGestureState.worldTool == FLWorldToolDefault) {
-      [self FL_worldToolSet:FLWorldToolLink];
-    } else {
-      [self FL_worldToolSet:FLWorldToolDefault];
-    }
-  } else if ([tool isEqualToString:@"file-operations"]) {
-    if (!_constructionToolbarState.fileOperationsToolbarNode.parent) {
-      CGRect toolFrame = [_constructionToolbarState.toolbarNode toolFrame:tool];
-      // note: Assume toolbar and scene scales are the same so only origin needs conversion.
-      toolFrame.origin = [self convertPoint:toolFrame.origin fromNode:_constructionToolbarState.toolbarNode];
-      [self FL_fileOperationToolbarShow:toolFrame];
-    } else {
-      [self FL_fileOperationToolbarHide];
-    }
-  }
-}
-
-- (void)handleFileOperationsToolbarTap:(UIGestureRecognizer *)gestureRecognizer
-{
-  CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
-  CGPoint sceneLocation = [self convertPointFromView:viewLocation];
-  CGPoint toolbarLocation = [_constructionToolbarState.fileOperationsToolbarNode convertPoint:sceneLocation fromNode:self];
-  NSString *tool = [_constructionToolbarState.fileOperationsToolbarNode toolAtLocation:toolbarLocation];
-  if (!tool) {
-    return;
-  }
-
-  if ([tool isEqualToString:@"export"]) {
-    [self FL_exportWithFilename:@"test"];
-  }
-}
-
-- (void)handleFileOperationsToolbarPan:(UIPanGestureRecognizer *)gestureRecognizer
-{
-  CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
-  CGPoint sceneLocation = [self convertPointFromView:viewLocation];
-  CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
-  
-  if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
-    
-    CGPoint firstTouchSceneLocation = [self convertPointFromView:_worldGestureState.gestureFirstTouchLocation];
-    CGPoint firstTouchToolbarLocation = [_constructionToolbarState.fileOperationsToolbarNode convertPoint:firstTouchSceneLocation fromNode:self];
-    NSString *tool = [_constructionToolbarState.fileOperationsToolbarNode toolAtLocation:firstTouchToolbarLocation];
-    if (!tool || ![tool isEqualToString:@"import"]) {
-      _worldGestureState.panType = FLWorldPanTypeNone;
-      return;
-    }
-    [self FL_worldToolSet:FLWorldToolDefault];
-    [self FL_trackSelectClear];
-    _worldGestureState.panType = FLWorldPanTypeTrackMove;
-    
-    NSSet *newSegmentNodes = [self FL_importWithFilename:@"test"];
-    
-    // Find position-aligned center point of the imported segment set.
-    //
-    // note: Locate the new segments underneath the current touch, even though they
-    // are not yet added to the node hierarchy.  (The track move routines translate nodes
-    // relative to their current position.)
-    CGFloat segmentsPositionTop;
-    CGFloat segmentsPositionBottom;
-    CGFloat segmentsPositionLeft;
-    CGFloat segmentsPositionRight;
-    [self FL_getSegmentsExtremes:newSegmentNodes left:&segmentsPositionLeft right:&segmentsPositionRight top:&segmentsPositionTop bottom:&segmentsPositionBottom];
-    CGFloat segmentSize = _trackGrid->segmentSize();
-    int widthUnits = (segmentsPositionRight - segmentsPositionLeft + 0.00001f) / segmentSize;
-    int heightUnits = (segmentsPositionTop - segmentsPositionBottom + 0.00001f) / segmentSize;
-    // note: Width and height of position differences, so for instance a width of one means
-    // the group is two segments wide.
-    CGPoint segmentsAlignedCenter = CGPointMake((segmentsPositionLeft + segmentsPositionRight) / 2.0f,
-                                                (segmentsPositionBottom + segmentsPositionTop) / 2.0f);
-    if (widthUnits % 2 == 1) {
-      segmentsAlignedCenter.x -= (segmentSize / 2.0f);
-    }
-    if (heightUnits % 2 == 1) {
-      segmentsAlignedCenter.y -= (segmentSize / 2.0f);
-    }
-
-    // Shift segments to the touch gesture (using calculated center).
-    int gridX;
-    int gridY;
-    _trackGrid->convert(worldLocation, &gridX, &gridY);
-    CGPoint touchAlignedCenter = _trackGrid->convert(gridX, gridY);
-    CGPoint shift = CGPointMake(touchAlignedCenter.x - segmentsAlignedCenter.x,
-                                touchAlignedCenter.y - segmentsAlignedCenter.y);
-    for (FLSegmentNode *segmentNode in newSegmentNodes) {
-      segmentNode.position = CGPointMake(segmentNode.position.x + shift.x,
-                                         segmentNode.position.y + shift.y);
-    }
-
-    [self FL_trackMoveBeganWithNodes:newSegmentNodes location:worldLocation];
-    
-    return;
-  }
-  
-  if (_worldGestureState.panType != FLWorldPanTypeTrackMove) {
-    return;
-  }
-  
   if (gestureRecognizer.state == UIGestureRecognizerStateChanged) {
     [self FL_trackMoveChangedWithLocation:worldLocation];
   } else if (gestureRecognizer.state == UIGestureRecognizerStateEnded) {
@@ -1065,30 +1163,6 @@ struct PointerPairHash
   // instance, maybe it takes a sophisticated check to determine if a tap within the bounds of a toolbar
   // should count as a tap on the toolbar or a tap on the world behind it.
 
-  // File operations toolbar.
-  if (_constructionToolbarState.fileOperationsToolbarNode
-      && _constructionToolbarState.fileOperationsToolbarNode.parent) {
-    if ([_constructionToolbarState.fileOperationsToolbarNode containsPoint:sceneLocation]) {
-      if (gestureRecognizer == _panRecognizer) {
-        [gestureRecognizer removeTarget:nil action:nil];
-        [gestureRecognizer addTarget:self action:@selector(handleFileOperationsToolbarPan:)];
-        return YES;
-      }
-      if (gestureRecognizer == _tapRecognizer) {
-        [gestureRecognizer removeTarget:nil action:nil];
-        [gestureRecognizer addTarget:self action:@selector(handleFileOperationsToolbarTap:)];
-        return YES;
-      }
-      return NO;
-    } else {
-      // noob: This is dorky: Any gesture, anywhere, hides the toolbar?  User interface problem.  Probably
-      // what I want is a series of temporary popups that are all part of a single pan gesture, like selecting
-      // from submenus in a Finder menubar, or dragging a file into spring-loaded folders.  On the other hand,
-      // note that Finder now allows clicks rather than drags to select submenus, so I dunno.
-      [self FL_fileOperationToolbarHide];
-    }
-  }
-
   // Construction toolbar.
   if (_constructionToolbarState.toolbarNode
       && _constructionToolbarState.toolbarNode.parent
@@ -1103,6 +1177,7 @@ struct PointerPairHash
       [gestureRecognizer addTarget:self action:@selector(handleConstructionToolbarTap:)];
       return YES;
     }
+    // TODO: Long press for deletion of exports.
     return NO;
   }
   
@@ -1278,33 +1353,45 @@ struct PointerPairHash
   [SKAction playSoundFileNamed:@"wooden-clatter-1.caf" waitForCompletion:NO];
 }
 
-- (BOOL)FL_exportWithFilename:(NSString *)exportName
+- (void)FL_export
 {
-  // TODO: Blink button or something to indicate result.
   if ([self FL_trackSelectedNone]) {
-    return NO;
+    return;
   }
 
-  NSString * const FLExportDirectoryName = @"exports";
-  NSString *exportDirectory = [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0]
-                               stringByAppendingPathComponent:FLExportDirectoryName];
+  UIAlertView *inputView = [[UIAlertView alloc] initWithTitle:@"Exported Track Name"
+                                                      message:nil
+                                                     delegate:self
+                                            cancelButtonTitle:@"Cancel"
+                                            otherButtonTitles:@"Export", nil];
+  inputView.delegate = self;
+  inputView.alertViewStyle = UIAlertViewStylePlainTextInput;
+  [inputView show];
+}
+
+- (BOOL)FL_exportWithDescription:(NSString *)trackDescription
+{
+  CFUUIDRef uuid = CFUUIDCreate(kCFAllocatorDefault);
+  CFStringRef uuidString = CFUUIDCreateString(kCFAllocatorDefault, uuid);
+  NSString *exportName = (__bridge NSString *)uuidString;
+  CFRelease(uuidString);
+  CFRelease(uuid);
+
   NSFileManager *fileManager = [NSFileManager defaultManager];
-  if (![fileManager fileExistsAtPath:exportDirectory]) {
-    [fileManager createDirectoryAtPath:exportDirectory withIntermediateDirectories:NO attributes:nil error:NULL];
+  if (![fileManager fileExistsAtPath:FLExportsDirectoryPath]) {
+    [fileManager createDirectoryAtPath:FLExportsDirectoryPath withIntermediateDirectories:NO attributes:nil error:NULL];
   }
-  NSString *exportPath = [exportDirectory stringByAppendingPathComponent:[exportName stringByAppendingPathExtension:@"archive"]];
-  // TODO: Only allow a new file, etc.
-  //if (![[NSFileManager defaultManager] fileExistsAtPath:exportPath]) {
+  NSString *exportPath = [FLExportsDirectoryPath stringByAppendingPathComponent:[exportName stringByAppendingPathExtension:@"archive"]];
 
   NSMutableData *archiveData = [NSMutableData data];
   NSKeyedArchiver *aCoder = [[NSKeyedArchiver alloc] initForWritingWithMutableData:archiveData];
 
+  [aCoder encodeObject:trackDescription forKey:@"trackDescription"];
   // note: Could normalize segment position so that, say, the lower-leftmost in the
   // selection had position (0,0), but since a respositioning always happens on import,
   // there doesn't seem to be a need for anything other than preserving relative
   // position.
   [aCoder encodeObject:_trackSelectState.selectedSegments forKey:@"segmentNodes"];
-
   NSMutableArray *links = [NSMutableArray array];
   for (auto link : _links) {
     FLSegmentNode *fromSegmentNode = (__bridge FLSegmentNode *)link.first.first;
@@ -1316,31 +1403,37 @@ struct PointerPairHash
     }
   }
   [aCoder encodeObject:links forKey:@"links"];
-
   [aCoder finishEncoding];
   [archiveData writeToFile:exportPath atomically:NO];
+  NSLog(@"exported %@ (%d segments, %d links)", trackDescription, [_trackSelectState.selectedSegments count], [links count]);
 
-  NSLog(@"exported %d segments (with %d links)", [_trackSelectState.selectedSegments count], [links count]);
+  // note: Assume export button is showing in construction toolbar, else we would not have been called.
+  [_constructionToolbarState.toolbarNode animateHighlight:NO count:2 halfCycleDuration:FLBlinkHalfCycleDuration forTool:@"export"];
+
   return YES;
 }
 
-- (NSMutableSet *)FL_importWithFilename:(NSString *)importName
+- (NSSet *)FL_importWithPath:(NSString *)path description:(NSString **)trackDescription links:(NSArray **)links
 {
-  NSString * const FLExportDirectoryName = @"exports";
-  NSString *exportDirectory = [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0]
-                               stringByAppendingPathComponent:FLExportDirectoryName];
-  NSString *exportPath = [exportDirectory stringByAppendingPathComponent:[importName stringByAppendingPathExtension:@"archive"]];
-  if (![[NSFileManager defaultManager] fileExistsAtPath:exportPath]) {
-    return nil;
+  if (![[NSFileManager defaultManager] fileExistsAtPath:path]) {
+    [NSException raise:@"FLImportPathInvalid" format:@"Invalid import path %@.", path];
   }
 
-  NSData *archiveData = [NSData dataWithContentsOfFile:exportPath];
+  NSData *archiveData = [NSData dataWithContentsOfFile:path];
   NSKeyedUnarchiver *aDecoder = [[NSKeyedUnarchiver alloc] initForReadingWithData:archiveData];
 
   NSMutableSet *segmentNodes = [aDecoder decodeObjectForKey:@"segmentNodes"];
-  //NSMutableArray *links = [aDecoder decodeObjectForKey:@"links"];
-  // TODO: Add links if track move is successful; add a callback to the move process?
-  NSLog(@"imported %d segments (with 0 links)", [segmentNodes count]);
+  if (trackDescription) {
+    *trackDescription = [aDecoder decodeObjectForKey:@"trackDescription"];
+    if (!*trackDescription) {
+      *trackDescription = @"Unknown Description";
+    }
+  }
+  if (links) {
+    *links = [aDecoder decodeObjectForKey:@"links"];
+  }
+
+  [aDecoder finishDecoding];
 
   return segmentNodes;
 }
@@ -1357,7 +1450,7 @@ struct PointerPairHash
   SKTexture *texture = [[FLTextureStore sharedStore] textureForKey:textureKey];
   SKSpriteNode *sprite = [SKSpriteNode spriteNodeWithTexture:texture];
   sprite.name = spriteName;
-  sprite.scale = FLSegmentArtScale;
+  sprite.scale = FLTrackArtScale;
   //// note: The textureKey in user data is currently only used for debugging.
   //sprite.userData = [NSMutableDictionary dictionaryWithDictionary:@{ @"textureKey" : textureKey }];
   [parent addChild:sprite];
@@ -1367,15 +1460,96 @@ struct PointerPairHash
 - (FLSegmentNode *)FL_createSegmentWithSegmentType:(FLSegmentType)segmentType
 {
   FLSegmentNode *segmentNode = [[FLSegmentNode alloc] initWithSegmentType:segmentType];
-  segmentNode.scale = FLSegmentArtScale;
+  segmentNode.scale = FLTrackArtScale;
   return segmentNode;
 }
 
 - (FLSegmentNode *)FL_createSegmentWithTextureKey:(NSString *)textureKey
 {
   FLSegmentNode *segmentNode = [[FLSegmentNode alloc] initWithTextureKey:textureKey];
-  segmentNode.scale = FLSegmentArtScale;
+  segmentNode.scale = FLTrackArtScale;
   return segmentNode;
+}
+
+- (UIImage *)FL_createImageForSegments:(NSSet *)segmentNodes withSize:(CGFloat)imageSize
+{
+  CGFloat segmentsPositionTop;
+  CGFloat segmentsPositionBottom;
+  CGFloat segmentsPositionLeft;
+  CGFloat segmentsPositionRight;
+  [self FL_getSegmentsExtremes:segmentNodes left:&segmentsPositionLeft right:&segmentsPositionRight top:&segmentsPositionTop bottom:&segmentsPositionBottom];
+  
+  // note: Keep in mind, segment images are drawn overlapping, with the "basic" segment size
+  // representing the main content portion of the image drawn within the "full" segment size.
+  CGFloat basicSegmentSize = FLSegmentArtSizeBasic * FLTrackArtScale;
+  CGFloat fullSegmentSize = FLSegmentArtSizeFull * FLTrackArtScale;
+  int widthUnits = (segmentsPositionRight - segmentsPositionLeft + 0.00001f) / basicSegmentSize;
+  int heightUnits = (segmentsPositionTop - segmentsPositionBottom + 0.00001f) / basicSegmentSize;
+  int sizeUnits = MAX(widthUnits, heightUnits);
+
+  // note: The margin of the image contains the portion of the drawn segment that gets drawn
+  // outside the basic segment area.  (As calculated here it's bigger than necessary, because
+  // we don't actually typically draw all the way to the edge of the full segment area.)
+  CGFloat imageMargin = imageSize * (fullSegmentSize - basicSegmentSize) / 2.0f / fullSegmentSize;
+
+  CGFloat scaledBasicSegmentSize = (imageSize - imageMargin * 2.0f) / (sizeUnits + 1);
+  CGFloat scaleBasicSegmentPosition = scaledBasicSegmentSize / basicSegmentSize;
+  CGFloat scaledFullSegmentSize = scaleBasicSegmentPosition * fullSegmentSize;
+  CGFloat halfScaledFullSegmentSize = scaledFullSegmentSize / 2.0f;
+  CGFloat scaledBasicSegmentInset = (scaledFullSegmentSize - scaledBasicSegmentSize) / 2.0f;
+  CGPoint shift = CGPointMake(segmentsPositionLeft - (sizeUnits - widthUnits) * basicSegmentSize / 2.0f,
+                              segmentsPositionBottom - (sizeUnits - heightUnits) * basicSegmentSize / 2.0f);
+  
+  // note: Should begin context with scaling options for Retina display.
+  UIGraphicsBeginImageContext(CGSizeMake(imageSize, imageSize));
+  CGContextRef context = UIGraphicsGetCurrentContext();
+  // noob: From Apple documentation:
+  //
+  //   The default coordinate system used throughout UIKit is different from the coordinate system used by Quartz. In UIKit,
+  //   the origin is in the upper-left corner, with the positive-y value pointing downward. The UIView object modifies the
+  //   CTM of the Quartz graphics context to match the UIKit conventions by translating the origin to the upper left corner
+  //   of the view and inverting the y-axis by multiplying it by -1. For more information on modified-coordinate systems and
+  //   the implications in your own drawing code, see “Quartz 2D Coordinate Systems.”
+  //
+  // So when I load a png as a texture for an SKSpriteNode (SpriteKit uses a Quartz-like coordinate system),
+  // the image shows the way I expect.  But when I draw to a Core graphics image context, and then capture a
+  // UIImage using UIGraphicsGetImageFromCurrentImageContext(), and then use that image as a texture for an
+  // SKSpriteNode, then the y-axis appears flipped.  The flipping operation, of course, is symmetrical, and
+  // so to be honest I'm not entirely sure where the issue is introduced: Either the UIImage or the SKTexture
+  // is doing one fewer or one more flips than I expect.  No matter what, flipping it once myself gives me the
+  // result I expect.  I'm not sure that's the correct treatment.  (For instance, I could instead use
+  // CGImageRef cgImage = CGBitmapContextCreateImage(context) to get a Quartz image, and then initialize the
+  // texture using that image, which presumably would give me the result I expect.  But I haven't checked,
+  // and FLTextureStore is factored in such a way that I want a UIImage.)
+  CGContextTranslateCTM(context, 0.0f, imageSize);
+  CGContextScaleCTM(context, 1.0f, -1.0f);
+  // note: The segments are positioned and rotated according to scene coordinates, which uses Cartesian coordinates
+  // and which by convention rotates all art M_PI_2 radians so that what is pointing to the right in the art asset
+  // is pointing up in the scene.  So: rotate our context back to the right, so that we are creating an image in the
+  // standard orientation (and with the standard origin) for art assets.
+  CGContextTranslateCTM(context, 0.0f, imageSize);
+  CGContextRotateCTM(context, -M_PI_2);
+  for (FLSegmentNode *segmentNode in segmentNodes) {
+    UIImage *segmentNodeImage = [[FLTextureStore sharedStore] imageForKey:segmentNode.segmentKey];
+    // Calculate final center position of the scaled segment (on the imageSize x imageSize image with origin in the lower left).
+    CGPoint scaledSegmentPosition = CGPointMake((segmentNode.position.x - shift.x) * scaleBasicSegmentPosition - scaledBasicSegmentInset + imageMargin + halfScaledFullSegmentSize,
+                                                (segmentNode.position.y - shift.y) * scaleBasicSegmentPosition - scaledBasicSegmentInset + imageMargin + halfScaledFullSegmentSize);
+    CGContextSaveGState(context);
+    // Move drawing context so its origin is at the image's target center position in the space.
+    CGContextTranslateCTM(context, scaledSegmentPosition.x, scaledSegmentPosition.y);
+    // Rotate drawing context (around its origin) so that when we draw the image it will be transformed
+    // to the correct rotation.
+    CGContextRotateCTM(context, segmentNode.zRotation);
+    // The drawing context has its origin right in the center of where we want our image drawn;
+    // the drawing target rectangle is specified by its lower left corner.
+    CGContextDrawImage(context, CGRectMake(-halfScaledFullSegmentSize, -halfScaledFullSegmentSize, scaledFullSegmentSize, scaledFullSegmentSize), [segmentNodeImage CGImage]);
+    // noob: Better/faster to unrotate and untranslate?
+    CGContextRestoreGState(context);
+  }
+  UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+  UIGraphicsEndImageContext();
+
+  return image;
 }
 
 - (void)FL_getSegmentsExtremes:(NSSet *)segmentNodes left:(CGFloat *)left right:(CGFloat *)right top:(CGFloat *)top bottom:(CGFloat *)bottom
@@ -1408,41 +1582,10 @@ struct PointerPairHash
   if (!_constructionToolbarState.toolbarNode) {
     _constructionToolbarState.toolbarNode = [[FLToolbarNode alloc] init];
     _constructionToolbarState.toolbarNode.anchorPoint = CGPointMake(0.5f, 0.0f);
-    _constructionToolbarState.toolbarNode.toolPad = -1.0f;
-
-    const CGSize FLConstructionToolbarToolSize = { 48.0f, 48.0f };
-    NSValue *toolSize = [NSValue valueWithCGSize:FLConstructionToolbarToolSize];
-    CGFloat artSegmentBasicInset = (FLSegmentArtSizeFull - FLSegmentArtSizeBasic) / 2.0f;
-    // note: The straight segment runs along the visual edge of a square; we'd like to shift
-    // it to the visual center of the tool image.  Half the full texture size is the middle,
-    // but need to subtract out the amount that the (centerpoint of the) drawn tracks are already
-    // inset from the edge of the texture.
-    CGFloat straightShift = (FLSegmentArtSizeFull / 2.0f) - artSegmentBasicInset;
-    // note: For the curves: The track textures don't appear visually centered because the
-    // drawn track is a full inset away from any perpendicular edge and only a small pad away
-    // from any parallel edge.  The pad is the difference between the drawn track centerpoint
-    // inset and half the width of the normal drawn track width.  So shift it inwards by half
-    // the difference between the edges.  The math simplifies down a bit.  Rounded to prevent
-    // aliasing (?).
-    CGFloat curveShift = floorf(FLSegmentArtDrawnTrackNormalWidth / 4.0f);
-    [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"straight", @"curve", @"join-left", @"join-right", @"jog-left", @"jog-right", @"cross", @"link", @"file-operations" ]
-                                                             sizes:@[ toolSize, toolSize, toolSize, toolSize, toolSize, toolSize, toolSize, toolSize, toolSize ]
-                                                         rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2 ]
-                                                           offsets:@[ [NSValue valueWithCGPoint:CGPointMake(straightShift, 0.0f)],
-                                                                      [NSValue valueWithCGPoint:CGPointMake(curveShift, -curveShift)],
-                                                                      [NSValue valueWithCGPoint:CGPointMake(curveShift, -curveShift)],
-                                                                      [NSValue valueWithCGPoint:CGPointMake(curveShift, curveShift)],
-                                                                      [NSValue valueWithCGPoint:CGPointZero],
-                                                                      [NSValue valueWithCGPoint:CGPointZero],
-                                                                      [NSValue valueWithCGPoint:CGPointZero],
-                                                                      [NSValue valueWithCGPoint:CGPointZero],
-                                                                      [NSValue valueWithCGPoint:CGPointZero] ]];
+    [self FL_constructionToolbarUpdateGeometry];
   }
-
+  
   if (visible) {
-    // note: Might need to reposition for scene size changes (even if already added to parent).
-    const CGFloat FLConstructionToolbarPad = 20.0f;
-    _constructionToolbarState.toolbarNode.position = CGPointMake(0.0f, FLConstructionToolbarPad - self.size.height / 2.0f);
     if (!_constructionToolbarState.toolbarNode.parent) {
       [_hudNode addChild:_constructionToolbarState.toolbarNode];
     }
@@ -1453,36 +1596,103 @@ struct PointerPairHash
   }
 }
 
-- (void)FL_fileOperationToolbarShow:(CGRect)sceneFrame
+- (void)FL_constructionToolbarUpdateGeometry
 {
-  if (!_constructionToolbarState.fileOperationsToolbarNode) {
-    const CGSize FLFileOperationsToolbarToolSize = { 48.0f, 48.0f };
-    NSValue *toolSize = [NSValue valueWithCGSize:FLFileOperationsToolbarToolSize];
-    FLToolbarNode *fileOperationsToolbar = [[FLToolbarNode alloc] init];
-    fileOperationsToolbar.anchorPoint = CGPointMake(0.5f, 0.0f);
-    // note: To match appearance of construction toolbar, use similar sizes and pads.
-    fileOperationsToolbar.toolPad = -1.0f;
-    [fileOperationsToolbar setToolsWithTextureKeys:@[ @"import", @"export" ]
-                                             sizes:@[ toolSize, toolSize ]
-                                         rotations:@[ @M_PI_2, @M_PI_2 ]
-                                           offsets:nil];
-    _constructionToolbarState.fileOperationsToolbarNode = fileOperationsToolbar;
-  }
-  [_constructionToolbarState.fileOperationsToolbarNode setEnabled:(![self FL_trackSelectedNone]) forTool:@"export"];
-
-  if (!_constructionToolbarState.fileOperationsToolbarNode.parent) {
-    [_hudNode addChild:_constructionToolbarState.fileOperationsToolbarNode];
-  }
-
-  CGFloat sceneFrameMidX = CGRectGetMidX(sceneFrame);
-  CGPoint origin = CGPointMake(sceneFrameMidX, CGRectGetMidY(sceneFrame));
-  CGPoint finalPosition = CGPointMake(sceneFrameMidX, CGRectGetMaxY(sceneFrame));
-  [_constructionToolbarState.fileOperationsToolbarNode showWithOrigin:origin finalPosition:finalPosition fullScale:1.0f animated:YES];
+  _constructionToolbarState.toolbarNode.automaticWidth = NO;
+  _constructionToolbarState.toolbarNode.automaticHeight = NO;
+  _constructionToolbarState.toolbarNode.position = CGPointMake(0.0f, -self.size.height / 2.0f);
+  _constructionToolbarState.toolbarNode.size = CGSizeMake(self.size.width, FLMainToolbarToolHeight);
+  [self FL_constructionToolbarUpdateTools];
 }
 
-- (void)FL_fileOperationToolbarHide
+- (void)FL_constructionToolbarUpdateTools
 {
-  [_constructionToolbarState.fileOperationsToolbarNode hideAnimated:YES];
+  if ([_constructionToolbarState.currentNavigation isEqualToString:@"main"]) {
+    [self FL_constructionToolbarShowMain:_constructionToolbarState.currentPage];
+  } else if ([_constructionToolbarState.currentNavigation isEqualToString:@"segments"]) {
+    [self FL_constructionToolbarShowSegments:_constructionToolbarState.currentPage];
+  } else if ([_constructionToolbarState.currentNavigation isEqualToString:@"gates"]) {
+    [self FL_constructionToolbarShowImports:FLGatesDirectoryPath page:_constructionToolbarState.currentPage];
+  } else if ([_constructionToolbarState.currentNavigation isEqualToString:@"circuits"]) {
+    [self FL_constructionToolbarShowImports:FLCircuitsDirectoryPath page:_constructionToolbarState.currentPage];
+  } else if ([_constructionToolbarState.currentNavigation isEqualToString:@"exports"]) {
+    [self FL_constructionToolbarShowImports:FLExportsDirectoryPath page:_constructionToolbarState.currentPage];
+  } else {
+    [NSException raise:@"FLConstructionToolbarInvalidNavigation" format:@"Unrecognized navigation '%@'.", _constructionToolbarState.currentNavigation];
+  }
+}
+
+- (void)FL_constructionToolbarShowMain:(int)page
+{
+  [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"segments", @"gates", @"circuits", @"exports", @"link", @"export" ]
+                                                       rotations:nil
+                                                         offsets:nil];
+  [_constructionToolbarState.navigationTools addObject:@"segments"];
+  [_constructionToolbarState.navigationTools addObject:@"gates"];
+  [_constructionToolbarState.navigationTools addObject:@"circuits"];
+  [_constructionToolbarState.navigationTools addObject:@"exports"];
+  [_constructionToolbarState.modeTools addObject:@"link"];
+  [_constructionToolbarState.actionTapTools addObject:@"export"];
+}
+
+- (void)FL_constructionToolbarShowSegments:(int)page
+{
+  // TODO: Animate.
+  [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"main", @"straight", @"curve", @"join-left", @"join-right", @"jog-left", @"jog-right", @"cross" ]
+                                                       rotations:nil
+                                                         offsets:@[ [NSValue valueWithCGPoint:CGPointZero],
+                                                                    [NSValue valueWithCGPoint:CGPointMake(FLSegmentArtStraightShift, 0.0f)],
+                                                                    [NSValue valueWithCGPoint:CGPointMake(FLSegmentArtCurveShift, -FLSegmentArtCurveShift)],
+                                                                    [NSValue valueWithCGPoint:CGPointMake(FLSegmentArtCurveShift, -FLSegmentArtCurveShift)],
+                                                                    [NSValue valueWithCGPoint:CGPointMake(FLSegmentArtCurveShift, FLSegmentArtCurveShift)],
+                                                                    [NSValue valueWithCGPoint:CGPointZero],
+                                                                    [NSValue valueWithCGPoint:CGPointZero],
+                                                                    [NSValue valueWithCGPoint:CGPointZero] ]];
+  [_constructionToolbarState.navigationTools addObject:@"main"];
+  [_constructionToolbarState.actionPanTools setObject:@"Straight Track" forKey:@"straight"];
+  [_constructionToolbarState.actionPanTools setObject:@"Curved Track" forKey:@"curve"];
+  [_constructionToolbarState.actionPanTools setObject:@"Join Left Track" forKey:@"join-left"];
+  [_constructionToolbarState.actionPanTools setObject:@"Join Right Track" forKey:@"join-right"];
+  [_constructionToolbarState.actionPanTools setObject:@"Jog Left Track" forKey:@"jog-left"];
+  [_constructionToolbarState.actionPanTools setObject:@"Jog Right Track" forKey:@"jog-right"];
+  [_constructionToolbarState.actionPanTools setObject:@"Cross Track" forKey:@"cross"];
+}
+
+- (void)FL_constructionToolbarShowImports:(NSString *)importDirectory page:(int)page
+{
+  // Initialize toolbar with basic navigation.
+  NSMutableArray *textureKeys = [NSMutableArray arrayWithObject:@"main"];
+  [_constructionToolbarState.navigationTools addObject:@"main"];
+  
+  // Get a list of all imports.
+  NSFileManager *fileManager = [NSFileManager defaultManager];
+  NSArray *importFiles = [fileManager contentsOfDirectoryAtPath:importDirectory error:nil];
+  // note: Enforce consistent order by alphabetizing; the preloaded imports paths (gates,
+  // circuits) take advantage of this by naming their files in the desired order for the
+  // interface.
+  importFiles = [importFiles sortedArrayUsingSelector:@selector(compare:)];
+  
+  // Create textures for each import (if they don't already exist in shared store).
+  for (NSString *importFile in importFiles) {
+    NSString *importName = [importFile stringByDeletingPathExtension];
+    SKTexture *texture = [[FLTextureStore sharedStore] textureForKey:importName];
+    if (!texture) {
+      NSString *importPath = [importDirectory stringByAppendingPathComponent:importFile];
+      NSString *importDescription = nil;
+      NSSet *segmentNodes = [self FL_importWithPath:importPath description:&importDescription links:NULL];
+      UIImage *importImage = [self FL_createImageForSegments:segmentNodes withSize:FLMainToolbarToolArtSize];
+      [[FLTextureStore sharedStore] setTextureWithImage:importImage forKey:importName filteringMode:SKTextureFilteringNearest];
+      // note: With the current code, the description will not get updated in the interface
+      // if it has changed on disk.  That said, I don't see how it could change on disk.
+      [_constructionToolbarState.actionPanTools setObject:importDescription forKey:importName];
+    }
+    [textureKeys addObject:importName];
+  }
+  
+  // Set tools.
+  [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:textureKeys
+                                                       rotations:nil
+                                                         offsets:nil];
 }
 
 - (void)FL_simulationToolbarSetVisible:(BOOL)visible
@@ -1490,15 +1700,10 @@ struct PointerPairHash
   if (!_simulationToolbarState.toolbarNode) {
     _simulationToolbarState.toolbarNode = [[FLToolbarNode alloc] init];
     _simulationToolbarState.toolbarNode.anchorPoint = CGPointMake(0.5f, 1.0f);
-    // note: To match appearance of construction toolbar, use similar sizes and pads.
-    _simulationToolbarState.toolbarNode.toolPad = -1.0f;
-    [self FL_simulationToolbarUpdateTools];
+    [self FL_simulationToolbarUpdateGeometry];
   }
 
   if (visible) {
-    // note: Might need to reposition for scene size changes (even if already added to parent).
-    const CGFloat FLSimulationToolbarPad = 30.0f;
-    _simulationToolbarState.toolbarNode.position = CGPointMake(0.0f, self.size.height / 2.0f - FLSimulationToolbarPad);
     if (!_simulationToolbarState.toolbarNode.parent) {
       [_hudNode addChild:_simulationToolbarState.toolbarNode];
     }
@@ -1509,10 +1714,17 @@ struct PointerPairHash
   }
 }
 
+- (void)FL_simulationToolbarUpdateGeometry
+{
+  _simulationToolbarState.toolbarNode.automaticWidth = NO;
+  _simulationToolbarState.toolbarNode.automaticHeight = NO;
+  _simulationToolbarState.toolbarNode.position = CGPointMake(0.0f, self.size.height / 2.0f);
+  _simulationToolbarState.toolbarNode.size = CGSizeMake(self.size.width, FLMainToolbarToolHeight);
+  [self FL_simulationToolbarUpdateTools];
+}
+
 - (void)FL_simulationToolbarUpdateTools
 {
-  const CGSize FLSimulationToolbarToolSize = { 48.0f, 48.0f };
-  NSValue *toolSize = [NSValue valueWithCGSize:FLSimulationToolbarToolSize];
   NSMutableArray *textureKeys = [NSMutableArray array];
   if (_simulationRunning) {
     [textureKeys addObject:@"pause"];
@@ -1528,36 +1740,15 @@ struct PointerPairHash
   [textureKeys addObject:speedTool];
   [textureKeys addObject:@"center"];
   [_simulationToolbarState.toolbarNode setToolsWithTextureKeys:textureKeys
-                                                         sizes:@[ toolSize, toolSize, toolSize ]
-                                                     rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2 ]
+                                                     rotations:nil
                                                        offsets:nil];
   [_simulationToolbarState.toolbarNode setHighlight:(_simulationSpeed > 0) forTool:speedTool];
 }
 
-- (void)FL_worldToolSet:(FLWorldTool)worldTool
+- (void)FL_messageShow:(NSString *)message
 {
-  if (worldTool == _worldGestureState.worldTool) {
-    return;
-  }
-
-  switch (_worldGestureState.worldTool) {
-    case FLWorldToolLink:
-      [_constructionToolbarState.toolbarNode setHighlight:NO forTool:@"link"];
-      [_linksNode removeFromParent];
-      break;
-    case FLWorldToolDefault:
-      break;
-  }
-
-  switch (worldTool) {
-    case FLWorldToolLink:
-      [_constructionToolbarState.toolbarNode setHighlight:YES forTool:@"link"];
-      [_worldNode addChild:_linksNode];
-      break;
-    case FLWorldToolDefault:
-      break;
-  }
-  _worldGestureState.worldTool = worldTool;
+  // TODO: This.
+  NSLog(@"MESSAGE: %@", message);
 }
 
 - (void)FL_trackSelect:(NSSet *)segmentNodes
@@ -1588,8 +1779,8 @@ struct PointerPairHash
     SKSpriteNode *selectionSquare = [_trackSelectState.visualSquareNodes objectForKey:[NSValue valueWithPointer:(void *)segmentNode]];
     if (!selectionSquare) {
       selectionSquare = [SKSpriteNode spriteNodeWithColor:[UIColor colorWithWhite:0.2f alpha:1.0f]
-                                                     size:CGSizeMake(FLSegmentArtSizeBasic * FLSegmentArtScale,
-                                                                     FLSegmentArtSizeBasic * FLSegmentArtScale)];
+                                                     size:CGSizeMake(FLSegmentArtSizeBasic * FLTrackArtScale,
+                                                                     FLSegmentArtSizeBasic * FLTrackArtScale)];
       selectionSquare.blendMode = SKBlendModeAdd;
       [_trackSelectState.visualSquareNodes setObject:selectionSquare forKey:[NSValue valueWithPointer:(void *)segmentNode]];
       [_trackSelectState.visualParentNode addChild:selectionSquare];
@@ -1645,8 +1836,8 @@ struct PointerPairHash
 - (void)FL_trackConflictShow:(FLSegmentNode *)segmentNode
 {
   SKSpriteNode *conflictNode = [SKSpriteNode spriteNodeWithColor:[UIColor colorWithRed:1.0f green:0.0f blue:0.0f alpha:1.0f]
-                                                            size:CGSizeMake(FLSegmentArtSizeBasic * FLSegmentArtScale,
-                                                                            FLSegmentArtSizeBasic * FLSegmentArtScale)];
+                                                            size:CGSizeMake(FLSegmentArtSizeBasic * FLTrackArtScale,
+                                                                            FLSegmentArtSizeBasic * FLTrackArtScale)];
   conflictNode.zPosition = FLZPositionWorldSelect;
   conflictNode.position = segmentNode.position;
   conflictNode.alpha = 0.4f;
@@ -1668,7 +1859,7 @@ struct PointerPairHash
  *
  * @param The location of the gesture which started the move.
  */
-- (void)FL_trackMoveBeganWithNodes:(NSSet *)segmentNodes location:(CGPoint)worldLocation
+- (void)FL_trackMoveBeganWithNodes:(NSSet *)segmentNodes location:(CGPoint)worldLocation completion:(void (^)(BOOL placed))completion
 {
   if (!segmentNodes || [segmentNodes count] == 0) {
     [NSException raise:@"FLTrackMoveInvalidArgument"
@@ -1680,6 +1871,7 @@ struct PointerPairHash
   }
 
   _trackMoveState.segmentNodes = segmentNodes;
+  _trackMoveState.completion = completion;
   
   _trackGrid->convert(worldLocation, &_trackMoveState.beganGridX, &_trackMoveState.beganGridY);
   _trackMoveState.attempted = NO;
@@ -1761,8 +1953,13 @@ struct PointerPairHash
     }
   }
   
+  if (_trackMoveState.completion) {
+    _trackMoveState.completion(_trackMoveState.placed);
+  }
+  
   [self FL_trackEditMenuUpdateAnimated:YES];
   _trackMoveState.segmentNodes = nil;
+  _trackMoveState.completion = nil;
 }
 
 - (void)FL_trackMoveUpdateWithLocation:(CGPoint)worldLocation
@@ -1888,9 +2085,13 @@ struct PointerPairHash
   }
 
   if (!_trackEditMenuState.editMenuNode) {
-    _trackEditMenuState.editMenuNode = [[FLToolbarNode alloc] init];
+    _trackEditMenuState.editMenuNode = [[FLToolbarNode alloc] initWithSize:CGSizeMake(0.0f, 42.0f)];
     _trackEditMenuState.editMenuNode.zPosition = FLZPositionWorldOverlay;
     _trackEditMenuState.editMenuNode.anchorPoint = CGPointMake(0.5f, 0.0f);
+    _trackEditMenuState.editMenuNode.automaticWidth = YES;
+    _trackEditMenuState.editMenuNode.automaticHeight = NO;
+    _trackEditMenuState.editMenuNode.borderSize = 3.0f;
+    _trackEditMenuState.editMenuNode.toolSeparatorSize = 3.0f;
   }
 
   // Collect information about selected segments.
@@ -1912,17 +2113,13 @@ struct PointerPairHash
   NSUInteger toolCount = [_trackEditMenuState.editMenuNode toolCount];
   if ((hasSwitch && toolCount != 4)
       || (!hasSwitch && toolCount != 3)) {
-    CGSize FLTrackEditMenuToolSize = { 42.0f, 42.0f };
-    NSValue *toolSize = [NSValue valueWithCGSize:FLTrackEditMenuToolSize];
     if (!hasSwitch) {
       [_trackEditMenuState.editMenuNode setToolsWithTextureKeys:@[ @"rotate-ccw", @"delete", @"rotate-cw" ]
-                                                          sizes:@[ toolSize, toolSize, toolSize ]
-                                                      rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2 ]
+                                                      rotations:nil
                                                         offsets:nil];
     } else {
       [_trackEditMenuState.editMenuNode setToolsWithTextureKeys:@[ @"rotate-ccw", @"toggle-switch", @"delete", @"rotate-cw" ]
-                                                          sizes:@[ toolSize, toolSize, toolSize, toolSize ]
-                                                      rotations:@[ @M_PI_2, @M_PI_2, @M_PI_2, @M_PI_2 ]
+                                                      rotations:nil
                                                         offsets:nil];
     }
   }
@@ -2006,7 +2203,7 @@ struct PointerPairHash
   // Display a begin-segment highlight.
   SKShapeNode *highlightNode = [[SKShapeNode alloc] init];
   highlightNode.position = segmentNode.position;
-  CGFloat highlightSideSize = FLSegmentArtSizeFull * FLSegmentArtScale;
+  CGFloat highlightSideSize = FLSegmentArtSizeFull * FLTrackArtScale;
   CGPathRef highlightPath = CGPathCreateWithRect(CGRectMake(-highlightSideSize / 2.0f,
                                                             -highlightSideSize / 2.0f,
                                                             highlightSideSize,
@@ -2037,7 +2234,7 @@ struct PointerPairHash
       [_linkEditState.endHighlightNode removeFromParent];
       SKShapeNode *highlightNode = [[SKShapeNode alloc] init];
       highlightNode.position = endNode.position;
-      CGFloat highlightSideSize = FLSegmentArtSizeFull * FLSegmentArtScale;
+      CGFloat highlightSideSize = FLSegmentArtSizeFull * FLTrackArtScale;
       CGPathRef highlightPath = CGPathCreateWithRect(CGRectMake(-highlightSideSize / 2.0f,
                                                                 -highlightSideSize / 2.0f,
                                                                 highlightSideSize,
@@ -2078,10 +2275,10 @@ struct PointerPairHash
     if (oldConnectorNode) {
       _links.erase(_linkEditState.beginNode, _linkEditState.endNode);
     } else {
-      SKAction *blinkAction = [SKAction sequence:@[ [SKAction fadeOutWithDuration:0.1],
-                                                    [SKAction fadeInWithDuration:0.1],
-                                                    [SKAction fadeOutWithDuration:0.1],
-                                                    [SKAction fadeInWithDuration:0.1] ]];
+      SKAction *blinkAction = [SKAction sequence:@[ [SKAction fadeOutWithDuration:FLBlinkHalfCycleDuration],
+                                                    [SKAction fadeInWithDuration:FLBlinkHalfCycleDuration],
+                                                    [SKAction fadeOutWithDuration:FLBlinkHalfCycleDuration],
+                                                    [SKAction fadeInWithDuration:FLBlinkHalfCycleDuration] ]];
       [_linkEditState.connectorNode runAction:blinkAction];
       _links.insert(_linkEditState.beginNode, _linkEditState.endNode, _linkEditState.connectorNode);
       preserveConnectorNode = YES;
@@ -2307,11 +2504,11 @@ struct PointerPairHash
   if (animated) {
     SKEmitterNode *sleeperDestruction = [NSKeyedUnarchiver unarchiveObjectWithFile:[[NSBundle mainBundle] pathForResource:@"sleeperDestruction" ofType:@"sks"]];
     SKEmitterNode *railDestruction = [NSKeyedUnarchiver unarchiveObjectWithFile:[[NSBundle mainBundle] pathForResource:@"railDestruction" ofType:@"sks"]];
-    // note: This kind of thing makes me think having an FLSegmentArtScale is a bad idea.  Resample the art instead.
-    sleeperDestruction.xScale = FLSegmentArtScale;
-    sleeperDestruction.yScale = FLSegmentArtScale;
-    railDestruction.xScale = FLSegmentArtScale;
-    railDestruction.yScale = FLSegmentArtScale;
+    // note: This kind of thing makes me think having an FLTrackArtScale is a bad idea.  Resample the art instead.
+    sleeperDestruction.xScale = FLTrackArtScale;
+    sleeperDestruction.yScale = FLTrackArtScale;
+    railDestruction.xScale = FLTrackArtScale;
+    railDestruction.yScale = FLTrackArtScale;
     sleeperDestruction.position = segmentNode.position;
     railDestruction.position = segmentNode.position;
     [_trackNode addChild:sleeperDestruction];
