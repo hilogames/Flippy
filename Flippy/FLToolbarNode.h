@@ -9,18 +9,24 @@
 #import <SpriteKit/SpriteKit.h>
 #include "FLGestureTarget.h"
 
-enum FLToolbarNodeJustification {
+typedef enum FLToolbarNodeJustification {
   FLToolbarNodeJustificationCenter,
   FLToolbarNodeJustificationLeft,
   FLToolbarNodeJustificationRight
-};
+} FLToolbarNodeJustification;
+
+typedef enum FLToolbarNodeAnimation {
+  FLToolbarNodeAnimationNone,
+  FLToolbarNodeAnimationSlideUp,
+  FLToolbarNodeAnimationSlideDown
+} FLToolbarNodeAnimation;
 
 @interface FLToolbarNode : SKSpriteNode <NSCoding>
 
 @property (nonatomic) BOOL automaticWidth;
 @property (nonatomic) BOOL automaticHeight;
 
-@property (nonatomic) enum FLToolbarNodeJustification justification;
+@property (nonatomic) FLToolbarNodeJustification justification;
 
 /**
  * The amount of toolbar background that shows as a border around all the tools.
@@ -52,7 +58,7 @@ enum FLToolbarNodeJustification {
  * passed tools); if false, then the size used will be according to the size
  * property (inherited from SKSpriteNode).
  */
-- (void)setToolsWithTextureKeys:(NSArray *)keys rotations:(NSArray *)rotations offsets:(NSArray *)offsets;
+- (void)setToolsWithTextureKeys:(NSArray *)keys rotations:(NSArray *)rotations offsets:(NSArray *)offsets animation:(FLToolbarNodeAnimation)animation;
 
 /**
  * Returns the key of the tool at the passed location, or nil for none.  The

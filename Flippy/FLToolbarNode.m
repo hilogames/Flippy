@@ -8,7 +8,7 @@
 
 // noob: See notes in notes/objective-c.txt.  I spent time thinking about how this
 // SKNode subclass should detect and respond to gestures from gesture recognizers.
-// Seems a bit awkward and tightly-coupled.
+// The result is a bit awkward and tightly-coupled.
 
 #import "FLToolbarNode.h"
 
@@ -20,6 +20,8 @@ static UIColor *FLToolbarColorButtonHighlighted;
 
 @implementation FLToolbarNode
 {
+  SKCropNode *_cropNode;
+  SKNode *_toolsNode;
   NSMutableArray *_toolButtonNodes;
   CGPoint _lastOrigin;
 }
@@ -46,18 +48,40 @@ static UIColor *FLToolbarColorButtonHighlighted;
     _justification = FLToolbarNodeJustificationCenter;
     _borderSize = 4.0f;
     _toolSeparatorSize = 4.0f;
+    
+    // note: All animations happen within a cropped area, currently.
+    _cropNode = [SKCropNode node];
+    _cropNode.maskNode = [SKSpriteNode spriteNodeWithColor:[UIColor colorWithWhite:1.0f alpha:1.0f] size:size];
+    _cropNode.maskNode.position = CGPointMake((0.5f - self.anchorPoint.x) * size.width, (0.5f - self.anchorPoint.y) * size.height);
+    [self addChild:_cropNode];
   }
   return self;
 }
 
-- (void)setToolsWithTextureKeys:(NSArray *)keys rotations:(NSArray *)rotations offsets:(NSArray *)offsets
+- (void)setSize:(CGSize)size
 {
+  [super setSize:size];
+  [(SKSpriteNode *)_cropNode.maskNode setSize:size];
+  _cropNode.maskNode.position = CGPointMake((0.5f - self.anchorPoint.x) * self.size.width, (0.5f - self.anchorPoint.y) * self.size.height);
+}
+
+- (void)setAnchorPoint:(CGPoint)anchorPoint
+{
+  [super setAnchorPoint:anchorPoint];
+  _cropNode.maskNode.position = CGPointMake((0.5f - self.anchorPoint.x) * self.size.width, (0.5f - self.anchorPoint.y) * self.size.height);
+}
+
+- (void)setToolsWithTextureKeys:(NSArray *)keys rotations:(NSArray *)rotations offsets:(NSArray *)offsets animation:(FLToolbarNodeAnimation)animation
+{
+  const NSTimeInterval FLToolbarResizeDuration = 0.15f;
+  const NSTimeInterval FLToolbarSlideDuration = 0.15f;
+
   // noob: If we can assume properties of the toolbar node, like anchorPoint and zPosition,
   // then we could use simpler calculations here.  But no, for now assume those properties
   // should be determined by the owner, and we should always set our children relative.
   
-  [self removeAllChildren];
   _toolButtonNodes = [NSMutableArray array];
+  SKNode *toolsNode = [SKNode node];
 
   // noob: Calculate sizes in an unscaled environment, and then re-apply scale once finished.
   // I'm pretty sure this is a hack, but I'm too lazy to prove it (and fix it).  The self.size
@@ -66,7 +90,7 @@ static UIColor *FLToolbarColorButtonHighlighted;
   // pads and borders) by self.scale, or, alternately, dividing self.size by self.scale for
   // calculation and then multiplying/dividing right before actually setting dimensions in the
   // scaled world (?).  But a quick attempt to do so didn't give the exact right results, and
-  // so I gave up; this is easier, and immediately worked.  Liek I said: probably a hack.
+  // so I gave up; this is easier, and immediately worked.  Like I said: probably a hack.
   CGFloat oldXScale = self.xScale;
   CGFloat oldYScale = self.yScale;
   self.xScale = 1.0f;
@@ -106,7 +130,7 @@ static UIColor *FLToolbarColorButtonHighlighted;
   // it to "linear" and it didn't antialias as far as I could tell, so maybe there's something else
   // going on, as in the first paragraph above.
 
-  // Calculate tool scale and set toolbar size.
+  // Calculate tool scale.
   //
   // note: If caller would like to prevent tools from growing past their natural size,
   // even when a large toolbar size is specified, we could add an option to limit
@@ -114,21 +138,47 @@ static UIColor *FLToolbarColorButtonHighlighted;
   CGSize toolbarConstantSize = CGSizeMake(_toolSeparatorSize * (toolsCount - 1) + _toolPad * (toolsCount * 2) + _borderSize * 2,
                                           _toolPad * 2 + _borderSize * 2);
   CGFloat finalToolsScale;
+  CGSize finalToolbarSize;
+  BOOL shouldSetToolbarSize = NO;
   if (_automaticWidth && _automaticHeight) {
     finalToolsScale = 1.0f;
-    self.size = CGSizeMake(naturalToolsSize.width + toolbarConstantSize.width,
-                           naturalToolsSize.height + toolbarConstantSize.height);
+    finalToolbarSize = CGSizeMake(naturalToolsSize.width + toolbarConstantSize.width,
+                                  naturalToolsSize.height + toolbarConstantSize.height);
+    shouldSetToolbarSize = YES;
   } else if (_automaticWidth) {
     finalToolsScale = (self.size.height - toolbarConstantSize.height) / naturalToolsSize.height;
-    self.size = CGSizeMake(naturalToolsSize.width * finalToolsScale + toolbarConstantSize.width,
-                           self.size.height);
+    finalToolbarSize = CGSizeMake(naturalToolsSize.width * finalToolsScale + toolbarConstantSize.width,
+                                  self.size.height);
+    shouldSetToolbarSize = YES;
   } else if (_automaticHeight) {
     finalToolsScale = (self.size.width - toolbarConstantSize.width) / naturalToolsSize.width;
-    self.size = CGSizeMake(self.size.width,
-                           naturalToolsSize.height * finalToolsScale + toolbarConstantSize.height);
+    finalToolbarSize = CGSizeMake(self.size.width,
+                                  naturalToolsSize.height * finalToolsScale + toolbarConstantSize.height);
+    shouldSetToolbarSize = YES;
   } else {
     finalToolsScale = MIN((self.size.width - toolbarConstantSize.width) / naturalToolsSize.width,
                           (self.size.height - toolbarConstantSize.height) / naturalToolsSize.height);
+    finalToolbarSize = self.size;
+  }
+  
+  // Set toolbar size.
+  if (shouldSetToolbarSize) {
+    if (animation == FLToolbarNodeAnimationNone) {
+      self.size = finalToolbarSize;
+    } else {
+      SKAction *resize = [SKAction resizeToWidth:finalToolbarSize.width height:finalToolbarSize.height duration:FLToolbarResizeDuration];
+      resize.timingMode = SKActionTimingEaseOut;
+      [self runAction:resize];
+      // noob: The cropNode mask must be resized (and maybe repositioned) along with the toolbar size.  The property mutator
+      // of the toolbar (setSize, above) is not called by the animation, so we must explicitly update during the animation.
+      SKAction *resizeMaskNode = [SKAction customActionWithDuration:FLToolbarResizeDuration actionBlock:^(SKNode *node, CGFloat elapsedTime){
+        SKSpriteNode *maskNode = (SKSpriteNode *)node;
+        maskNode.size = self.size;
+        maskNode.position = CGPointMake((0.5f - self.anchorPoint.x) * self.size.width, (0.5f - self.anchorPoint.y) * self.size.height);
+      }];
+      resizeMaskNode.timingMode = resize.timingMode;
+      [_cropNode.maskNode runAction:resizeMaskNode];
+    }
   }
 
   // Calculate justification offset.
@@ -136,7 +186,7 @@ static UIColor *FLToolbarColorButtonHighlighted;
   if (_justification == FLToolbarNodeJustificationLeft) {
     justificationOffset = 0.0f;
   } else {
-    CGFloat remainingToolsWidth = self.size.width - toolbarConstantSize.width - naturalToolsSize.width * finalToolsScale;
+    CGFloat remainingToolsWidth = finalToolbarSize.width - toolbarConstantSize.width - naturalToolsSize.width * finalToolsScale;
     if (_justification == FLToolbarNodeJustificationCenter) {
       justificationOffset = remainingToolsWidth / 2.0f;
     } else {
@@ -145,8 +195,8 @@ static UIColor *FLToolbarColorButtonHighlighted;
   }
   
   // Set tools (scaled and positioned appropriately).
-  CGFloat x = self.anchorPoint.x * self.size.width * -1.0f + _borderSize + justificationOffset;
-  CGFloat y = self.anchorPoint.y * self.size.height * -1.0f + self.size.height / 2.0f;
+  CGFloat x = self.anchorPoint.x * finalToolbarSize.width * -1.0f + _borderSize + justificationOffset;
+  CGFloat y = self.anchorPoint.y * finalToolbarSize.height * -1.0f + finalToolbarSize.height / 2.0f;
   for (int i = 0; i < toolsCount; ++i) {
 
     NSString *key = [keys objectAtIndex:i];
@@ -173,7 +223,7 @@ static UIColor *FLToolbarColorButtonHighlighted;
     toolButtonNode.zPosition = 0.1f;
     toolButtonNode.anchorPoint = CGPointMake(0.0f, 0.5f);
     toolButtonNode.position = CGPointMake(x, y);
-    [self addChild:toolButtonNode];
+    [toolsNode addChild:toolButtonNode];
     [_toolButtonNodes addObject:toolButtonNode];
 
     SKSpriteNode *toolNode = [SKSpriteNode spriteNodeWithTexture:toolTexture size:finalToolSize];
@@ -185,6 +235,29 @@ static UIColor *FLToolbarColorButtonHighlighted;
     [toolButtonNode addChild:toolNode];
 
     x += finalToolSize.width + _toolPad * 2 + _toolSeparatorSize;
+  }
+  
+  SKNode *oldToolsNode = _toolsNode;
+  _toolsNode = toolsNode;
+  [_cropNode addChild:toolsNode];
+  if (animation == FLToolbarNodeAnimationNone) {
+    if (oldToolsNode) {
+      [oldToolsNode removeFromParent];
+    }
+  } else {
+    // note: If toolbar is not animated to change size, then we don't need the MAXs below.
+    CGPoint delta;
+    if (animation == FLToolbarNodeAnimationSlideUp) {
+      delta = CGPointMake(0.0f, MAX(finalToolbarSize.height, self.size.height));
+    } else {
+      delta = CGPointMake(0.0f, -1.0f * MAX(finalToolbarSize.height, self.size.height));
+    }
+    toolsNode.position = CGPointMake(-delta.x, -delta.y);
+    [toolsNode runAction:[SKAction moveByX:delta.x y:delta.y duration:FLToolbarSlideDuration]];
+    if (oldToolsNode) {
+      [oldToolsNode runAction:[SKAction sequence:@[ [SKAction moveByX:delta.x y:delta.y duration:FLToolbarSlideDuration],
+                                                    [SKAction removeFromParent] ]]];
+    }
   }
   
   self.xScale = oldXScale;

@@ -311,7 +311,7 @@ struct PointerPairHash
     _constructionToolbarState.currentPage = [aDecoder decodeIntForKey:@"constructionToolbarStateCurrentPage"];
     if (![_constructionToolbarState.currentNavigation isEqualToString:@"main"]
         || _constructionToolbarState.currentPage != 0) {
-      [self FL_constructionToolbarUpdateTools];
+      [self FL_constructionToolbarUpdateToolsAnimated:NO];
     }
     BOOL linksVisible = [aDecoder decodeBoolForKey:@"constructionToolbarStateLinksVisible"];
     if (linksVisible) {
@@ -903,7 +903,11 @@ struct PointerPairHash
     
     _constructionToolbarState.currentNavigation = newNavigation;
     _constructionToolbarState.currentPage = newPage;
-    [self FL_constructionToolbarUpdateTools];
+    [self FL_constructionToolbarUpdateToolsAnimated:YES];
+
+    if ([newNavigation isEqualToString:@"exports"] && _constructionToolbarState.toolbarNode.toolCount == 1) {
+      [self FL_messageShow:@"No exports found."];
+    }
     
   } else if (toolType == FLToolbarToolTypeActionTap) {
     
@@ -1613,31 +1617,32 @@ struct PointerPairHash
   _constructionToolbarState.toolbarNode.automaticHeight = NO;
   _constructionToolbarState.toolbarNode.position = CGPointMake(0.0f, -self.size.height / 2.0f);
   _constructionToolbarState.toolbarNode.size = CGSizeMake(self.size.width, FLMainToolbarToolHeight);
-  [self FL_constructionToolbarUpdateTools];
+  [self FL_constructionToolbarUpdateToolsAnimated:NO];
 }
 
-- (void)FL_constructionToolbarUpdateTools
+- (void)FL_constructionToolbarUpdateToolsAnimated:(BOOL)animated
 {
   if ([_constructionToolbarState.currentNavigation isEqualToString:@"main"]) {
-    [self FL_constructionToolbarShowMain:_constructionToolbarState.currentPage];
+    [self FL_constructionToolbarShowMain:_constructionToolbarState.currentPage animated:animated];
   } else if ([_constructionToolbarState.currentNavigation isEqualToString:@"segments"]) {
-    [self FL_constructionToolbarShowSegments:_constructionToolbarState.currentPage];
+    [self FL_constructionToolbarShowSegments:_constructionToolbarState.currentPage animated:animated];
   } else if ([_constructionToolbarState.currentNavigation isEqualToString:@"gates"]) {
-    [self FL_constructionToolbarShowImports:FLGatesDirectoryPath page:_constructionToolbarState.currentPage];
+    [self FL_constructionToolbarShowImports:FLGatesDirectoryPath page:_constructionToolbarState.currentPage animated:animated];
   } else if ([_constructionToolbarState.currentNavigation isEqualToString:@"circuits"]) {
-    [self FL_constructionToolbarShowImports:FLCircuitsDirectoryPath page:_constructionToolbarState.currentPage];
+    [self FL_constructionToolbarShowImports:FLCircuitsDirectoryPath page:_constructionToolbarState.currentPage animated:animated];
   } else if ([_constructionToolbarState.currentNavigation isEqualToString:@"exports"]) {
-    [self FL_constructionToolbarShowImports:FLExportsDirectoryPath page:_constructionToolbarState.currentPage];
+    [self FL_constructionToolbarShowImports:FLExportsDirectoryPath page:_constructionToolbarState.currentPage animated:animated];
   } else {
     [NSException raise:@"FLConstructionToolbarInvalidNavigation" format:@"Unrecognized navigation '%@'.", _constructionToolbarState.currentNavigation];
   }
 }
 
-- (void)FL_constructionToolbarShowMain:(int)page
+- (void)FL_constructionToolbarShowMain:(int)page animated:(BOOL)animated
 {
   [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"segments", @"gates", @"circuits", @"exports", @"link", @"export" ]
                                                        rotations:nil
-                                                         offsets:nil];
+                                                         offsets:nil
+                                                       animation:(animated ? FLToolbarNodeAnimationSlideUp : FLToolbarNodeAnimationNone)];
   [_constructionToolbarState.navigationTools addObject:@"segments"];
   [_constructionToolbarState.navigationTools addObject:@"gates"];
   [_constructionToolbarState.navigationTools addObject:@"circuits"];
@@ -1646,9 +1651,8 @@ struct PointerPairHash
   [_constructionToolbarState.actionTapTools addObject:@"export"];
 }
 
-- (void)FL_constructionToolbarShowSegments:(int)page
+- (void)FL_constructionToolbarShowSegments:(int)page animated:(BOOL)animated
 {
-  // TODO: Animate.
   [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"main", @"straight", @"curve", @"join-left", @"join-right", @"jog-left", @"jog-right", @"cross" ]
                                                        rotations:nil
                                                          offsets:@[ [NSValue valueWithCGPoint:CGPointZero],
@@ -1658,7 +1662,8 @@ struct PointerPairHash
                                                                     [NSValue valueWithCGPoint:CGPointMake(FLSegmentArtCurveShift, FLSegmentArtCurveShift)],
                                                                     [NSValue valueWithCGPoint:CGPointZero],
                                                                     [NSValue valueWithCGPoint:CGPointZero],
-                                                                    [NSValue valueWithCGPoint:CGPointZero] ]];
+                                                                    [NSValue valueWithCGPoint:CGPointZero] ]
+                                                        animation:(animated ? FLToolbarNodeAnimationSlideDown : FLToolbarNodeAnimationNone)];
   [_constructionToolbarState.navigationTools addObject:@"main"];
   [_constructionToolbarState.actionPanTools setObject:@"Straight Track" forKey:@"straight"];
   [_constructionToolbarState.actionPanTools setObject:@"Curved Track" forKey:@"curve"];
@@ -1669,7 +1674,7 @@ struct PointerPairHash
   [_constructionToolbarState.actionPanTools setObject:@"Cross Track" forKey:@"cross"];
 }
 
-- (void)FL_constructionToolbarShowImports:(NSString *)importDirectory page:(int)page
+- (void)FL_constructionToolbarShowImports:(NSString *)importDirectory page:(int)page animated:(BOOL)animated
 {
   // Initialize toolbar with basic navigation.
   NSMutableArray *textureKeys = [NSMutableArray arrayWithObject:@"main"];
@@ -1703,7 +1708,8 @@ struct PointerPairHash
   // Set tools.
   [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:textureKeys
                                                        rotations:nil
-                                                         offsets:nil];
+                                                         offsets:nil
+                                                       animation:(animated ? FLToolbarNodeAnimationSlideDown : FLToolbarNodeAnimationNone)];
 }
 
 - (void)FL_simulationToolbarSetVisible:(BOOL)visible
@@ -1752,7 +1758,8 @@ struct PointerPairHash
   [textureKeys addObject:@"center"];
   [_simulationToolbarState.toolbarNode setToolsWithTextureKeys:textureKeys
                                                      rotations:nil
-                                                       offsets:nil];
+                                                       offsets:nil
+                                                      animation:FLToolbarNodeAnimationNone];
   [_simulationToolbarState.toolbarNode setHighlight:(_simulationSpeed > 0) forTool:speedTool];
 }
 
@@ -2175,11 +2182,13 @@ struct PointerPairHash
     if (!hasSwitch) {
       [_trackEditMenuState.editMenuNode setToolsWithTextureKeys:@[ @"rotate-ccw", @"delete", @"rotate-cw" ]
                                                       rotations:nil
-                                                        offsets:nil];
+                                                        offsets:nil
+                                                      animation:FLToolbarNodeAnimationNone];
     } else {
       [_trackEditMenuState.editMenuNode setToolsWithTextureKeys:@[ @"rotate-ccw", @"toggle-switch", @"delete", @"rotate-cw" ]
                                                       rotations:nil
-                                                        offsets:nil];
+                                                        offsets:nil
+                                                      animation:FLToolbarNodeAnimationNone];
     }
   }
 
