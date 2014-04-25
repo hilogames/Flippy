@@ -99,6 +99,12 @@ static UIColor *FLToolbarColorButtonHighlighted;
   // either the top border, or the bottom border, or the tools; the border sizes will look off-by-one.
   // A guess: Try integer rounding on the natural tool size, because the rotation code tends to leave size
   // values looking like 161.9999999985.
+  //
+  // TODO: It might be the same problem causing e.g. segment tools to look bad when scaled down
+  // less than 1.0 to fit the toolbar, but on the other hand, that might just be the "nearest"
+  // filtering mode of the texture as specified in the texture store.  However, I tried changing
+  // it to "linear" and it didn't antialias as far as I could tell, so maybe there's something else
+  // going on, as in the first paragraph above.
 
   // Calculate tool scale and set toolbar size.
   //

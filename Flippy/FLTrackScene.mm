@@ -47,6 +47,8 @@ static const NSTimeInterval FLBlinkHalfCycleDuration = 0.1;
 // chosen based on the screen layout.  Perhaps scaling like that is a bad idea.
 const CGFloat FLMainToolbarToolArtSize = 54.0f;
 const CGFloat FLMainToolbarToolHeight = 48.0f;
+const CGFloat FLMessageSpacer = 1.0f;
+const CGFloat FLMessageHeight = 20.0f;
 
 static NSString *FLGatesDirectoryPath;
 static NSString *FLCircuitsDirectoryPath;
@@ -82,6 +84,13 @@ struct FLSimulationToolbarState
 {
   FLSimulationToolbarState() : toolbarNode(nil) {}
   FLToolbarNode *toolbarNode;
+};
+
+struct FLMessageState
+{
+  FLMessageState() : messageNode(nil), labelNode(nil) {}
+  SKSpriteNode *messageNode;
+  SKLabelNode *labelNode;
 };
 
 struct FLTrackSelectState
@@ -189,6 +198,7 @@ struct PointerPairHash
   FLWorldGestureState _worldGestureState;
   FLConstructionToolbarState _constructionToolbarState;
   FLSimulationToolbarState _simulationToolbarState;
+  FLMessageState _messageState;
   FLTrackEditMenuState _trackEditMenuState;
   FLTrackSelectState _trackSelectState;
   FLTrackConflictState _trackConflictState;
@@ -434,6 +444,7 @@ struct PointerPairHash
 {
   [self FL_constructionToolbarUpdateGeometry];
   [self FL_simulationToolbarUpdateGeometry];
+  [self FL_messageUpdateGeometry];
 }
 
 - (void)FL_createSceneContents
@@ -898,7 +909,7 @@ struct PointerPairHash
     
     if ([tool isEqualToString:@"export"]) {
       if ([self FL_trackSelectedNone]) {
-        [self FL_messageShow:@"Export Track: First select track segments to export."];
+        [self FL_messageShow:@"Export: Make a selection."];
       } else {
         [self FL_export];
       }
@@ -1747,8 +1758,56 @@ struct PointerPairHash
 
 - (void)FL_messageShow:(NSString *)message
 {
-  // TODO: This.
-  NSLog(@"MESSAGE: %@", message);
+  if (!_messageState.messageNode) {
+    _messageState.messageNode = [SKSpriteNode spriteNodeWithColor:[UIColor colorWithWhite:0.0f alpha:0.5f] size:CGSizeZero];
+    [self FL_messageUpdateGeometry];
+  }
+
+  if (!_messageState.labelNode) {
+    SKLabelNode *labelNode = [SKLabelNode labelNodeWithFontNamed:@"Courier"];
+    labelNode.fontColor = [UIColor whiteColor];
+    labelNode.fontSize = 14.0f;
+    labelNode.position = CGPointMake(0.0f, -5.0f);
+    _messageState.labelNode = labelNode;
+    [_messageState.messageNode addChild:labelNode];
+  }
+
+  _messageState.labelNode.text = message;
+
+  if (!_messageState.messageNode.parent) {
+    [_hudNode addChild:_messageState.messageNode];
+    CGPoint messageNodePosition = _messageState.messageNode.position;
+    messageNodePosition.x = self.size.width;
+    _messageState.messageNode.position = messageNodePosition;
+    SKAction *slideIn = [SKAction moveToX:0.0f duration:0.1f];
+    SKAction *wait = [SKAction waitForDuration:2.0f];
+    SKAction *slideOut = [SKAction moveToX:-self.size.width duration:0.1f];
+    SKAction *remove = [SKAction removeFromParent];
+    SKAction *show = [SKAction sequence:@[slideIn, wait, slideOut, remove ]];
+    [_messageState.messageNode runAction:show withKey:@"show"];
+  } else {
+    [_messageState.messageNode removeActionForKey:@"show"];
+    SKAction *wait = [SKAction waitForDuration:2.0f];
+    SKAction *slideOut = [SKAction moveToX:-self.size.width duration:0.1f];
+    SKAction *remove = [SKAction removeFromParent];
+    SKAction *show = [SKAction sequence:@[ wait, slideOut, remove ]];
+    [_messageState.messageNode runAction:show withKey:@"show"];
+  }
+}
+
+- (void)FL_messageUpdateGeometry
+{
+  _messageState.messageNode.position = CGPointMake(0.0f, [self FL_messagePositionY]);
+  _messageState.messageNode.size = CGSizeMake(self.size.width, FLMessageHeight);
+}
+
+- (CGFloat)FL_messagePositionY
+{
+  CGFloat bottom = (FLMessageHeight - self.size.height) / 2.0f;
+  if (_constructionToolbarState.toolbarNode) {
+    bottom += _constructionToolbarState.toolbarNode.size.height;
+  }
+  return bottom + FLMessageSpacer;
 }
 
 - (void)FL_trackSelect:(NSSet *)segmentNodes
