@@ -24,7 +24,7 @@ namespace HLCommon {
 struct QuadTreeKeyHash
 {
   size_t operator()(const std::pair<int, int>& key) const {
-    size_t h = ((key.first & 0xFFFF) << 16) | (key.second & 0xFFFF);
+    size_t h = (size_t)((key.first & 0xFFFF) << 16) | (key.second & 0xFFFF);
     h = ((h >> 16) ^ h) * 0x45d9f3b;
     h = ((h >> 16) ^ h) * 0x45d9f3b;
     h = ((h >> 16) ^ h);

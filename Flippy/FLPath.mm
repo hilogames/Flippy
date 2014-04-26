@@ -54,7 +54,7 @@ FLPath::FLPath(FLPathType pathType, int rotationQuarters) : pathType_(pathType)
       break;
     }
     case FLPathTypeCurve: {
-      const CGFloat FLPathPointsCurveK = 4.0f / 3.0f * (M_SQRT2 - 1.0f);
+      const CGFloat FLPathPointsCurveK = 4.0f / 3.0f * ((CGFloat)M_SQRT2 - 1.0f);
       points_[0] = { 0.5f, -0.5f };
       points_[1] = { 0.5f, -0.5f + FLPathPointsCurveK };
       points_[2] = { -0.5f + FLPathPointsCurveK, 0.5f };
@@ -224,7 +224,7 @@ FLPath::getLength() const
     case FLPathTypeStraight:
       return 1.0f;
     case FLPathTypeCurve:
-      return M_PI_2;
+      return (CGFloat)M_PI_2;
     case FLPathTypeJogLeft:
     case FLPathTypeJogRight:
       // note: Using a K value of 0.6 (for constant FLPathPointsJogK above), I used
@@ -266,8 +266,9 @@ FLPathStore::FLPathStore()
 shared_ptr<FLPathStore>
 FLPathStore::sharedStore()
 {
-  static shared_ptr<FLPathStore> sharedStore(new FLPathStore);
-  return sharedStore;
+  // note: Declared on heap to avoid exit-time destructor warning.
+  static shared_ptr<FLPathStore> *sharedStore = new shared_ptr<FLPathStore>(new FLPathStore);
+  return *sharedStore;
 }
 
 const FLPath *

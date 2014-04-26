@@ -99,13 +99,13 @@ static UIColor *FLToolbarColorButtonHighlighted;
   // Find natural tool sizes (based on sizes of textures).
   NSUInteger toolsCount = [keys count];
   CGSize naturalToolsSize = CGSizeZero;
-  for (int i = 0; i < toolsCount; ++i) {
+  for (NSUInteger i = 0; i < toolsCount; ++i) {
     NSString *key = [keys objectAtIndex:i];
     SKTexture *toolTexture = [[FLTextureStore sharedStore] textureForKey:key];
     if (!toolTexture) {
       [NSException raise:@"FLToolbarNodeMissingTexture" format:@"Missing texture for key '%@'.", key];
     }
-    CGFloat rotation = M_PI_2;
+    CGFloat rotation = (CGFloat)M_PI_2;
     if (rotations) {
       rotation = [[rotations objectAtIndex:i] floatValue];
     }
@@ -197,10 +197,10 @@ static UIColor *FLToolbarColorButtonHighlighted;
   // Set tools (scaled and positioned appropriately).
   CGFloat x = self.anchorPoint.x * finalToolbarSize.width * -1.0f + _borderSize + justificationOffset;
   CGFloat y = self.anchorPoint.y * finalToolbarSize.height * -1.0f + finalToolbarSize.height / 2.0f;
-  for (int i = 0; i < toolsCount; ++i) {
+  for (NSUInteger i = 0; i < toolsCount; ++i) {
 
     NSString *key = [keys objectAtIndex:i];
-    CGFloat rotation = M_PI_2;
+    CGFloat rotation = (CGFloat)M_PI_2;
     if (rotations) {
       rotation = [[rotations objectAtIndex:i] floatValue];
     }

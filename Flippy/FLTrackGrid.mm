@@ -70,7 +70,6 @@ trackGridFindAdjacent(FLTrackGrid& trackGrid, CGPoint worldLocation, __strong FL
     }
   } else if (onEdgeY) {
     // Top or bottom edge.
-    CGFloat halfSegmentSize = segmentSize / 2.0f;
     int topGridY = int(floorf((worldLocation.y + halfSegmentSize) / segmentSize + 0.5f));
     adjacent[adjacentCount] = trackGrid.get(gridX, topGridY - 1);
     if (adjacent[adjacentCount]) {

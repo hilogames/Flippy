@@ -449,7 +449,7 @@ struct PointerPairHash
 
 - (void)FL_createSceneContents
 {
-  self.backgroundColor = [SKColor colorWithRed:0.4 green:0.6 blue:0.0 alpha:1.0];
+  self.backgroundColor = [SKColor colorWithRed:0.4f green:0.6f blue:0.0f alpha:1.0f];
   self.anchorPoint = CGPointMake(0.5f, 0.5f);
 
   // Create basic layers.
@@ -958,7 +958,7 @@ struct PointerPairHash
     if ([_constructionToolbarState.currentNavigation isEqualToString:@"segments"]) {
 
       FLSegmentNode *newSegmentNode = [self FL_createSegmentWithTextureKey:tool];
-      newSegmentNode.zRotation = M_PI_2;
+      newSegmentNode.zRotation = (CGFloat)M_PI_2;
       // note: Locate the new segment underneath the current touch, even though it's
       // not yet added to the node hierarchy.  (The track move routines translate nodes
       // relative to their current position.)
@@ -995,8 +995,8 @@ struct PointerPairHash
       CGFloat segmentsPositionRight;
       [self FL_getSegmentsExtremes:newSegmentNodes left:&segmentsPositionLeft right:&segmentsPositionRight top:&segmentsPositionTop bottom:&segmentsPositionBottom];
       CGFloat segmentSize = _trackGrid->segmentSize();
-      int widthUnits = (segmentsPositionRight - segmentsPositionLeft + 0.00001f) / segmentSize;
-      int heightUnits = (segmentsPositionTop - segmentsPositionBottom + 0.00001f) / segmentSize;
+      int widthUnits = int((segmentsPositionRight - segmentsPositionLeft + 0.00001f) / segmentSize);
+      int heightUnits = int((segmentsPositionTop - segmentsPositionBottom + 0.00001f) / segmentSize);
       // note: Width and height of position differences, so for instance a width of one means
       // the group is two segments wide.
       CGPoint segmentsAlignedCenter = CGPointMake((segmentsPositionLeft + segmentsPositionRight) / 2.0f,
@@ -1030,7 +1030,8 @@ struct PointerPairHash
             FLSegmentNode *b = [links objectAtIndex:l];
             ++l;
             SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:a.switchPosition toLocation:b.switchPosition];
-            _links.insert(a, b, connectorNode);
+            // note: Explicit "self" to make it obvious we are retaining it.
+            self->_links.insert(a, b, connectorNode);
           }
         }
       }];
@@ -1096,7 +1097,7 @@ struct PointerPairHash
     SKAction *move = [SKAction moveTo:worldPosition duration:0.5];
     move.timingMode = SKActionTimingEaseInEaseOut;
     [_worldNode runAction:move completion:^{
-      _cameraMode = FLCameraModeFollowTrain;
+      self->_cameraMode = FLCameraModeFollowTrain;
     }];
   }
 }
@@ -1428,7 +1429,7 @@ struct PointerPairHash
   return YES;
 }
 
-- (NSSet *)FL_importWithPath:(NSString *)path description:(NSString **)trackDescription links:(NSArray **)links
+- (NSSet *)FL_importWithPath:(NSString *)path description:(NSString * __autoreleasing *)trackDescription links:(NSArray * __autoreleasing *)links
 {
   if (![[NSFileManager defaultManager] fileExistsAtPath:path]) {
     [NSException raise:@"FLImportPathInvalid" format:@"Invalid import path %@.", path];
@@ -1498,8 +1499,8 @@ struct PointerPairHash
   // representing the main content portion of the image drawn within the "full" segment size.
   CGFloat basicSegmentSize = FLSegmentArtSizeBasic * FLTrackArtScale;
   CGFloat fullSegmentSize = FLSegmentArtSizeFull * FLTrackArtScale;
-  int widthUnits = (segmentsPositionRight - segmentsPositionLeft + 0.00001f) / basicSegmentSize;
-  int heightUnits = (segmentsPositionTop - segmentsPositionBottom + 0.00001f) / basicSegmentSize;
+  int widthUnits = int((segmentsPositionRight - segmentsPositionLeft + 0.00001f) / basicSegmentSize);
+  int heightUnits = int((segmentsPositionTop - segmentsPositionBottom + 0.00001f) / basicSegmentSize);
   int sizeUnits = MAX(widthUnits, heightUnits);
 
   // note: The margin of the image contains the portion of the drawn segment that gets drawn
@@ -1543,7 +1544,7 @@ struct PointerPairHash
   // is pointing up in the scene.  So: rotate our context back to the right, so that we are creating an image in the
   // standard orientation (and with the standard origin) for art assets.
   CGContextTranslateCTM(context, 0.0f, imageSize);
-  CGContextRotateCTM(context, -M_PI_2);
+  CGContextRotateCTM(context, -(CGFloat)M_PI_2);
   for (FLSegmentNode *segmentNode in segmentNodes) {
     UIImage *segmentNodeImage = [[FLTextureStore sharedStore] imageForKey:segmentNode.segmentKey];
     // Calculate final center position of the scaled segment (on the imageSize x imageSize image with origin in the lower left).
@@ -2042,11 +2043,11 @@ struct PointerPairHash
   //
   // note: The translation is based on gridlines crossed by the gesture, not
   // total distance moved.
-  int gridX;
-  int gridY;
-  _trackGrid->convert(worldLocation, &gridX, &gridY);
-  int translationGridX = gridX - _trackMoveState.beganGridX;
-  int translationGridY = gridY - _trackMoveState.beganGridY;
+  int translationGridX;
+  int translationGridY;
+  _trackGrid->convert(worldLocation, &translationGridX, &translationGridY);
+  translationGridX -= _trackMoveState.beganGridX;
+  translationGridY -= _trackMoveState.beganGridY;
 
   // Return early if we've already attempted placement for this translation.
   //
@@ -2077,11 +2078,11 @@ struct PointerPairHash
   for (FLSegmentNode *segmentNode : _trackMoveState.segmentNodes) {
     // note: Rather than recalculating grid coordinates every loop, could
     // store them in the segmentNodes structure.
-    int gridX;
-    int gridY;
-    _trackGrid->convert(segmentNode.position, &gridX, &gridY);
-    int placementGridX = gridX + deltaTranslationGridX;
-    int placementGridY = gridY + deltaTranslationGridY;
+    int placementGridX;
+    int placementGridY;
+    _trackGrid->convert(segmentNode.position, &placementGridX, &placementGridY);
+    placementGridX += deltaTranslationGridX;
+    placementGridY += deltaTranslationGridY;
     FLSegmentNode *occupyingSegmentNode = _trackGrid->get(placementGridX, placementGridY);
     if (occupyingSegmentNode && ![_trackMoveState.segmentNodes containsObject:occupyingSegmentNode]) {
       [self FL_trackConflictShow:occupyingSegmentNode];
@@ -2420,7 +2421,7 @@ struct PointerPairHash
     segmentNode.zRotationQuarters = newRotationQuarters;
     [self FL_linkRedrawForSegment:segmentNode];
   } else {
-    [segmentNode runAction:[SKAction rotateToAngle:(newRotationQuarters * M_PI_2) duration:FLTrackRotateDuration shortestUnitArc:YES] completion:^{
+    [segmentNode runAction:[SKAction rotateToAngle:(newRotationQuarters * (CGFloat)M_PI_2) duration:FLTrackRotateDuration shortestUnitArc:YES] completion:^{
       [self FL_linkRedrawForSegment:segmentNode];
     }];
     [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-click-1.caf" waitForCompletion:NO]];
@@ -2449,8 +2450,8 @@ struct PointerPairHash
                               (segmentsPositionBottom + segmentsPositionTop) / 2.0f);
   if (!isSymmetricRotation) {
     CGFloat segmentSize = _trackGrid->segmentSize();
-    int widthUnits = (segmentsPositionRight - segmentsPositionLeft + 0.00001f) / segmentSize;
-    int heightUnits = (segmentsPositionTop - segmentsPositionBottom + 0.00001f) / segmentSize;
+    int widthUnits = int((segmentsPositionRight - segmentsPositionLeft + 0.00001f) / segmentSize);
+    int heightUnits = int((segmentsPositionTop - segmentsPositionBottom + 0.00001f) / segmentSize);
     if (widthUnits % 2 != heightUnits % 2) {
       // note: Choose a good nearby pivot.  Later we'll check for conflict, where a good pivot will
       // mean a pivot that allows the rotation to occur.  But even if this selection is rotating
@@ -2492,12 +2493,12 @@ struct PointerPairHash
   // Prepare finalization code block.
   void (^finalizeRotation)(void) = ^{
     for (FLSegmentNode *segmentNode in segmentNodes) {
-      trackGridConvertErase(*_trackGrid, segmentNode.position);
+      trackGridConvertErase(*(self->_trackGrid), segmentNode.position);
       CGPoint positionRelativeToPivot = CGPointMake(segmentNode.position.x - pivot.x, segmentNode.position.y - pivot.y);
       rotatePoints(&positionRelativeToPivot, 1, normalRotationQuarters);
       segmentNode.position = CGPointMake(positionRelativeToPivot.x + pivot.x, positionRelativeToPivot.y + pivot.y);
       segmentNode.zRotationQuarters = (segmentNode.zRotationQuarters + rotateBy) % 4;
-      trackGridConvertSet(*_trackGrid, segmentNode.position, segmentNode);
+      trackGridConvertSet(*(self->_trackGrid), segmentNode.position, segmentNode);
     }
     for (FLSegmentNode *segmentNode in segmentNodes) {
       [self FL_linkRedrawForSegment:segmentNode];
@@ -2534,9 +2535,9 @@ struct PointerPairHash
     rotateNode.position = pivot;
 
     // Rotate the temporary parent node and then finalize segment position.
-    [rotateNode runAction:[SKAction rotateToAngle:(rotateBy * M_PI_2) duration:FLTrackRotateDuration shortestUnitArc:YES] completion:^{
+    [rotateNode runAction:[SKAction rotateToAngle:(rotateBy * (CGFloat)M_PI_2) duration:FLTrackRotateDuration shortestUnitArc:YES] completion:^{
       for (FLSegmentNode *segmentNode in segmentNodes) {
-        [_trackNode addChild:segmentNode];
+        [self->_trackNode addChild:segmentNode];
       }
       finalizeRotation();
       [rotateNode removeFromParent];

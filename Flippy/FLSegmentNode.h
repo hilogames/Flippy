@@ -45,7 +45,7 @@ convertRotationRadiansToQuarters(CGFloat radians)
 inline CGFloat
 convertRotationQuartersToRadians(int quarters)
 {
-  return quarters * M_PI_2;
+  return quarters * (CGFloat)M_PI_2;
 }
 
 @interface FLSegmentNode : SKSpriteNode <NSCoding>

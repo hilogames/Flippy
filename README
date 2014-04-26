@@ -30,6 +30,17 @@ If It Ships
 
 Lower Priority
 
+  . For multisegment rotation: In case of conflict, search for nearby
+    pivot that would work without conflicts.  Shouldn't be hard to
+    check a few anyway.
+
+  . Prettier Bezier curves for links . . . well, if it does indeed
+    look better.  Control points chosen so that the links always curve
+    a bit: Perhaps usually normal to the switch dirction, in the
+    direction of the other endpoint, but then if the other endpoint
+    has the same X or Y coordinate, then bend it 45 degrees or
+    something.
+
   . Mirror tool especially for mirroring a large selection.  (And
     maybe then remove mirror images from segment construction
     toolbar, since it would work for single segments, too.)

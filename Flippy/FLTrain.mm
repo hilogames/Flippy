@@ -34,7 +34,7 @@ static const int FLTrainDirectionReverse = -1;
   SKTexture *texture = [[FLTextureStore sharedStore] textureForKey:@"engine"];
   self = [super initWithTexture:texture];
   if (self) {
-    self.zRotation = M_PI_2;
+    self.zRotation = (CGFloat)M_PI_2;
     _trackGrid = trackGrid;
     _running = NO;
   }
@@ -106,7 +106,7 @@ static const int FLTrainDirectionReverse = -1;
   BOOL foundLastSegmentNode = NO;
   FLSegmentNode *adjacentSegmentNodes[FLTrackGridAdjacentMax];
   size_t adjacentCount = trackGridFindAdjacent(*_trackGrid, self.position, adjacentSegmentNodes);
-  for (int as = 0; as < adjacentCount; ++as) {
+  for (size_t as = 0; as < adjacentCount; ++as) {
     if (adjacentSegmentNodes[as] == _lastSegmentNode) {
       foundLastSegmentNode = YES;
       break;
@@ -124,7 +124,7 @@ static const int FLTrainDirectionReverse = -1;
   // for fun.
   const CGFloat FLTrainNormalSpeedPathLengthPerSecond = 1.8f;
   CGFloat speedPathLengthPerSecond = FLTrainNormalSpeedPathLengthPerSecond * (1.0f + simulationSpeed * simulationSpeed);
-  CGFloat deltaProgress = (speedPathLengthPerSecond / _lastPathLength) * elapsedTime * _lastDirection;
+  CGFloat deltaProgress = (speedPathLengthPerSecond / _lastPathLength) * (CGFloat)elapsedTime * _lastDirection;
   _lastProgress += deltaProgress;
 
   // If this segment has a switch, then set the switch according to the traveled path
@@ -150,15 +150,17 @@ static const int FLTrainDirectionReverse = -1;
     if (_lastDirection == FLTrainDirectionForward) {
       if (_lastProgress > 0.9f) {
         [_lastSegmentNode setSwitchPathId:_lastPathId animated:YES];
-        if (_delegate) {
-          [_delegate train:self didSwitchSegment:_lastSegmentNode toPathId:_lastPathId];
+        id<FLTrainDelegate> delegate = _delegate;
+        if (delegate) {
+          [delegate train:self didSwitchSegment:_lastSegmentNode toPathId:_lastPathId];
         }
       }
     } else {
       if (_lastProgress < 0.1f) {
         [_lastSegmentNode setSwitchPathId:_lastPathId animated:YES];
-        if (_delegate) {
-          [_delegate train:self didSwitchSegment:_lastSegmentNode toPathId:_lastPathId];
+        id<FLTrainDelegate> delegate = _delegate;
+        if (delegate) {
+          [delegate train:self didSwitchSegment:_lastSegmentNode toPathId:_lastPathId];
         }
       }
     }
@@ -178,7 +180,7 @@ static const int FLTrainDirectionReverse = -1;
   CGFloat rotationRadians;
   [_lastSegmentNode getPoint:&location rotation:&rotationRadians forPath:_lastPathId progress:_lastProgress scale:_trackGrid->segmentSize()];
   self.position = location;
-  self.zRotation = (_lastDirection == FLTrainDirectionForward ? rotationRadians : rotationRadians + M_PI);
+  self.zRotation = (_lastDirection == FLTrainDirectionForward ? rotationRadians : rotationRadians + (CGFloat)M_PI);
 }
 
 - (BOOL)moveToClosestOnTrackLocationForLocation:(CGPoint)worldLocation
@@ -206,7 +208,7 @@ static const int FLTrainDirectionReverse = -1;
   int direction = (progress < 0.5f ? FLTrainDirectionForward : FLTrainDirectionReverse);
 
   self.position = location;
-  self.zRotation = (direction == FLTrainDirectionForward ? rotationRadians : rotationRadians + M_PI);
+  self.zRotation = (direction == FLTrainDirectionForward ? rotationRadians : rotationRadians + (CGFloat)M_PI);
   //NSLog(@"progress %3.2f zRotation %.2f", progress, rotationRadians / M_PI * 180.0f);
 
   _lastSegmentNode = segmentNode;
@@ -221,8 +223,9 @@ static const int FLTrainDirectionReverse = -1;
 - (void)FL_crash
 {
   _running = NO;
-  if (_delegate) {
-    [_delegate train:self crashedAtSegment:_lastSegmentNode];
+  id<FLTrainDelegate> delegate = _delegate;
+  if (delegate) {
+    [delegate train:self crashedAtSegment:_lastSegmentNode];
   }
 }
 
@@ -241,7 +244,7 @@ static const int FLTrainDirectionReverse = -1;
   CGFloat nextPathLength = [nextSegmentNode pathLengthForPath:nextPathId];
   int nextDirection = (nextEndpointProgress < 0.5f ? FLTrainDirectionForward : FLTrainDirectionReverse);
 
-  // note: lastExcessProgres is magnitude only, and not signed according to direction.
+  // note: lastExcessProgress is magnitude only, and not signed according to direction.
   CGFloat lastExcessProgress;
   if (_lastDirection == FLTrainDirectionForward) {
     lastExcessProgress = _lastProgress - 1.0f;

@@ -189,9 +189,9 @@ using namespace std;
   } else {
     CGFloat newZRotation = 0.0f;
     if (_segmentType == FLSegmentTypeJoinLeft) {
-      newZRotation = (switchPathId - 1) * M_PI / 8.0f;
+      newZRotation = (switchPathId - 1) * (CGFloat)M_PI / 8.0f;
     } else if (_segmentType == FLSegmentTypeJoinRight) {
-      newZRotation = M_PI + (1 - switchPathId) * M_PI / 8.0f;
+      newZRotation = (CGFloat)M_PI + (1 - switchPathId) * (CGFloat)M_PI / 8.0f;
     }
     if (_switchPathId == FLSegmentSwitchPathIdNone || !animated) {
       switchNode.zRotation = newZRotation;
@@ -316,7 +316,7 @@ using namespace std;
     if (fabsf(pathEndPoint.x - zeroProgressPoint.x) < 0.1f
         && fabsf(pathEndPoint.y - zeroProgressPoint.y) < 0.1f) {
       CGFloat zeroProgressRotation = path->getTangent(0.0f);
-      CGFloat rotationDifference = fabsf(fmodf(rotationRadians - zeroProgressRotation, M_PI));
+      CGFloat rotationDifference = fabsf(fmodf(rotationRadians - zeroProgressRotation, (CGFloat)M_PI));
       if ((rotationDifference > -0.1f && rotationDifference < 0.1f)
           || (rotationDifference > M_PI - 0.1f && rotationDifference < M_PI + 0.1f)) {
         if (!foundOne || _switchPathId == p) {
@@ -336,7 +336,7 @@ using namespace std;
     if (fabsf(pathEndPoint.x - oneProgressPoint.x) < 0.1f
         && fabsf(pathEndPoint.y - oneProgressPoint.y) < 0.1f) {
       CGFloat oneProgressRotation = path->getTangent(1.0f);
-      CGFloat rotationDifference = fabsf(fmodf(rotationRadians - oneProgressRotation, M_PI));
+      CGFloat rotationDifference = fabsf(fmodf(rotationRadians - oneProgressRotation, (CGFloat)M_PI));
       if ((rotationDifference > -0.1f && rotationDifference < 0.1f)
           || (rotationDifference > M_PI - 0.1f && rotationDifference < M_PI + 0.1f)) {
         if (!foundOne || _switchPathId == p) {
