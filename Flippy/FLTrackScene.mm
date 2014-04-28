@@ -61,11 +61,17 @@ static NSString *FLExportsDirectoryPath;
 // a simple public struct, and the associated functionality is implemented in
 // private methods of the scene.
 
+struct FLExportState
+{
+  FLExportState() : descriptionInputAlert(nil) {}
+  UIAlertView *descriptionInputAlert;
+};
+
 enum FLToolbarToolType { FLToolbarToolTypeNone, FLToolbarToolTypeActionTap, FLToolbarToolTypeActionPan, FLToolbarToolTypeNavigation, FLToolbarToolTypeMode };
 
 struct FLConstructionToolbarState
 {
-  FLConstructionToolbarState() : toolbarNode(nil), currentNavigation(@"main"), currentPage(0) {
+  FLConstructionToolbarState() : toolbarNode(nil), currentNavigation(@"main"), currentPage(0), deleteExportConfirmAlert(nil) {
     navigationTools = [NSMutableSet set];
     actionTapTools = [NSMutableSet set];
     actionPanTools = [NSMutableDictionary dictionary];
@@ -78,6 +84,9 @@ struct FLConstructionToolbarState
   NSMutableSet *actionTapTools;
   NSMutableDictionary *actionPanTools;
   NSMutableSet *modeTools;
+  UIAlertView *deleteExportConfirmAlert;
+  NSString *deleteExportName;
+  NSString *deleteExportDescription;
 };
 
 struct FLSimulationToolbarState
@@ -195,6 +204,7 @@ struct PointerPairHash
   shared_ptr<FLTrackGrid> _trackGrid;
   FLLinks _links;
 
+  FLExportState _exportState;
   FLWorldGestureState _worldGestureState;
   FLConstructionToolbarState _constructionToolbarState;
   FLSimulationToolbarState _simulationToolbarState;
@@ -584,9 +594,17 @@ struct PointerPairHash
 
 - (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex
 {
-  NSString *trackDescription = [alertView textFieldAtIndex:0].text;
-  if (buttonIndex == 1 && trackDescription && trackDescription.length > 0) {
-    [self FL_exportWithDescription:trackDescription];
+  if (alertView == _exportState.descriptionInputAlert) {
+    NSString *trackDescription = [alertView textFieldAtIndex:0].text;
+    if (buttonIndex == 1 && trackDescription && trackDescription.length > 0) {
+      [self FL_exportWithDescription:trackDescription];
+    }
+    _exportState.descriptionInputAlert = nil;
+  } else if (alertView == _constructionToolbarState.deleteExportConfirmAlert) {
+    if (buttonIndex == 1) {
+      [self FL_exportDelete:_constructionToolbarState.deleteExportName description:_constructionToolbarState.deleteExportDescription];
+    }
+    _constructionToolbarState.deleteExportConfirmAlert = nil;
   }
 }
 
@@ -937,6 +955,41 @@ struct PointerPairHash
   }
 }
 
+- (void)handleConstructionToolbarLongPress:(UIGestureRecognizer *)gestureRecognizer
+{
+  if (gestureRecognizer.state != UIGestureRecognizerStateBegan) {
+    return;
+  }
+  if (![_constructionToolbarState.currentNavigation isEqualToString:@"exports"]) {
+    return;
+  }
+
+  CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
+  CGPoint sceneLocation = [self convertPointFromView:viewLocation];
+  CGPoint toolbarLocation = [_constructionToolbarState.toolbarNode convertPoint:sceneLocation fromNode:self];
+  NSString *tool = [_constructionToolbarState.toolbarNode toolAtLocation:toolbarLocation];
+  if (!tool) {
+    return;
+  }
+
+  NSString *description = [_constructionToolbarState.actionPanTools objectForKey:tool];
+  if (!description) {
+    return;
+  }
+
+  NSString *title = [NSString stringWithFormat:@"Delete “%@”?", description];
+  UIAlertView *confirmView = [[UIAlertView alloc] initWithTitle:title
+                                                        message:nil
+                                                       delegate:self
+                                              cancelButtonTitle:@"Cancel"
+                                              otherButtonTitles:@"Delete", nil];
+  confirmView.alertViewStyle = UIAlertViewStyleDefault;
+  _constructionToolbarState.deleteExportConfirmAlert = confirmView;
+  _constructionToolbarState.deleteExportName = tool;
+  _constructionToolbarState.deleteExportDescription = description;
+  [confirmView show];
+}
+
 - (void)handleConstructionToolbarPan:(UIPanGestureRecognizer *)gestureRecognizer
 {
   CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
@@ -1193,7 +1246,11 @@ struct PointerPairHash
       [gestureRecognizer addTarget:self action:@selector(handleConstructionToolbarTap:)];
       return YES;
     }
-    // TODO: Long press for deletion of exports.
+    if (gestureRecognizer == _longPressRecognizer) {
+      [gestureRecognizer removeTarget:nil action:nil];
+      [gestureRecognizer addTarget:self action:@selector(handleConstructionToolbarLongPress:)];
+      return YES;
+    }
     return NO;
   }
   
@@ -1380,8 +1437,8 @@ struct PointerPairHash
                                                      delegate:self
                                             cancelButtonTitle:@"Cancel"
                                             otherButtonTitles:@"Export", nil];
-  inputView.delegate = self;
   inputView.alertViewStyle = UIAlertViewStylePlainTextInput;
+  _exportState.descriptionInputAlert = inputView;
   [inputView show];
 }
 
@@ -1421,12 +1478,22 @@ struct PointerPairHash
   [aCoder encodeObject:links forKey:@"links"];
   [aCoder finishEncoding];
   [archiveData writeToFile:exportPath atomically:NO];
-  NSLog(@"exported %@ (%d segments, %d links)", trackDescription, [_trackSelectState.selectedSegments count], [links count]);
 
-  // note: Assume export button is showing in construction toolbar, else we would not have been called.
-  [_constructionToolbarState.toolbarNode animateHighlight:NO count:2 halfCycleDuration:FLBlinkHalfCycleDuration forTool:@"export"];
+  [self FL_messageShow:[NSString stringWithFormat:@"Exported “%@”.", trackDescription]];
 
   return YES;
+}
+
+- (void)FL_exportDelete:(NSString *)exportName description:(NSString *)trackDescription
+{
+  NSFileManager *fileManager = [NSFileManager defaultManager];
+  NSString *exportPath = [FLExportsDirectoryPath stringByAppendingPathComponent:[exportName stringByAppendingPathExtension:@"archive"]];
+  [fileManager removeItemAtPath:exportPath error:nil];
+  
+  [self FL_messageShow:[NSString stringWithFormat:@"Deleted “%@”.", trackDescription]];
+  if ([_constructionToolbarState.currentNavigation isEqualToString:@"exports"]) {
+    [self FL_constructionToolbarShowImports:FLExportsDirectoryPath page:_constructionToolbarState.currentPage animated:NO];
+  }
 }
 
 - (NSSet *)FL_importWithPath:(NSString *)path description:(NSString * __autoreleasing *)trackDescription links:(NSArray * __autoreleasing *)links
@@ -1677,6 +1744,8 @@ struct PointerPairHash
 
 - (void)FL_constructionToolbarShowImports:(NSString *)importDirectory page:(int)page animated:(BOOL)animated
 {
+  // TODO: Pages.
+
   // Initialize toolbar with basic navigation.
   NSMutableArray *textureKeys = [NSMutableArray arrayWithObject:@"main"];
   [_constructionToolbarState.navigationTools addObject:@"main"];
