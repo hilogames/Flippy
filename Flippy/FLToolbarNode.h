@@ -18,7 +18,9 @@ typedef enum FLToolbarNodeJustification {
 typedef enum FLToolbarNodeAnimation {
   FLToolbarNodeAnimationNone,
   FLToolbarNodeAnimationSlideUp,
-  FLToolbarNodeAnimationSlideDown
+  FLToolbarNodeAnimationSlideDown,
+  FLToolbarNodeAnimationSlideLeft,
+  FLToolbarNodeAnimationSlideRight
 } FLToolbarNodeAnimation;
 
 @interface FLToolbarNode : SKSpriteNode <NSCoding>
@@ -69,6 +71,8 @@ typedef enum FLToolbarNodeAnimation {
 - (CGRect)toolFrame:(NSString *)key;
 
 - (NSUInteger)toolCount;
+
+- (NSUInteger)toolCountForToolWidth:(CGFloat)toolWidth;
 
 - (void)setHighlight:(BOOL)highlight forTool:(NSString *)key;
 

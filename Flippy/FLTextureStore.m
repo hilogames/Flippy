@@ -43,6 +43,8 @@
     [sharedStore loadTextureForKey:@"rotate-ccw" filteringMode:SKTextureFilteringLinear];
     [sharedStore loadTextureForKey:@"toggle-switch" filteringMode:SKTextureFilteringLinear];
     [sharedStore loadTextureForKey:@"main" filteringMode:SKTextureFilteringLinear];
+    [sharedStore loadTextureForKey:@"next" filteringMode:SKTextureFilteringLinear];
+    [sharedStore loadTextureForKey:@"previous" filteringMode:SKTextureFilteringLinear];
     [sharedStore loadTextureForKey:@"segments" filteringMode:SKTextureFilteringLinear];
     [sharedStore loadTextureForKey:@"gates" filteringMode:SKTextureFilteringLinear];
     [sharedStore loadTextureForKey:@"circuits" filteringMode:SKTextureFilteringLinear];

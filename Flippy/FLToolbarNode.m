@@ -247,10 +247,23 @@ static UIColor *FLToolbarColorButtonHighlighted;
   } else {
     // note: If toolbar is not animated to change size, then we don't need the MAXs below.
     CGPoint delta;
-    if (animation == FLToolbarNodeAnimationSlideUp) {
-      delta = CGPointMake(0.0f, MAX(finalToolbarSize.height, self.size.height));
-    } else {
-      delta = CGPointMake(0.0f, -1.0f * MAX(finalToolbarSize.height, self.size.height));
+    switch (animation) {
+      case FLToolbarNodeAnimationSlideUp:
+        delta = CGPointMake(0.0f, MAX(finalToolbarSize.height, self.size.height));
+        break;
+      case FLToolbarNodeAnimationSlideDown:
+        delta = CGPointMake(0.0f, -1.0f * MAX(finalToolbarSize.height, self.size.height));
+        break;
+      case FLToolbarNodeAnimationSlideLeft:
+        delta = CGPointMake(MAX(finalToolbarSize.width, self.size.width), 0.0f);
+        break;
+      case FLToolbarNodeAnimationSlideRight:
+        delta = CGPointMake(-1.0f * MAX(finalToolbarSize.width, self.size.width), 0.0f);
+        break;
+      case FLToolbarNodeAnimationNone:
+      default:
+        [NSException raise:@"FLToolbarNodeUnhandledAnimation" format:@"Unhandled animation %d.", animation];
+        break;
     }
     toolsNode.position = CGPointMake(-delta.x, -delta.y);
     [toolsNode runAction:[SKAction moveByX:delta.x y:delta.y duration:FLToolbarSlideDuration]];
@@ -267,6 +280,12 @@ static UIColor *FLToolbarColorButtonHighlighted;
 - (NSUInteger)toolCount
 {
   return [_toolButtonNodes count];
+}
+
+- (NSUInteger)toolCountForToolWidth:(CGFloat)toolWidth
+{
+  return (NSUInteger)((self.size.width - 2.0f * _borderSize + _toolSeparatorSize + 0.00001f)
+                      / (toolWidth + 2.0f * _toolPad + _toolSeparatorSize));
 }
 
 - (NSString *)toolAtLocation:(CGPoint)location
