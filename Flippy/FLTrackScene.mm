@@ -517,7 +517,6 @@ struct PointerPairHash
   CGRect terrainTileRect = CGRectMake(0.0f, 0.0f, terrainTileImage.size.width, terrainTileImage.size.height);
   CGImageRef terrainTileRef = [terrainTileImage CGImage];
 
-  // note: Should begin context with scaling options for Retina display.
   UIGraphicsBeginImageContext(FLWorldSize);
   CGContextRef context = UIGraphicsGetCurrentContext();
   CGContextDrawTiledImage(context, terrainTileRect, terrainTileRef);
@@ -1500,6 +1499,11 @@ struct PointerPairHash
   
   [self FL_messageShow:[NSString stringWithFormat:@"Deleted “%@”.", trackDescription]];
   if ([_constructionToolbarState.currentNavigation isEqualToString:@"exports"]) {
+    // note: Page might be too large as a result of the deletion.
+    int pageMax = [self FL_constructionToolbarImportsPageMax:FLExportsDirectoryPath];
+    if (_constructionToolbarState.currentPage > pageMax) {
+      _constructionToolbarState.currentPage = pageMax;
+    }
     [self FL_constructionToolbarShowImports:FLExportsDirectoryPath page:_constructionToolbarState.currentPage animation:FLToolbarNodeAnimationNone];
   }
 }
@@ -1591,7 +1595,6 @@ struct PointerPairHash
   CGPoint shift = CGPointMake(segmentsPositionLeft - (sizeUnits - widthUnits) * basicSegmentSize / 2.0f,
                               segmentsPositionBottom - (sizeUnits - heightUnits) * basicSegmentSize / 2.0f);
   
-  // note: Should begin context with scaling options for Retina display.
   UIGraphicsBeginImageContext(CGSizeMake(imageSize, imageSize));
   CGContextRef context = UIGraphicsGetCurrentContext();
   // noob: From Apple documentation:
@@ -1693,6 +1696,20 @@ struct PointerPairHash
   _constructionToolbarState.toolbarNode.automaticHeight = NO;
   _constructionToolbarState.toolbarNode.position = CGPointMake(0.0f, -self.size.height / 2.0f);
   _constructionToolbarState.toolbarNode.size = CGSizeMake(self.size.width, FLMainToolbarToolHeight);
+
+  // note: Page might be too large as a result of additional toolbar width made possible by the new geometry.
+  int pageMax = _constructionToolbarState.currentPage;
+  if ([_constructionToolbarState.currentNavigation isEqualToString:@"gates"]) {
+    pageMax = [self FL_constructionToolbarImportsPageMax:FLGatesDirectoryPath];
+  } else if ([_constructionToolbarState.currentNavigation isEqualToString:@"circuits"]) {
+    pageMax = [self FL_constructionToolbarImportsPageMax:FLCircuitsDirectoryPath];
+  } else if ([_constructionToolbarState.currentNavigation isEqualToString:@"exports"]) {
+    pageMax = [self FL_constructionToolbarImportsPageMax:FLExportsDirectoryPath];
+  }
+  if (_constructionToolbarState.currentPage > pageMax) {
+    _constructionToolbarState.currentPage = pageMax;
+  }
+
   [self FL_constructionToolbarUpdateToolsAnimation:FLToolbarNodeAnimationNone];
 }
 
@@ -1781,15 +1798,19 @@ struct PointerPairHash
 
   // Calculate page size.
   NSUInteger pageSize = [_constructionToolbarState.toolbarNode toolCountForToolWidth:FLMainToolbarToolHeight];
+  // note: Need main/previous/next buttons, and then anything less than two remaining is silly.
+  if (pageSize < 5) {
+    pageSize = 5;
+  }
 
   // Select tools for specified page.
+  NSUInteger importTextureKeysCount = [importTextureKeys count];
   NSMutableArray *textureKeys = [NSMutableArray arrayWithObject:@"main"];
   [_constructionToolbarState.navigationTools addObject:@"main"];
-  if ([importTextureKeys count] < pageSize) {
+  if (importTextureKeysCount < pageSize) {
     [textureKeys addObjectsFromArray:importTextureKeys];
   } else {
     // note: [begin,end)
-    NSUInteger importTextureKeysCount = [importTextureKeys count];
     NSUInteger beginIndex = (pageSize - 3) * (NSUInteger)page;
     if (beginIndex > 0) {
       [textureKeys addObject:@"previous"];
@@ -1797,6 +1818,8 @@ struct PointerPairHash
       ++beginIndex;
     }
     NSUInteger currentIndex = beginIndex;
+    // note: The page might end up empty if the requested value is too large.  Consider that to be the
+    // caller's problem.
     while (currentIndex < importTextureKeysCount && currentIndex < beginIndex + pageSize - 3) {
       [textureKeys addObject:[importTextureKeys objectAtIndex:currentIndex]];
       ++currentIndex;
@@ -1814,6 +1837,27 @@ struct PointerPairHash
                                                        rotations:nil
                                                          offsets:nil
                                                        animation:animation];
+}
+
+- (int)FL_constructionToolbarImportsPageMax:(NSString *)importDirectory
+{
+  NSFileManager *fileManager = [NSFileManager defaultManager];
+  NSArray *importFiles = [fileManager contentsOfDirectoryAtPath:importDirectory error:nil];
+  NSUInteger pageSize = [_constructionToolbarState.toolbarNode toolCountForToolWidth:FLMainToolbarToolHeight];
+  if (pageSize < 5) {
+    pageSize = 5;
+  }
+
+  NSUInteger importFilesCount = [importFiles count];
+  if (importFilesCount < pageSize) {
+    return 0;
+  }
+
+  // note: Page with main/previous/next buttons can hold (pageSize - 3) imports.  First and
+  // last pages can each hold one extra because they don't need previous or next (respectively).
+  NSUInteger pageMax = (importFilesCount - 3) / (pageSize - 3);
+
+  return (int)pageMax;
 }
 
 - (void)FL_simulationToolbarSetVisible:(BOOL)visible

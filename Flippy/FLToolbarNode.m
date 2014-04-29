@@ -255,10 +255,10 @@ static UIColor *FLToolbarColorButtonHighlighted;
         delta = CGPointMake(0.0f, -1.0f * MAX(finalToolbarSize.height, self.size.height));
         break;
       case FLToolbarNodeAnimationSlideLeft:
-        delta = CGPointMake(MAX(finalToolbarSize.width, self.size.width), 0.0f);
+        delta = CGPointMake(-1.0f * MAX(finalToolbarSize.width, self.size.width), 0.0f);
         break;
       case FLToolbarNodeAnimationSlideRight:
-        delta = CGPointMake(-1.0f * MAX(finalToolbarSize.width, self.size.width), 0.0f);
+        delta = CGPointMake(MAX(finalToolbarSize.width, self.size.width), 0.0f);
         break;
       case FLToolbarNodeAnimationNone:
       default:

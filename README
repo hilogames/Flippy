@@ -7,14 +7,15 @@ circuits.
 
 Current
 
-  . Make a copy/duplicate of current selection.  Insert the same way
-    as an import, so factor out that code.
-
   . Start splash and start menu, with save/load/new options.  Button
     in simulation toolbar to return to start menu.
 
-  . Special input and output segments which have switches but no
-    track (and perhaps have a readout of binary value).
+  . Make a copy/duplicate of current selection.  Insert the same way
+    as an import, so factor out that code.
+
+  . Special input and output segments which have switches but no track
+    (and perhaps have a readout of binary value).  (Consider how this
+    would work in "puzzle" mode for the game.)
 
   . Pan world when track move (or multi-selection, or any pan gesture)
     goes to edge of scene.
@@ -61,10 +62,6 @@ Lower Priority
 
   . If multiple trains, then train edit menu for play/pause controls
     (and an explicit way to turn train around, perhaps).
-
-  . Art for retina devices.  Also note the terrain tiling graphics
-    context needs scaling options set for retina to successfully tile
-    things (I think).
 
   . Draw a line with your finger, segments created automatically.
     Better: A special "auto connect" path subtrack which
