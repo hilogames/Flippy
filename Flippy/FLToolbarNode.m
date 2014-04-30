@@ -282,12 +282,6 @@ static UIColor *FLToolbarColorButtonHighlighted;
   return [_toolButtonNodes count];
 }
 
-- (NSUInteger)toolCountForToolWidth:(CGFloat)toolWidth
-{
-  return (NSUInteger)((self.size.width - 2.0f * _borderSize + _toolSeparatorSize + 0.00001f)
-                      / (toolWidth + 2.0f * _toolPad + _toolSeparatorSize));
-}
-
 - (NSString *)toolAtLocation:(CGPoint)location
 {
   for (SKSpriteNode *toolButtonNode in _toolButtonNodes) {

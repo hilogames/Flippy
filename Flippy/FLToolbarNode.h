@@ -72,8 +72,6 @@ typedef enum FLToolbarNodeAnimation {
 
 - (NSUInteger)toolCount;
 
-- (NSUInteger)toolCountForToolWidth:(CGFloat)toolWidth;
-
 - (void)setHighlight:(BOOL)highlight forTool:(NSString *)key;
 
 - (void)animateHighlight:(BOOL)finalHighlight count:(int)blinkCount halfCycleDuration:(NSTimeInterval)halfCycleDuration forTool:(NSString *)key;

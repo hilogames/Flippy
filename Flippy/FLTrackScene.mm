@@ -1769,14 +1769,41 @@ struct PointerPairHash
 
 - (void)FL_constructionToolbarShowImports:(NSString *)importDirectory page:(int)page animation:(FLToolbarNodeAnimation)animation
 {
-  // Get a list of all imports.
+  // Get a list of all imports (sorted appropriately).
   NSFileManager *fileManager = [NSFileManager defaultManager];
-  NSArray *importFiles = [fileManager contentsOfDirectoryAtPath:importDirectory error:nil];
-  // note: Enforce consistent order by alphabetizing; the preloaded imports paths (gates,
-  // circuits) take advantage of this by naming their files in the desired order for the
-  // interface.
-  importFiles = [importFiles sortedArrayUsingSelector:@selector(compare:)];
-  // TODO: But for exports, would be nice to sort by date created.
+  NSArray *importFiles;
+  if ([importDirectory isEqualToString:FLExportsDirectoryPath]) {
+    // note: For user-exported files, sort by descending creation date.
+    NSURL *importURL = [NSURL fileURLWithPath:importDirectory isDirectory:NO];
+    NSArray *importFileURLs = [fileManager contentsOfDirectoryAtURL:importURL includingPropertiesForKeys:@[ NSURLCreationDateKey ] options:nil error:nil];
+    NSArray *sortedImportFileURLs = [importFileURLs sortedArrayUsingComparator:^NSComparisonResult(id obj1, id obj2){
+      NSDate *date1;
+      [obj1 getResourceValue:&date1 forKey:NSURLCreationDateKey error:nil];
+      NSDate *date2;
+      [obj2 getResourceValue:&date2 forKey:NSURLCreationDateKey error:nil];
+      NSComparisonResult result = [date1 compare:date2];
+      if (result == NSOrderedAscending) {
+        return NSOrderedDescending;
+      } else if (result == NSOrderedDescending) {
+        return NSOrderedAscending;
+      } else {
+        return NSOrderedSame;
+      }
+    }];
+    NSMutableArray *mutableImportFiles = [NSMutableArray array];
+    for (NSURL *url in sortedImportFileURLs) {
+      NSDate *date = nil;
+      [url getResourceValue:&date forKey:NSURLCreationDateKey error:nil];
+      NSLog(@"file %@ created %@", [url lastPathComponent], date);
+      [mutableImportFiles addObject:[url lastPathComponent]];
+    }
+    importFiles = mutableImportFiles;
+  } else {
+    // note: For segments and gates, alphabetize; the preloaded gates and circuits take
+    // advantage of this by naming their files in the desired order for the interface.
+    importFiles = [fileManager contentsOfDirectoryAtPath:importDirectory error:nil];
+    importFiles = [importFiles sortedArrayUsingSelector:@selector(compare:)];
+  }
   
   // Create textures for each import (if they don't already exist in shared store).
   NSMutableArray *importTextureKeys = [NSMutableArray array];
@@ -1797,39 +1824,39 @@ struct PointerPairHash
   }
 
   // Calculate page size.
-  NSUInteger pageSize = [_constructionToolbarState.toolbarNode toolCountForToolWidth:FLMainToolbarToolHeight];
-  // note: Need main/previous/next buttons, and then anything less than two remaining is silly.
-  if (pageSize < 5) {
-    pageSize = 5;
-  }
+  NSUInteger pageSize = [self FL_constructionToolbarPageSize];
 
   // Select tools for specified page.
   NSUInteger importTextureKeysCount = [importTextureKeys count];
   NSMutableArray *textureKeys = [NSMutableArray arrayWithObject:@"main"];
   [_constructionToolbarState.navigationTools addObject:@"main"];
-  if (importTextureKeysCount < pageSize) {
-    [textureKeys addObjectsFromArray:importTextureKeys];
+
+  // note: [begin,end)
+  const NSUInteger importsPerMiddlePage = pageSize - 3;
+  // note: First page has room for an extra import, so add one to index.
+  // (Subtract it out below if we're on the first page.)
+  NSUInteger beginIndex = importsPerMiddlePage * (NSUInteger)page + 1;
+  NSUInteger endIndex = beginIndex + importsPerMiddlePage;
+  if (page == 0) {
+    --beginIndex;
   } else {
-    // note: [begin,end)
-    NSUInteger beginIndex = (pageSize - 3) * (NSUInteger)page;
-    if (beginIndex > 0) {
-      [textureKeys addObject:@"previous"];
-      [_constructionToolbarState.navigationTools addObject:@"previous"];
-      ++beginIndex;
-    }
-    NSUInteger currentIndex = beginIndex;
-    // note: The page might end up empty if the requested value is too large.  Consider that to be the
-    // caller's problem.
-    while (currentIndex < importTextureKeysCount && currentIndex < beginIndex + pageSize - 3) {
-      [textureKeys addObject:[importTextureKeys objectAtIndex:currentIndex]];
-      ++currentIndex;
-    }
-    if (currentIndex == importTextureKeysCount - 1) {
-      [textureKeys addObject:[importTextureKeys objectAtIndex:(currentIndex - 1)]];
-    } else if (currentIndex < importTextureKeysCount) {
-      [textureKeys addObject:@"next"];
-      [_constructionToolbarState.navigationTools addObject:@"next"];
-    }
+    [textureKeys addObject:@"previous"];
+    [_constructionToolbarState.navigationTools addObject:@"previous"];
+  }
+  // note: Last page has room for an extra import, so add one if we're
+  // indexed at the next-to-last; also, stay in bounds for partial last
+  // page.
+  if (endIndex + 1 >= importTextureKeysCount) {
+    endIndex = importTextureKeysCount;
+  }
+  // note: The page might end up with no imports if the requested page is too
+  // large.  Caller beware.
+  for (NSUInteger i = beginIndex; i < endIndex; ++i) {
+    [textureKeys addObject:[importTextureKeys objectAtIndex:i]];
+  }
+  if (endIndex < importTextureKeysCount) {
+    [textureKeys addObject:@"next"];
+    [_constructionToolbarState.navigationTools addObject:@"next"];
   }
 
   // Set tools.
@@ -1843,21 +1870,25 @@ struct PointerPairHash
 {
   NSFileManager *fileManager = [NSFileManager defaultManager];
   NSArray *importFiles = [fileManager contentsOfDirectoryAtPath:importDirectory error:nil];
-  NSUInteger pageSize = [_constructionToolbarState.toolbarNode toolCountForToolWidth:FLMainToolbarToolHeight];
+  NSUInteger pageSize = [self FL_constructionToolbarPageSize];
+  NSUInteger importFilesCount = [importFiles count];
+  // note: Basic number of imports that can fit on a page is (pageSize - 3), leaving room for a main button,
+  // a previous button, and a next button.  But subtract one from the total because first page gets an
+  // extra import button (because no need for previous); subtract one more for the last page (no next);
+  // and subtract one more so the integer math gives a zero-indexed result.
+  return int((importFilesCount - 3) / (pageSize - 3));
+}
+
+- (NSUInteger)FL_constructionToolbarPageSize
+{
+  CGFloat borderSize = _constructionToolbarState.toolbarNode.borderSize;
+  CGFloat toolSeparatorSize = _constructionToolbarState.toolbarNode.toolSeparatorSize;
+  NSUInteger pageSize = (NSUInteger)((_constructionToolbarState.toolbarNode.size.width + toolSeparatorSize - 2.0f * borderSize) / (FLMainToolbarToolHeight - 2.0f * borderSize + toolSeparatorSize));
+  // note: Need main/previous/next buttons, and then anything less than two remaining is silly.
   if (pageSize < 5) {
     pageSize = 5;
   }
-
-  NSUInteger importFilesCount = [importFiles count];
-  if (importFilesCount < pageSize) {
-    return 0;
-  }
-
-  // note: Page with main/previous/next buttons can hold (pageSize - 3) imports.  First and
-  // last pages can each hold one extra because they don't need previous or next (respectively).
-  NSUInteger pageMax = (importFilesCount - 3) / (pageSize - 3);
-
-  return (int)pageMax;
+  return pageSize;
 }
 
 - (void)FL_simulationToolbarSetVisible:(BOOL)visible
