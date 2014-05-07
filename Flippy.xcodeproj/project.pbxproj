@@ -15,9 +15,12 @@
 		CB4D531118A979550087E1F7 /* wooden-click-2.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB4D530C18A979550087E1F7 /* wooden-click-2.caf */; };
 		CB4D531318A979550087E1F7 /* wooden-clickity-2.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB4D530E18A979550087E1F7 /* wooden-clickity-2.caf */; };
 		CB50C21718BF8F140072DA30 /* FLTrackGrid.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB50C21518BF8F140072DA30 /* FLTrackGrid.mm */; };
+		CB55475C191286D800F2754C /* FLMenuScene.m in Sources */ = {isa = PBXBuildFile; fileRef = CB55475B191286D800F2754C /* FLMenuScene.m */; };
+		CB55475F1912939000F2754C /* FLScene.m in Sources */ = {isa = PBXBuildFile; fileRef = CB55475E1912939000F2754C /* FLScene.m */; };
 		CB5B70A218C956D20068F16D /* switch.png in Resources */ = {isa = PBXBuildFile; fileRef = CB5B70A118C956D20068F16D /* switch.png */; };
 		CB657E9A1843E8DB00399E34 /* track.atlas in Resources */ = {isa = PBXBuildFile; fileRef = CB657E991843E8DB00399E34 /* track.atlas */; };
 		CB7B494C18D39E1C00FACEF4 /* FLLinks.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB7B494A18D39E1C00FACEF4 /* FLLinks.mm */; };
+		CB7D13881916DE68002B63D2 /* menu-button.png in Resources */ = {isa = PBXBuildFile; fileRef = CB7D13871916DE68002B63D2 /* menu-button.png */; };
 		CB88668F18A540130045FD7E /* grass.png in Resources */ = {isa = PBXBuildFile; fileRef = CB88668E18A540130045FD7E /* grass.png */; };
 		CB88669218A544530045FD7E /* sleeperDestruction.sks in Resources */ = {isa = PBXBuildFile; fileRef = CB88669018A544530045FD7E /* sleeperDestruction.sks */; };
 		CB88669618A544820045FD7E /* rail.png in Resources */ = {isa = PBXBuildFile; fileRef = CB88669418A544820045FD7E /* rail.png */; };
@@ -51,6 +54,7 @@
 		CBB4B82C183C00E1003C3444 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = CBB4B82A183C00E1003C3444 /* InfoPlist.strings */; };
 		CBB4B82E183C00E1003C3444 /* FlippyTests.m in Sources */ = {isa = PBXBuildFile; fileRef = CBB4B82D183C00E1003C3444 /* FlippyTests.m */; };
 		CBD707C418AD0EE00041B170 /* FLTrain.mm in Sources */ = {isa = PBXBuildFile; fileRef = CBD707C318AD0EE00041B170 /* FLTrain.mm */; };
+		CBD9E93B19142C29002533DF /* libHLSpriteKit.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CBD9E93619142B03002533DF /* libHLSpriteKit.a */; };
 		CBE5A5E9185A0CAB00DC86B3 /* FLTextureStore.m in Sources */ = {isa = PBXBuildFile; fileRef = CBE5A5E8185A0CAB00DC86B3 /* FLTextureStore.m */; };
 		CBE5A5EC185A128100DC86B3 /* FLToolbarNode.m in Sources */ = {isa = PBXBuildFile; fileRef = CBE5A5EB185A128100DC86B3 /* FLToolbarNode.m */; };
 		CBEE13F018C4DBA400D1D42B /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CB0464A318AA6F7F00ABCA03 /* AVFoundation.framework */; };
@@ -63,6 +67,27 @@
 			proxyType = 1;
 			remoteGlobalIDString = CBB4B7F4183C00E1003C3444;
 			remoteInfo = Flippy;
+		};
+		CBD9E93519142B03002533DF /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CBD9E93019142B03002533DF /* HLSpriteKit.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = CB923F901914230E00419AD1;
+			remoteInfo = HLSpriteKit;
+		};
+		CBD9E93719142B03002533DF /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CBD9E93019142B03002533DF /* HLSpriteKit.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = CB923FA01914230E00419AD1;
+			remoteInfo = HLSpriteKitTests;
+		};
+		CBD9E93919142C06002533DF /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CBD9E93019142B03002533DF /* HLSpriteKit.xcodeproj */;
+			proxyType = 1;
+			remoteGlobalIDString = CB923F8F1914230E00419AD1;
+			remoteInfo = HLSpriteKit;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -79,10 +104,15 @@
 		CB4D530E18A979550087E1F7 /* wooden-clickity-2.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "wooden-clickity-2.caf"; sourceTree = "<group>"; };
 		CB50C21518BF8F140072DA30 /* FLTrackGrid.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLTrackGrid.mm; sourceTree = "<group>"; };
 		CB50C21618BF8F140072DA30 /* FLTrackGrid.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTrackGrid.h; sourceTree = "<group>"; };
+		CB55475A191286D800F2754C /* FLMenuScene.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLMenuScene.h; sourceTree = "<group>"; };
+		CB55475B191286D800F2754C /* FLMenuScene.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FLMenuScene.m; sourceTree = "<group>"; };
+		CB55475D1912939000F2754C /* FLScene.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLScene.h; sourceTree = "<group>"; };
+		CB55475E1912939000F2754C /* FLScene.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FLScene.m; sourceTree = "<group>"; };
 		CB5B70A118C956D20068F16D /* switch.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = switch.png; sourceTree = "<group>"; };
 		CB657E991843E8DB00399E34 /* track.atlas */ = {isa = PBXFileReference; lastKnownFileType = folder.skatlas; path = track.atlas; sourceTree = "<group>"; };
 		CB7B494A18D39E1C00FACEF4 /* FLLinks.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLLinks.mm; sourceTree = "<group>"; };
 		CB7B494B18D39E1C00FACEF4 /* FLLinks.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLLinks.h; sourceTree = "<group>"; };
+		CB7D13871916DE68002B63D2 /* menu-button.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "menu-button.png"; sourceTree = "<group>"; };
 		CB88668E18A540130045FD7E /* grass.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = grass.png; sourceTree = "<group>"; };
 		CB88669018A544530045FD7E /* sleeperDestruction.sks */ = {isa = PBXFileReference; lastKnownFileType = file.sks; path = sleeperDestruction.sks; sourceTree = "<group>"; };
 		CB88669418A544820045FD7E /* rail.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = rail.png; sourceTree = "<group>"; };
@@ -124,6 +154,7 @@
 		CBB4B82D183C00E1003C3444 /* FlippyTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FlippyTests.m; sourceTree = "<group>"; };
 		CBD707C218AD0EE00041B170 /* FLTrain.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTrain.h; sourceTree = "<group>"; };
 		CBD707C318AD0EE00041B170 /* FLTrain.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLTrain.mm; sourceTree = "<group>"; };
+		CBD9E93019142B03002533DF /* HLSpriteKit.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = HLSpriteKit.xcodeproj; path = ../common/HLSpriteKit/HLSpriteKit.xcodeproj; sourceTree = "<group>"; };
 		CBE5A5E7185A0CAB00DC86B3 /* FLTextureStore.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTextureStore.h; sourceTree = "<group>"; };
 		CBE5A5E8185A0CAB00DC86B3 /* FLTextureStore.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FLTextureStore.m; sourceTree = "<group>"; };
 		CBE5A5EA185A128100DC86B3 /* FLToolbarNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLToolbarNode.h; sourceTree = "<group>"; };
@@ -136,6 +167,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CBD9E93B19142C29002533DF /* libHLSpriteKit.a in Frameworks */,
 				CBEE13F018C4DBA400D1D42B /* AVFoundation.framework in Frameworks */,
 				CBB4B7FB183C00E1003C3444 /* CoreGraphics.framework in Frameworks */,
 				CBB4B7FD183C00E1003C3444 /* UIKit.framework in Frameworks */,
@@ -180,6 +212,7 @@
 				CB8A6F4C18F71E240024B84D /* jog-right-nonatlas.png */,
 				CB8A6F4D18F71E240024B84D /* join-left-nonatlas.png */,
 				CB8A6F4E18F71E240024B84D /* join-right-nonatlas.png */,
+				CB7D13871916DE68002B63D2 /* menu-button.png */,
 				CB88669418A544820045FD7E /* rail.png */,
 				CB88669818A549150045FD7E /* railDestruction.sks */,
 				CB88669518A544820045FD7E /* sleeper.png */,
@@ -204,6 +237,7 @@
 		CBB4B7EC183C00E1003C3444 = {
 			isa = PBXGroup;
 			children = (
+				CBD9E93019142B03002533DF /* HLSpriteKit.xcodeproj */,
 				CBB4B800183C00E1003C3444 /* Flippy */,
 				CBB4B827183C00E1003C3444 /* FlippyTests */,
 				CBB4B7F7183C00E1003C3444 /* Frameworks */,
@@ -242,8 +276,12 @@
 				CBF959E418A1913F005F01A6 /* FLGestureTarget.h */,
 				CB7B494B18D39E1C00FACEF4 /* FLLinks.h */,
 				CB7B494A18D39E1C00FACEF4 /* FLLinks.mm */,
+				CB55475A191286D800F2754C /* FLMenuScene.h */,
+				CB55475B191286D800F2754C /* FLMenuScene.m */,
 				CB0DA5A518B7D8CE00E43D34 /* FLPath.h */,
 				CB0DA5A418B7D8CE00E43D34 /* FLPath.mm */,
+				CB55475D1912939000F2754C /* FLScene.h */,
+				CB55475E1912939000F2754C /* FLScene.m */,
 				CB929EAC18B93AE200543F25 /* FLSegmentNode.h */,
 				CB929EAD18B93AE200543F25 /* FLSegmentNode.mm */,
 				CBE5A5E7185A0CAB00DC86B3 /* FLTextureStore.h */,
@@ -297,6 +335,15 @@
 			name = "Supporting Files";
 			sourceTree = "<group>";
 		};
+		CBD9E93119142B03002533DF /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				CBD9E93619142B03002533DF /* libHLSpriteKit.a */,
+				CBD9E93819142B03002533DF /* HLSpriteKitTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -311,6 +358,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				CBD9E93A19142C06002533DF /* PBXTargetDependency */,
 			);
 			name = Flippy;
 			productName = Flippy;
@@ -361,6 +409,12 @@
 			mainGroup = CBB4B7EC183C00E1003C3444;
 			productRefGroup = CBB4B7F6183C00E1003C3444 /* Products */;
 			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = CBD9E93119142B03002533DF /* Products */;
+					ProjectRef = CBD9E93019142B03002533DF /* HLSpriteKit.xcodeproj */;
+				},
+			);
 			projectRoot = "";
 			targets = (
 				CBB4B7F4183C00E1003C3444 /* Flippy */,
@@ -368,6 +422,23 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXReferenceProxy section */
+		CBD9E93619142B03002533DF /* libHLSpriteKit.a */ = {
+			isa = PBXReferenceProxy;
+			fileType = archive.ar;
+			path = libHLSpriteKit.a;
+			remoteRef = CBD9E93519142B03002533DF /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		CBD9E93819142B03002533DF /* HLSpriteKitTests.xctest */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.cfbundle;
+			path = HLSpriteKitTests.xctest;
+			remoteRef = CBD9E93719142B03002533DF /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+/* End PBXReferenceProxy section */
 
 /* Begin PBXResourcesBuildPhase section */
 		CBB4B7F3183C00E1003C3444 /* Resources */ = {
@@ -394,6 +465,7 @@
 				CB4D531318A979550087E1F7 /* wooden-clickity-2.caf in Resources */,
 				CB657E9A1843E8DB00399E34 /* track.atlas in Resources */,
 				CB8A6F5018F71E240024B84D /* cross-nonatlas.png in Resources */,
+				CB7D13881916DE68002B63D2 /* menu-button.png in Resources */,
 				CB88669218A544530045FD7E /* sleeperDestruction.sks in Resources */,
 				CB3E96BE189AB85900D0D567 /* tools.atlas in Resources */,
 				CB8A6F5418F71E240024B84D /* jog-right-nonatlas.png in Resources */,
@@ -423,12 +495,14 @@
 				CBB4B80B183C00E1003C3444 /* FLAppDelegate.mm in Sources */,
 				CBE5A5EC185A128100DC86B3 /* FLToolbarNode.m in Sources */,
 				CBD707C418AD0EE00041B170 /* FLTrain.mm in Sources */,
+				CB55475F1912939000F2754C /* FLScene.m in Sources */,
 				CB0DA5A618B7D8CE00E43D34 /* FLPath.mm in Sources */,
 				CB929EAE18B93AE200543F25 /* FLSegmentNode.mm in Sources */,
 				CB3FBDCD1889860A00CE5BBD /* QuadTree.cpp in Sources */,
 				CBB4B807183C00E1003C3444 /* main.m in Sources */,
 				CBB4B814183C00E1003C3444 /* FLViewController.mm in Sources */,
 				CB7B494C18D39E1C00FACEF4 /* FLLinks.mm in Sources */,
+				CB55475C191286D800F2754C /* FLMenuScene.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -447,6 +521,11 @@
 			isa = PBXTargetDependency;
 			target = CBB4B7F4183C00E1003C3444 /* Flippy */;
 			targetProxy = CBB4B825183C00E1003C3444 /* PBXContainerItemProxy */;
+		};
+		CBD9E93A19142C06002533DF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = HLSpriteKit;
+			targetProxy = CBD9E93919142C06002533DF /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -577,6 +656,8 @@
 				GCC_WARN_UNKNOWN_PRAGMAS = YES;
 				GCC_WARN_UNUSED_LABEL = YES;
 				INFOPLIST_FILE = "Flippy/Flippy-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 7.0;
+				"OTHER_LDFLAGS[arch=*]" = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SPRITEKIT_TEXTURE_ATLAS_OUTPUT = YES;
 				WRAPPER_EXTENSION = app;
@@ -616,7 +697,9 @@
 				GCC_WARN_UNKNOWN_PRAGMAS = YES;
 				GCC_WARN_UNUSED_LABEL = YES;
 				INFOPLIST_FILE = "Flippy/Flippy-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 7.0;
 				"OTHER_CFLAGS[arch=*]" = "-DNS_BLOCK_ASSERTIONS=1";
+				"OTHER_LDFLAGS[arch=*]" = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SPRITEKIT_TEXTURE_ATLAS_OUTPUT = YES;
 				WRAPPER_EXTENSION = app;

@@ -8,10 +8,11 @@
 
 #import <SpriteKit/SpriteKit.h>
 
+#import "FLScene.h"
 #import "FLToolbarNode.h"
 #import "FLTrain.h"
 
-@interface FLTrackScene : SKScene <NSCoding, UIAlertViewDelegate, UIGestureRecognizerDelegate, FLGestureTarget, FLTrainDelegate>
+@interface FLTrackScene : FLScene <NSCoding, UIAlertViewDelegate, UIGestureRecognizerDelegate, FLGestureTarget, FLTrainDelegate>
 
 + (FLTrackScene *)load:(NSString *)saveName;
 

@@ -7,8 +7,9 @@ circuits.
 
 Current
 
-  . Start splash and start menu, with save/load/new options.  Button
-    in simulation toolbar to return to start menu.
+  . Start splash and start menu.  Button in simulation toolbar to
+    return to start menu.  Main: "Challenge" and "Sandbox".  Then:
+    A list of loads, or a "New" button.
 
   . Make a copy/duplicate of current selection.  Insert the same way
     as an import, so factor out that code.

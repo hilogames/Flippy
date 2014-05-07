@@ -33,6 +33,7 @@
     [sharedStore loadTextureForKey:@"cross" filteringMode:SKTextureFilteringNearest];
 
     // Tools.
+    [sharedStore loadTextureForKey:@"menu" filteringMode:SKTextureFilteringLinear];
     [sharedStore loadTextureForKey:@"play" filteringMode:SKTextureFilteringLinear];
     [sharedStore loadTextureForKey:@"pause" filteringMode:SKTextureFilteringLinear];
     [sharedStore loadTextureForKey:@"ff" filteringMode:SKTextureFilteringLinear];

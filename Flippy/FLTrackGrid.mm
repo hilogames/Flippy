@@ -195,21 +195,6 @@ trackGridFindConnecting(FLTrackGrid& trackGrid,
   return self;
 }
 
-- (id)initWithCoder:(NSCoder *)aDecoder
-{
-  self = [super init];
-  if (self) {
-    HERE HERE HERE
-    segmentSize
-    then...i guess a list of nodes in the quadtree.  maybe get quadtree to pack itself into a byte array?
-  }
-  return self;
-}
-
-- (void)encodeWithCoder:(NSCoder *)aCoder
-{
-}
-
 - (unique_ptr<FLTrackGrid>&)trackGrid
 {
   return _trackGrid;

@@ -19,8 +19,7 @@
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
   self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
-  // noob: Placeholder to see where the green shows through.
-  self.window.backgroundColor = [UIColor greenColor];
+  self.window.backgroundColor = [UIColor whiteColor];
 
   // note: Root view controller might already have been created by application
   // state restoration process.

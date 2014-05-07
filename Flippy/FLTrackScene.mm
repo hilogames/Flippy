@@ -513,7 +513,7 @@ struct PointerPairHash
 
 - (void)FL_createTerrainNode
 {
-  UIImage *terrainTileImage = [UIImage imageNamed:@"grass.png"];
+  UIImage *terrainTileImage = [UIImage imageNamed:@"grass"];
   CGRect terrainTileRect = CGRectMake(0.0f, 0.0f, terrainTileImage.size.width, terrainTileImage.size.height);
   CGImageRef terrainTileRef = [terrainTileImage CGImage];
 
@@ -532,7 +532,10 @@ struct PointerPairHash
   // JPEGs don't have an alpha channel in the source, does this really do anything
   // for JPEGs?
   terrainNode.blendMode = SKBlendModeReplace;
-
+//
+//  SKSpriteNode *terrainNode = [SKSpriteNode spriteNodeWithColor:[UIColor purpleColor] size:self.size];
+//  terrainNode.zPosition = FLZPositionWorldTerrain;
+//
   [_worldNode addChild:terrainNode];
 }
 
@@ -1123,7 +1126,14 @@ struct PointerPairHash
     return;
   }
 
-  if ([tool isEqualToString:@"play"]) {
+  if ([tool isEqualToString:@"menu"]) {
+
+    // TODO: Autosave or prompt to save.
+    if (self.controller) {
+      [self.controller scene:self didInitiateTransitionToScene:FLViewControllerSceneMenu];
+    }
+
+  } else if ([tool isEqualToString:@"play"]) {
 
     _simulationRunning = YES;
     _train.running = YES;
@@ -1221,6 +1231,8 @@ struct PointerPairHash
 {
   CGPoint viewLocation = [touch locationInView:self.view];
   CGPoint sceneLocation = [self convertPointFromView:viewLocation];
+
+  // TODO: Tap gesture recognizers on button-like things should highlight on touch-down, activate on touch-up.
 
   // note: Remembering the first touch location is useful, for example, for a pan gesture recognizer,
   // which only knows where the gesture was first recognized (after possibly significant movement).
@@ -1922,6 +1934,7 @@ struct PointerPairHash
 - (void)FL_simulationToolbarUpdateTools
 {
   NSMutableArray *textureKeys = [NSMutableArray array];
+  [textureKeys addObject:@"menu"];
   if (_simulationRunning) {
     [textureKeys addObject:@"pause"];
   } else {
@@ -2646,9 +2659,6 @@ struct PointerPairHash
   }
   
   // Check proposed rotation for conflicts.
-  //
-  // TODO: Search for nearby pivot that would work without conflicts?
-  // Shouldn't be hard to check a few anyway.
   int normalRotationQuarters = normalizeRotationQuarters(rotateBy);
   BOOL hasConflict = NO;
   for (FLSegmentNode *segmentNode in segmentNodes) {
