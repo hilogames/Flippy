@@ -15,8 +15,6 @@
 		CB4D531118A979550087E1F7 /* wooden-click-2.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB4D530C18A979550087E1F7 /* wooden-click-2.caf */; };
 		CB4D531318A979550087E1F7 /* wooden-clickity-2.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB4D530E18A979550087E1F7 /* wooden-clickity-2.caf */; };
 		CB50C21718BF8F140072DA30 /* FLTrackGrid.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB50C21518BF8F140072DA30 /* FLTrackGrid.mm */; };
-		CB55475C191286D800F2754C /* FLMenuScene.m in Sources */ = {isa = PBXBuildFile; fileRef = CB55475B191286D800F2754C /* FLMenuScene.m */; };
-		CB55475F1912939000F2754C /* FLScene.m in Sources */ = {isa = PBXBuildFile; fileRef = CB55475E1912939000F2754C /* FLScene.m */; };
 		CB5B70A218C956D20068F16D /* switch.png in Resources */ = {isa = PBXBuildFile; fileRef = CB5B70A118C956D20068F16D /* switch.png */; };
 		CB657E9A1843E8DB00399E34 /* track.atlas in Resources */ = {isa = PBXBuildFile; fileRef = CB657E991843E8DB00399E34 /* track.atlas */; };
 		CB7B494C18D39E1C00FACEF4 /* FLLinks.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB7B494A18D39E1C00FACEF4 /* FLLinks.mm */; };
@@ -104,10 +102,6 @@
 		CB4D530E18A979550087E1F7 /* wooden-clickity-2.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "wooden-clickity-2.caf"; sourceTree = "<group>"; };
 		CB50C21518BF8F140072DA30 /* FLTrackGrid.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLTrackGrid.mm; sourceTree = "<group>"; };
 		CB50C21618BF8F140072DA30 /* FLTrackGrid.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTrackGrid.h; sourceTree = "<group>"; };
-		CB55475A191286D800F2754C /* FLMenuScene.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLMenuScene.h; sourceTree = "<group>"; };
-		CB55475B191286D800F2754C /* FLMenuScene.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FLMenuScene.m; sourceTree = "<group>"; };
-		CB55475D1912939000F2754C /* FLScene.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLScene.h; sourceTree = "<group>"; };
-		CB55475E1912939000F2754C /* FLScene.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FLScene.m; sourceTree = "<group>"; };
 		CB5B70A118C956D20068F16D /* switch.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = switch.png; sourceTree = "<group>"; };
 		CB657E991843E8DB00399E34 /* track.atlas */ = {isa = PBXFileReference; lastKnownFileType = folder.skatlas; path = track.atlas; sourceTree = "<group>"; };
 		CB7B494A18D39E1C00FACEF4 /* FLLinks.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLLinks.mm; sourceTree = "<group>"; };
@@ -276,12 +270,8 @@
 				CBF959E418A1913F005F01A6 /* FLGestureTarget.h */,
 				CB7B494B18D39E1C00FACEF4 /* FLLinks.h */,
 				CB7B494A18D39E1C00FACEF4 /* FLLinks.mm */,
-				CB55475A191286D800F2754C /* FLMenuScene.h */,
-				CB55475B191286D800F2754C /* FLMenuScene.m */,
 				CB0DA5A518B7D8CE00E43D34 /* FLPath.h */,
 				CB0DA5A418B7D8CE00E43D34 /* FLPath.mm */,
-				CB55475D1912939000F2754C /* FLScene.h */,
-				CB55475E1912939000F2754C /* FLScene.m */,
 				CB929EAC18B93AE200543F25 /* FLSegmentNode.h */,
 				CB929EAD18B93AE200543F25 /* FLSegmentNode.mm */,
 				CBE5A5E7185A0CAB00DC86B3 /* FLTextureStore.h */,
@@ -495,14 +485,12 @@
 				CBB4B80B183C00E1003C3444 /* FLAppDelegate.mm in Sources */,
 				CBE5A5EC185A128100DC86B3 /* FLToolbarNode.m in Sources */,
 				CBD707C418AD0EE00041B170 /* FLTrain.mm in Sources */,
-				CB55475F1912939000F2754C /* FLScene.m in Sources */,
 				CB0DA5A618B7D8CE00E43D34 /* FLPath.mm in Sources */,
 				CB929EAE18B93AE200543F25 /* FLSegmentNode.mm in Sources */,
 				CB3FBDCD1889860A00CE5BBD /* QuadTree.cpp in Sources */,
 				CBB4B807183C00E1003C3444 /* main.m in Sources */,
 				CBB4B814183C00E1003C3444 /* FLViewController.mm in Sources */,
 				CB7B494C18D39E1C00FACEF4 /* FLLinks.mm in Sources */,
-				CB55475C191286D800F2754C /* FLMenuScene.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -1129,8 +1129,9 @@ struct PointerPairHash
   if ([tool isEqualToString:@"menu"]) {
 
     // TODO: Autosave or prompt to save.
-    if (self.controller) {
-      [self.controller scene:self didInitiateTransitionToScene:FLViewControllerSceneMenu];
+    id<FLTrackSceneDelegate> delegate = self.delegate;
+    if (delegate) {
+      [delegate trackSceneDidTapMenuButton:self];
     }
 
   } else if ([tool isEqualToString:@"play"]) {

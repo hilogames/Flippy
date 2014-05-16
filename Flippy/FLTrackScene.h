@@ -8,14 +8,23 @@
 
 #import <SpriteKit/SpriteKit.h>
 
-#import "FLScene.h"
 #import "FLToolbarNode.h"
 #import "FLTrain.h"
 
-@interface FLTrackScene : FLScene <NSCoding, UIAlertViewDelegate, UIGestureRecognizerDelegate, FLGestureTarget, FLTrainDelegate>
+@protocol FLTrackSceneDelegate;
+
+@interface FLTrackScene : SKScene <NSCoding, UIAlertViewDelegate, UIGestureRecognizerDelegate, FLGestureTarget, FLTrainDelegate>
+
+@property (nonatomic, weak) id<FLTrackSceneDelegate> delegate;
 
 + (FLTrackScene *)load:(NSString *)saveName;
 
 - (void)save:(NSString *)saveName;
+
+@end
+
+@protocol FLTrackSceneDelegate <NSObject>
+
+- (void)trackSceneDidTapMenuButton:(FLTrackScene *)trackScene;
 
 @end

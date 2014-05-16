@@ -8,7 +8,6 @@
 
 #import "FLViewController.h"
 
-#import "FLMenuScene.h"
 #import "FLTrackScene.h"
 
 static NSString * const FLExtraStateName = @"extra-application-state";
@@ -17,7 +16,7 @@ static NSString * FLExtraStatePath;
 @implementation FLViewController
 {
   FLViewControllerScene _scene;
-  FLMenuScene *_menuScene;
+  HLMenuScene *_menuScene;
   FLTrackScene *_trackScene;
 }
 
@@ -81,16 +80,16 @@ static NSString * FLExtraStatePath;
         FLTrackScene *trackScene = [extraCoder decodeObjectForKey:@"trackScene"];
         if (trackScene) {
           _trackScene = trackScene;
-          _trackScene.controller = self;
+          _trackScene.delegate = self;
           restoredScene = trackScene;
         }
         break;
       }
       case FLViewControllerSceneMenu: {
-        FLMenuScene *menuScene = [extraCoder decodeObjectForKey:@"menuScene"];
+        HLMenuScene *menuScene = [extraCoder decodeObjectForKey:@"menuScene"];
         if (menuScene) {
           _menuScene = menuScene;
-          _menuScene.controller = self;
+          _menuScene.delegate = self;
           restoredScene = menuScene;
         }
         break;
@@ -138,8 +137,8 @@ static NSString * FLExtraStatePath;
 
 - (void)FL_createMenuScene
 {
-  _menuScene = [FLMenuScene sceneWithSize:[UIScreen mainScreen].bounds.size];
-  _menuScene.controller = self;
+  _menuScene = [HLMenuScene sceneWithSize:[UIScreen mainScreen].bounds.size];
+  _menuScene.delegate = self;
   _menuScene.scaleMode = SKSceneScaleModeResizeFill;
   _menuScene.backgroundImageName = @"grass";
   
@@ -152,9 +151,9 @@ static NSString * FLExtraStatePath;
   buttonPrototype.verticalAlignmentMode = HLLabelButtonNodeVerticalAlignFontAscender;
   _menuScene.buttonPrototype = buttonPrototype;
   
-  [_menuScene.menu addItem:[[FLMenuItem alloc] initWithText:@"Challenge"]];
-  [_menuScene.menu addItem:[[FLMenuItem alloc] initWithText:@"Sandbox"]];
-  [_menuScene.menu addItem:[[FLMenuItem alloc] initWithText:@"About"]];
+  [_menuScene.menu addItem:[[HLMenuItem alloc] initWithText:@"Challenge"]];
+  [_menuScene.menu addItem:[[HLMenuItem alloc] initWithText:@"Sandbox"]];
+  [_menuScene.menu addItem:[[HLMenuItem alloc] initWithText:@"About"]];
 }
 
 - (SKView *)skView
@@ -176,23 +175,28 @@ static NSString * FLExtraStatePath;
   }
 }
 
-- (void)scene:(SKScene *)fromScene didInitiateTransitionToScene:(FLViewControllerScene)toScene
-{
-  if (_scene == toScene) {
-    return;
-  }
+#pragma mark -
+#pragma mark HLMenuSceneDelegate
 
-  _scene = toScene;
-  if (toScene == FLViewControllerSceneTrack) {
+- (void)menuScene:(HLMenuScene *)menuScene didTapMenuItem:(HLMenuItem *)menuItem
+{
+  if ([menuItem.text isEqualToString:@"Sandbox"]) {
     if (!_trackScene) {
       _trackScene = [FLTrackScene sceneWithSize:[UIScreen mainScreen].bounds.size];
-      _trackScene.controller = self;
+      _trackScene.delegate = self;
       _trackScene.scaleMode = SKSceneScaleModeResizeFill;
     }
     [self.skView presentScene:_trackScene];
-  } else {
-    [self.skView presentScene:_menuScene];
   }
+}
+
+#pragma mark -
+#pragma mark FLTrackSceneDelegate
+
+- (void)trackSceneDidTapMenuButton:(FLTrackScene *)trackScene
+{
+  _scene = FLViewControllerSceneMenu;
+  [self.skView presentScene:_menuScene];
 }
 
 @end

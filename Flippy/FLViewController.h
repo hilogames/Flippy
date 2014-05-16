@@ -6,15 +6,15 @@
 //  Copyright (c) 2013 Hilo. All rights reserved.
 //
 
-#import <UIKit/UIKit.h>
+#import <HLSpriteKit/HLSpriteKit.h>
 #import <SpriteKit/SpriteKit.h>
+#import <UIKit/UIKit.h>
+#import "FLTrackScene.h"
 
 typedef enum FLViewControllerScene { FLViewControllerSceneNone, FLViewControllerSceneMenu, FLViewControllerSceneTrack } FLViewControllerScene;
 
-@interface FLViewController : UIViewController
+@interface FLViewController : UIViewController <HLMenuSceneDelegate, FLTrackSceneDelegate>
 
 @property (nonatomic, readonly) SKView *skView;
-
-- (void)scene:(SKScene *)fromScene didInitiateTransitionToScene:(FLViewControllerScene)toScene;
 
 @end
