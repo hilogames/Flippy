@@ -8,6 +8,8 @@
 
 #include "FLPath.h"
 
+#include <tgmath.h>
+
 using namespace std;
 
 void
@@ -151,7 +153,7 @@ FLPath::getTangent(CGFloat progress) const
       tangentPoint = CGPointZero;
       break;
   }
-  return atan2f(tangentPoint.y, tangentPoint.x);
+  return atan2(tangentPoint.y, tangentPoint.x);
 }
 
 CGFloat
@@ -164,15 +166,15 @@ FLPath::getClosestOnPathPoint(CGPoint *onPathPoint, CGFloat *onPathProgress, CGP
       if (t < 0.0f) {
         *onPathPoint = points_[0];
         *onPathProgress = 0.0f;
-        return sqrtf((offPathPoint.x - points_[0].x) * (offPathPoint.x - points_[0].x) + (offPathPoint.y - points_[0].y) * (offPathPoint.y - points_[0].y));
+        return sqrt((offPathPoint.x - points_[0].x) * (offPathPoint.x - points_[0].x) + (offPathPoint.y - points_[0].y) * (offPathPoint.y - points_[0].y));
       } else if (t > 1.0f) {
         *onPathPoint = points_[1];
         *onPathProgress = 1.0f;
-        return sqrtf((offPathPoint.x - points_[1].x) * (offPathPoint.x - points_[1].x) + (offPathPoint.y - points_[1].y) * (offPathPoint.y - points_[1].y));
+        return sqrt((offPathPoint.x - points_[1].x) * (offPathPoint.x - points_[1].x) + (offPathPoint.y - points_[1].y) * (offPathPoint.y - points_[1].y));
       }
       *onPathPoint = getPointLinear(t);
       *onPathProgress = t;
-      return sqrtf((offPathPoint.x - onPathPoint->x) * (offPathPoint.x - onPathPoint->x) + (offPathPoint.y - onPathPoint->y) * (offPathPoint.y - onPathPoint->y));
+      return sqrt((offPathPoint.x - onPathPoint->x) * (offPathPoint.x - onPathPoint->x) + (offPathPoint.y - onPathPoint->y) * (offPathPoint.y - onPathPoint->y));
     }
     case FLPathTypeCurve:
     case FLPathTypeJogLeft:
@@ -209,7 +211,7 @@ FLPath::getClosestOnPathPoint(CGPoint *onPathPoint, CGFloat *onPathProgress, CGP
       }
       *onPathPoint = midPoint;
       *onPathProgress = midT;
-      return sqrtf(midDistanceSquared);
+      return sqrt(midDistanceSquared);
     }
     default:
       break;

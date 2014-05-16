@@ -8,6 +8,8 @@
 
 #include "FLTrackGrid.h"
 
+#include <tgmath.h>
+
 using namespace std;
 
 const size_t FLTrackGridAdjacentMax = 4;
@@ -37,18 +39,18 @@ trackGridFindAdjacent(FLTrackGrid& trackGrid, CGPoint worldLocation, __strong FL
   int gridY;
   trackGrid.convert(worldLocation, &gridX, &gridY);
 
-  CGFloat edgeXRemainder = fmodf(worldLocation.x + halfSegmentSize, segmentSize);
+  CGFloat edgeXRemainder = fmod(worldLocation.x + halfSegmentSize, segmentSize);
   bool onEdgeX = (edgeXRemainder > -FLEpsilon && edgeXRemainder < FLEpsilon)
                  || (edgeXRemainder > segmentSize - FLEpsilon && edgeXRemainder < segmentSize + FLEpsilon);
-  CGFloat edgeYRemainder = fmodf(worldLocation.y + halfSegmentSize, segmentSize);
+  CGFloat edgeYRemainder = fmod(worldLocation.y + halfSegmentSize, segmentSize);
   bool onEdgeY = (edgeYRemainder > -FLEpsilon && edgeYRemainder < FLEpsilon)
                  || (edgeYRemainder > segmentSize - FLEpsilon && edgeYRemainder < segmentSize + FLEpsilon);
 
   size_t adjacentCount = 0;
   if (onEdgeX && onEdgeY) {
     // Corner.
-    int rightGridX = int(floorf((worldLocation.x + halfSegmentSize) / segmentSize + 0.5f));
-    int topGridY = int(floorf((worldLocation.y + halfSegmentSize) / segmentSize + 0.5f));
+    int rightGridX = int(floor((worldLocation.x + halfSegmentSize) / segmentSize + 0.5f));
+    int topGridY = int(floor((worldLocation.y + halfSegmentSize) / segmentSize + 0.5f));
     for (int gx = rightGridX - 1; gx <= rightGridX; ++gx) {
       for (int gy = topGridY - 1; gy <= topGridY; ++gy) {
         adjacent[adjacentCount] = trackGrid.get(gx, gy);
@@ -59,7 +61,7 @@ trackGridFindAdjacent(FLTrackGrid& trackGrid, CGPoint worldLocation, __strong FL
     }
   } else if (onEdgeX) {
     // Left or right edge.
-    int rightGridX = int(floorf((worldLocation.x + halfSegmentSize) / segmentSize + 0.5f));
+    int rightGridX = int(floor((worldLocation.x + halfSegmentSize) / segmentSize + 0.5f));
     adjacent[adjacentCount] = trackGrid.get(rightGridX - 1, gridY);
     if (adjacent[adjacentCount]) {
       ++adjacentCount;
@@ -70,7 +72,7 @@ trackGridFindAdjacent(FLTrackGrid& trackGrid, CGPoint worldLocation, __strong FL
     }
   } else if (onEdgeY) {
     // Top or bottom edge.
-    int topGridY = int(floorf((worldLocation.y + halfSegmentSize) / segmentSize + 0.5f));
+    int topGridY = int(floor((worldLocation.y + halfSegmentSize) / segmentSize + 0.5f));
     adjacent[adjacentCount] = trackGrid.get(gridX, topGridY - 1);
     if (adjacent[adjacentCount]) {
       ++adjacentCount;
@@ -149,8 +151,8 @@ trackGridFindConnecting(FLTrackGrid& trackGrid,
   [startSegmentNode getPoint:&cornerPoint rotation:&startRotation forPath:startPathId progress:startProgress scale:segmentSize];
 
   CGFloat halfSegmentSize = segmentSize / 2.0f;
-  int rightGridX = int(floorf((cornerPoint.x + halfSegmentSize) / segmentSize + 0.5f));
-  int topGridY = int(floorf((cornerPoint.y + halfSegmentSize) / segmentSize + 0.5f));
+  int rightGridX = int(floor((cornerPoint.x + halfSegmentSize) / segmentSize + 0.5f));
+  int topGridY = int(floor((cornerPoint.y + halfSegmentSize) / segmentSize + 0.5f));
 
   for (int gx = rightGridX - 1; gx <= rightGridX; ++gx) {
     for (int gy = topGridY - 1; gy <= topGridY; ++gy) {

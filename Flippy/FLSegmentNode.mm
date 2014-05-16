@@ -10,6 +10,7 @@
 
 #import "FLPath.h"
 #import "FLTextureStore.h"
+#include <tgmath.h>
 
 const CGFloat FLSegmentArtSizeFull = 54.0f;
 const CGFloat FLSegmentArtSizeBasic = 36.0f;
@@ -313,10 +314,10 @@ using namespace std;
     // to choose between them, or else we choose the first one found.
 
     CGPoint zeroProgressPoint = path->getPoint(0.0f);
-    if (fabsf(pathEndPoint.x - zeroProgressPoint.x) < 0.1f
-        && fabsf(pathEndPoint.y - zeroProgressPoint.y) < 0.1f) {
+    if (fabs(pathEndPoint.x - zeroProgressPoint.x) < 0.1f
+        && fabs(pathEndPoint.y - zeroProgressPoint.y) < 0.1f) {
       CGFloat zeroProgressRotation = path->getTangent(0.0f);
-      CGFloat rotationDifference = fabsf(fmodf(rotationRadians - zeroProgressRotation, (CGFloat)M_PI));
+      CGFloat rotationDifference = fabs(fmod(rotationRadians - zeroProgressRotation, (CGFloat)M_PI));
       if ((rotationDifference > -0.1f && rotationDifference < 0.1f)
           || (rotationDifference > M_PI - 0.1f && rotationDifference < M_PI + 0.1f)) {
         if (!foundOne || _switchPathId == p) {
@@ -333,10 +334,10 @@ using namespace std;
     }
 
     CGPoint oneProgressPoint = path->getPoint(1.0f);
-    if (fabsf(pathEndPoint.x - oneProgressPoint.x) < 0.1f
-        && fabsf(pathEndPoint.y - oneProgressPoint.y) < 0.1f) {
+    if (fabs(pathEndPoint.x - oneProgressPoint.x) < 0.1f
+        && fabs(pathEndPoint.y - oneProgressPoint.y) < 0.1f) {
       CGFloat oneProgressRotation = path->getTangent(1.0f);
-      CGFloat rotationDifference = fabsf(fmodf(rotationRadians - oneProgressRotation, (CGFloat)M_PI));
+      CGFloat rotationDifference = fabs(fmod(rotationRadians - oneProgressRotation, (CGFloat)M_PI));
       if ((rotationDifference > -0.1f && rotationDifference < 0.1f)
           || (rotationDifference > M_PI - 0.1f && rotationDifference < M_PI + 0.1f)) {
         if (!foundOne || _switchPathId == p) {

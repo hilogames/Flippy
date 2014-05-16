@@ -13,6 +13,8 @@
 static NSString * const FLExtraStateName = @"extra-application-state";
 static NSString * FLExtraStatePath;
 
+static const NSTimeInterval FLSceneTransitionDuration = 0.5;
+
 @implementation FLViewController
 {
   FLViewControllerScene _scene;
@@ -186,7 +188,8 @@ static NSString * FLExtraStatePath;
       _trackScene.delegate = self;
       _trackScene.scaleMode = SKSceneScaleModeResizeFill;
     }
-    [self.skView presentScene:_trackScene];
+    _scene = FLViewControllerSceneTrack;
+    [self.skView presentScene:_trackScene transition:[SKTransition fadeWithDuration:FLSceneTransitionDuration]];
   }
 }
 
@@ -196,7 +199,7 @@ static NSString * FLExtraStatePath;
 - (void)trackSceneDidTapMenuButton:(FLTrackScene *)trackScene
 {
   _scene = FLViewControllerSceneMenu;
-  [self.skView presentScene:_menuScene];
+  [self.skView presentScene:_menuScene transition:[SKTransition fadeWithDuration:FLSceneTransitionDuration]];
 }
 
 @end

@@ -10,6 +10,7 @@
 #define __Flippy__FLTrackGrid__
 
 #include <iostream>
+#include <tgmath.h>
 
 #import "FLSegmentNode.h"
 #include "QuadTree.h"
@@ -96,8 +97,8 @@ public:
   typedef HLCommon::QuadTree<FLSegmentNode *>::const_iterator const_iterator;
 
   inline static void convert(CGPoint worldLocation, CGFloat segmentSize, int *gridX, int *gridY) {
-    *gridX = int(floorf(worldLocation.x / segmentSize + 0.5f));
-    *gridY = int(floorf(worldLocation.y / segmentSize + 0.5f));
+    *gridX = int(floor(worldLocation.x / segmentSize + 0.5f));
+    *gridY = int(floor(worldLocation.y / segmentSize + 0.5f));
   }
 
   inline static CGPoint convert(int gridX, int gridY, CGFloat segmentSize) {

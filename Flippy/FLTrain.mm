@@ -62,7 +62,7 @@ static const int FLTrainDirectionReverse = -1;
   [aCoder encodeBool:_running forKey:@"running"];
   [aCoder encodeObject:_lastSegmentNode forKey:@"lastSegmentNode"];
   [aCoder encodeInt:_lastPathId forKey:@"lastPathId"];
-  [aCoder encodeFloat:_lastProgress forKey:@"lastProgress"];
+  [aCoder encodeDouble:_lastProgress forKey:@"lastProgress"];
   [aCoder encodeInt:_lastDirection forKey:@"lastDirection"];
 }
 
