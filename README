@@ -32,8 +32,8 @@ If It Ships
 
 Lower Priority
 
-  . Sound effects for train start, train stop, switch switching, small
-    click for message showing, ...
+  . Sound effects for train start, train stop, switch switching,
+    message appear, menu navigation, ...
 
   . For multisegment rotation: In case of conflict, search for nearby
     pivot that would work without conflicts.  Shouldn't be hard to

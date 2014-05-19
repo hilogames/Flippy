@@ -1511,8 +1511,7 @@ struct PointerPairHash
 {
   CFUUIDRef uuid = CFUUIDCreate(kCFAllocatorDefault);
   CFStringRef uuidString = CFUUIDCreateString(kCFAllocatorDefault, uuid);
-  NSString *exportName = (__bridge NSString *)uuidString;
-  CFRelease(uuidString);
+  NSString *exportName = (__bridge_transfer NSString *)uuidString;
   CFRelease(uuid);
 
   NSFileManager *fileManager = [NSFileManager defaultManager];

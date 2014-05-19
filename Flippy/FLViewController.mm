@@ -143,7 +143,6 @@ static const NSTimeInterval FLSceneTransitionDuration = 0.5;
   _menuScene.delegate = self;
   _menuScene.scaleMode = SKSceneScaleModeResizeFill;
   _menuScene.backgroundImageName = @"grass";
-  
   HLLabelButtonNode *buttonPrototype = [[HLLabelButtonNode alloc] initWithImageNamed:@"menu-button"];
   buttonPrototype.centerRect = CGRectMake(0.3333333f, 0.3333333f, 0.3333333f, 0.3333333f);
   buttonPrototype.fontName = @"Courier";
@@ -151,11 +150,13 @@ static const NSTimeInterval FLSceneTransitionDuration = 0.5;
   buttonPrototype.fontColor = [UIColor whiteColor];
   buttonPrototype.size = CGSizeMake(240.0f, 40.0f);
   buttonPrototype.verticalAlignmentMode = HLLabelButtonNodeVerticalAlignFontAscender;
-  _menuScene.buttonPrototype = buttonPrototype;
+  _menuScene.itemButtonPrototype = buttonPrototype;
+  _menuScene.itemSoundFile = @"wooden-click-1.caf";
   
-  [_menuScene.menu addItem:[[HLMenuItem alloc] initWithText:@"Challenge"]];
-  [_menuScene.menu addItem:[[HLMenuItem alloc] initWithText:@"Sandbox"]];
-  [_menuScene.menu addItem:[[HLMenuItem alloc] initWithText:@"About"]];
+  [_menuScene.menu addItem:[HLMenuItem menuItemWithText:@"Challenge"]];
+  [_menuScene.menu addItem:[HLMenu menuWithText:@"Sandbox"
+                                          items:@[[HLMenuItem menuItemWithText:@"New"] ]]];
+  [_menuScene.menu addItem:[HLMenuItem menuItemWithText:@"About"]];
 }
 
 - (SKView *)skView
@@ -182,7 +183,7 @@ static const NSTimeInterval FLSceneTransitionDuration = 0.5;
 
 - (void)menuScene:(HLMenuScene *)menuScene didTapMenuItem:(HLMenuItem *)menuItem
 {
-  if ([menuItem.text isEqualToString:@"Sandbox"]) {
+  if ([[menuItem path] isEqualToString:@"Sandbox/New"]) {
     if (!_trackScene) {
       // TODO: Too slow.  Fade to black immediately to provide better feedback.
       // Maybe a "loading screen" scene, preloaded?  Or maybe a big UIView
