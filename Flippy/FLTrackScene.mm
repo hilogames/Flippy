@@ -8,15 +8,15 @@
 
 #import "FLTrackScene.h"
 
+#include <HLSpriteKit/HLTextureStore.h>
 #include <memory>
 #include <tgmath.h>
 
 #include "FLLinks.h"
 #import "FLPath.h"
 #import "FLSegmentNode.h"
-#import "FLTextureStore.h"
-#import "FLToolbarNode.h"
 #include "FLTrackGrid.h"
+#import <HLSpriteKit/HLToolbarNode.h>
 
 using namespace std;
 using namespace HLCommon;
@@ -78,7 +78,7 @@ struct FLConstructionToolbarState
     actionPanTools = [NSMutableDictionary dictionary];
     modeTools = [NSMutableSet set];
   }
-  FLToolbarNode *toolbarNode;
+  HLToolbarNode *toolbarNode;
   NSString *currentNavigation;
   int currentPage;
   NSMutableSet *navigationTools;
@@ -93,7 +93,7 @@ struct FLConstructionToolbarState
 struct FLSimulationToolbarState
 {
   FLSimulationToolbarState() : toolbarNode(nil) {}
-  FLToolbarNode *toolbarNode;
+  HLToolbarNode *toolbarNode;
 };
 
 struct FLMessageState
@@ -137,7 +137,7 @@ struct FLTrackEditMenuState
 {
   FLTrackEditMenuState() : editMenuNode(nil), showing(NO) {}
   BOOL showing;
-  FLToolbarNode *editMenuNode;
+  HLToolbarNode *editMenuNode;
 };
 
 struct FLLinkEditState
@@ -262,6 +262,8 @@ struct PointerPairHash
   self = [super initWithCoder:aDecoder];
   if (self) {
     _contentCreated = YES;
+    [self FL_preloadTextures];
+    [self FL_preloadSound];
 
     _cameraMode = (FLCameraMode)[aDecoder decodeIntForKey:@"cameraMode"];
     _simulationRunning = [aDecoder decodeBoolForKey:@"simulationRunning"];
@@ -322,7 +324,7 @@ struct PointerPairHash
     _constructionToolbarState.currentPage = [aDecoder decodeIntForKey:@"constructionToolbarStateCurrentPage"];
     if (![_constructionToolbarState.currentNavigation isEqualToString:@"main"]
         || _constructionToolbarState.currentPage != 0) {
-      [self FL_constructionToolbarUpdateToolsAnimation:FLToolbarNodeAnimationNone];
+      [self FL_constructionToolbarUpdateToolsAnimation:HLToolbarNodeAnimationNone];
     }
     BOOL linksVisible = [aDecoder decodeBoolForKey:@"constructionToolbarStateLinksVisible"];
     if (linksVisible) {
@@ -438,8 +440,6 @@ struct PointerPairHash
   _pinchRecognizer = [[UIPinchGestureRecognizer alloc] initWithTarget:self action:@selector(handleWorldPinch:)];
   _pinchRecognizer.delegate = self;
   [view addGestureRecognizer:_pinchRecognizer];
-
-  [self FL_preloadSound];
 }
 
 - (void)willMoveFromView:(SKView *)view
@@ -462,6 +462,9 @@ struct PointerPairHash
 {
   self.backgroundColor = [SKColor colorWithRed:0.4f green:0.6f blue:0.0f alpha:1.0f];
   self.anchorPoint = CGPointMake(0.5f, 0.5f);
+
+  [self FL_preloadTextures];
+  [self FL_preloadSound];
 
   // Create basic layers.
 
@@ -906,23 +909,23 @@ struct PointerPairHash
 
     NSString *newNavigation;
     int newPage;
-    FLToolbarNodeAnimation animation = FLToolbarNodeAnimationNone;
+    HLToolbarNodeAnimation animation = HLToolbarNodeAnimationNone;
     if ([tool isEqualToString:@"next"]) {
       newNavigation = _constructionToolbarState.currentNavigation;
       newPage = _constructionToolbarState.currentPage + 1;
-      animation = FLToolbarNodeAnimationSlideLeft;
+      animation = HLToolbarNodeAnimationSlideLeft;
     } else if ([tool isEqualToString:@"previous"]) {
       newNavigation = _constructionToolbarState.currentNavigation;
       newPage = _constructionToolbarState.currentPage - 1;
-      animation = FLToolbarNodeAnimationSlideRight;
+      animation = HLToolbarNodeAnimationSlideRight;
     } else if ([tool isEqualToString:@"main"]) {
       newNavigation = @"main";
       newPage = 0;
-      animation = FLToolbarNodeAnimationSlideUp;
+      animation = HLToolbarNodeAnimationSlideUp;
     } else {
       newNavigation = tool;
       newPage = 0;
-      animation = FLToolbarNodeAnimationSlideDown;
+      animation = HLToolbarNodeAnimationSlideDown;
     }
 
     if ([newNavigation isEqualToString:_constructionToolbarState.currentNavigation]
@@ -1437,6 +1440,47 @@ struct PointerPairHash
 #pragma mark -
 #pragma mark Common
 
+- (void)FL_preloadTextures
+{
+  HLTextureStore *sharedStore = [HLTextureStore sharedStore];
+
+  // Train.
+  [sharedStore setTextureWithImageNamed:@"engine" forKey:@"engine" filteringMode:SKTextureFilteringNearest];
+
+  // Segments.
+  [sharedStore setTextureWithImageNamed:@"straight" andUIImageWithImageNamed:@"straight-nonatlas" forKey:@"straight" filteringMode:SKTextureFilteringNearest];
+  [sharedStore setTextureWithImageNamed:@"curve" andUIImageWithImageNamed:@"curve-nonatlas" forKey:@"curve" filteringMode:SKTextureFilteringNearest];
+  [sharedStore setTextureWithImageNamed:@"join-left" andUIImageWithImageNamed:@"join-left-nonatlas" forKey:@"join-left" filteringMode:SKTextureFilteringNearest];
+  [sharedStore setTextureWithImageNamed:@"join-right" andUIImageWithImageNamed:@"join-right-nonatlas" forKey:@"join-right" filteringMode:SKTextureFilteringNearest];
+  [sharedStore setTextureWithImageNamed:@"jog-left" andUIImageWithImageNamed:@"jog-left-nonatlas" forKey:@"jog-left" filteringMode:SKTextureFilteringNearest];
+  [sharedStore setTextureWithImageNamed:@"jog-right" andUIImageWithImageNamed:@"jog-right-nonatlas" forKey:@"jog-right" filteringMode:SKTextureFilteringNearest];
+  [sharedStore setTextureWithImageNamed:@"cross" andUIImageWithImageNamed:@"cross-nonatlas" forKey:@"cross" filteringMode:SKTextureFilteringNearest];
+
+  // Tools.
+  [sharedStore setTextureWithImageNamed:@"menu" forKey:@"menu" filteringMode:SKTextureFilteringLinear];
+  [sharedStore setTextureWithImageNamed:@"play" forKey:@"play" filteringMode:SKTextureFilteringLinear];
+  [sharedStore setTextureWithImageNamed:@"pause" forKey:@"pause" filteringMode:SKTextureFilteringLinear];
+  [sharedStore setTextureWithImageNamed:@"ff" forKey:@"ff" filteringMode:SKTextureFilteringLinear];
+  [sharedStore setTextureWithImageNamed:@"fff" forKey:@"fff" filteringMode:SKTextureFilteringLinear];
+  [sharedStore setTextureWithImageNamed:@"center" forKey:@"center" filteringMode:SKTextureFilteringLinear];
+  [sharedStore setTextureWithImageNamed:@"delete" forKey:@"delete" filteringMode:SKTextureFilteringLinear];
+  [sharedStore setTextureWithImageNamed:@"rotate-cw" forKey:@"rotate-cw" filteringMode:SKTextureFilteringLinear];
+  [sharedStore setTextureWithImageNamed:@"rotate-ccw" forKey:@"rotate-ccw" filteringMode:SKTextureFilteringLinear];
+  [sharedStore setTextureWithImageNamed:@"toggle-switch" forKey:@"toggle-switch" filteringMode:SKTextureFilteringLinear];
+  [sharedStore setTextureWithImageNamed:@"main" forKey:@"main" filteringMode:SKTextureFilteringLinear];
+  [sharedStore setTextureWithImageNamed:@"next" forKey:@"next" filteringMode:SKTextureFilteringLinear];
+  [sharedStore setTextureWithImageNamed:@"previous" forKey:@"previous" filteringMode:SKTextureFilteringLinear];
+  [sharedStore setTextureWithImageNamed:@"segments" forKey:@"segments" filteringMode:SKTextureFilteringLinear];
+  [sharedStore setTextureWithImageNamed:@"gates" forKey:@"gates" filteringMode:SKTextureFilteringLinear];
+  [sharedStore setTextureWithImageNamed:@"circuits" forKey:@"circuits" filteringMode:SKTextureFilteringLinear];
+  [sharedStore setTextureWithImageNamed:@"exports" forKey:@"exports" filteringMode:SKTextureFilteringLinear];
+  [sharedStore setTextureWithImageNamed:@"link" forKey:@"link" filteringMode:SKTextureFilteringLinear];
+  [sharedStore setTextureWithImageNamed:@"export" forKey:@"export" filteringMode:SKTextureFilteringLinear];
+
+  // Other.
+  [sharedStore setTextureWithImageNamed:@"switch" forKey:@"switch" filteringMode:SKTextureFilteringNearest];
+}
+
 - (void)FL_preloadSound
 {
   // noob: Could make a store to control this, but it would be a weird store, since the
@@ -1518,7 +1562,7 @@ struct PointerPairHash
     if (_constructionToolbarState.currentPage > pageMax) {
       _constructionToolbarState.currentPage = pageMax;
     }
-    [self FL_constructionToolbarShowImports:FLExportsDirectoryPath page:_constructionToolbarState.currentPage animation:FLToolbarNodeAnimationNone];
+    [self FL_constructionToolbarShowImports:FLExportsDirectoryPath page:_constructionToolbarState.currentPage animation:HLToolbarNodeAnimationNone];
   }
 }
 
@@ -1556,7 +1600,7 @@ struct PointerPairHash
  */
 - (SKSpriteNode *)FL_createSprite:(NSString *)spriteName withTexture:(NSString *)textureKey parent:(SKNode *)parent
 {
-  SKTexture *texture = [[FLTextureStore sharedStore] textureForKey:textureKey];
+  SKTexture *texture = [[HLTextureStore sharedStore] textureForKey:textureKey];
   SKSpriteNode *sprite = [SKSpriteNode spriteNodeWithTexture:texture];
   sprite.name = spriteName;
   sprite.scale = FLTrackArtScale;
@@ -1628,7 +1672,7 @@ struct PointerPairHash
   // result I expect.  I'm not sure that's the correct treatment.  (For instance, I could instead use
   // CGImageRef cgImage = CGBitmapContextCreateImage(context) to get a Quartz image, and then initialize the
   // texture using that image, which presumably would give me the result I expect.  But I haven't checked,
-  // and FLTextureStore is factored in such a way that I want a UIImage.)
+  // and HLTextureStore is factored in such a way that I want a UIImage.)
   CGContextTranslateCTM(context, 0.0f, imageSize);
   CGContextScaleCTM(context, 1.0f, -1.0f);
   // note: The segments are positioned and rotated according to scene coordinates, which uses Cartesian coordinates
@@ -1638,7 +1682,7 @@ struct PointerPairHash
   CGContextTranslateCTM(context, 0.0f, imageSize);
   CGContextRotateCTM(context, -(CGFloat)M_PI_2);
   for (FLSegmentNode *segmentNode in segmentNodes) {
-    UIImage *segmentNodeImage = [[FLTextureStore sharedStore] imageForKey:segmentNode.segmentKey];
+    UIImage *segmentNodeImage = [[HLTextureStore sharedStore] imageForKey:segmentNode.segmentKey];
     // Calculate final center position of the scaled segment (on the imageSize x imageSize image with origin in the lower left).
     CGPoint scaledSegmentPosition = CGPointMake((segmentNode.position.x - shift.x) * scaleBasicSegmentPosition - scaledBasicSegmentInset + imageMargin + halfScaledFullSegmentSize,
                                                 (segmentNode.position.y - shift.y) * scaleBasicSegmentPosition - scaledBasicSegmentInset + imageMargin + halfScaledFullSegmentSize);
@@ -1688,7 +1732,7 @@ struct PointerPairHash
 - (void)FL_constructionToolbarSetVisible:(BOOL)visible
 {
   if (!_constructionToolbarState.toolbarNode) {
-    _constructionToolbarState.toolbarNode = [[FLToolbarNode alloc] init];
+    _constructionToolbarState.toolbarNode = [[HLToolbarNode alloc] init];
     _constructionToolbarState.toolbarNode.anchorPoint = CGPointMake(0.5f, 0.0f);
     [self FL_constructionToolbarUpdateGeometry];
   }
@@ -1724,10 +1768,10 @@ struct PointerPairHash
     _constructionToolbarState.currentPage = pageMax;
   }
 
-  [self FL_constructionToolbarUpdateToolsAnimation:FLToolbarNodeAnimationNone];
+  [self FL_constructionToolbarUpdateToolsAnimation:HLToolbarNodeAnimationNone];
 }
 
-- (void)FL_constructionToolbarUpdateToolsAnimation:(FLToolbarNodeAnimation)animation
+- (void)FL_constructionToolbarUpdateToolsAnimation:(HLToolbarNodeAnimation)animation
 {
   if ([_constructionToolbarState.currentNavigation isEqualToString:@"main"]) {
     [self FL_constructionToolbarShowMain:_constructionToolbarState.currentPage animation:animation];
@@ -1744,9 +1788,10 @@ struct PointerPairHash
   }
 }
 
-- (void)FL_constructionToolbarShowMain:(int)page animation:(FLToolbarNodeAnimation)animation
+- (void)FL_constructionToolbarShowMain:(int)page animation:(HLToolbarNodeAnimation)animation
 {
   [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"segments", @"gates", @"circuits", @"exports", @"link", @"export" ]
+                                                           store:[HLTextureStore sharedStore]
                                                        rotations:nil
                                                          offsets:nil
                                                        animation:animation];
@@ -1758,9 +1803,10 @@ struct PointerPairHash
   [_constructionToolbarState.actionTapTools addObject:@"export"];
 }
 
-- (void)FL_constructionToolbarShowSegments:(int)page animation:(FLToolbarNodeAnimation)animation
+- (void)FL_constructionToolbarShowSegments:(int)page animation:(HLToolbarNodeAnimation)animation
 {
   [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"main", @"straight", @"curve", @"join-left", @"join-right", @"jog-left", @"jog-right", @"cross" ]
+                                                           store:[HLTextureStore sharedStore]
                                                        rotations:nil
                                                          offsets:@[ [NSValue valueWithCGPoint:CGPointZero],
                                                                     [NSValue valueWithCGPoint:CGPointMake(FLSegmentArtStraightShift, 0.0f)],
@@ -1781,7 +1827,7 @@ struct PointerPairHash
   [_constructionToolbarState.actionPanTools setObject:@"Cross Track" forKey:@"cross"];
 }
 
-- (void)FL_constructionToolbarShowImports:(NSString *)importDirectory page:(int)page animation:(FLToolbarNodeAnimation)animation
+- (void)FL_constructionToolbarShowImports:(NSString *)importDirectory page:(int)page animation:(HLToolbarNodeAnimation)animation
 {
   // Get a list of all imports (sorted appropriately).
   NSFileManager *fileManager = [NSFileManager defaultManager];
@@ -1823,13 +1869,13 @@ struct PointerPairHash
   NSMutableArray *importTextureKeys = [NSMutableArray array];
   for (NSString *importFile in importFiles) {
     NSString *importName = [importFile stringByDeletingPathExtension];
-    SKTexture *texture = [[FLTextureStore sharedStore] textureForKey:importName];
+    SKTexture *texture = [[HLTextureStore sharedStore] textureForKey:importName];
     if (!texture) {
       NSString *importPath = [importDirectory stringByAppendingPathComponent:importFile];
       NSString *importDescription = nil;
       NSSet *segmentNodes = [self FL_importWithPath:importPath description:&importDescription links:NULL];
       UIImage *importImage = [self FL_createImageForSegments:segmentNodes withSize:FLMainToolbarToolArtSize];
-      [[FLTextureStore sharedStore] setTextureWithImage:importImage forKey:importName filteringMode:SKTextureFilteringNearest];
+      [[HLTextureStore sharedStore] setTextureWithImage:importImage forKey:importName filteringMode:SKTextureFilteringNearest];
       // note: With the current code, the description will not get updated in the interface
       // if it has changed on disk.  That said, I don't see how it could change on disk.
       [_constructionToolbarState.actionPanTools setObject:importDescription forKey:importName];
@@ -1875,6 +1921,7 @@ struct PointerPairHash
 
   // Set tools.
   [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:textureKeys
+                                                           store:[HLTextureStore sharedStore]
                                                        rotations:nil
                                                          offsets:nil
                                                        animation:animation];
@@ -1908,7 +1955,7 @@ struct PointerPairHash
 - (void)FL_simulationToolbarSetVisible:(BOOL)visible
 {
   if (!_simulationToolbarState.toolbarNode) {
-    _simulationToolbarState.toolbarNode = [[FLToolbarNode alloc] init];
+    _simulationToolbarState.toolbarNode = [[HLToolbarNode alloc] init];
     _simulationToolbarState.toolbarNode.anchorPoint = CGPointMake(0.5f, 1.0f);
     [self FL_simulationToolbarUpdateGeometry];
   }
@@ -1951,9 +1998,10 @@ struct PointerPairHash
   [textureKeys addObject:speedTool];
   [textureKeys addObject:@"center"];
   [_simulationToolbarState.toolbarNode setToolsWithTextureKeys:textureKeys
+                                                         store:[HLTextureStore sharedStore]
                                                      rotations:nil
                                                        offsets:nil
-                                                      animation:FLToolbarNodeAnimationNone];
+                                                      animation:HLToolbarNodeAnimationNone];
   [_simulationToolbarState.toolbarNode setHighlight:(_simulationSpeed > 0) forTool:speedTool];
 }
 
@@ -2345,7 +2393,7 @@ struct PointerPairHash
   }
 
   if (!_trackEditMenuState.editMenuNode) {
-    _trackEditMenuState.editMenuNode = [[FLToolbarNode alloc] initWithSize:CGSizeMake(0.0f, 42.0f)];
+    _trackEditMenuState.editMenuNode = [[HLToolbarNode alloc] initWithSize:CGSizeMake(0.0f, 42.0f)];
     _trackEditMenuState.editMenuNode.zPosition = FLZPositionWorldOverlay;
     _trackEditMenuState.editMenuNode.anchorPoint = CGPointMake(0.5f, 0.0f);
     _trackEditMenuState.editMenuNode.automaticWidth = YES;
@@ -2375,14 +2423,16 @@ struct PointerPairHash
       || (!hasSwitch && toolCount != 3)) {
     if (!hasSwitch) {
       [_trackEditMenuState.editMenuNode setToolsWithTextureKeys:@[ @"rotate-ccw", @"delete", @"rotate-cw" ]
+                                                          store:[HLTextureStore sharedStore]
                                                       rotations:nil
                                                         offsets:nil
-                                                      animation:FLToolbarNodeAnimationNone];
+                                                      animation:HLToolbarNodeAnimationNone];
     } else {
       [_trackEditMenuState.editMenuNode setToolsWithTextureKeys:@[ @"rotate-ccw", @"toggle-switch", @"delete", @"rotate-cw" ]
+                                                          store:[HLTextureStore sharedStore]
                                                       rotations:nil
                                                         offsets:nil
-                                                      animation:FLToolbarNodeAnimationNone];
+                                                      animation:HLToolbarNodeAnimationNone];
     }
   }
 

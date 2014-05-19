@@ -8,7 +8,8 @@
 
 #import "FLTrain.h"
 
-#import "FLTextureStore.h"
+#import <HLSpriteKit/HLTextureStore.h>
+
 #include "FLTrackGrid.h"
 
 using namespace std;
@@ -31,7 +32,7 @@ static const int FLTrainDirectionReverse = -1;
 
 - (id)initWithTrackGrid:(shared_ptr<FLTrackGrid>&)trackGrid
 {
-  SKTexture *texture = [[FLTextureStore sharedStore] textureForKey:@"engine"];
+  SKTexture *texture = [[HLTextureStore sharedStore] textureForKey:@"engine"];
   self = [super initWithTexture:texture];
   if (self) {
     self.zRotation = (CGFloat)M_PI_2;

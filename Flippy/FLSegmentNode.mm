@@ -8,9 +8,10 @@
 
 #import "FLSegmentNode.h"
 
-#import "FLPath.h"
-#import "FLTextureStore.h"
 #include <tgmath.h>
+#import <HLSpriteKit/HLTextureStore.h>
+
+#import "FLPath.h"
 
 const CGFloat FLSegmentArtSizeFull = 54.0f;
 const CGFloat FLSegmentArtSizeBasic = 36.0f;
@@ -50,7 +51,7 @@ using namespace std;
 - (id)initWithSegmentType:(FLSegmentType)segmentType
 {
   NSString *key = [FLSegmentNode keyForSegmentType:segmentType];
-  SKTexture *texture = [[FLTextureStore sharedStore] textureForKey:key];
+  SKTexture *texture = [[HLTextureStore sharedStore] textureForKey:key];
   self = [super initWithTexture:texture];
   if (self) {
     _segmentType = segmentType;
@@ -67,7 +68,7 @@ using namespace std;
 - (id)initWithTextureKey:(NSString *)textureKey
 {
   FLSegmentType segmentType = [FLSegmentNode segmentTypeForKey:textureKey];
-  SKTexture *texture = [[FLTextureStore sharedStore] textureForKey:textureKey];
+  SKTexture *texture = [[HLTextureStore sharedStore] textureForKey:textureKey];
   self = [super initWithTexture:texture];
   if (self) {
     _segmentType = segmentType;
@@ -169,7 +170,7 @@ using namespace std;
   }
   SKSpriteNode *switchNode;
   if (_switchPathId == FLSegmentSwitchPathIdNone) {
-    switchNode = [SKSpriteNode spriteNodeWithTexture:[[FLTextureStore sharedStore] textureForKey:@"switch"]];
+    switchNode = [SKSpriteNode spriteNodeWithTexture:[[HLTextureStore sharedStore] textureForKey:@"switch"]];
     switchNode.name = @"switch";
     CGFloat halfBasicSize = FLSegmentArtSizeBasic / 2.0f;
     CGFloat switchInset = FLSegmentArtSizeBasic / 6.0f;

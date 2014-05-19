@@ -8,12 +8,11 @@
 
 #import <SpriteKit/SpriteKit.h>
 
-#import "FLToolbarNode.h"
 #import "FLTrain.h"
 
 @protocol FLTrackSceneDelegate;
 
-@interface FLTrackScene : SKScene <NSCoding, UIAlertViewDelegate, UIGestureRecognizerDelegate, FLGestureTarget, FLTrainDelegate>
+@interface FLTrackScene : SKScene <NSCoding, UIAlertViewDelegate, UIGestureRecognizerDelegate, FLTrainDelegate>
 
 @property (nonatomic, weak) id<FLTrackSceneDelegate> delegate;
 

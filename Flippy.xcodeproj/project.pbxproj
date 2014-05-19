@@ -16,6 +16,13 @@
 		CB4D531318A979550087E1F7 /* wooden-clickity-2.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB4D530E18A979550087E1F7 /* wooden-clickity-2.caf */; };
 		CB50C21718BF8F140072DA30 /* FLTrackGrid.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB50C21518BF8F140072DA30 /* FLTrackGrid.mm */; };
 		CB5B70A218C956D20068F16D /* switch.png in Resources */ = {isa = PBXBuildFile; fileRef = CB5B70A118C956D20068F16D /* switch.png */; };
+		CB5D2FBA1929452800CC4DBA /* cross-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB5D2FB31929452800CC4DBA /* cross-nonatlas.png */; };
+		CB5D2FBB1929452800CC4DBA /* curve-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB5D2FB41929452800CC4DBA /* curve-nonatlas.png */; };
+		CB5D2FBC1929452800CC4DBA /* jog-left-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB5D2FB51929452800CC4DBA /* jog-left-nonatlas.png */; };
+		CB5D2FBD1929452800CC4DBA /* jog-right-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB5D2FB61929452800CC4DBA /* jog-right-nonatlas.png */; };
+		CB5D2FBE1929452800CC4DBA /* join-left-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB5D2FB71929452800CC4DBA /* join-left-nonatlas.png */; };
+		CB5D2FBF1929452800CC4DBA /* join-right-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB5D2FB81929452800CC4DBA /* join-right-nonatlas.png */; };
+		CB5D2FC01929452800CC4DBA /* straight-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB5D2FB91929452800CC4DBA /* straight-nonatlas.png */; };
 		CB657E9A1843E8DB00399E34 /* track.atlas in Resources */ = {isa = PBXBuildFile; fileRef = CB657E991843E8DB00399E34 /* track.atlas */; };
 		CB7B494C18D39E1C00FACEF4 /* FLLinks.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB7B494A18D39E1C00FACEF4 /* FLLinks.mm */; };
 		CB7D13881916DE68002B63D2 /* menu-button.png in Resources */ = {isa = PBXBuildFile; fileRef = CB7D13871916DE68002B63D2 /* menu-button.png */; };
@@ -24,14 +31,6 @@
 		CB88669618A544820045FD7E /* rail.png in Resources */ = {isa = PBXBuildFile; fileRef = CB88669418A544820045FD7E /* rail.png */; };
 		CB88669718A544820045FD7E /* sleeper.png in Resources */ = {isa = PBXBuildFile; fileRef = CB88669518A544820045FD7E /* sleeper.png */; };
 		CB88669918A549150045FD7E /* railDestruction.sks in Resources */ = {isa = PBXBuildFile; fileRef = CB88669818A549150045FD7E /* railDestruction.sks */; };
-		CB8A6F5018F71E240024B84D /* cross-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB8A6F4818F71E240024B84D /* cross-nonatlas.png */; };
-		CB8A6F5118F71E240024B84D /* curve-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB8A6F4918F71E240024B84D /* curve-nonatlas.png */; };
-		CB8A6F5218F71E240024B84D /* jog-left-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB8A6F4A18F71E240024B84D /* jog-left-nonatlas.png */; };
-		CB8A6F5318F71E240024B84D /* jog-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB8A6F4B18F71E240024B84D /* jog-nonatlas.png */; };
-		CB8A6F5418F71E240024B84D /* jog-right-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB8A6F4C18F71E240024B84D /* jog-right-nonatlas.png */; };
-		CB8A6F5518F71E240024B84D /* join-left-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB8A6F4D18F71E240024B84D /* join-left-nonatlas.png */; };
-		CB8A6F5618F71E240024B84D /* join-right-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB8A6F4E18F71E240024B84D /* join-right-nonatlas.png */; };
-		CB8A6F5718F71E240024B84D /* straight-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB8A6F4F18F71E240024B84D /* straight-nonatlas.png */; };
 		CB929EAE18B93AE200543F25 /* FLSegmentNode.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB929EAD18B93AE200543F25 /* FLSegmentNode.mm */; };
 		CB9F5F7918BD27C700EA91CE /* engine.png in Resources */ = {isa = PBXBuildFile; fileRef = CB9F5F7818BD27C700EA91CE /* engine.png */; };
 		CBA5ED521906FECD00DBF36E /* gates in Resources */ = {isa = PBXBuildFile; fileRef = CBA5ED511906FECD00DBF36E /* gates */; };
@@ -53,8 +52,6 @@
 		CBB4B82E183C00E1003C3444 /* FlippyTests.m in Sources */ = {isa = PBXBuildFile; fileRef = CBB4B82D183C00E1003C3444 /* FlippyTests.m */; };
 		CBD707C418AD0EE00041B170 /* FLTrain.mm in Sources */ = {isa = PBXBuildFile; fileRef = CBD707C318AD0EE00041B170 /* FLTrain.mm */; };
 		CBD9E93B19142C29002533DF /* libHLSpriteKit.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CBD9E93619142B03002533DF /* libHLSpriteKit.a */; };
-		CBE5A5E9185A0CAB00DC86B3 /* FLTextureStore.m in Sources */ = {isa = PBXBuildFile; fileRef = CBE5A5E8185A0CAB00DC86B3 /* FLTextureStore.m */; };
-		CBE5A5EC185A128100DC86B3 /* FLToolbarNode.m in Sources */ = {isa = PBXBuildFile; fileRef = CBE5A5EB185A128100DC86B3 /* FLToolbarNode.m */; };
 		CBEE13F018C4DBA400D1D42B /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CB0464A318AA6F7F00ABCA03 /* AVFoundation.framework */; };
 /* End PBXBuildFile section */
 
@@ -103,6 +100,13 @@
 		CB50C21518BF8F140072DA30 /* FLTrackGrid.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLTrackGrid.mm; sourceTree = "<group>"; };
 		CB50C21618BF8F140072DA30 /* FLTrackGrid.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTrackGrid.h; sourceTree = "<group>"; };
 		CB5B70A118C956D20068F16D /* switch.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = switch.png; sourceTree = "<group>"; };
+		CB5D2FB31929452800CC4DBA /* cross-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "cross-nonatlas.png"; sourceTree = "<group>"; };
+		CB5D2FB41929452800CC4DBA /* curve-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "curve-nonatlas.png"; sourceTree = "<group>"; };
+		CB5D2FB51929452800CC4DBA /* jog-left-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "jog-left-nonatlas.png"; sourceTree = "<group>"; };
+		CB5D2FB61929452800CC4DBA /* jog-right-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "jog-right-nonatlas.png"; sourceTree = "<group>"; };
+		CB5D2FB71929452800CC4DBA /* join-left-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "join-left-nonatlas.png"; sourceTree = "<group>"; };
+		CB5D2FB81929452800CC4DBA /* join-right-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "join-right-nonatlas.png"; sourceTree = "<group>"; };
+		CB5D2FB91929452800CC4DBA /* straight-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "straight-nonatlas.png"; sourceTree = "<group>"; };
 		CB657E991843E8DB00399E34 /* track.atlas */ = {isa = PBXFileReference; lastKnownFileType = folder.skatlas; path = track.atlas; sourceTree = "<group>"; };
 		CB7B494A18D39E1C00FACEF4 /* FLLinks.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLLinks.mm; sourceTree = "<group>"; };
 		CB7B494B18D39E1C00FACEF4 /* FLLinks.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLLinks.h; sourceTree = "<group>"; };
@@ -112,14 +116,6 @@
 		CB88669418A544820045FD7E /* rail.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = rail.png; sourceTree = "<group>"; };
 		CB88669518A544820045FD7E /* sleeper.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = sleeper.png; sourceTree = "<group>"; };
 		CB88669818A549150045FD7E /* railDestruction.sks */ = {isa = PBXFileReference; lastKnownFileType = file.sks; path = railDestruction.sks; sourceTree = "<group>"; };
-		CB8A6F4818F71E240024B84D /* cross-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "cross-nonatlas.png"; sourceTree = "<group>"; };
-		CB8A6F4918F71E240024B84D /* curve-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "curve-nonatlas.png"; sourceTree = "<group>"; };
-		CB8A6F4A18F71E240024B84D /* jog-left-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "jog-left-nonatlas.png"; sourceTree = "<group>"; };
-		CB8A6F4B18F71E240024B84D /* jog-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "jog-nonatlas.png"; sourceTree = "<group>"; };
-		CB8A6F4C18F71E240024B84D /* jog-right-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "jog-right-nonatlas.png"; sourceTree = "<group>"; };
-		CB8A6F4D18F71E240024B84D /* join-left-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "join-left-nonatlas.png"; sourceTree = "<group>"; };
-		CB8A6F4E18F71E240024B84D /* join-right-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "join-right-nonatlas.png"; sourceTree = "<group>"; };
-		CB8A6F4F18F71E240024B84D /* straight-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "straight-nonatlas.png"; sourceTree = "<group>"; };
 		CB929EAC18B93AE200543F25 /* FLSegmentNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLSegmentNode.h; sourceTree = "<group>"; };
 		CB929EAD18B93AE200543F25 /* FLSegmentNode.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLSegmentNode.mm; sourceTree = "<group>"; };
 		CB9F5F7818BD27C700EA91CE /* engine.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = engine.png; sourceTree = "<group>"; };
@@ -149,10 +145,6 @@
 		CBD707C218AD0EE00041B170 /* FLTrain.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTrain.h; sourceTree = "<group>"; };
 		CBD707C318AD0EE00041B170 /* FLTrain.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLTrain.mm; sourceTree = "<group>"; };
 		CBD9E93019142B03002533DF /* HLSpriteKit.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = HLSpriteKit.xcodeproj; path = ../common/HLSpriteKit/HLSpriteKit.xcodeproj; sourceTree = "<group>"; };
-		CBE5A5E7185A0CAB00DC86B3 /* FLTextureStore.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTextureStore.h; sourceTree = "<group>"; };
-		CBE5A5E8185A0CAB00DC86B3 /* FLTextureStore.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FLTextureStore.m; sourceTree = "<group>"; };
-		CBE5A5EA185A128100DC86B3 /* FLToolbarNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLToolbarNode.h; sourceTree = "<group>"; };
-		CBE5A5EB185A128100DC86B3 /* FLToolbarNode.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FLToolbarNode.m; sourceTree = "<group>"; };
 		CBF959E418A1913F005F01A6 /* FLGestureTarget.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FLGestureTarget.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -197,21 +189,20 @@
 		CB4D531518A9799E0087E1F7 /* Images */ = {
 			isa = PBXGroup;
 			children = (
-				CB8A6F4818F71E240024B84D /* cross-nonatlas.png */,
-				CB8A6F4918F71E240024B84D /* curve-nonatlas.png */,
+				CB5D2FB31929452800CC4DBA /* cross-nonatlas.png */,
+				CB5D2FB41929452800CC4DBA /* curve-nonatlas.png */,
 				CB9F5F7818BD27C700EA91CE /* engine.png */,
 				CB88668E18A540130045FD7E /* grass.png */,
-				CB8A6F4A18F71E240024B84D /* jog-left-nonatlas.png */,
-				CB8A6F4B18F71E240024B84D /* jog-nonatlas.png */,
-				CB8A6F4C18F71E240024B84D /* jog-right-nonatlas.png */,
-				CB8A6F4D18F71E240024B84D /* join-left-nonatlas.png */,
-				CB8A6F4E18F71E240024B84D /* join-right-nonatlas.png */,
+				CB5D2FB51929452800CC4DBA /* jog-left-nonatlas.png */,
+				CB5D2FB61929452800CC4DBA /* jog-right-nonatlas.png */,
+				CB5D2FB71929452800CC4DBA /* join-left-nonatlas.png */,
+				CB5D2FB81929452800CC4DBA /* join-right-nonatlas.png */,
 				CB7D13871916DE68002B63D2 /* menu-button.png */,
 				CB88669418A544820045FD7E /* rail.png */,
 				CB88669818A549150045FD7E /* railDestruction.sks */,
 				CB88669518A544820045FD7E /* sleeper.png */,
 				CB88669018A544530045FD7E /* sleeperDestruction.sks */,
-				CB8A6F4F18F71E240024B84D /* straight-nonatlas.png */,
+				CB5D2FB91929452800CC4DBA /* straight-nonatlas.png */,
 				CB5B70A118C956D20068F16D /* switch.png */,
 				CB3E96BD189AB85900D0D567 /* tools.atlas */,
 				CB657E991843E8DB00399E34 /* track.atlas */,
@@ -274,10 +265,6 @@
 				CB0DA5A418B7D8CE00E43D34 /* FLPath.mm */,
 				CB929EAC18B93AE200543F25 /* FLSegmentNode.h */,
 				CB929EAD18B93AE200543F25 /* FLSegmentNode.mm */,
-				CBE5A5E7185A0CAB00DC86B3 /* FLTextureStore.h */,
-				CBE5A5E8185A0CAB00DC86B3 /* FLTextureStore.m */,
-				CBE5A5EA185A128100DC86B3 /* FLToolbarNode.h */,
-				CBE5A5EB185A128100DC86B3 /* FLToolbarNode.m */,
 				CB50C21618BF8F140072DA30 /* FLTrackGrid.h */,
 				CB50C21518BF8F140072DA30 /* FLTrackGrid.mm */,
 				CBB4B815183C00E1003C3444 /* FLTrackScene.h */,
@@ -437,30 +424,29 @@
 			files = (
 				CB5B70A218C956D20068F16D /* switch.png in Resources */,
 				CB88669918A549150045FD7E /* railDestruction.sks in Resources */,
-				CB8A6F5118F71E240024B84D /* curve-nonatlas.png in Resources */,
-				CB8A6F5518F71E240024B84D /* join-left-nonatlas.png in Resources */,
 				CBA5ED541907007800DBF36E /* circuits in Resources */,
-				CB8A6F5318F71E240024B84D /* jog-nonatlas.png in Resources */,
 				CB88668F18A540130045FD7E /* grass.png in Resources */,
-				CB8A6F5618F71E240024B84D /* join-right-nonatlas.png in Resources */,
 				CBB4B81B183C00E1003C3444 /* Images.xcassets in Resources */,
+				CB5D2FBD1929452800CC4DBA /* jog-right-nonatlas.png in Resources */,
 				CB9F5F7918BD27C700EA91CE /* engine.png in Resources */,
 				CBA5ED521906FECD00DBF36E /* gates in Resources */,
+				CB5D2FBB1929452800CC4DBA /* curve-nonatlas.png in Resources */,
 				CB4D531118A979550087E1F7 /* wooden-click-2.caf in Resources */,
+				CB5D2FC01929452800CC4DBA /* straight-nonatlas.png in Resources */,
+				CB5D2FBF1929452800CC4DBA /* join-right-nonatlas.png in Resources */,
+				CB5D2FBA1929452800CC4DBA /* cross-nonatlas.png in Resources */,
 				CB88669618A544820045FD7E /* rail.png in Resources */,
 				CBB4B805183C00E1003C3444 /* InfoPlist.strings in Resources */,
 				CB4D530F18A979550087E1F7 /* wooden-clatter-1.caf in Resources */,
-				CB8A6F5718F71E240024B84D /* straight-nonatlas.png in Resources */,
 				CB88669718A544820045FD7E /* sleeper.png in Resources */,
+				CB5D2FBC1929452800CC4DBA /* jog-left-nonatlas.png in Resources */,
+				CB5D2FBE1929452800CC4DBA /* join-left-nonatlas.png in Resources */,
 				CB4D531318A979550087E1F7 /* wooden-clickity-2.caf in Resources */,
 				CB657E9A1843E8DB00399E34 /* track.atlas in Resources */,
-				CB8A6F5018F71E240024B84D /* cross-nonatlas.png in Resources */,
 				CB7D13881916DE68002B63D2 /* menu-button.png in Resources */,
 				CB88669218A544530045FD7E /* sleeperDestruction.sks in Resources */,
 				CB3E96BE189AB85900D0D567 /* tools.atlas in Resources */,
-				CB8A6F5418F71E240024B84D /* jog-right-nonatlas.png in Resources */,
 				CB4D531018A979550087E1F7 /* wooden-click-1.caf in Resources */,
-				CB8A6F5218F71E240024B84D /* jog-left-nonatlas.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -479,11 +465,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CBE5A5E9185A0CAB00DC86B3 /* FLTextureStore.m in Sources */,
 				CBB4B817183C00E1003C3444 /* FLTrackScene.mm in Sources */,
 				CB50C21718BF8F140072DA30 /* FLTrackGrid.mm in Sources */,
 				CBB4B80B183C00E1003C3444 /* FLAppDelegate.mm in Sources */,
-				CBE5A5EC185A128100DC86B3 /* FLToolbarNode.m in Sources */,
 				CBD707C418AD0EE00041B170 /* FLTrain.mm in Sources */,
 				CB0DA5A618B7D8CE00E43D34 /* FLPath.mm in Sources */,
 				CB929EAE18B93AE200543F25 /* FLSegmentNode.mm in Sources */,

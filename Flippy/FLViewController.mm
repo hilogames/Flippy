@@ -184,6 +184,14 @@ static const NSTimeInterval FLSceneTransitionDuration = 0.5;
 {
   if ([menuItem.text isEqualToString:@"Sandbox"]) {
     if (!_trackScene) {
+      // TODO: Too slow.  Fade to black immediately to provide better feedback.
+      // Maybe a "loading screen" scene, preloaded?  Or maybe a big UIView
+      // over the SKView?  Or is there a simple way to pause the scene and disable all
+      // interface, to create a modal SKSpriteNode overlay?
+      // Note that in the eventual flow, there will first be a load/save
+      // screen, but we'll have the same issue there.
+      // TODO: Theeeeeennnnnn maybe look at what's taking so long.  But only as a
+      // to-do.  Maybe test a big map on an older device.
       _trackScene = [FLTrackScene sceneWithSize:[UIScreen mainScreen].bounds.size];
       _trackScene.delegate = self;
       _trackScene.scaleMode = SKSceneScaleModeResizeFill;
