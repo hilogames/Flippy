@@ -8,6 +8,7 @@
 
 #import "FLTrackScene.h"
 
+#include <HLSpriteKit/HLEmitterStore.h>
 #include <HLSpriteKit/HLTextureStore.h>
 #include <memory>
 #include <tgmath.h>
@@ -238,6 +239,20 @@ struct PointerPairHash
   return [NSKeyedUnarchiver unarchiveObjectWithFile:savePath];
 }
 
++ (void)loadSceneAssets
+{
+  [super loadSceneAssets];
+  [self FL_loadTextures];
+  [self FL_loadEmitters];
+  [self FL_loadSound];
+}
+
++ (void)releaseSceneAssets
+{
+  // note: Scene assets are loaded abusively into global shared resources, so there's
+  // no good way, for now, to release them, and no real need to do so.
+}
+
 - (void)save:(NSString *)saveName
 {
   NSString *savePath = [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0]
@@ -261,9 +276,12 @@ struct PointerPairHash
 {
   self = [super initWithCoder:aDecoder];
   if (self) {
+
+    // note: There is no lazy-load option for textures (and perhaps other scene
+    // resources); they must already be loaded.
+    [HLScene assertSceneAssetsLoaded];
+
     _contentCreated = YES;
-    [self FL_preloadTextures];
-    [self FL_preloadSound];
 
     _cameraMode = (FLCameraMode)[aDecoder decodeIntForKey:@"cameraMode"];
     _simulationRunning = [aDecoder decodeBoolForKey:@"simulationRunning"];
@@ -463,8 +481,9 @@ struct PointerPairHash
   self.backgroundColor = [SKColor colorWithRed:0.4f green:0.6f blue:0.0f alpha:1.0f];
   self.anchorPoint = CGPointMake(0.5f, 0.5f);
 
-  [self FL_preloadTextures];
-  [self FL_preloadSound];
+  // note: There is no lazy-load option for textures (and perhaps other scene
+  // resources); they must already be loaded.
+  [HLScene assertSceneAssetsLoaded];
 
   // Create basic layers.
 
@@ -1237,8 +1256,6 @@ struct PointerPairHash
   CGPoint viewLocation = [touch locationInView:self.view];
   CGPoint sceneLocation = [self convertPointFromView:viewLocation];
 
-  // TODO: Tap gesture recognizers on button-like things should highlight on touch-down, activate on touch-up.
-
   // note: Remembering the first touch location is useful, for example, for a pan gesture recognizer,
   // which only knows where the gesture was first recognized (after possibly significant movement).
   _worldGestureState.gestureFirstTouchLocation = viewLocation;
@@ -1440,55 +1457,88 @@ struct PointerPairHash
 #pragma mark -
 #pragma mark Common
 
-- (void)FL_preloadTextures
++ (void)FL_loadTextures
 {
-  HLTextureStore *sharedStore = [HLTextureStore sharedStore];
-
+  // note: Some sloppiness here in terms of resource-management: We use the shared HLTextureStore
+  // rather than maintaining our own and passing it to those who need it; we preload textures for
+  // (for example) FLTrain and FLSegmentNode rather than asking them to load themselves; etc.
+  // This is justified, perhaps, since FLTrackScene is the master scene in the app, but be sure
+  // to design more modularly if copying this pattern for other scenes.
+  NSDate *startDate = [NSDate date];
+  
+  HLTextureStore *textureStore = [HLTextureStore sharedStore];
+  
   // Train.
-  [sharedStore setTextureWithImageNamed:@"engine" forKey:@"engine" filteringMode:SKTextureFilteringNearest];
-
+  [textureStore setTextureWithImageNamed:@"engine" forKey:@"engine" filteringMode:SKTextureFilteringNearest];
+  
   // Segments.
-  [sharedStore setTextureWithImageNamed:@"straight" andUIImageWithImageNamed:@"straight-nonatlas" forKey:@"straight" filteringMode:SKTextureFilteringNearest];
-  [sharedStore setTextureWithImageNamed:@"curve" andUIImageWithImageNamed:@"curve-nonatlas" forKey:@"curve" filteringMode:SKTextureFilteringNearest];
-  [sharedStore setTextureWithImageNamed:@"join-left" andUIImageWithImageNamed:@"join-left-nonatlas" forKey:@"join-left" filteringMode:SKTextureFilteringNearest];
-  [sharedStore setTextureWithImageNamed:@"join-right" andUIImageWithImageNamed:@"join-right-nonatlas" forKey:@"join-right" filteringMode:SKTextureFilteringNearest];
-  [sharedStore setTextureWithImageNamed:@"jog-left" andUIImageWithImageNamed:@"jog-left-nonatlas" forKey:@"jog-left" filteringMode:SKTextureFilteringNearest];
-  [sharedStore setTextureWithImageNamed:@"jog-right" andUIImageWithImageNamed:@"jog-right-nonatlas" forKey:@"jog-right" filteringMode:SKTextureFilteringNearest];
-  [sharedStore setTextureWithImageNamed:@"cross" andUIImageWithImageNamed:@"cross-nonatlas" forKey:@"cross" filteringMode:SKTextureFilteringNearest];
-
+  [textureStore setTextureWithImageNamed:@"straight" andUIImageWithImageNamed:@"straight-nonatlas" forKey:@"straight" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"curve" andUIImageWithImageNamed:@"curve-nonatlas" forKey:@"curve" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"join-left" andUIImageWithImageNamed:@"join-left-nonatlas" forKey:@"join-left" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"join-right" andUIImageWithImageNamed:@"join-right-nonatlas" forKey:@"join-right" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"jog-left" andUIImageWithImageNamed:@"jog-left-nonatlas" forKey:@"jog-left" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"jog-right" andUIImageWithImageNamed:@"jog-right-nonatlas" forKey:@"jog-right" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"cross" andUIImageWithImageNamed:@"cross-nonatlas" forKey:@"cross" filteringMode:SKTextureFilteringNearest];
+  
   // Tools.
-  [sharedStore setTextureWithImageNamed:@"menu" forKey:@"menu" filteringMode:SKTextureFilteringLinear];
-  [sharedStore setTextureWithImageNamed:@"play" forKey:@"play" filteringMode:SKTextureFilteringLinear];
-  [sharedStore setTextureWithImageNamed:@"pause" forKey:@"pause" filteringMode:SKTextureFilteringLinear];
-  [sharedStore setTextureWithImageNamed:@"ff" forKey:@"ff" filteringMode:SKTextureFilteringLinear];
-  [sharedStore setTextureWithImageNamed:@"fff" forKey:@"fff" filteringMode:SKTextureFilteringLinear];
-  [sharedStore setTextureWithImageNamed:@"center" forKey:@"center" filteringMode:SKTextureFilteringLinear];
-  [sharedStore setTextureWithImageNamed:@"delete" forKey:@"delete" filteringMode:SKTextureFilteringLinear];
-  [sharedStore setTextureWithImageNamed:@"rotate-cw" forKey:@"rotate-cw" filteringMode:SKTextureFilteringLinear];
-  [sharedStore setTextureWithImageNamed:@"rotate-ccw" forKey:@"rotate-ccw" filteringMode:SKTextureFilteringLinear];
-  [sharedStore setTextureWithImageNamed:@"toggle-switch" forKey:@"toggle-switch" filteringMode:SKTextureFilteringLinear];
-  [sharedStore setTextureWithImageNamed:@"main" forKey:@"main" filteringMode:SKTextureFilteringLinear];
-  [sharedStore setTextureWithImageNamed:@"next" forKey:@"next" filteringMode:SKTextureFilteringLinear];
-  [sharedStore setTextureWithImageNamed:@"previous" forKey:@"previous" filteringMode:SKTextureFilteringLinear];
-  [sharedStore setTextureWithImageNamed:@"segments" forKey:@"segments" filteringMode:SKTextureFilteringLinear];
-  [sharedStore setTextureWithImageNamed:@"gates" forKey:@"gates" filteringMode:SKTextureFilteringLinear];
-  [sharedStore setTextureWithImageNamed:@"circuits" forKey:@"circuits" filteringMode:SKTextureFilteringLinear];
-  [sharedStore setTextureWithImageNamed:@"exports" forKey:@"exports" filteringMode:SKTextureFilteringLinear];
-  [sharedStore setTextureWithImageNamed:@"link" forKey:@"link" filteringMode:SKTextureFilteringLinear];
-  [sharedStore setTextureWithImageNamed:@"export" forKey:@"export" filteringMode:SKTextureFilteringLinear];
-
+  [textureStore setTextureWithImageNamed:@"menu" forKey:@"menu" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"play" forKey:@"play" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"pause" forKey:@"pause" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"ff" forKey:@"ff" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"fff" forKey:@"fff" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"center" forKey:@"center" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"delete" forKey:@"delete" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"rotate-cw" forKey:@"rotate-cw" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"rotate-ccw" forKey:@"rotate-ccw" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"toggle-switch" forKey:@"toggle-switch" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"main" forKey:@"main" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"next" forKey:@"next" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"previous" forKey:@"previous" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"segments" forKey:@"segments" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"gates" forKey:@"gates" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"circuits" forKey:@"circuits" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"exports" forKey:@"exports" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"link" forKey:@"link" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"export" forKey:@"export" filteringMode:SKTextureFilteringLinear];
+  
   // Other.
-  [sharedStore setTextureWithImageNamed:@"switch" forKey:@"switch" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"switch" forKey:@"switch" filteringMode:SKTextureFilteringNearest];
+  
+  NSLog(@"FLTrackScene loadTextures: loaded in %0.2f seconds", [[NSDate date] timeIntervalSinceDate:startDate]);
 }
 
-- (void)FL_preloadSound
++ (void)FL_loadEmitters
 {
+  // note: Again, sloppiness; see note in FL_loadTextures.
+  NSDate *startDate = [NSDate date];
+
+  HLEmitterStore *emitterStore = [HLEmitterStore sharedStore];
+  SKEmitterNode *emitterNode;
+  
+  emitterNode = [emitterStore setEmitterWithResource:@"sleeperDestruction" forKey:@"sleeperDestruction"];
+  // note: This kind of scaling thing makes me think having an FLTrackArtScale is a bad idea.  Resample the art instead.
+  emitterNode.xScale = FLTrackArtScale;
+  emitterNode.yScale = FLTrackArtScale;
+
+  emitterNode = [emitterStore setEmitterWithResource:@"railDestruction" forKey:@"railDestruction"];
+  emitterNode.xScale = FLTrackArtScale;
+  emitterNode.yScale = FLTrackArtScale;
+
+  NSLog(@"FLTrackScene loadEmitters: loaded in %0.2f seconds", [[NSDate date] timeIntervalSinceDate:startDate]);
+}
+
++ (void)FL_loadSound
+{
+  NSDate *startDate = [NSDate date];
+
   // noob: Could make a store to control this, but it would be a weird store, since the
   // references to the sounds don't actually need to be tracked.
   [SKAction playSoundFileNamed:@"wooden-click-1.caf" waitForCompletion:NO];
   [SKAction playSoundFileNamed:@"wooden-click-2.caf" waitForCompletion:NO];
   [SKAction playSoundFileNamed:@"wooden-clickity-2.caf" waitForCompletion:NO];
   [SKAction playSoundFileNamed:@"wooden-clatter-1.caf" waitForCompletion:NO];
+
+  NSLog(@"FLTrackScene loadSound: loaded in %0.2f seconds", [[NSDate date] timeIntervalSinceDate:startDate]);
 }
 
 - (void)FL_export
@@ -2810,13 +2860,9 @@ struct PointerPairHash
 {
   [segmentNode removeFromParent];
   if (animated) {
-    SKEmitterNode *sleeperDestruction = [NSKeyedUnarchiver unarchiveObjectWithFile:[[NSBundle mainBundle] pathForResource:@"sleeperDestruction" ofType:@"sks"]];
-    SKEmitterNode *railDestruction = [NSKeyedUnarchiver unarchiveObjectWithFile:[[NSBundle mainBundle] pathForResource:@"railDestruction" ofType:@"sks"]];
-    // note: This kind of thing makes me think having an FLTrackArtScale is a bad idea.  Resample the art instead.
-    sleeperDestruction.xScale = FLTrackArtScale;
-    sleeperDestruction.yScale = FLTrackArtScale;
-    railDestruction.xScale = FLTrackArtScale;
-    railDestruction.yScale = FLTrackArtScale;
+    HLEmitterStore *emitterStore = [HLEmitterStore sharedStore];
+    SKEmitterNode *sleeperDestruction = [emitterStore emitterCopyForKey:@"sleeperDestruction"];
+    SKEmitterNode *railDestruction = [emitterStore emitterCopyForKey:@"railDestruction"];
     sleeperDestruction.position = segmentNode.position;
     railDestruction.position = segmentNode.position;
     [_trackNode addChild:sleeperDestruction];

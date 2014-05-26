@@ -11,6 +11,14 @@ Current
     return to start menu.  Main: "Challenge" and "Sandbox".  Then:
     A list of loads, or a "New" button.
 
+  . Menus: Get "back" button working.  Then: Put menu scene
+    functionality into a node, rather than a scene, so that it can
+    overlay a scene.  Include new functionality for disabling the
+    background (e.g. auto-pause of scene, and no gesture recognition).
+    Then make two menus: a main menu and an in-game menu.  In-game
+    menu will overlay the track scene.  Then go back and redo how the
+    view controller archives things, since it will now be different.
+
   . Make a copy/duplicate of current selection.  Insert the same way
     as an import, so factor out that code.
 

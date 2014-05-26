@@ -11,8 +11,6 @@
 #import <UIKit/UIKit.h>
 #import "FLTrackScene.h"
 
-typedef enum FLViewControllerScene { FLViewControllerSceneNone, FLViewControllerSceneMenu, FLViewControllerSceneTrack } FLViewControllerScene;
-
 @interface FLViewController : UIViewController <HLMenuSceneDelegate, FLTrackSceneDelegate>
 
 @property (nonatomic, readonly) SKView *skView;
