@@ -235,10 +235,10 @@ FLError(NSString *message)
   [_menuScene.menu addItem:[HLMenu menuWithText:@"Main"
                                           items:@[ [HLMenu menuWithText:@"Challenge"
                                                                   items:@[ [HLMenuItem menuItemWithText:@"New"],
-                                                                           [HLMenuItem menuItemWithText:@"Back"] ]],
+                                                                           [HLMenuBackItem menuItemWithText:@"Back"] ]],
                                                    [HLMenu menuWithText:@"Sandbox"
                                                                   items:@[ [HLMenuItem menuItemWithText:@"New"],
-                                                                           [HLMenuItem menuItemWithText:@"Back"] ]],
+                                                                           [HLMenuBackItem menuItemWithText:@"Back"] ]],
                                                    [HLMenuItem menuItemWithText:@"About"] ]]];
   [_menuScene.menu addItem:[HLMenuItem menuItemWithText:@"Options"]];
   [_menuScene.menu addItem:[HLMenuItem menuItemWithText:@"Return to Game"]];
@@ -282,11 +282,6 @@ FLError(NSString *message)
   if (!_menuScene) {
     [self FL_createMenuScene];
   }
-  // TODO: Need to be able to get back to game no matter what submenu we enter.
-  // Add a back item to Main menu?  Or maybe the in-game menu is a separate menu,
-  // and perhaps even shown over the top of the train scene.  (In that case,
-  // HLMenuScene should be HLMenuNode, and then we pause/disable the rest of the
-  // scene before showing the HLMenuNode over it.)
   [_menuScene navigateToMenu:_menuScene.menu animation:HLMenuSceneAnimationNone];
   [self.skView presentScene:_menuScene transition:[SKTransition fadeWithDuration:FLSceneTransitionDuration]];
   _currentScene = _menuScene;
