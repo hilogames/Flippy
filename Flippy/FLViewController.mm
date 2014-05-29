@@ -105,7 +105,7 @@ FLError(NSString *message)
     }
     _menuScene = [extraCoder decodeObjectForKey:@"menuScene"];
     if (_menuScene) {
-      _menuScene.delegate = self;
+      _menuScene.menuNode.delegate = self;
     }
     [extraCoder finishDecoding];
   }
@@ -173,8 +173,8 @@ FLError(NSString *message)
       [self FL_createMenuScene];
     }
     _currentScene = _menuScene;
-    HLMenu *mainMenu = (HLMenu *)[_menuScene.menu itemForPathComponents:@[ @"Main" ]];
-    [_menuScene navigateToMenu:mainMenu animation:HLMenuSceneAnimationNone];
+    HLMenu *mainMenu = (HLMenu *)[_menuScene.menuNode.menu itemForPathComponents:@[ @"Main" ]];
+    [_menuScene.menuNode navigateToMenu:mainMenu animation:HLMenuNodeAnimationNone];
   }
 
   // note: No loading of track assets, or showing loading screens.  If the track was
@@ -218,9 +218,15 @@ FLError(NSString *message)
 - (void)FL_createMenuScene
 {
   _menuScene = [HLMenuScene sceneWithSize:[UIScreen mainScreen].bounds.size];
-  _menuScene.delegate = self;
   _menuScene.scaleMode = SKSceneScaleModeResizeFill;
-  _menuScene.backgroundImageName = @"grass";
+
+  SKSpriteNode *backgroundNode = [SKSpriteNode spriteNodeWithImageNamed:@"grass"];
+  _menuScene.backgroundNode = backgroundNode;
+
+  HLMenuNode *menuNode = [[HLMenuNode alloc] init];
+  _menuScene.menuNode = menuNode;
+  menuNode.delegate = self;
+
   HLLabelButtonNode *buttonPrototype = [[HLLabelButtonNode alloc] initWithImageNamed:@"menu-button"];
   buttonPrototype.centerRect = CGRectMake(0.3333333f, 0.3333333f, 0.3333333f, 0.3333333f);
   buttonPrototype.fontName = @"Courier";
@@ -228,20 +234,22 @@ FLError(NSString *message)
   buttonPrototype.fontColor = [UIColor whiteColor];
   buttonPrototype.size = CGSizeMake(240.0f, 40.0f);
   buttonPrototype.verticalAlignmentMode = HLLabelButtonNodeVerticalAlignFontAscender;
-  _menuScene.itemButtonPrototype = buttonPrototype;
-  _menuScene.itemSoundFile = @"wooden-click-1.caf";
-  
-  [_menuScene.menu addItem:[HLMenuItem menuItemWithText:@"Save"]];
-  [_menuScene.menu addItem:[HLMenu menuWithText:@"Main"
-                                          items:@[ [HLMenu menuWithText:@"Challenge"
-                                                                  items:@[ [HLMenuItem menuItemWithText:@"New"],
-                                                                           [HLMenuBackItem menuItemWithText:@"Back"] ]],
-                                                   [HLMenu menuWithText:@"Sandbox"
-                                                                  items:@[ [HLMenuItem menuItemWithText:@"New"],
-                                                                           [HLMenuBackItem menuItemWithText:@"Back"] ]],
-                                                   [HLMenuItem menuItemWithText:@"About"] ]]];
-  [_menuScene.menu addItem:[HLMenuItem menuItemWithText:@"Options"]];
-  [_menuScene.menu addItem:[HLMenuItem menuItemWithText:@"Return to Game"]];
+  menuNode.itemButtonPrototype = buttonPrototype;
+  menuNode.itemSoundFile = @"wooden-click-1.caf";
+
+  HLMenu *menu = [[HLMenu alloc] init];
+  menuNode.menu = menu;
+  [menu addItem:[HLMenuItem menuItemWithText:@"Save"]];
+  [menu addItem:[HLMenu menuWithText:@"Main"
+                               items:@[ [HLMenu menuWithText:@"Challenge"
+                                                       items:@[ [HLMenuItem menuItemWithText:@"New"],
+                                                                [HLMenuBackItem menuItemWithText:@"Back"] ]],
+                                        [HLMenu menuWithText:@"Sandbox"
+                                                       items:@[ [HLMenuItem menuItemWithText:@"New"],
+                                                                [HLMenuBackItem menuItemWithText:@"Back"] ]],
+                                        [HLMenuItem menuItemWithText:@"About"] ]]];
+  [menu addItem:[HLMenuItem menuItemWithText:@"Options"]];
+  [menu addItem:[HLMenuItem menuItemWithText:@"Return to Game"]];
 }
 
 - (SKView *)skView
@@ -264,9 +272,9 @@ FLError(NSString *message)
 }
 
 #pragma mark -
-#pragma mark HLMenuSceneDelegate
+#pragma mark HLMenuNodeDelegate
 
-- (void)menuScene:(HLMenuScene *)menuScene didTapMenuItem:(HLMenuItem *)menuItem
+- (void)menuNode:(HLMenuNode *)menuNode didTapMenuItem:(HLMenuItem *)menuItem
 {
   NSLog(@"menu item %@", [menuItem path]);
   if ([[menuItem path] isEqualToString:@"Main/Sandbox/New"]) {
@@ -282,7 +290,7 @@ FLError(NSString *message)
   if (!_menuScene) {
     [self FL_createMenuScene];
   }
-  [_menuScene navigateToMenu:_menuScene.menu animation:HLMenuSceneAnimationNone];
+  [_menuScene.menuNode navigateToTopMenuAnimation:HLMenuNodeAnimationNone];
   [self.skView presentScene:_menuScene transition:[SKTransition fadeWithDuration:FLSceneTransitionDuration]];
   _currentScene = _menuScene;
 }

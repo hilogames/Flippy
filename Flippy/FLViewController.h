@@ -11,7 +11,7 @@
 #import <UIKit/UIKit.h>
 #import "FLTrackScene.h"
 
-@interface FLViewController : UIViewController <HLMenuSceneDelegate, FLTrackSceneDelegate>
+@interface FLViewController : UIViewController <HLMenuNodeDelegate, FLTrackSceneDelegate>
 
 @property (nonatomic, readonly) SKView *skView;
 
