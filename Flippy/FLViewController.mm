@@ -29,8 +29,9 @@ FLError(NSString *message)
   SKScene *_currentScene;
 
   SKScene *_loadingScene;
-  HLMenuScene *_menuScene;
+  HLMenuScene *_mainMenuScene;
   FLTrackScene *_trackScene;
+  HLMenuNode *_gameMenuNode;
 }
 
 + (void)initialize
@@ -62,8 +63,8 @@ FLError(NSString *message)
   // file available for crash recovery.
   NSMutableData *archiveData = [NSMutableData data];
   NSKeyedArchiver *extraCoder = [[NSKeyedArchiver alloc] initForWritingWithMutableData:archiveData];
-  if (_currentScene == _menuScene) {
-    [extraCoder encodeObject:_menuScene forKey:@"menuScene"];
+  if (_currentScene == _mainMenuScene) {
+    [extraCoder encodeObject:_mainMenuScene forKey:@"mainMenuScene"];
   }
   if (_trackScene) {
     [extraCoder encodeObject:_trackScene forKey:@"trackScene"];
@@ -74,7 +75,7 @@ FLError(NSString *message)
   // note: Don't try to archive _currentScene as a pointer, since the scene objects
   // aren't archived alongside.  Instead, archive a code.
   FLViewControllerScene currentScene = FLViewControllerSceneNone;
-  if (_currentScene == _menuScene) {
+  if (_currentScene == _mainMenuScene) {
     currentScene = FLViewControllerSceneMenu;
   } else if (_currentScene == _trackScene) {
     currentScene = FLViewControllerSceneTrack;
@@ -103,9 +104,9 @@ FLError(NSString *message)
     if (_trackScene) {
       _trackScene.delegate = self;
     }
-    _menuScene = [extraCoder decodeObjectForKey:@"menuScene"];
-    if (_menuScene) {
-      _menuScene.menuNode.delegate = self;
+    _mainMenuScene = [extraCoder decodeObjectForKey:@"mainMenuScene"];
+    if (_mainMenuScene) {
+      _mainMenuScene.menuNode.delegate = self;
     }
     [extraCoder finishDecoding];
   }
@@ -113,10 +114,10 @@ FLError(NSString *message)
   FLViewControllerScene currentScene = (FLViewControllerScene)[coder decodeIntForKey:@"currentScene"];
   switch (currentScene) {
     case FLViewControllerSceneMenu:
-      if (!_menuScene) {
-        FLError(@"FLViewController decodeRestorableStateWithCoder: Failed to decode restorable state for menu scene.");
+      if (!_mainMenuScene) {
+        FLError(@"FLViewController decodeRestorableStateWithCoder: Failed to decode restorable state for main menu scene.");
       }
-      _currentScene = _menuScene;
+      _currentScene = _mainMenuScene;
       break;
     case FLViewControllerSceneTrack:
       if (!_trackScene) {
@@ -125,9 +126,9 @@ FLError(NSString *message)
       _currentScene = _trackScene;
       break;
     case FLViewControllerSceneNone:
-      if (_menuScene) {
-        FLError(@"FLViewController decodeRestorableStateWithCoder: Decoded menu scene, but current scene unset.");
-        _currentScene = _menuScene;
+      if (_mainMenuScene) {
+        FLError(@"FLViewController decodeRestorableStateWithCoder: Decoded main menu scene, but current scene unset.");
+        _currentScene = _mainMenuScene;
       } else if (_trackScene) {
         FLError(@"FLViewController decodeRestorableStateWithCoder: Decoded track scene, but current scene unset.");
         _currentScene = _trackScene;
@@ -169,12 +170,10 @@ FLError(NSString *message)
   //      create a default starting scene (that is, a menu).
   
   if (!_currentScene) {
-    if (!_menuScene) {
-      [self FL_createMenuScene];
+    if (!_mainMenuScene) {
+      [self FL_createMainMenuScene];
     }
-    _currentScene = _menuScene;
-    HLMenu *mainMenu = (HLMenu *)[_menuScene.menuNode.menu itemForPathComponents:@[ @"Main" ]];
-    [_menuScene.menuNode navigateToMenu:mainMenu animation:HLMenuNodeAnimationNone];
+    _currentScene = _mainMenuScene;
   }
 
   // note: No loading of track assets, or showing loading screens.  If the track was
@@ -215,41 +214,58 @@ FLError(NSString *message)
   [_loadingScene addChild: loadingLabelNode];
 }
 
-- (void)FL_createMenuScene
+- (void)FL_createMainMenuScene
 {
-  _menuScene = [HLMenuScene sceneWithSize:[UIScreen mainScreen].bounds.size];
-  _menuScene.scaleMode = SKSceneScaleModeResizeFill;
+  _mainMenuScene = [HLMenuScene sceneWithSize:[UIScreen mainScreen].bounds.size];
+  _mainMenuScene.scaleMode = SKSceneScaleModeResizeFill;
 
   SKSpriteNode *backgroundNode = [SKSpriteNode spriteNodeWithImageNamed:@"grass"];
-  _menuScene.backgroundNode = backgroundNode;
+  _mainMenuScene.backgroundNode = backgroundNode;
 
   HLMenuNode *menuNode = [[HLMenuNode alloc] init];
-  _menuScene.menuNode = menuNode;
+  _mainMenuScene.menuNode = menuNode;
   menuNode.delegate = self;
-
-  HLLabelButtonNode *buttonPrototype = [[HLLabelButtonNode alloc] initWithImageNamed:@"menu-button"];
-  buttonPrototype.centerRect = CGRectMake(0.3333333f, 0.3333333f, 0.3333333f, 0.3333333f);
-  buttonPrototype.fontName = @"Courier";
-  buttonPrototype.fontSize = 24.0f;
-  buttonPrototype.fontColor = [UIColor whiteColor];
-  buttonPrototype.size = CGSizeMake(240.0f, 40.0f);
-  buttonPrototype.verticalAlignmentMode = HLLabelButtonNodeVerticalAlignFontAscender;
-  menuNode.itemButtonPrototype = buttonPrototype;
+  menuNode.itemButtonPrototype = [FLViewController FL_sharedMenuButtonPrototype];
   menuNode.itemSoundFile = @"wooden-click-1.caf";
 
   HLMenu *menu = [[HLMenu alloc] init];
-  menuNode.menu = menu;
+  [menu addItem:[HLMenu menuWithText:@"Play"
+                               items:@[ [HLMenuItem menuItemWithText:@"New"],
+                                        [HLMenuBackItem menuItemWithText:@"Back"] ]]];
+  [menu addItem:[HLMenu menuWithText:@"Sandbox"
+                               items:@[ [HLMenuItem menuItemWithText:@"New"],
+                                        [HLMenuBackItem menuItemWithText:@"Back"] ]]];
+  [menu addItem:[HLMenuItem menuItemWithText:@"About"]];
+  [menuNode setMenu:menu animation:HLMenuNodeAnimationNone];
+}
+
+- (void)FL_createGameMenuNode
+{
+  _gameMenuNode = [[HLMenuNode alloc] init];
+  _gameMenuNode.delegate = self;
+  _gameMenuNode.itemButtonPrototype = [FLViewController FL_sharedMenuButtonPrototype];
+  _gameMenuNode.itemSoundFile = @"wooden-click-1.caf";
+  
+  HLMenu *menu = [[HLMenu alloc] init];
+  [menu addItem:[HLMenuItem menuItemWithText:@"Resume"]];
   [menu addItem:[HLMenuItem menuItemWithText:@"Save"]];
-  [menu addItem:[HLMenu menuWithText:@"Main"
-                               items:@[ [HLMenu menuWithText:@"Challenge"
-                                                       items:@[ [HLMenuItem menuItemWithText:@"New"],
-                                                                [HLMenuBackItem menuItemWithText:@"Back"] ]],
-                                        [HLMenu menuWithText:@"Sandbox"
-                                                       items:@[ [HLMenuItem menuItemWithText:@"New"],
-                                                                [HLMenuBackItem menuItemWithText:@"Back"] ]],
-                                        [HLMenuItem menuItemWithText:@"About"] ]]];
-  [menu addItem:[HLMenuItem menuItemWithText:@"Options"]];
-  [menu addItem:[HLMenuItem menuItemWithText:@"Return to Game"]];
+  [menu addItem:[HLMenuItem menuItemWithText:@"Exit"]];
+  [_gameMenuNode setMenu:menu animation:HLMenuNodeAnimationNone];
+}
+
++ (HLLabelButtonNode *)FL_sharedMenuButtonPrototype
+{
+  static HLLabelButtonNode *buttonPrototype = nil;
+  if (!buttonPrototype) {
+    buttonPrototype = [[HLLabelButtonNode alloc] initWithImageNamed:@"menu-button"];
+    buttonPrototype.centerRect = CGRectMake(0.3333333f, 0.3333333f, 0.3333333f, 0.3333333f);
+    buttonPrototype.fontName = @"Courier";
+    buttonPrototype.fontSize = 24.0f;
+    buttonPrototype.fontColor = [UIColor whiteColor];
+    buttonPrototype.size = CGSizeMake(240.0f, 40.0f);
+    buttonPrototype.verticalAlignmentMode = HLLabelButtonNodeVerticalAlignFontAscender;
+  }
+  return buttonPrototype;
 }
 
 - (SKView *)skView
@@ -276,9 +292,30 @@ FLError(NSString *message)
 
 - (void)menuNode:(HLMenuNode *)menuNode didTapMenuItem:(HLMenuItem *)menuItem
 {
-  NSLog(@"menu item %@", [menuItem path]);
-  if ([[menuItem path] isEqualToString:@"Main/Sandbox/New"]) {
-    [self FL_sandboxNew];
+  NSString *menuItemPath = [menuItem path];
+  NSLog(@"menu item %@", menuItemPath);
+
+  if (menuNode == _mainMenuScene.menuNode) {
+
+    if ([menuItemPath isEqualToString:@"Sandbox/New"]) {
+      [self FL_sandboxNew];
+    }
+    
+    return;
+  }
+
+  if (menuNode == _gameMenuNode) {
+
+    if ([menuItemPath isEqualToString:@"Resume"]) {
+      [_trackScene dismissModalNode];
+    } else if ([menuItemPath isEqualToString:@"Save"]) {
+      // TODO: Submenu for game slots.
+    } else if ([menuItemPath isEqualToString:@"Exit"]) {
+      // TODO: Confirm exit; prompt for save (unless
+      // just saved).
+    }
+
+    return;
   }
 }
 
@@ -287,12 +324,11 @@ FLError(NSString *message)
 
 - (void)trackSceneDidTapMenuButton:(FLTrackScene *)trackScene
 {
-  if (!_menuScene) {
-    [self FL_createMenuScene];
+  if (!_gameMenuNode) {
+    [self FL_createGameMenuNode];
   }
-  [_menuScene.menuNode navigateToTopMenuAnimation:HLMenuNodeAnimationNone];
-  [self.skView presentScene:_menuScene transition:[SKTransition fadeWithDuration:FLSceneTransitionDuration]];
-  _currentScene = _menuScene;
+  [_gameMenuNode navigateToTopMenuAnimation:HLMenuNodeAnimationNone];
+  [_trackScene presentModalNode:_gameMenuNode];
 }
 
 #pragma mark -

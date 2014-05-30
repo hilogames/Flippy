@@ -8,8 +8,9 @@
 
 #import "FLTrackScene.h"
 
-#include <HLSpriteKit/HLEmitterStore.h>
-#include <HLSpriteKit/HLTextureStore.h>
+#import <HLSpriteKit/HLEmitterStore.h>
+#import <HLSpriteKit/HLTextureStore.h>
+#import <HLSpriteKit/HLToolbarNode.h>
 #include <memory>
 #include <tgmath.h>
 
@@ -17,7 +18,6 @@
 #import "FLPath.h"
 #import "FLSegmentNode.h"
 #include "FLTrackGrid.h"
-#import <HLSpriteKit/HLToolbarNode.h>
 
 using namespace std;
 using namespace HLCommon;
@@ -34,6 +34,7 @@ static const CGFloat FLTrackArtScale = 2.0f;
 // Main layers.
 static const CGFloat FLZPositionWorld = 0.0f;
 static const CGFloat FLZPositionHud = 10.0f;
+static const CGFloat FLZPositionModal = 20.0f;
 // World sublayers.
 static const CGFloat FLZPositionWorldTerrain = 0.0f;
 static const CGFloat FLZPositionWorldSelect = 1.0f;
@@ -41,6 +42,9 @@ static const CGFloat FLZPositionWorldTrack = 2.0f;
 static const CGFloat FLZPositionWorldTrain = 3.0f;
 static const CGFloat FLZPositionWorldLinks = 4.0f;
 static const CGFloat FLZPositionWorldOverlay = 5.0f;
+// Modal sublayers.
+static const CGFloat FLZPositionModalBackground = 0.0f;
+static const CGFloat FLZPositionModalPresentation = 1.0f;
 
 static const NSTimeInterval FLTrackRotateDuration = 0.1;
 static const NSTimeInterval FLBlinkHalfCycleDuration = 0.1;
@@ -167,6 +171,12 @@ struct FLWorldGestureState
   FLWorldLongPressMode longPressMode;
 };
 
+struct FLModalPresentationState
+{
+  SKSpriteNode *backgroundNode;
+  SKNode <HLGestureTarget> *presentedNode;
+};
+
 enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
 #pragma mark -
@@ -191,6 +201,7 @@ struct PointerPairHash
   SKNode *_trackNode;
   SKNode *_hudNode;
   SKNode *_linksNode;
+  SKNode *_modalNode;
 
   UITapGestureRecognizer *_tapRecognizer;
   UITapGestureRecognizer *_doubleTapRecognizer;
@@ -216,6 +227,7 @@ struct PointerPairHash
   FLTrackConflictState _trackConflictState;
   FLTrackMoveState _trackMoveState;
   FLLinkEditState _linkEditState;
+  FLModalPresentationState _modalPresentationState;
 
   FLTrain *_train;
 }
@@ -381,6 +393,10 @@ struct PointerPairHash
   [self FL_simulationToolbarSetVisible:NO];
   [self FL_constructionToolbarSetVisible:NO];
   [self FL_trackConflictClear];
+  SKNode <HLGestureTarget> *modalPresentedNode = _modalPresentationState.presentedNode;
+  if (modalPresentedNode) {
+    [self FL_modalPresentationDismiss];
+  }
 
   // Persist SKScene (including current node hierarchy).
   [super encodeWithCoder:aCoder];
@@ -399,6 +415,9 @@ struct PointerPairHash
   }
   [self FL_simulationToolbarSetVisible:YES];
   [self FL_constructionToolbarSetVisible:YES];
+  if (modalPresentedNode) {
+    [self FL_modalPresentationPresent:modalPresentedNode];
+  }
 
   // Persist special node pointers (that should already been encoded
   // as part of hierarchy).
@@ -474,6 +493,7 @@ struct PointerPairHash
   [self FL_constructionToolbarUpdateGeometry];
   [self FL_simulationToolbarUpdateGeometry];
   [self FL_messageUpdateGeometry];
+  [self FL_modalPresentationUpdateGeometry];
 }
 
 - (void)FL_createSceneContents
@@ -555,10 +575,7 @@ struct PointerPairHash
   // JPEGs don't have an alpha channel in the source, does this really do anything
   // for JPEGs?
   terrainNode.blendMode = SKBlendModeReplace;
-//
-//  SKSpriteNode *terrainNode = [SKSpriteNode spriteNodeWithColor:[UIColor purpleColor] size:self.size];
-//  terrainNode.zPosition = FLZPositionWorldTerrain;
-//
+
   [_worldNode addChild:terrainNode];
 }
 
@@ -1273,6 +1290,18 @@ struct PointerPairHash
   // instance, maybe it takes a sophisticated check to determine if a tap within the bounds of a toolbar
   // should count as a tap on the toolbar or a tap on the world behind it.
 
+  // Modal overlay layer.
+  if (_modalNode && _modalNode.parent) {
+    BOOL isInside = NO;
+    [gestureRecognizer removeTarget:nil action:nil];
+    if ([_modalPresentationState.presentedNode addToGesture:gestureRecognizer firstTouch:touch isInside:&isInside]) {
+      return YES;
+    }
+    // note: Don't bother to condition on isInside; there is only supposed to be one presented node
+    // in the modal presentation layer, and if it doesn't want the touch, then no one gets it.
+    return NO;
+  }
+
   // Construction toolbar.
   if (_constructionToolbarState.toolbarNode
       && _constructionToolbarState.toolbarNode.parent
@@ -1364,81 +1393,6 @@ struct PointerPairHash
   return NO;
 }
 
-// Commented out: Started building this way of separating gesture delegate from target, but I'm not sure
-// it's going to be used.  Still, keep the code around for a while in case I want it.
-//
-//- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch
-//{
-//  // noob: The scene contains a few different components which respond to gestures.  For instance, the world
-//  // responds to zooming, panning, and track selection; the toolbars respond to taps and pans.
-//  // So the SKScene is the delegate and owner of all gesture recognizers; that seems right.  But if I set it
-//  // as the only target of each gesture, then each target selector will be doing some kind of search to see
-//  // which component of the scene should be receiving (and responding to) the gesture.  Further, it seems
-//  // that "search" will either be a big linear switch statement in each method, or else something more
-//  // sophisiticated which would be repeated in each method.
-//  //
-//  // So, let's make the SKScene responsible for maintaining state about the current target of the gesture
-//  // recognizer objects, and the components responsible for implementing target methods.
-//  //
-//  // More ideas for loose-coupling: The components could excplicitly subscribe to receive particular gestures
-//  // from the SKScene, through an interface.  Then the SKScene could add the required gesture recognizers
-//  // as needed.
-//  //
-//  // For now, I don't mind hardcoding some of the knowledge about components here in the scene.  After all,
-//  // the scene created these guys, so it knows something about them.
-//  //
-//  // Also, rather than do linear search, let's assume that hit-testing the initial touch to a particular
-//  // SKNode is optimized to be fast.  I guess this is how SKScene (SKView?) forwards UIResponder touches*
-//  // methods to a particular SKNode: It gets the highest-position node for the touch, then walks up the node
-//  // tree looking for userInteractionEnabled.
-//
-//  // noob: It appears that this is only called for initial touches, and not for continued touches that
-//  // the gesture recognizer has already started recognizing.  So, for example, a pan begun on one side
-//  // of the toolbar, and continuing through it, continues to be recognized by the pan gesture
-//  // recognizer.  This is good.  Otherwise, I suppose I would be doing explicit checks of the
-//  // recognizer's state here.
-//
-//  CGPoint sceneLocation = [touch locationInNode:self];
-//  SKNode *node = [self nodeAtPoint:sceneLocation];
-//  SKNode <FLGestureTarget> *target = self;
-//  while (node != self) {
-//    if ([node conformsToProtocol:@protocol(FLGestureTarget) ]) {
-//      target = (SKNode <FLGestureTarget> *)node;
-//      break;
-//    }
-//    node = node.parent;
-//  }
-//
-//  // noob: If this idea of a gesture-forwarding system works out in the long run, I might make a real
-//  // subscription system, and if so then the naming of the action handler method will be a natural
-//  // part of it.  (For instance, a particular toolbar will subscribe for tap gestures with selector
-//  // handleTap:, both of which will be parameters here.)  For now, let's just use something clumsy
-//  // and hardcoded.
-//  SEL action;
-//  if ([gestureRecognizer isKindOfClass:[UITapGestureRecognizer class]]) {
-//    action = @selector(handleTap:);
-//  } else if ([gestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]]) {
-//    action = @selector(handlePan:);
-//  } else if (...) {
-//    ...
-//  } else {
-//    action = @selector(handleGesture:);
-//  }
-//
-//  [gestureRecognizer removeTarget:nil action:nil];
-//  [gestureRecognizer addTarget:target action:action];
-//
-//  if (target == self) {
-//    return YES;
-//  } else {
-//    // noob: We're splitting gesture delegate from delegate target, but the target might want input
-//    // into certain delegate-ish things.  This is an example.  It's either an example of discomfort,
-//    // because maybe target shouldn't be split from delegate, or else an example of elegance, because
-//    // we can cleanly separate the concerns by a registered interface of FLGestureTarget.
-//    return [target shouldHandleGesture:gestureRecognizer firstTouch:touch];
-//  }
-//}
-
 #pragma mark -
 #pragma mark FLTrainDelegate
 
@@ -1452,6 +1406,23 @@ struct PointerPairHash
   // note: Currently only one train, so if train stops then stop the whole simulation.
   _simulationRunning = NO;
   [self FL_simulationToolbarUpdateTools];
+}
+
+#pragma mark -
+#pragma mark Modal Presentation
+
+// note: This method called out specially because of similarities with HLGestureScene's
+// implementation.  Perhaps in the future this scene will inherit, and so this will be
+// an override of some kind.
+
+- (void)presentModalNode:(SKNode <HLGestureTarget> *)node
+{
+  [self FL_modalPresentationPresent:node];
+}
+
+- (void)dismissModalNode
+{
+  [self FL_modalPresentationDismiss];
 }
 
 #pragma mark -
@@ -2914,6 +2885,45 @@ struct PointerPairHash
       std::cout << c;
     }
     std::cout << std::endl;
+  }
+}
+
+- (void)FL_modalPresentationPresent:(SKNode <HLGestureTarget> *)node
+{
+  SKView *skView = (SKView *)self.view;
+  skView.paused = YES;
+
+  if (!_modalNode) {
+    _modalNode = [SKNode node];
+    _modalNode.zPosition = FLZPositionModal;
+    _modalPresentationState.backgroundNode = [SKSpriteNode spriteNodeWithColor:[UIColor colorWithWhite:0.0f alpha:0.7f] size:self.size];
+    _modalPresentationState.backgroundNode.zPosition = FLZPositionModalBackground;
+    [_modalNode addChild:_modalPresentationState.backgroundNode];
+  }
+  [self addChild:_modalNode];
+  
+  node.zPosition = FLZPositionModalPresentation;
+  [_modalNode addChild:node];
+  _modalPresentationState.presentedNode = node;
+}
+
+- (void)FL_modalPresentationDismiss
+{
+  if (!_modalNode.parent || !_modalPresentationState.presentedNode) {
+    return;
+  }
+  [_modalPresentationState.presentedNode removeFromParent];
+  _modalPresentationState.presentedNode = nil;
+  [_modalNode removeFromParent];
+
+  SKView *skView = (SKView *)self.view;
+  skView.paused = NO;
+}
+
+- (void)FL_modalPresentationUpdateGeometry
+{
+  if (_modalPresentationState.backgroundNode) {
+    _modalPresentationState.backgroundNode.size = self.size;
   }
 }
 

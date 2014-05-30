@@ -14,6 +14,7 @@
 @implementation FLAppDelegate
 {
   FLViewController *_flViewController;
+  BOOL _resignActiveDidPauseSKView;
 }
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
@@ -74,13 +75,19 @@
   //   http://stackoverflow.com/questions/19014012/sprite-kit-the-right-way-to-multitask
   //
   // (Though I have not yet had troubles leading to this as a solution.)
-  _flViewController.skView.paused = YES;
+  if (!_flViewController.skView.paused) {
+    _resignActiveDidPauseSKView = YES;
+    _flViewController.skView.paused = YES;
+  }
 }
 
 - (void)applicationDidBecomeActive:(UIApplication *)application
 {
   // note: See notes in applicationWillResignActive:.
-  _flViewController.skView.paused = NO;
+  if (_resignActiveDidPauseSKView) {
+    _flViewController.skView.paused = NO;
+    _resignActiveDidPauseSKView = NO;
+  }
 }
 
 - (void)applicationDidEnterBackground:(UIApplication *)application
