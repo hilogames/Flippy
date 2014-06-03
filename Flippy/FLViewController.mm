@@ -17,6 +17,9 @@ static NSString * FLExtraStatePath;
 
 static const NSTimeInterval FLSceneTransitionDuration = 0.5;
 
+static NSString * const FLGameTypeChallenge = @"challenge";
+static NSString * const FLGameTypeSandbox = @"sandbox";
+
 void
 FLError(NSString *message)
 {
@@ -31,7 +34,15 @@ FLError(NSString *message)
   SKScene *_loadingScene;
   HLMenuScene *_mainMenuScene;
   FLTrackScene *_trackScene;
+  SKNode *_gameModalNode;
   HLMenuNode *_gameMenuNode;
+  HLMessageNode *_gameMessageNode;
+
+  BOOL _gameSavedWhileModallyPresented;
+
+  UIAlertView *_exitConfirmAlert;
+  UIAlertView *_saveConfirmAlert;
+  NSString *_savePath;
 }
 
 + (void)initialize
@@ -154,6 +165,17 @@ FLError(NSString *message)
 
 - (void)viewWillAppear:(BOOL)animated
 {
+  // note: Sometimes getting wrong dimensions from view.bounds.size when in landscape.
+  // See notes here:
+  //
+  //   http://filipstefansson.com/2013/10/31/fix-spritekit-scalemod-in-landscape-orientation.html
+  //
+  // ...but I've reproduced on the simulator such that viewWillLayoutSubviews also returns
+  // the wrong dimensions.  I thought it might be when the scene is archived portrait but
+  // restored landscape, but I reproduced on simulator after a reset.
+
+  [super viewWillAppear:animated];
+
   // note: loadView creates as little as possible; decodeRestorableStateWithCoder
   // may or may not fill things out a little bit.  So here, then we're in one of
   // three possible states:
@@ -198,76 +220,6 @@ FLError(NSString *message)
   [NSException raise:@"FLViewControllerBadState" format:@"Method viewWillAppear assumes that the view never disappears."];
 }
 
-- (void)FL_createLoadingScene
-{
-  _loadingScene = [SKScene sceneWithSize:[UIScreen mainScreen].bounds.size];
-  _loadingScene.scaleMode = SKSceneScaleModeResizeFill;
-  _loadingScene.anchorPoint = CGPointMake(0.5f, 0.5f);
-
-  const NSTimeInterval FLLoadingPulseDuration = 0.5;
-  SKLabelNode *loadingLabelNode = [SKLabelNode labelNodeWithFontNamed:@"Courier"];
-  loadingLabelNode.text = @"Loading...";
-  SKAction *pulse = [SKAction sequence:@[ [SKAction fadeAlphaTo:0.5f duration:FLLoadingPulseDuration],
-                                          [SKAction fadeAlphaTo:1.0f duration:FLLoadingPulseDuration] ]];
-  pulse.timingMode = SKActionTimingEaseInEaseOut;
-  [loadingLabelNode runAction:[SKAction repeatActionForever:pulse]];
-  [_loadingScene addChild: loadingLabelNode];
-}
-
-- (void)FL_createMainMenuScene
-{
-  _mainMenuScene = [HLMenuScene sceneWithSize:[UIScreen mainScreen].bounds.size];
-  _mainMenuScene.scaleMode = SKSceneScaleModeResizeFill;
-
-  SKSpriteNode *backgroundNode = [SKSpriteNode spriteNodeWithImageNamed:@"grass"];
-  _mainMenuScene.backgroundNode = backgroundNode;
-
-  HLMenuNode *menuNode = [[HLMenuNode alloc] init];
-  _mainMenuScene.menuNode = menuNode;
-  menuNode.delegate = self;
-  menuNode.itemButtonPrototype = [FLViewController FL_sharedMenuButtonPrototype];
-  menuNode.itemSoundFile = @"wooden-click-1.caf";
-
-  HLMenu *menu = [[HLMenu alloc] init];
-  [menu addItem:[HLMenu menuWithText:@"Play"
-                               items:@[ [HLMenuItem menuItemWithText:@"New"],
-                                        [HLMenuBackItem menuItemWithText:@"Back"] ]]];
-  [menu addItem:[HLMenu menuWithText:@"Sandbox"
-                               items:@[ [HLMenuItem menuItemWithText:@"New"],
-                                        [HLMenuBackItem menuItemWithText:@"Back"] ]]];
-  [menu addItem:[HLMenuItem menuItemWithText:@"About"]];
-  [menuNode setMenu:menu animation:HLMenuNodeAnimationNone];
-}
-
-- (void)FL_createGameMenuNode
-{
-  _gameMenuNode = [[HLMenuNode alloc] init];
-  _gameMenuNode.delegate = self;
-  _gameMenuNode.itemButtonPrototype = [FLViewController FL_sharedMenuButtonPrototype];
-  _gameMenuNode.itemSoundFile = @"wooden-click-1.caf";
-  
-  HLMenu *menu = [[HLMenu alloc] init];
-  [menu addItem:[HLMenuItem menuItemWithText:@"Resume"]];
-  [menu addItem:[HLMenuItem menuItemWithText:@"Save"]];
-  [menu addItem:[HLMenuItem menuItemWithText:@"Exit"]];
-  [_gameMenuNode setMenu:menu animation:HLMenuNodeAnimationNone];
-}
-
-+ (HLLabelButtonNode *)FL_sharedMenuButtonPrototype
-{
-  static HLLabelButtonNode *buttonPrototype = nil;
-  if (!buttonPrototype) {
-    buttonPrototype = [[HLLabelButtonNode alloc] initWithImageNamed:@"menu-button"];
-    buttonPrototype.centerRect = CGRectMake(0.3333333f, 0.3333333f, 0.3333333f, 0.3333333f);
-    buttonPrototype.fontName = @"Courier";
-    buttonPrototype.fontSize = 24.0f;
-    buttonPrototype.fontColor = [UIColor whiteColor];
-    buttonPrototype.size = CGSizeMake(240.0f, 40.0f);
-    buttonPrototype.verticalAlignmentMode = HLLabelButtonNodeVerticalAlignFontAscender;
-  }
-  return buttonPrototype;
-}
-
 - (SKView *)skView
 {
   return (SKView *)self.view;
@@ -290,10 +242,24 @@ FLError(NSString *message)
 #pragma mark -
 #pragma mark HLMenuNodeDelegate
 
-- (void)menuNode:(HLMenuNode *)menuNode didTapMenuItem:(HLMenuItem *)menuItem
+- (BOOL)menuNode:(HLMenuNode *)menuNode shouldTapMenuItem:(HLMenuItem *)menuItem itemIndex:(NSUInteger)itemIndex
+{
+  if (menuNode == _gameMenuNode) {
+    NSString *menuItemPath = [menuItem path];
+    if ([menuItemPath isEqualToString:@"Save"]) {
+      // TODO: If _trackScene is a challenge game, then update menu for FLGameTypeChallenge.
+      [self FL_gameModalNodeUpdate:FLGameTypeSandbox];
+      [self FL_gameModalNodeShowMessage:@"Choose save game slot."];
+    }
+  }
+  return YES;
+}
+
+- (void)menuNode:(HLMenuNode *)menuNode didTapMenuItem:(HLMenuItem *)menuItem itemIndex:(NSUInteger)itemIndex
 {
   NSString *menuItemPath = [menuItem path];
-  NSLog(@"menu item %@", menuItemPath);
+  HLMenuItem *menuItemParent = menuItem.parent;
+  NSLog(@"did tap menu item %@", menuItemPath);
 
   if (menuNode == _mainMenuScene.menuNode) {
 
@@ -308,11 +274,15 @@ FLError(NSString *message)
 
     if ([menuItemPath isEqualToString:@"Resume"]) {
       [_trackScene dismissModalNode];
-    } else if ([menuItemPath isEqualToString:@"Save"]) {
-      // TODO: Submenu for game slots.
+    } else if ([menuItemParent.text isEqualToString:@"Save"]) {
+      if (![menuItem isKindOfClass:[HLMenuBackItem class]]) {
+        _gameSavedWhileModallyPresented = YES;
+        // TODO: If _trackScene is a challenge game, then save game for FLGameTypeChallenge.
+        NSString *savePath = [self FL_savePathForGameType:FLGameTypeSandbox saveNumber:itemIndex];
+        [self FL_saveFromGameMenuConfirm:savePath];
+      }
     } else if ([menuItemPath isEqualToString:@"Exit"]) {
-      // TODO: Confirm exit; prompt for save (unless
-      // just saved).
+      [self FL_exitFromGameMenuConfirm];
     }
 
     return;
@@ -324,22 +294,218 @@ FLError(NSString *message)
 
 - (void)trackSceneDidTapMenuButton:(FLTrackScene *)trackScene
 {
-  if (!_gameMenuNode) {
-    [self FL_createGameMenuNode];
+  if (!_gameModalNode) {
+    [self FL_createGameModalNode:nil];
   }
   [_gameMenuNode navigateToTopMenuAnimation:HLMenuNodeAnimationNone];
-  [_trackScene presentModalNode:_gameMenuNode];
+  [_trackScene presentModalNode:_gameModalNode];
+  _gameSavedWhileModallyPresented = NO;
+}
+
+#pragma mark -
+#pragma mark UIAlertViewDelegate
+
+- (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex
+{
+  if (alertView == _exitConfirmAlert) {
+    if (buttonIndex == 1) {
+      [self FL_exitFromGameMenu];
+    }
+  } else if (alertView == _saveConfirmAlert) {
+    if (buttonIndex == 1) {
+      [self FL_saveFromGameMenu:_savePath];
+    }
+  }
 }
 
 #pragma mark -
 #pragma mark Common
+
+- (void)FL_createLoadingScene
+{
+  _loadingScene = [SKScene sceneWithSize:self.view.bounds.size];
+  _loadingScene.scaleMode = SKSceneScaleModeResizeFill;
+  _loadingScene.anchorPoint = CGPointMake(0.5f, 0.5f);
+  
+  const NSTimeInterval FLLoadingPulseDuration = 0.5;
+  SKLabelNode *loadingLabelNode = [SKLabelNode labelNodeWithFontNamed:@"Courier"];
+  loadingLabelNode.text = @"Loading...";
+  SKAction *pulse = [SKAction sequence:@[ [SKAction fadeAlphaTo:0.5f duration:FLLoadingPulseDuration],
+                                          [SKAction fadeAlphaTo:1.0f duration:FLLoadingPulseDuration] ]];
+  pulse.timingMode = SKActionTimingEaseInEaseOut;
+  [loadingLabelNode runAction:[SKAction repeatActionForever:pulse]];
+  [_loadingScene addChild: loadingLabelNode];
+}
+
+- (void)FL_createMainMenuScene
+{
+  _mainMenuScene = [HLMenuScene sceneWithSize:self.view.bounds.size];
+  _mainMenuScene.scaleMode = SKSceneScaleModeResizeFill;
+  
+  SKSpriteNode *backgroundNode = [SKSpriteNode spriteNodeWithImageNamed:@"grass"];
+  _mainMenuScene.backgroundNode = backgroundNode;
+  
+  HLMenuNode *menuNode = [[HLMenuNode alloc] init];
+  _mainMenuScene.menuNode = menuNode;
+  menuNode.delegate = self;
+  menuNode.position = CGPointMake(0.0f, 48.0f);
+  menuNode.itemButtonPrototype = [FLViewController FL_sharedMenuButtonPrototypeBasic];
+  menuNode.itemSpacing = 48.0f;
+  menuNode.itemSoundFile = @"wooden-click-1.caf";
+  
+  HLMenu *menu = [[HLMenu alloc] init];
+  [menu addItem:[HLMenu menuWithText:@"Play"
+                               items:@[ [HLMenuItem menuItemWithText:@"New"],
+                                        [HLMenuBackItem menuItemWithText:@"Back"] ]]];
+  [menu addItem:[HLMenu menuWithText:@"Sandbox"
+                               items:@[ [HLMenuItem menuItemWithText:@"New"],
+                                        [HLMenuBackItem menuItemWithText:@"Back"] ]]];
+  [menu addItem:[HLMenuItem menuItemWithText:@"About"]];
+  [menuNode setMenu:menu animation:HLMenuNodeAnimationNone];
+}
+
+/**
+ * Creates the in-game menu and message area to be presented modally over the track scene.
+ *
+ * Some of the content (of the menu, in particular), will need to be updated based
+ * on the extra parameters to this method (like game type).  The parameters may be passed
+ * nil if not currently relevant; call FL_updateGameModalNode before the relevant
+ * content is displayed by the modal node.
+ */
+- (void)FL_createGameModalNode:(NSString *)gameType
+{
+  _gameModalNode = [SKNode node];
+
+  _gameMenuNode = [[HLMenuNode alloc] init];
+  _gameMenuNode.delegate = self;
+  _gameMenuNode.position = CGPointMake(0.0f, 48.0f);
+  _gameMenuNode.itemSpacing = 48.0f;
+  _gameMenuNode.itemButtonPrototype = [FLViewController FL_sharedMenuButtonPrototypeBasic];
+  _gameMenuNode.itemSoundFile = @"wooden-click-1.caf";
+  [_gameModalNode addChild:_gameMenuNode];
+  
+  _gameMessageNode = [[HLMessageNode alloc] initWithColor:[UIColor colorWithWhite:1.0f alpha:0.5f] size:CGSizeZero];
+  _gameMessageNode.messageLingerDuration = 3.0;
+  _gameMessageNode.fontName = @"Courier";
+  _gameMessageNode.fontSize = 20.0f;
+  _gameMessageNode.fontColor = [UIColor blackColor];
+  
+  [self FL_gameModalNodeUpdate:gameType];
+}
+
+- (void)FL_gameModalNodeUpdate:(NSString *)gameType
+{
+  // TODO: Long press on buttons to delete game?
+  
+  // noob: Either create a new menu or else update the existing one in-place.
+  // I'm not sure how well I like this; perhaps instead the menu node should
+  // provide an explicit delegate callback to update a submenu right before
+  // it's shown (rather than us having to hijack menuNode:shouldTapMenuItem:).
+  static HLMenu *saveMenu = nil;
+  
+  HLMenu *menu = nil;
+  if (saveMenu) {
+    [saveMenu removeAllItems];
+  } else {
+    menu = [[HLMenu alloc] init];
+    [menu addItem:[HLMenuItem menuItemWithText:@"Resume"]];
+    saveMenu = [HLMenu menuWithText:@"Save" items:@[]];
+    [menu addItem:saveMenu];
+    [menu addItem:[HLMenuItem menuItemWithText:@"Exit"]];
+  }
+  
+  const NSUInteger FLSaveGameSlotCount = 3;
+  if (gameType) {
+    NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
+    [dateFormatter setDateStyle:NSDateFormatterMediumStyle];
+    [dateFormatter setTimeStyle:NSDateFormatterNoStyle];
+    for (NSUInteger saveNumber = 0; saveNumber < FLSaveGameSlotCount; ++saveNumber) {
+      NSDate *saveDate;
+      HLMenuItem *saveGameMenuItem = [[HLMenuItem alloc] init];
+      if ([self FL_getSaveInfoForGameType:gameType saveNumber:saveNumber saveDate:&saveDate]) {
+        saveGameMenuItem.text = [NSString stringWithFormat:@"Sandbox %lu (%@)",
+                                 (unsigned long)saveNumber + 1,
+                                 [dateFormatter stringFromDate:saveDate]];
+        saveGameMenuItem.buttonPrototype = [FLViewController FL_sharedMenuButtonPrototypeSaveGame];
+      } else {
+        saveGameMenuItem.text = @"(Empty)";
+        saveGameMenuItem.buttonPrototype = [FLViewController FL_sharedMenuButtonPrototypeSaveGameEmpty];
+      }
+      [saveMenu addItem:saveGameMenuItem];
+    }
+  }
+  [saveMenu addItem:[HLMenuBackItem menuItemWithText:@"Back"]];
+  
+  if (!_gameMenuNode.menu) {
+    [_gameMenuNode setMenu:menu animation:HLMenuNodeAnimationNone];
+  }
+}
+
+- (void)FL_gameModalNodeShowMessage:(NSString *)message
+{
+  // noob: Considered designs for messages:
+  // The message node could be part of the menu node, but the menu node knows
+  // nothing about how the message node should appear, or its geometry, or the
+  // scene geometry.  The message node could be part of the track scene, but
+  // the track scene only knows that it's displaying a single modal node.  The
+  // message node could be an automatic addition to the modal presentation system,
+  // but again the modal presentation system doesn't know where it should appear,
+  // or how it should look.  So.  We make our own custom menu+message node to
+  // present modally.  If it proves useful, we could abstract it into an
+  // HLModalMessageMenu or something.
+  
+  // note: Could maintain the size and shape of the message node only when
+  // our own geometry changes.  But this is easier, for now.
+  const CGFloat FLGameMessageNodeHeight = 32.0f;
+  _gameMessageNode.position = CGPointMake(0.0f, _gameMenuNode.position.y + _gameMenuNode.itemSpacing);
+  _gameMessageNode.size = CGSizeMake(_trackScene.size.width, FLGameMessageNodeHeight);
+  
+  [_gameMessageNode showMessage:message parent:_gameModalNode];
+}
+
++ (HLLabelButtonNode *)FL_sharedMenuButtonPrototypeBasic
+{
+  static HLLabelButtonNode *buttonPrototype = nil;
+  if (!buttonPrototype) {
+    buttonPrototype = [[HLLabelButtonNode alloc] initWithImageNamed:@"menu-button"];
+    buttonPrototype.centerRect = CGRectMake(0.3333333f, 0.3333333f, 0.3333333f, 0.3333333f);
+    buttonPrototype.fontName = @"Courier";
+    buttonPrototype.fontSize = 20.0f;
+    buttonPrototype.fontColor = [UIColor whiteColor];
+    buttonPrototype.size = CGSizeMake(240.0f, 36.0f);
+    buttonPrototype.verticalAlignmentMode = HLLabelButtonNodeVerticalAlignFontAscender;
+  }
+  return buttonPrototype;
+}
+
++ (HLLabelButtonNode *)FL_sharedMenuButtonPrototypeSaveGame
+{
+  static HLLabelButtonNode *buttonPrototype = nil;
+  if (!buttonPrototype) {
+    buttonPrototype = [[FLViewController FL_sharedMenuButtonPrototypeBasic] copy];
+    buttonPrototype.fontSize = 14.0f;
+    buttonPrototype.color = [UIColor orangeColor];
+    buttonPrototype.colorBlendFactor = 1.0f;
+  }
+  return buttonPrototype;
+}
+
++ (HLLabelButtonNode *)FL_sharedMenuButtonPrototypeSaveGameEmpty
+{
+  static HLLabelButtonNode *buttonPrototype = nil;
+  if (!buttonPrototype) {
+    buttonPrototype = [[FLViewController FL_sharedMenuButtonPrototypeSaveGame] copy];
+    buttonPrototype.color = [UIColor greenColor];
+  }
+  return buttonPrototype;
+}
 
 - (void)FL_sandboxNew
 {
   // TODO: Prompt to save existing track scene (if not already saved since the
   // menu was presented).
 
-  _trackScene = [FLTrackScene sceneWithSize:[UIScreen mainScreen].bounds.size];
+  _trackScene = [FLTrackScene sceneWithSize:self.view.bounds.size];
   _trackScene.delegate = self;
   _trackScene.scaleMode = SKSceneScaleModeResizeFill;
 
@@ -357,6 +523,86 @@ FLError(NSString *message)
     [self.skView presentScene:self->_trackScene transition:[SKTransition fadeWithDuration:FLSceneTransitionDuration]];
     self->_currentScene = self->_trackScene;
   }];
+}
+
+- (BOOL)FL_saveExistsForGameType:(NSString *)gameType saveNumber:(NSUInteger)saveNumber
+{
+  NSString *savePath = [self FL_savePathForGameType:gameType saveNumber:saveNumber];
+  return [[NSFileManager defaultManager] fileExistsAtPath:savePath];
+}
+
+- (BOOL)FL_getSaveInfoForGameType:(NSString *)gameType saveNumber:(NSUInteger)saveNumber saveDate:(NSDate * __autoreleasing *)saveDate
+{
+  NSString *savePath = [self FL_savePathForGameType:gameType saveNumber:saveNumber];
+  NSDictionary *attributes = [[NSFileManager defaultManager] attributesOfItemAtPath:savePath error:nil];
+  if (!attributes) {
+    return NO;
+  }
+  if (saveDate) {
+    *saveDate = (NSDate *)[attributes objectForKey:NSFileCreationDate];
+  }
+  return YES;
+}
+
+- (NSString *)FL_savePathForGameType:(NSString *)gameType saveNumber:(NSUInteger)saveNumber
+{
+  NSString *saveName = [NSString stringWithFormat:@"save-%@-%lu", gameType, (unsigned long)saveNumber];
+  return [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0]
+          stringByAppendingPathComponent:[saveName stringByAppendingPathExtension:@"archive"]];
+}
+
+- (void)FL_saveFromGameMenuConfirm:(NSString *)savePath
+{
+  if (![[NSFileManager defaultManager] fileExistsAtPath:savePath]) {
+    [self FL_saveFromGameMenu:savePath];
+    return;
+  }
+
+  UIAlertView *confirmAlert = [[UIAlertView alloc] initWithTitle:@"Saving will overwrite an old game. Save anyway?"
+                                                         message:nil
+                                                        delegate:self
+                                               cancelButtonTitle:@"Cancel"
+                                               otherButtonTitles:@"Save", nil];
+  confirmAlert.alertViewStyle = UIAlertViewStyleDefault;
+  [confirmAlert show];
+  _saveConfirmAlert = confirmAlert;
+  _savePath = savePath;
+}
+
+- (void)FL_saveFromGameMenu:(NSString *)savePath
+{
+  [NSKeyedArchiver archiveRootObject:_trackScene toFile:savePath];
+  [_gameMenuNode navigateToTopMenuAnimation:HLMenuNodeAnimationNone];
+  [self FL_gameModalNodeShowMessage:@"Game saved."];
+}
+
+- (void)FL_exitFromGameMenuConfirm
+{
+  if (_gameSavedWhileModallyPresented) {
+    [self FL_exitFromGameMenu];
+    return;
+  }
+
+  UIAlertView *confirmAlert = [[UIAlertView alloc] initWithTitle:@"Unsaved changes will be lost. Exit anyway?"
+                                                         message:nil
+                                                        delegate:self
+                                               cancelButtonTitle:@"Cancel"
+                                               otherButtonTitles:@"Exit", nil];
+  confirmAlert.alertViewStyle = UIAlertViewStyleDefault;
+  [confirmAlert show];
+  _exitConfirmAlert = confirmAlert;
+}
+
+- (void)FL_exitFromGameMenu
+{
+  [_trackScene dismissModalNode];
+  if (!_mainMenuScene) {
+    [self FL_createMainMenuScene];
+  } else {
+    [_mainMenuScene.menuNode navigateToTopMenuAnimation:HLMenuNodeAnimationNone];
+  }
+  [self.skView presentScene:_mainMenuScene transition:[SKTransition fadeWithDuration:FLSceneTransitionDuration]];
+  _currentScene = _mainMenuScene;
 }
 
 @end

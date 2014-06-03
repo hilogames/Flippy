@@ -7,6 +7,8 @@ circuits.
 
 Current
 
+  . Sound effects for toolbar operations.
+
   . Start splash and start menu.  Button in simulation toolbar to
     return to start menu.  Main: "Challenge" and "Sandbox".  Then:
     A list of loads, or a "New" button.
@@ -39,6 +41,10 @@ If It Ships
   . Low memory warning.
 
 Lower Priority
+
+  . For import thumbnails: Trace out CG lines for track segment paths
+    rather than shrinking down images.  The result might be better.
+    (And wouldn't need UIImages anymore in HLTextureStore.)
 
   . Sound effects for train start, train stop, switch switching,
     message appear, menu navigation, ...

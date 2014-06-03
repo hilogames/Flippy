@@ -18,16 +18,14 @@
 
 @property (nonatomic, weak) id<FLTrackSceneDelegate> delegate;
 
-+ (FLTrackScene *)load:(NSString *)saveName;
-
-- (void)save:(NSString *)saveName;
-
 /**
  * Presents a node modally above the current scene, pausing the scene and disabling
  * other interaction.  See documentation in HLGestureScene; this is intended to be a
  * slightly altered way of achieving the same functionality in a non-HLGestureScene.
+ * As a consequence, if the node or any of its children conform to HLGestureTarget,
+ * it will receive gestures via the HLGestureTarget.
  */
-- (void)presentModalNode:(SKNode <HLGestureTarget> *)node;
+- (void)presentModalNode:(SKNode *)node;
 
 /**
  * Dismisses the node currently presented by presentModalNode (if any).  See

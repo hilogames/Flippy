@@ -9,6 +9,7 @@
 #import "FLTrackScene.h"
 
 #import <HLSpriteKit/HLEmitterStore.h>
+#import <HLSpriteKit/HLMessageNode.h>
 #import <HLSpriteKit/HLTextureStore.h>
 #import <HLSpriteKit/HLToolbarNode.h>
 #include <memory>
@@ -99,13 +100,6 @@ struct FLSimulationToolbarState
 {
   FLSimulationToolbarState() : toolbarNode(nil) {}
   HLToolbarNode *toolbarNode;
-};
-
-struct FLMessageState
-{
-  FLMessageState() : messageNode(nil), labelNode(nil) {}
-  SKSpriteNode *messageNode;
-  SKLabelNode *labelNode;
 };
 
 struct FLTrackSelectState
@@ -221,7 +215,6 @@ struct PointerPairHash
   FLWorldGestureState _worldGestureState;
   FLConstructionToolbarState _constructionToolbarState;
   FLSimulationToolbarState _simulationToolbarState;
-  FLMessageState _messageState;
   FLTrackEditMenuState _trackEditMenuState;
   FLTrackSelectState _trackSelectState;
   FLTrackConflictState _trackConflictState;
@@ -229,6 +222,7 @@ struct PointerPairHash
   FLLinkEditState _linkEditState;
   FLModalPresentationState _modalPresentationState;
 
+  HLMessageNode *_messageNode;
   FLTrain *_train;
 }
 
@@ -239,16 +233,6 @@ struct PointerPairHash
   FLCircuitsDirectoryPath = [bundleDirectory stringByAppendingPathComponent:@"circuits"];
   NSString *documentsDirectory = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0];
   FLExportsDirectoryPath = [documentsDirectory stringByAppendingPathComponent:@"exports"];
-}
-
-+ (FLTrackScene *)load:(NSString *)saveName
-{
-  NSString *savePath = [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0]
-                        stringByAppendingPathComponent:[saveName stringByAppendingPathExtension:@"archive"]];
-  if (![[NSFileManager defaultManager] fileExistsAtPath:savePath]) {
-    return nil;
-  }
-  return [NSKeyedUnarchiver unarchiveObjectWithFile:savePath];
 }
 
 + (void)loadSceneAssets
@@ -263,13 +247,6 @@ struct PointerPairHash
 {
   // note: Scene assets are loaded abusively into global shared resources, so there's
   // no good way, for now, to release them, and no real need to do so.
-}
-
-- (void)save:(NSString *)saveName
-{
-  NSString *savePath = [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0]
-                        stringByAppendingPathComponent:[saveName stringByAppendingPathExtension:@"archive"]];
-  [NSKeyedArchiver archiveRootObject:self toFile:savePath];
 }
 
 - (id)initWithSize:(CGSize)size
@@ -397,6 +374,10 @@ struct PointerPairHash
   if (modalPresentedNode) {
     [self FL_modalPresentationDismiss];
   }
+  BOOL messageNodeAddedToParent = (_messageNode && _messageNode.parent);
+  if (messageNodeAddedToParent) {
+    [_messageNode removeFromParent];
+  }
 
   // Persist SKScene (including current node hierarchy).
   [super encodeWithCoder:aCoder];
@@ -417,6 +398,9 @@ struct PointerPairHash
   [self FL_constructionToolbarSetVisible:YES];
   if (modalPresentedNode) {
     [self FL_modalPresentationPresent:modalPresentedNode];
+  }
+  if (messageNodeAddedToParent) {
+    [_hudNode addChild:_messageNode];
   }
 
   // Persist special node pointers (that should already been encoded
@@ -1168,7 +1152,6 @@ struct PointerPairHash
 
   if ([tool isEqualToString:@"menu"]) {
 
-    // TODO: Autosave or prompt to save.
     id<FLTrackSceneDelegate> delegate = self.delegate;
     if (delegate) {
       [delegate trackSceneDidTapMenuButton:self];
@@ -1176,29 +1159,19 @@ struct PointerPairHash
 
   } else if ([tool isEqualToString:@"play"]) {
 
-    _simulationRunning = YES;
-    _train.running = YES;
-    [self FL_simulationToolbarUpdateTools];
+    [self FL_simulationStart];
 
   } else if ([tool isEqualToString:@"pause"]) {
 
-    _simulationRunning = NO;
-    _train.running = NO;
-    [self FL_simulationToolbarUpdateTools];
+    [self FL_simulationStop];
 
   } else if ([tool isEqualToString:@"ff"]) {
 
-    if (_simulationSpeed == 0) {
-      _simulationSpeed = 1;
-    } else {
-      _simulationSpeed = 2;
-    }
-    [self FL_simulationToolbarUpdateTools];
+    [self FL_simulationCycleSpeed];
 
   } else if ([tool isEqualToString:@"fff"]) {
 
-    _simulationSpeed = 0;
-    [self FL_simulationToolbarUpdateTools];
+    [self FL_simulationCycleSpeed];
 
   } else if ([tool isEqualToString:@"center"]) {
 
@@ -1292,13 +1265,19 @@ struct PointerPairHash
 
   // Modal overlay layer.
   if (_modalNode && _modalNode.parent) {
-    BOOL isInside = NO;
-    [gestureRecognizer removeTarget:nil action:nil];
-    if ([_modalPresentationState.presentedNode addToGesture:gestureRecognizer firstTouch:touch isInside:&isInside]) {
-      return YES;
+    SKNode *node = [self nodeAtPoint:sceneLocation];
+    while (node != self) {
+      if ([node conformsToProtocol:@protocol(HLGestureTarget) ]) {
+        SKNode <HLGestureTarget> *target = (SKNode <HLGestureTarget> *)node;
+        BOOL isInside = NO;
+        if ([target addToGesture:gestureRecognizer firstTouch:touch isInside:&isInside]) {
+          return YES;
+        } else if (isInside) {
+          return NO;
+        }
+      }
+      node = node.parent;
     }
-    // note: Don't bother to condition on isInside; there is only supposed to be one presented node
-    // in the modal presentation layer, and if it doesn't want the touch, then no one gets it.
     return NO;
   }
 
@@ -1874,7 +1853,6 @@ struct PointerPairHash
     for (NSURL *url in sortedImportFileURLs) {
       NSDate *date = nil;
       [url getResourceValue:&date forKey:NSURLCreationDateKey error:nil];
-      NSLog(@"file %@ created %@", [url lastPathComponent], date);
       [mutableImportFiles addObject:[url lastPathComponent]];
     }
     importFiles = mutableImportFiles;
@@ -2025,58 +2003,50 @@ struct PointerPairHash
   [_simulationToolbarState.toolbarNode setHighlight:(_simulationSpeed > 0) forTool:speedTool];
 }
 
+- (void)FL_simulationStart
+{
+  _simulationRunning = YES;
+  _train.running = YES;
+  [self FL_simulationToolbarUpdateTools];
+}
+
+- (void)FL_simulationStop
+{
+  _simulationRunning = NO;
+  _train.running = NO;
+  [self FL_simulationToolbarUpdateTools];
+}
+
+- (void)FL_simulationCycleSpeed
+{
+  ++_simulationSpeed;
+  if (_simulationSpeed > 2) {
+    _simulationSpeed = 0;
+  }
+  [self FL_simulationToolbarUpdateTools];
+}
+
 - (void)FL_messageShow:(NSString *)message
 {
-  if (!_messageState.messageNode) {
-    _messageState.messageNode = [SKSpriteNode spriteNodeWithColor:[UIColor colorWithWhite:0.0f alpha:0.5f] size:CGSizeZero];
+  if (!_messageNode) {
+    _messageNode = [[HLMessageNode alloc] initWithColor:[UIColor colorWithWhite:0.0f alpha:0.5f] size:CGSizeZero];
+    _messageNode.messageLingerDuration = 2.0;
+    _messageNode.fontName = @"Courier";
+    _messageNode.fontSize = 14.0f;
+    _messageNode.fontColor = [UIColor whiteColor];
     [self FL_messageUpdateGeometry];
   }
-
-  if (!_messageState.labelNode) {
-    SKLabelNode *labelNode = [SKLabelNode labelNodeWithFontNamed:@"Courier"];
-    labelNode.fontColor = [UIColor whiteColor];
-    labelNode.fontSize = 14.0f;
-    labelNode.position = CGPointMake(0.0f, -5.0f);
-    _messageState.labelNode = labelNode;
-    [_messageState.messageNode addChild:labelNode];
-  }
-
-  _messageState.labelNode.text = message;
-
-  if (!_messageState.messageNode.parent) {
-    [_hudNode addChild:_messageState.messageNode];
-    CGPoint messageNodePosition = _messageState.messageNode.position;
-    messageNodePosition.x = self.size.width;
-    _messageState.messageNode.position = messageNodePosition;
-    SKAction *slideIn = [SKAction moveToX:0.0f duration:0.1f];
-    SKAction *wait = [SKAction waitForDuration:2.0f];
-    SKAction *slideOut = [SKAction moveToX:-self.size.width duration:0.1f];
-    SKAction *remove = [SKAction removeFromParent];
-    SKAction *show = [SKAction sequence:@[slideIn, wait, slideOut, remove ]];
-    [_messageState.messageNode runAction:show withKey:@"show"];
-  } else {
-    [_messageState.messageNode removeActionForKey:@"show"];
-    SKAction *wait = [SKAction waitForDuration:2.0f];
-    SKAction *slideOut = [SKAction moveToX:-self.size.width duration:0.1f];
-    SKAction *remove = [SKAction removeFromParent];
-    SKAction *show = [SKAction sequence:@[ wait, slideOut, remove ]];
-    [_messageState.messageNode runAction:show withKey:@"show"];
-  }
+  [_messageNode showMessage:message parent:_hudNode];
 }
 
 - (void)FL_messageUpdateGeometry
-{
-  _messageState.messageNode.position = CGPointMake(0.0f, [self FL_messagePositionY]);
-  _messageState.messageNode.size = CGSizeMake(self.size.width, FLMessageHeight);
-}
-
-- (CGFloat)FL_messagePositionY
 {
   CGFloat bottom = (FLMessageHeight - self.size.height) / 2.0f;
   if (_constructionToolbarState.toolbarNode) {
     bottom += _constructionToolbarState.toolbarNode.size.height;
   }
-  return bottom + FLMessageSpacer;
+  _messageNode.position = CGPointMake(0.0f, bottom + FLMessageSpacer);
+  _messageNode.size = CGSizeMake(self.size.width, FLMessageHeight);
 }
 
 - (void)FL_trackSelect:(NSSet *)segmentNodes
@@ -2631,8 +2601,6 @@ struct PointerPairHash
     _linkEditState.endNode = nil;
     _linkEditState.endHighlightNode = nil;
   }
-
-  NSLog(@"%lu links", _links.size());
 }
 
 - (void)FL_linkEditCancelled
@@ -2890,8 +2858,7 @@ struct PointerPairHash
 
 - (void)FL_modalPresentationPresent:(SKNode <HLGestureTarget> *)node
 {
-  SKView *skView = (SKView *)self.view;
-  skView.paused = YES;
+  [self FL_simulationStop];
 
   if (!_modalNode) {
     _modalNode = [SKNode node];
@@ -2915,9 +2882,6 @@ struct PointerPairHash
   [_modalPresentationState.presentedNode removeFromParent];
   _modalPresentationState.presentedNode = nil;
   [_modalNode removeFromParent];
-
-  SKView *skView = (SKView *)self.view;
-  skView.paused = NO;
 }
 
 - (void)FL_modalPresentationUpdateGeometry
