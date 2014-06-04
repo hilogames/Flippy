@@ -17,8 +17,29 @@ static NSString * FLExtraStatePath;
 
 static const NSTimeInterval FLSceneTransitionDuration = 0.5;
 
+static const CGFloat FLMessageNodeHeight = 32.0f;
+
+static const NSUInteger FLSaveGameSlotCount = 3;
+
+static NSString * const FLSaveLabelChallenge = @"Game";
+static NSString * const FLSaveLabelSandbox = @"Sandbox";
+
 static NSString * const FLGameTypeChallenge = @"challenge";
 static NSString * const FLGameTypeSandbox = @"sandbox";
+
+static NSString * const FLCommonMenuBack = @"Back";
+static NSString * const FLCommonMenuEmptySlot = @"(Empty)";
+static NSString * const FLCommonMenuNew = @"New";
+
+static NSString * const FLMainMenuChallenge = @"Play";
+static NSString * const FLMainMenuChallengeNewPath = @"Play/New";
+static NSString * const FLMainMenuSandbox = @"Sandbox";
+static NSString * const FLMainMenuSandboxNewPath = @"Sandbox/New";
+static NSString * const FLMainMenuAbout = @"About";
+
+static NSString * const FLGameMenuResume = @"Resume";
+static NSString * const FLGameMenuSave = @"Save";
+static NSString * const FLGameMenuExit = @"Exit";
 
 void
 FLError(NSString *message)
@@ -40,8 +61,8 @@ FLError(NSString *message)
 
   BOOL _gameSavedWhileModallyPresented;
 
-  UIAlertView *_exitConfirmAlert;
   UIAlertView *_saveConfirmAlert;
+  UIAlertView *_exitConfirmAlert;
   NSString *_savePath;
 }
 
@@ -193,7 +214,7 @@ FLError(NSString *message)
   
   if (!_currentScene) {
     if (!_mainMenuScene) {
-      [self FL_createMainMenuScene];
+      [self FL_mainMenuSceneCreate];
     }
     _currentScene = _mainMenuScene;
   }
@@ -244,11 +265,19 @@ FLError(NSString *message)
 
 - (BOOL)menuNode:(HLMenuNode *)menuNode shouldTapMenuItem:(HLMenuItem *)menuItem itemIndex:(NSUInteger)itemIndex
 {
-  if (menuNode == _gameMenuNode) {
-    NSString *menuItemPath = [menuItem path];
-    if ([menuItemPath isEqualToString:@"Save"]) {
+  if (menuNode == _mainMenuScene.menuNode) {
+    // TODO: if no saves, then go directly to new.
+    if ([menuItem.text isEqualToString:FLMainMenuSandbox]) {
+      [self FL_commonMenuUpdateSaves:(HLMenu *)menuItem forGameType:FLGameTypeSandbox includeNewButton:YES];
+      [self FL_mainMenuSceneShowMessage:@"Choose game to load."];
+    } else if ([menuItem.text isEqualToString:FLMainMenuChallenge]) {
+      [self FL_commonMenuUpdateSaves:(HLMenu *)menuItem forGameType:FLGameTypeChallenge includeNewButton:YES];
+      [self FL_mainMenuSceneShowMessage:@"Choose game to load."];
+    }
+  } else if (menuNode == _gameMenuNode) {
+    if ([menuItem.text isEqualToString:FLGameMenuSave]) {
       // TODO: If _trackScene is a challenge game, then update menu for FLGameTypeChallenge.
-      [self FL_gameModalNodeUpdate:FLGameTypeSandbox];
+      [self FL_commonMenuUpdateSaves:(HLMenu *)menuItem forGameType:FLGameTypeSandbox includeNewButton:NO];
       [self FL_gameModalNodeShowMessage:@"Choose save game slot."];
     }
   }
@@ -263,8 +292,11 @@ FLError(NSString *message)
 
   if (menuNode == _mainMenuScene.menuNode) {
 
-    if ([menuItemPath isEqualToString:@"Sandbox/New"]) {
+    if ([menuItemPath isEqualToString:FLMainMenuSandboxNewPath]) {
       [self FL_sandboxNew];
+    } else if ([menuItemParent.text isEqualToString:FLMainMenuSandbox]) {
+      NSString *savePath = [self FL_savePathForGameType:FLGameTypeSandbox saveNumber:itemIndex];
+      [self FL_loadFromMainMenu:savePath];
     }
     
     return;
@@ -272,16 +304,16 @@ FLError(NSString *message)
 
   if (menuNode == _gameMenuNode) {
 
-    if ([menuItemPath isEqualToString:@"Resume"]) {
+    if ([menuItemPath isEqualToString:FLGameMenuResume]) {
       [_trackScene dismissModalNode];
-    } else if ([menuItemParent.text isEqualToString:@"Save"]) {
+    } else if ([menuItemParent.text isEqualToString:FLGameMenuSave]) {
       if (![menuItem isKindOfClass:[HLMenuBackItem class]]) {
         _gameSavedWhileModallyPresented = YES;
         // TODO: If _trackScene is a challenge game, then save game for FLGameTypeChallenge.
         NSString *savePath = [self FL_savePathForGameType:FLGameTypeSandbox saveNumber:itemIndex];
         [self FL_saveFromGameMenuConfirm:savePath];
       }
-    } else if ([menuItemPath isEqualToString:@"Exit"]) {
+    } else if ([menuItemPath isEqualToString:FLGameMenuExit]) {
       [self FL_exitFromGameMenuConfirm];
     }
 
@@ -295,7 +327,7 @@ FLError(NSString *message)
 - (void)trackSceneDidTapMenuButton:(FLTrackScene *)trackScene
 {
   if (!_gameModalNode) {
-    [self FL_createGameModalNode:nil];
+    [self FL_gameModalNodeCreate];
   }
   [_gameMenuNode navigateToTopMenuAnimation:HLMenuNodeAnimationNone];
   [_trackScene presentModalNode:_gameModalNode];
@@ -321,7 +353,29 @@ FLError(NSString *message)
 #pragma mark -
 #pragma mark Common
 
-- (void)FL_createLoadingScene
+- (HLMenuNode *)FL_commonMenuNodeCreate
+{
+  HLMenuNode *menuNode = [[HLMenuNode alloc] init];
+  menuNode.delegate = self;
+  menuNode.position = CGPointMake(0.0f, 48.0f);
+  menuNode.itemButtonPrototype = [FLViewController FL_sharedMenuButtonPrototypeBasic];
+  menuNode.itemSpacing = 48.0f;
+  menuNode.itemSoundFile = @"wooden-click-1.caf";
+  return menuNode;
+}
+
+- (HLMessageNode *)FL_commonMessageNodeCreate
+{
+  HLMessageNode *messageNode = [[HLMessageNode alloc] initWithColor:[UIColor colorWithWhite:1.0f alpha:0.5f] size:CGSizeZero];
+  messageNode.verticalAlignmentMode = HLLabelNodeVerticalAlignFontAscenderBias;
+  messageNode.messageLingerDuration = 3.0;
+  messageNode.fontName = @"Courier";
+  messageNode.fontSize = 20.0f;
+  messageNode.fontColor = [UIColor blackColor];
+  return messageNode;
+}
+
+- (void)FL_loadingSceneCreate
 {
   _loadingScene = [SKScene sceneWithSize:self.view.bounds.size];
   _loadingScene.scaleMode = SKSceneScaleModeResizeFill;
@@ -338,109 +392,57 @@ FLError(NSString *message)
   [_loadingScene addChild: loadingLabelNode];
 }
 
-- (void)FL_createMainMenuScene
+- (void)FL_mainMenuSceneCreate
 {
   _mainMenuScene = [HLMenuScene sceneWithSize:self.view.bounds.size];
   _mainMenuScene.scaleMode = SKSceneScaleModeResizeFill;
   
   SKSpriteNode *backgroundNode = [SKSpriteNode spriteNodeWithImageNamed:@"grass"];
   _mainMenuScene.backgroundNode = backgroundNode;
+
+  _mainMenuScene.menuNode = [self FL_commonMenuNodeCreate];
+
+  _mainMenuScene.messageNode = [self FL_commonMessageNodeCreate];
   
-  HLMenuNode *menuNode = [[HLMenuNode alloc] init];
-  _mainMenuScene.menuNode = menuNode;
-  menuNode.delegate = self;
-  menuNode.position = CGPointMake(0.0f, 48.0f);
-  menuNode.itemButtonPrototype = [FLViewController FL_sharedMenuButtonPrototypeBasic];
-  menuNode.itemSpacing = 48.0f;
-  menuNode.itemSoundFile = @"wooden-click-1.caf";
-  
-  HLMenu *menu = [[HLMenu alloc] init];
-  [menu addItem:[HLMenu menuWithText:@"Play"
-                               items:@[ [HLMenuItem menuItemWithText:@"New"],
-                                        [HLMenuBackItem menuItemWithText:@"Back"] ]]];
-  [menu addItem:[HLMenu menuWithText:@"Sandbox"
-                               items:@[ [HLMenuItem menuItemWithText:@"New"],
-                                        [HLMenuBackItem menuItemWithText:@"Back"] ]]];
-  [menu addItem:[HLMenuItem menuItemWithText:@"About"]];
-  [menuNode setMenu:menu animation:HLMenuNodeAnimationNone];
+  [self FL_mainMenuCreate];
 }
 
-/**
- * Creates the in-game menu and message area to be presented modally over the track scene.
- *
- * Some of the content (of the menu, in particular), will need to be updated based
- * on the extra parameters to this method (like game type).  The parameters may be passed
- * nil if not currently relevant; call FL_updateGameModalNode before the relevant
- * content is displayed by the modal node.
- */
-- (void)FL_createGameModalNode:(NSString *)gameType
+- (void)FL_mainMenuSceneShowMessage:(NSString *)message
+{
+  // note: Could maintain the size and shape of the message node only when
+  // our own geometry changes.  But this is easier, for now.
+  _gameMessageNode.position = CGPointMake(0.0f, _gameMenuNode.position.y + _gameMenuNode.itemSpacing);
+  _gameMessageNode.size = CGSizeMake(_trackScene.size.width, FLMessageNodeHeight);
+  
+  [_gameMessageNode showMessage:message parent:_gameModalNode];
+}
+
+- (void)FL_mainMenuCreate
+{
+  HLMenu *menu = [[HLMenu alloc] init];
+
+  // note: Create empty loading menus for now; update later with FL_menuUpdateSaves.
+  [menu addItem:[HLMenu menuWithText:FLMainMenuChallenge
+                               items:@[ [HLMenuItem menuItemWithText:FLCommonMenuNew],
+                                        [HLMenuBackItem menuItemWithText:FLCommonMenuBack] ]]];
+  [menu addItem:[HLMenu menuWithText:FLMainMenuSandbox
+                               items:@[ [HLMenuItem menuItemWithText:FLCommonMenuNew],
+                                        [HLMenuBackItem menuItemWithText:FLCommonMenuBack] ]]];
+  [menu addItem:[HLMenuItem menuItemWithText:FLMainMenuAbout]];
+
+  [_mainMenuScene.menuNode setMenu:menu animation:HLMenuNodeAnimationNone];
+}
+
+- (void)FL_gameModalNodeCreate
 {
   _gameModalNode = [SKNode node];
 
-  _gameMenuNode = [[HLMenuNode alloc] init];
-  _gameMenuNode.delegate = self;
-  _gameMenuNode.position = CGPointMake(0.0f, 48.0f);
-  _gameMenuNode.itemSpacing = 48.0f;
-  _gameMenuNode.itemButtonPrototype = [FLViewController FL_sharedMenuButtonPrototypeBasic];
-  _gameMenuNode.itemSoundFile = @"wooden-click-1.caf";
+  _gameMenuNode = [self FL_commonMenuNodeCreate];
   [_gameModalNode addChild:_gameMenuNode];
-  
-  _gameMessageNode = [[HLMessageNode alloc] initWithColor:[UIColor colorWithWhite:1.0f alpha:0.5f] size:CGSizeZero];
-  _gameMessageNode.verticalAlignmentMode = HLLabelNodeVerticalAlignFontAscenderBias;
-  _gameMessageNode.messageLingerDuration = 3.0;
-  _gameMessageNode.fontName = @"Courier";
-  _gameMessageNode.fontSize = 20.0f;
-  _gameMessageNode.fontColor = [UIColor blackColor];
-  
-  [self FL_gameModalNodeUpdate:gameType];
-}
 
-- (void)FL_gameModalNodeUpdate:(NSString *)gameType
-{
-  // TODO: Long press on buttons to delete game?
-  
-  // noob: Either create a new menu or else update the existing one in-place.
-  // I'm not sure how well I like this; perhaps instead the menu node should
-  // provide an explicit delegate callback to update a submenu right before
-  // it's shown (rather than us having to hijack menuNode:shouldTapMenuItem:).
-  static HLMenu *saveMenu = nil;
-  
-  HLMenu *menu = nil;
-  if (saveMenu) {
-    [saveMenu removeAllItems];
-  } else {
-    menu = [[HLMenu alloc] init];
-    [menu addItem:[HLMenuItem menuItemWithText:@"Resume"]];
-    saveMenu = [HLMenu menuWithText:@"Save" items:@[]];
-    [menu addItem:saveMenu];
-    [menu addItem:[HLMenuItem menuItemWithText:@"Exit"]];
-  }
-  
-  const NSUInteger FLSaveGameSlotCount = 3;
-  if (gameType) {
-    NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
-    [dateFormatter setDateStyle:NSDateFormatterMediumStyle];
-    [dateFormatter setTimeStyle:NSDateFormatterNoStyle];
-    for (NSUInteger saveNumber = 0; saveNumber < FLSaveGameSlotCount; ++saveNumber) {
-      NSDate *saveDate;
-      HLMenuItem *saveGameMenuItem = [[HLMenuItem alloc] init];
-      if ([self FL_getSaveInfoForGameType:gameType saveNumber:saveNumber saveDate:&saveDate]) {
-        saveGameMenuItem.text = [NSString stringWithFormat:@"Sandbox %lu (%@)",
-                                 (unsigned long)saveNumber + 1,
-                                 [dateFormatter stringFromDate:saveDate]];
-        saveGameMenuItem.buttonPrototype = [FLViewController FL_sharedMenuButtonPrototypeSaveGame];
-      } else {
-        saveGameMenuItem.text = @"(Empty)";
-        saveGameMenuItem.buttonPrototype = [FLViewController FL_sharedMenuButtonPrototypeSaveGameEmpty];
-      }
-      [saveMenu addItem:saveGameMenuItem];
-    }
-  }
-  [saveMenu addItem:[HLMenuBackItem menuItemWithText:@"Back"]];
-  
-  if (!_gameMenuNode.menu) {
-    [_gameMenuNode setMenu:menu animation:HLMenuNodeAnimationNone];
-  }
+  [self FL_gameMenuCreate];
+
+  _gameMessageNode = [self FL_commonMessageNodeCreate];
 }
 
 - (void)FL_gameModalNodeShowMessage:(NSString *)message
@@ -458,11 +460,20 @@ FLError(NSString *message)
   
   // note: Could maintain the size and shape of the message node only when
   // our own geometry changes.  But this is easier, for now.
-  const CGFloat FLGameMessageNodeHeight = 32.0f;
   _gameMessageNode.position = CGPointMake(0.0f, _gameMenuNode.position.y + _gameMenuNode.itemSpacing);
-  _gameMessageNode.size = CGSizeMake(_trackScene.size.width, FLGameMessageNodeHeight);
+  _gameMessageNode.size = CGSizeMake(_trackScene.size.width, FLMessageNodeHeight);
   
   [_gameMessageNode showMessage:message parent:_gameModalNode];
+}
+
+- (void)FL_gameMenuCreate
+{
+  HLMenu *menu = [[HLMenu alloc] init];
+  [menu addItem:[HLMenuItem menuItemWithText:FLGameMenuResume]];
+  // note: Create empty save menu for now; update later with FL_menuUpdateSaves.
+  [menu addItem:[HLMenu menuWithText:FLGameMenuSave items:@[]]];
+  [menu addItem:[HLMenuItem menuItemWithText:FLGameMenuExit]];
+  [_gameMenuNode setMenu:menu animation:HLMenuNodeAnimationNone];
 }
 
 + (HLLabelButtonNode *)FL_sharedMenuButtonPrototypeBasic
@@ -502,11 +513,32 @@ FLError(NSString *message)
   return buttonPrototype;
 }
 
+- (void)FL_commonMenuUpdateSaves:(HLMenu *)saveMenu forGameType:(NSString *)gameType includeNewButton:(BOOL)includeNewButton
+{
+  [saveMenu removeAllItems];
+
+  if (includeNewButton) {
+    [saveMenu addItem:[HLMenuItem menuItemWithText:FLCommonMenuNew]];
+  }
+  
+  for (NSUInteger saveNumber = 0; saveNumber < FLSaveGameSlotCount; ++saveNumber) {
+    HLMenuItem *saveGameMenuItem = [[HLMenuItem alloc] init];
+    NSString *saveName = [self FL_saveNameForGameType:gameType saveNumber:saveNumber];
+    if (saveName) {
+      saveGameMenuItem.text = saveName;
+      saveGameMenuItem.buttonPrototype = [FLViewController FL_sharedMenuButtonPrototypeSaveGame];
+    } else {
+      saveGameMenuItem.text = FLCommonMenuEmptySlot;
+      saveGameMenuItem.buttonPrototype = [FLViewController FL_sharedMenuButtonPrototypeSaveGameEmpty];
+    }
+    [saveMenu addItem:saveGameMenuItem];
+  }
+  
+  [saveMenu addItem:[HLMenuBackItem menuItemWithText:FLCommonMenuBack]];
+}
+
 - (void)FL_sandboxNew
 {
-  // TODO: Prompt to save existing track scene (if not already saved since the
-  // menu was presented).
-
   _trackScene = [FLTrackScene sceneWithSize:self.view.bounds.size];
   _trackScene.delegate = self;
   _trackScene.scaleMode = SKSceneScaleModeResizeFill;
@@ -518,7 +550,7 @@ FLError(NSString *message)
   }
 
   if (!_loadingScene) {
-    [self FL_createLoadingScene];
+    [self FL_loadingSceneCreate];
   }
   [self.skView presentScene:_loadingScene];
   [FLTrackScene loadSceneAssetsWithCompletion:^{
@@ -533,17 +565,35 @@ FLError(NSString *message)
   return [[NSFileManager defaultManager] fileExistsAtPath:savePath];
 }
 
-- (BOOL)FL_getSaveInfoForGameType:(NSString *)gameType saveNumber:(NSUInteger)saveNumber saveDate:(NSDate * __autoreleasing *)saveDate
+- (NSString *)FL_saveNameForGameType:(NSString *)gameType saveNumber:(NSUInteger)saveNumber
 {
+  static NSDateFormatter *dateFormatter = nil;
+  if (!dateFormatter) {
+    dateFormatter = [[NSDateFormatter alloc] init];
+    [dateFormatter setDateStyle:NSDateFormatterMediumStyle];
+    [dateFormatter setTimeStyle:NSDateFormatterNoStyle];
+  }
+
   NSString *savePath = [self FL_savePathForGameType:gameType saveNumber:saveNumber];
   NSDictionary *attributes = [[NSFileManager defaultManager] attributesOfItemAtPath:savePath error:nil];
   if (!attributes) {
-    return NO;
+    return nil;
   }
-  if (saveDate) {
-    *saveDate = (NSDate *)[attributes objectForKey:NSFileCreationDate];
+  NSDate *saveDate = (NSDate *)[attributes objectForKey:NSFileCreationDate];
+
+  NSString *gameTypeSaveLabel;
+  if ([gameType isEqualToString:FLGameTypeChallenge]) {
+    gameTypeSaveLabel = FLSaveLabelChallenge;
+  } else if ([gameType isEqualToString:FLGameTypeSandbox]) {
+    gameTypeSaveLabel = FLSaveLabelSandbox;
+  } else {
+    [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type '%@'.", gameType];
   }
-  return YES;
+  
+  return [NSString stringWithFormat:@"%@ %lu (%@)",
+          gameTypeSaveLabel,
+          (unsigned long)saveNumber + 1,
+          [dateFormatter stringFromDate:saveDate]];
 }
 
 - (NSString *)FL_savePathForGameType:(NSString *)gameType saveNumber:(NSUInteger)saveNumber
@@ -578,6 +628,10 @@ FLError(NSString *message)
   [self FL_gameModalNodeShowMessage:@"Game saved."];
 }
 
+- (void)FL_loadFromMainMenu:(NSString *)savePath
+{
+}
+
 - (void)FL_exitFromGameMenuConfirm
 {
   if (_gameSavedWhileModallyPresented) {
@@ -599,7 +653,7 @@ FLError(NSString *message)
 {
   [_trackScene dismissModalNode];
   if (!_mainMenuScene) {
-    [self FL_createMainMenuScene];
+    [self FL_mainMenuSceneCreate];
   } else {
     [_mainMenuScene.menuNode navigateToTopMenuAnimation:HLMenuNodeAnimationNone];
   }

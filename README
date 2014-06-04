@@ -42,6 +42,8 @@ If It Ships
 
 Lower Priority
 
+  . Long press on saved games deletes them.
+
   . For import thumbnails: Trace out CG lines for track segment paths
     rather than shrinking down images.  The result might be better.
     (And wouldn't need UIImages anymore in HLTextureStore.)
