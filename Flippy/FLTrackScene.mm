@@ -2030,6 +2030,7 @@ struct PointerPairHash
 {
   if (!_messageNode) {
     _messageNode = [[HLMessageNode alloc] initWithColor:[UIColor colorWithWhite:0.0f alpha:0.5f] size:CGSizeZero];
+    _messageNode.verticalAlignmentMode = HLLabelNodeVerticalAlignFontAscenderBias;
     _messageNode.messageLingerDuration = 2.0;
     _messageNode.fontName = @"Courier";
     _messageNode.fontSize = 14.0f;

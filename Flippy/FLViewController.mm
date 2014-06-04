@@ -329,6 +329,7 @@ FLError(NSString *message)
   
   const NSTimeInterval FLLoadingPulseDuration = 0.5;
   SKLabelNode *loadingLabelNode = [SKLabelNode labelNodeWithFontNamed:@"Courier"];
+  loadingLabelNode.fontSize = 18.0f;
   loadingLabelNode.text = @"Loading...";
   SKAction *pulse = [SKAction sequence:@[ [SKAction fadeAlphaTo:0.5f duration:FLLoadingPulseDuration],
                                           [SKAction fadeAlphaTo:1.0f duration:FLLoadingPulseDuration] ]];
@@ -385,6 +386,7 @@ FLError(NSString *message)
   [_gameModalNode addChild:_gameMenuNode];
   
   _gameMessageNode = [[HLMessageNode alloc] initWithColor:[UIColor colorWithWhite:1.0f alpha:0.5f] size:CGSizeZero];
+  _gameMessageNode.verticalAlignmentMode = HLLabelNodeVerticalAlignFontAscenderBias;
   _gameMessageNode.messageLingerDuration = 3.0;
   _gameMessageNode.fontName = @"Courier";
   _gameMessageNode.fontSize = 20.0f;
@@ -473,7 +475,7 @@ FLError(NSString *message)
     buttonPrototype.fontSize = 20.0f;
     buttonPrototype.fontColor = [UIColor whiteColor];
     buttonPrototype.size = CGSizeMake(240.0f, 36.0f);
-    buttonPrototype.verticalAlignmentMode = HLLabelButtonNodeVerticalAlignFontAscender;
+    buttonPrototype.verticalAlignmentMode = HLLabelNodeVerticalAlignFontAscenderBias;
   }
   return buttonPrototype;
 }
