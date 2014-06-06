@@ -9,8 +9,13 @@
 #import "FLViewController.h"
 
 #import "FLTrackScene.h"
+#import <HLSpriteKit/HLError.h>
 
-typedef enum FLViewControllerScene { FLViewControllerSceneNone, FLViewControllerSceneMenu, FLViewControllerSceneTrack } FLViewControllerScene;
+typedef enum FLViewControllerScene { FLViewControllerSceneNone, FLViewControllerSceneTitle, FLViewControllerSceneGame } FLViewControllerScene;
+
+static const CGFloat FLZPositionTitleBackground = 1.0f;
+static const CGFloat FLZPositionTitleMenu = 2.0f;
+static const CGFloat FLZPositionTitleMessage = 3.0f;
 
 static NSString * const FLExtraStateName = @"extra-application-state";
 static NSString * FLExtraStatePath;
@@ -32,39 +37,34 @@ static NSString * const FLCommonMenuBack = @"Back";
 static NSString * const FLCommonMenuEmptySlot = @"(Empty)";
 static NSString * const FLCommonMenuNew = @"New";
 
-static NSString * const FLMainMenuChallenge = @"Play";
-static NSString * const FLMainMenuChallengeNewPath = @"Play/New";
-static NSString * const FLMainMenuSandbox = @"Sandbox";
-static NSString * const FLMainMenuSandboxNewPath = @"Sandbox/New";
-static NSString * const FLMainMenuAbout = @"About";
+static NSString * const FLTitleMenuChallenge = @"Play";
+static NSString * const FLTitleMenuChallengeNewPath = @"Play/New";
+static NSString * const FLTitleMenuSandbox = @"Sandbox";
+static NSString * const FLTitleMenuSandboxNewPath = @"Sandbox/New";
+static NSString * const FLTitleMenuAbout = @"About";
 
 static NSString * const FLGameMenuResume = @"Resume";
 static NSString * const FLGameMenuSave = @"Save";
 static NSString * const FLGameMenuExit = @"Exit";
 
-void
-FLError(NSString *message)
-{
-  // TODO: Use CocoaLumberjack for non-critical error logging.
-  NSLog(@"ERROR: %@", message);
-}
-
 @implementation FLViewController
 {
-  SKScene *_currentScene;
+  __weak SKScene *_currentScene;
 
   SKScene *_loadingScene;
-  HLMenuScene *_mainMenuScene;
-  FLTrackScene *_trackScene;
-  SKNode *_gameModalNode;
+
+  HLScene *_titleScene;
+  __weak HLMenuNode *_titleMenuNode;
+
+  FLTrackScene *_gameScene;
+  SKNode *_gameOverlay;
   HLMenuNode *_gameMenuNode;
   HLMessageNode *_gameMessageNode;
-
-  BOOL _gameSavedWhileModallyPresented;
+  BOOL _savedInGameOverlay;
 
   UIAlertView *_saveConfirmAlert;
+  NSString *_saveConfirmPath;
   UIAlertView *_exitConfirmAlert;
-  NSString *_savePath;
 }
 
 + (void)initialize
@@ -97,10 +97,11 @@ FLError(NSString *message)
   NSMutableData *archiveData = [NSMutableData data];
   NSKeyedArchiver *extraCoder = [[NSKeyedArchiver alloc] initForWritingWithMutableData:archiveData];
   if (_currentScene) {
-    if (_currentScene == _mainMenuScene) {
-      [extraCoder encodeObject:_mainMenuScene forKey:@"mainMenuScene"];
-    } else if (_currentScene == _trackScene) {
-      [extraCoder encodeObject:_trackScene forKey:@"trackScene"];
+    if (_currentScene == _titleScene) {
+      [extraCoder encodeObject:_titleScene forKey:@"titleScene"];
+      [extraCoder encodeObject:_titleMenuNode forKey:@"titleMenuNode"];
+    } else if (_currentScene == _gameScene) {
+      [extraCoder encodeObject:_gameScene forKey:@"trackScene"];
     }
   }
   [extraCoder finishEncoding];
@@ -109,10 +110,10 @@ FLError(NSString *message)
   // note: Don't try to archive _currentScene as a pointer, since the scene objects
   // aren't archived alongside.  Instead, archive a code.
   FLViewControllerScene currentScene = FLViewControllerSceneNone;
-  if (_currentScene == _mainMenuScene) {
-    currentScene = FLViewControllerSceneMenu;
-  } else if (_currentScene == _trackScene) {
-    currentScene = FLViewControllerSceneTrack;
+  if (_currentScene == _titleScene) {
+    currentScene = FLViewControllerSceneTitle;
+  } else if (_currentScene == _gameScene) {
+    currentScene = FLViewControllerSceneGame;
   }
   [coder encodeInt:(int)currentScene forKey:@"currentScene"];
 }
@@ -134,41 +135,49 @@ FLError(NSString *message)
     if ([extraCoder containsValueForKey:@"trackScene"]) {
       [FLTrackScene loadSceneAssets];
     }
-    _trackScene = [extraCoder decodeObjectForKey:@"trackScene"];
-    if (_trackScene) {
-      _trackScene.delegate = self;
+    _gameScene = [extraCoder decodeObjectForKey:@"trackScene"];
+    if (_gameScene) {
+      _gameScene.delegate = self;
     }
-    _mainMenuScene = [extraCoder decodeObjectForKey:@"mainMenuScene"];
-    if (_mainMenuScene) {
-      _mainMenuScene.menuNode.delegate = self;
+    _titleScene = [extraCoder decodeObjectForKey:@"titleScene"];
+    HLMenuNode *titleMenuNode = nil;
+    if (_titleScene) {
+      // noob: I'm keeping the pointer to the title scene's menu node a weak pointer just
+      // to prove the point that it's a reference, not an owned object.  But of course
+      // that means jumping through these hoops.  Good practice?
+      titleMenuNode = [extraCoder decodeObjectForKey:@"titleMenuNode"];
+      if (titleMenuNode) {
+        titleMenuNode.delegate = self;
+      }
     }
+    _titleMenuNode = titleMenuNode;
     [extraCoder finishDecoding];
   }
 
   FLViewControllerScene currentScene = (FLViewControllerScene)[coder decodeIntForKey:@"currentScene"];
   _currentScene = nil;
   switch (currentScene) {
-    case FLViewControllerSceneMenu:
-      if (!_mainMenuScene) {
-        FLError(@"FLViewController decodeRestorableStateWithCoder: Failed to decode restorable state for main menu scene.");
+    case FLViewControllerSceneTitle:
+      if (!_titleScene) {
+        HLError(HLLevelError, @"FLViewController decodeRestorableStateWithCoder: Failed to decode restorable state for title scene.");
       } else {
-        _currentScene = _mainMenuScene;
+        _currentScene = _titleScene;
       }
       break;
-    case FLViewControllerSceneTrack:
-      if (!_trackScene) {
-        FLError(@"FLViewController decodeRestorableStateWithCoder: Failed to decode restorable state for track scene.");
+    case FLViewControllerSceneGame:
+      if (!_gameScene) {
+        HLError(HLLevelError, @"FLViewController decodeRestorableStateWithCoder: Failed to decode restorable state for track scene.");
       } else {
-        _currentScene = _trackScene;
+        _currentScene = _gameScene;
       }
       break;
     case FLViewControllerSceneNone:
-      if (_mainMenuScene) {
-        FLError(@"FLViewController decodeRestorableStateWithCoder: Decoded main menu scene, but current scene unset.");
-        _currentScene = _mainMenuScene;
-      } else if (_trackScene) {
-        FLError(@"FLViewController decodeRestorableStateWithCoder: Decoded track scene, but current scene unset.");
-        _currentScene = _trackScene;
+      if (_titleScene) {
+        HLError(HLLevelError, @"FLViewController decodeRestorableStateWithCoder: Decoded title scene, but current scene unset.");
+        _currentScene = _titleScene;
+      } else if (_gameScene) {
+        HLError(HLLevelError, @"FLViewController decodeRestorableStateWithCoder: Decoded track scene, but current scene unset.");
+        _currentScene = _gameScene;
       }
       break;
     default:
@@ -216,22 +225,22 @@ FLError(NSString *message)
   //      create a default starting scene (that is, a menu).
   
   if (!_currentScene) {
-    if (!_mainMenuScene) {
-      [self FL_mainMenuSceneCreate];
+    if (!_titleScene) {
+      [self FL_titleSceneCreate];
     }
-    _currentScene = _mainMenuScene;
+    _currentScene = _titleScene;
   }
 
   // note: No loading of track assets, or showing loading screens.  If the track was
   // decoded from application state, then the assets were already loaded.  If not,
-  // then we don't expect _currentScene to be _trackScene.
+  // then we don't expect _currentScene to be _gameScene.
   
   // noob: This logic for loading track scene assets seems messy and distributed.
   // Check it with an assertion, but think about ways to improve it.  (For one thing,
   // maybe we should have a notification for applicationDidFinishLoading, so that
   // we can separate out concerns about application restorable state from what happens
   // when the view appears.
-  if (_trackScene && _currentScene == _trackScene && ![FLTrackScene sceneAssetsLoaded]) {
+  if (_gameScene && _currentScene == _gameScene && ![FLTrackScene sceneAssetsLoaded]) {
     [NSException raise:@"FLViewControllerBadState" format:@"Method viewWillAppear assumes that track view would not be current without having assets already loaded."];
   }
 
@@ -268,9 +277,9 @@ FLError(NSString *message)
 
 - (BOOL)menuNode:(HLMenuNode *)menuNode shouldTapMenuItem:(HLMenuItem *)menuItem itemIndex:(NSUInteger)itemIndex
 {
-  if (menuNode == _mainMenuScene.menuNode) {
+  if (menuNode == _titleMenuNode) {
 
-    if ([menuItem.text isEqualToString:FLMainMenuSandbox]) {
+    if ([menuItem.text isEqualToString:FLTitleMenuSandbox]) {
       NSUInteger saveCount = [self FL_commonMenuUpdateSaves:(HLMenu *)menuItem forGameType:FLGameTypeSandbox includeNewButton:YES];
       // note: The important thing is the update of the menu, above.  But as a bonus, go straight
       // to new game if there are no saves.
@@ -278,7 +287,7 @@ FLError(NSString *message)
         [self FL_load:FLGameTypeSandbox isNew:YES otherwiseSaveNumber:0];
         return NO;
       }
-    } else if ([menuItem.text isEqualToString:FLMainMenuChallenge]) {
+    } else if ([menuItem.text isEqualToString:FLTitleMenuChallenge]) {
       NSUInteger saveCount = [self FL_commonMenuUpdateSaves:(HLMenu *)menuItem forGameType:FLGameTypeChallenge includeNewButton:YES];
       // note: The important thing is the update of the menu, above.  But as a bonus, go straight
       // to new game if there are no saves.
@@ -294,9 +303,9 @@ FLError(NSString *message)
   if (menuNode == _gameMenuNode) {
 
     if ([menuItem.text isEqualToString:FLGameMenuSave]) {
-      // TODO: If _trackScene is a challenge game, then update menu for FLGameTypeChallenge.
+      // TODO: If _gameScene is a challenge game, then update menu for FLGameTypeChallenge.
       [self FL_commonMenuUpdateSaves:(HLMenu *)menuItem forGameType:FLGameTypeSandbox includeNewButton:NO];
-      [self FL_gameModalNodeShowMessage:@"Choose save game slot."];
+      [self FL_gameOverlayShowMessage:@"Choose save game slot."];
     }
 
     return YES;
@@ -310,16 +319,16 @@ FLError(NSString *message)
   NSLog(@"did tap menu item %@", [menuItem path]);
   HLMenuItem *menuItemParent = menuItem.parent;
 
-  if (menuNode == _mainMenuScene.menuNode) {
+  if (menuNode == _titleMenuNode) {
 
-    if ([menuItem.text isEqualToString:FLMainMenuChallenge]) {
-      [self FL_mainMenuSceneShowMessage:@"Choose game to load."];
-    } else if ([menuItem.text isEqualToString:FLMainMenuSandbox]) {
-      [self FL_mainMenuSceneShowMessage:@"Choose game to load."];
-    } else if ([menuItemParent.text isEqualToString:FLMainMenuChallenge]) {
-      [self FL_loadFromMainMenu:FLGameTypeChallenge menuItem:menuItem itemIndex:itemIndex];
-    } else if ([menuItemParent.text isEqualToString:FLMainMenuSandbox]) {
-      [self FL_loadFromMainMenu:FLGameTypeSandbox menuItem:menuItem itemIndex:itemIndex];
+    if ([menuItem.text isEqualToString:FLTitleMenuChallenge]) {
+      [self FL_titleSceneShowMessage:@"Choose game to load."];
+    } else if ([menuItem.text isEqualToString:FLTitleMenuSandbox]) {
+      [self FL_titleSceneShowMessage:@"Choose game to load."];
+    } else if ([menuItemParent.text isEqualToString:FLTitleMenuChallenge]) {
+      [self FL_loadFromTitleMenu:FLGameTypeChallenge menuItem:menuItem itemIndex:itemIndex];
+    } else if ([menuItemParent.text isEqualToString:FLTitleMenuSandbox]) {
+      [self FL_loadFromTitleMenu:FLGameTypeSandbox menuItem:menuItem itemIndex:itemIndex];
     }
     
     return;
@@ -328,11 +337,11 @@ FLError(NSString *message)
   if (menuNode == _gameMenuNode) {
 
     if ([menuItem.text isEqualToString:FLGameMenuResume]) {
-      [_trackScene dismissModalNode];
+      [_gameScene dismissModalNode];
     } else if ([menuItemParent.text isEqualToString:FLGameMenuSave]) {
       if (![menuItem isKindOfClass:[HLMenuBackItem class]]) {
-        _gameSavedWhileModallyPresented = YES;
-        // TODO: If _trackScene is a challenge game, then save game for FLGameTypeChallenge.
+        _savedInGameOverlay = YES;
+        // TODO: If _gameScene is a challenge game, then save game for FLGameTypeChallenge.
         NSString *savePath = [self FL_savePathForGameType:FLGameTypeSandbox saveNumber:itemIndex];
         [self FL_saveFromGameMenuConfirm:savePath];
       }
@@ -349,12 +358,13 @@ FLError(NSString *message)
 
 - (void)trackSceneDidTapMenuButton:(FLTrackScene *)trackScene
 {
-  if (!_gameModalNode) {
-    [self FL_gameModalNodeCreate];
+  if (!_gameOverlay) {
+    [self FL_gameOverlayCreate];
   }
   [_gameMenuNode navigateToTopMenuAnimation:HLMenuNodeAnimationNone];
-  [_trackScene presentModalNode:_gameModalNode];
-  _gameSavedWhileModallyPresented = NO;
+  [_gameMessageNode hideMessage];
+  [_gameScene presentModalNode:_gameOverlay zPositionMin:0.0f zPositionMax:0.0f];
+  _savedInGameOverlay = NO;
 }
 
 #pragma mark -
@@ -368,7 +378,7 @@ FLError(NSString *message)
     }
   } else if (alertView == _saveConfirmAlert) {
     if (buttonIndex == 1) {
-      [self FL_saveFromGameMenu:_savePath];
+      [self FL_saveFromGameMenu:_saveConfirmPath];
     }
   }
 }
@@ -394,7 +404,7 @@ FLError(NSString *message)
   HLMessageNode *messageNode = [[HLMessageNode alloc] initWithColor:[UIColor colorWithWhite:1.0f alpha:0.5f] size:CGSizeZero];
   messageNode.verticalAlignmentMode = HLLabelNodeVerticalAlignFontAscenderBias;
   messageNode.messageAnimationDuration = FLOffscreenSlideDuration;
-  messageNode.messageLingerDuration = 2.5;
+  messageNode.messageLingerDuration = 2.0;
   messageNode.fontName = @"Courier";
   messageNode.fontSize = 20.0f;
   messageNode.fontColor = [UIColor blackColor];
@@ -418,60 +428,81 @@ FLError(NSString *message)
   [_loadingScene addChild: loadingLabelNode];
 }
 
-- (void)FL_mainMenuSceneCreate
+- (void)FL_titleSceneCreate
 {
-  _mainMenuScene = [HLMenuScene sceneWithSize:self.view.bounds.size];
-  _mainMenuScene.scaleMode = SKSceneScaleModeResizeFill;
+  _titleScene = [HLScene sceneWithSize:self.view.bounds.size];
+  _titleScene.scaleMode = SKSceneScaleModeResizeFill;
+  _titleScene.anchorPoint = CGPointMake(0.5f, 0.5f);
   
   SKSpriteNode *backgroundNode = [SKSpriteNode spriteNodeWithImageNamed:@"grass"];
-  _mainMenuScene.backgroundNode = backgroundNode;
+  backgroundNode.zPosition = FLZPositionTitleBackground;
+  [_titleScene addChild:backgroundNode withOptions:[NSSet setWithObject:HLSceneChildResizeWithScene]];
 
-  _mainMenuScene.menuNode = [self FL_commonMenuNodeCreate];
+  HLMenuNode *titleMenuNode = [self FL_commonMenuNodeCreate];
+  titleMenuNode.zPosition = FLZPositionTitleMenu;
+  [_titleScene addChild:titleMenuNode withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
+  _titleMenuNode = titleMenuNode;
 
-  _mainMenuScene.messageNode = [self FL_commonMessageNodeCreate];
-  
-  [self FL_mainMenuCreate];
+  [self FL_titleMenuCreate];
 }
 
-- (void)FL_mainMenuSceneShowMessage:(NSString *)message
+- (void)FL_titleSceneShowMessage:(NSString *)message
 {
+  HLMessageNode *messageNode = (HLMessageNode *)[_titleScene childNodeWithName:@"messageNode"];
+  if (!messageNode) {
+    messageNode = [self FL_commonMessageNodeCreate];
+    messageNode.name = @"messageNode";
+    messageNode.zPosition = FLZPositionTitleMessage;
+    [_titleScene addChild:messageNode withOptions:[NSSet setWithObject:HLSceneChildNoCoding]];
+  }
+
   // note: Could maintain the size and shape of the message node only when
-  // our own geometry changes.  But this is easier, for now.
-  _mainMenuScene.messageNode.position = CGPointMake(0.0f, _mainMenuScene.menuNode.position.y + _mainMenuScene.menuNode.itemSpacing);
-  _mainMenuScene.messageNode.size = CGSizeMake(_mainMenuScene.size.width, FLMessageNodeHeight);
+  // our own geometry changes.  But easier to do it for every message, for now.
+  HLMenuNode *titleMenuNode = _titleMenuNode;
+  messageNode.position = CGPointMake(0.0f, titleMenuNode.position.y + titleMenuNode.itemSpacing);
+  messageNode.size = CGSizeMake(_titleScene.size.width, FLMessageNodeHeight);
   
-  [_mainMenuScene.messageNode showMessage:message parent:_mainMenuScene];
+  [messageNode showMessage:message parent:_titleScene];
 }
 
-- (void)FL_mainMenuCreate
+- (void)FL_titleSceneHideMessage
+{
+  HLMessageNode *messageNode = (HLMessageNode *)[_titleScene childNodeWithName:@"messageNode"];
+  if (messageNode) {
+    [messageNode hideMessage];
+  }
+}
+
+- (void)FL_titleMenuCreate
 {
   HLMenu *menu = [[HLMenu alloc] init];
 
-  // note: Create empty loading menus for now; update later with FL_menuUpdateSaves.
-  [menu addItem:[HLMenu menuWithText:FLMainMenuChallenge
+  // note: Create empty loading menus for now; update later with FL_commonMenuUpdateSaves.
+  [menu addItem:[HLMenu menuWithText:FLTitleMenuChallenge
                                items:@[ [HLMenuItem menuItemWithText:FLCommonMenuNew],
                                         [HLMenuBackItem menuItemWithText:FLCommonMenuBack] ]]];
-  [menu addItem:[HLMenu menuWithText:FLMainMenuSandbox
+  [menu addItem:[HLMenu menuWithText:FLTitleMenuSandbox
                                items:@[ [HLMenuItem menuItemWithText:FLCommonMenuNew],
                                         [HLMenuBackItem menuItemWithText:FLCommonMenuBack] ]]];
-  [menu addItem:[HLMenuItem menuItemWithText:FLMainMenuAbout]];
+  [menu addItem:[HLMenuItem menuItemWithText:FLTitleMenuAbout]];
 
-  [_mainMenuScene.menuNode setMenu:menu animation:HLMenuNodeAnimationNone];
+  HLMenuNode *titleMenuNode = _titleMenuNode;
+  [titleMenuNode setMenu:menu animation:HLMenuNodeAnimationNone];
 }
 
-- (void)FL_gameModalNodeCreate
+- (void)FL_gameOverlayCreate
 {
-  _gameModalNode = [SKNode node];
+  _gameOverlay = [SKNode node];
 
   _gameMenuNode = [self FL_commonMenuNodeCreate];
-  [_gameModalNode addChild:_gameMenuNode];
+  [_gameOverlay addChild:_gameMenuNode];
 
   [self FL_gameMenuCreate];
 
   _gameMessageNode = [self FL_commonMessageNodeCreate];
 }
 
-- (void)FL_gameModalNodeShowMessage:(NSString *)message
+- (void)FL_gameOverlayShowMessage:(NSString *)message
 {
   // noob: Considered designs for messages:
   // The message node could be part of the menu node, but the menu node knows
@@ -485,11 +516,11 @@ FLError(NSString *message)
   // HLModalMessageMenu or something.
   
   // note: Could maintain the size and shape of the message node only when
-  // our own geometry changes.  But this is easier, for now.
+  // our own geometry changes.  But easier to do it for every message, for now.
   _gameMessageNode.position = CGPointMake(0.0f, _gameMenuNode.position.y + _gameMenuNode.itemSpacing);
-  _gameMessageNode.size = CGSizeMake(_trackScene.size.width, FLMessageNodeHeight);
+  _gameMessageNode.size = CGSizeMake(_gameScene.size.width, FLMessageNodeHeight);
   
-  [_gameMessageNode showMessage:message parent:_gameModalNode];
+  [_gameMessageNode showMessage:message parent:_gameOverlay];
 }
 
 - (void)FL_gameMenuCreate
@@ -625,17 +656,17 @@ FLError(NSString *message)
   confirmAlert.alertViewStyle = UIAlertViewStyleDefault;
   [confirmAlert show];
   _saveConfirmAlert = confirmAlert;
-  _savePath = savePath;
+  _saveConfirmPath = savePath;
 }
 
 - (void)FL_saveFromGameMenu:(NSString *)savePath
 {
-  [NSKeyedArchiver archiveRootObject:_trackScene toFile:savePath];
+  [NSKeyedArchiver archiveRootObject:_gameScene toFile:savePath];
   [_gameMenuNode navigateToTopMenuAnimation:HLMenuNodeAnimationNone];
-  [self FL_gameModalNodeShowMessage:@"Game saved."];
+  [self FL_gameOverlayShowMessage:@"Game saved."];
 }
 
-- (void)FL_loadFromMainMenu:(NSString *)gameType menuItem:(HLMenuItem *)menuItem itemIndex:(NSUInteger)itemIndex
+- (void)FL_loadFromTitleMenu:(NSString *)gameType menuItem:(HLMenuItem *)menuItem itemIndex:(NSUInteger)itemIndex
 {
   // note: Item index: First "New" button, then saves (including empties), then "Back" button.
   // We handle it all (for now).
@@ -645,7 +676,7 @@ FLError(NSString *message)
   }
 
   if ([menuItem.text isEqualToString:FLCommonMenuEmptySlot]) {
-    [self FL_mainMenuSceneShowMessage:@"No game in slot."];
+    [self FL_titleSceneShowMessage:@"No game in slot."];
     return;
   }
 
@@ -657,16 +688,16 @@ FLError(NSString *message)
 - (void)FL_load:(NSString *)gameType isNew:(BOOL)isNew otherwiseSaveNumber:(NSUInteger)saveNumber
 {
   if (isNew) {
-    _trackScene = [FLTrackScene sceneWithSize:self.view.bounds.size];
-    _trackScene.delegate = self;
-    _trackScene.scaleMode = SKSceneScaleModeResizeFill;
+    _gameScene = [FLTrackScene sceneWithSize:self.view.bounds.size];
+    _gameScene.delegate = self;
+    _gameScene.scaleMode = SKSceneScaleModeResizeFill;
     // TODO: Set up for challenge vs sandbox game.
   }
 
   // Bypass loading screen if short load time is guaranteed.
   if (isNew && [FLTrackScene sceneAssetsLoaded]) {
-    [self.skView presentScene:_trackScene transition:[SKTransition fadeWithDuration:FLSceneTransitionDuration]];
-    _currentScene = _trackScene;
+    [self.skView presentScene:_gameScene transition:[SKTransition fadeWithDuration:FLSceneTransitionDuration]];
+    _currentScene = _gameScene;
     return;
   }
   
@@ -677,24 +708,27 @@ FLError(NSString *message)
 
   [FLTrackScene loadSceneAssetsWithCompletion:^{
 
+    // noob: So this is executed on the main thread by the callback; does that mean
+    // the animations on the loading screen will hang while we're loading?
+
     if (!isNew) {
       NSString *savePath = [self FL_savePathForGameType:gameType saveNumber:saveNumber];
       // note: Scene size can be wrong in simulator when loading game on different device.  This might
       // be identical or related to the problem documented in viewWillAppear, because it seems similarly
       // fishy: After we unarchive a scene with scaleMode SKSceneScaleModeResizeFill, shouldn't it
       // resize itself immediately when presented in the view?
-      self->_trackScene = [NSKeyedUnarchiver unarchiveObjectWithFile:savePath];
-      self->_trackScene.delegate = self;
+      self->_gameScene = [NSKeyedUnarchiver unarchiveObjectWithFile:savePath];
+      self->_gameScene.delegate = self;
     }
 
-    [self.skView presentScene:self->_trackScene transition:[SKTransition fadeWithDuration:FLSceneTransitionDuration]];
-    self->_currentScene = self->_trackScene;
+    [self.skView presentScene:self->_gameScene transition:[SKTransition fadeWithDuration:FLSceneTransitionDuration]];
+    self->_currentScene = self->_gameScene;
   }];
 }
 
 - (void)FL_exitFromGameMenuConfirm
 {
-  if (_gameSavedWhileModallyPresented) {
+  if (_savedInGameOverlay) {
     [self FL_exitFromGameMenu];
     return;
   }
@@ -711,15 +745,16 @@ FLError(NSString *message)
 
 - (void)FL_exitFromGameMenu
 {
-  [_trackScene dismissModalNode];
-  if (!_mainMenuScene) {
-    [self FL_mainMenuSceneCreate];
+  [_gameScene dismissModalNode];
+  if (!_titleScene) {
+    [self FL_titleSceneCreate];
   } else {
-    [_mainMenuScene.messageNode hideMessage];
-    [_mainMenuScene.menuNode navigateToTopMenuAnimation:HLMenuNodeAnimationNone];
+    [self FL_titleSceneHideMessage];
+    HLMenuNode *titleMenuNode = _titleMenuNode;
+    [titleMenuNode navigateToTopMenuAnimation:HLMenuNodeAnimationNone];
   }
-  [self.skView presentScene:_mainMenuScene transition:[SKTransition fadeWithDuration:FLSceneTransitionDuration]];
-  _currentScene = _mainMenuScene;
+  [self.skView presentScene:_titleScene transition:[SKTransition fadeWithDuration:FLSceneTransitionDuration]];
+  _currentScene = _titleScene;
 }
 
 @end

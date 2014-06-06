@@ -168,7 +168,7 @@ struct FLWorldGestureState
 struct FLModalPresentationState
 {
   SKSpriteNode *backgroundNode;
-  SKNode <HLGestureTarget> *presentedNode;
+  SKNode *presentedNode;
 };
 
 enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
@@ -370,7 +370,7 @@ struct PointerPairHash
   [self FL_simulationToolbarSetVisible:NO];
   [self FL_constructionToolbarSetVisible:NO];
   [self FL_trackConflictClear];
-  SKNode <HLGestureTarget> *modalPresentedNode = _modalPresentationState.presentedNode;
+  SKNode *modalPresentedNode = _modalPresentationState.presentedNode;
   if (modalPresentedNode) {
     [self FL_modalPresentationDismiss];
   }
@@ -1390,11 +1390,9 @@ struct PointerPairHash
 #pragma mark -
 #pragma mark Modal Presentation
 
-// note: This method called out specially because of similarities with HLGestureScene's
-// implementation.  Perhaps in the future this scene will inherit, and so this will be
-// an override of some kind.
-
-- (void)presentModalNode:(SKNode <HLGestureTarget> *)node
+// TODO: For fun, try to use HLScene's version of this, with HLScene's gesture handling system?
+// Maybe if [self modalNodePresented], then our gesture handler calls [super]?
+- (void)presentModalNode:(SKNode *)node zPositionMin:(CGFloat)zPositionMin zPositionMax:(CGFloat)zPositionMax
 {
   [self FL_modalPresentationPresent:node];
 }
@@ -2857,7 +2855,7 @@ struct PointerPairHash
   }
 }
 
-- (void)FL_modalPresentationPresent:(SKNode <HLGestureTarget> *)node
+- (void)FL_modalPresentationPresent:(SKNode *)node
 {
   [self FL_simulationStop];
 
