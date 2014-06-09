@@ -44,8 +44,8 @@ static const CGFloat FLZPositionWorldTrain = 3.0f;
 static const CGFloat FLZPositionWorldLinks = 4.0f;
 static const CGFloat FLZPositionWorldOverlay = 5.0f;
 // Modal sublayers.
-static const CGFloat FLZPositionModalBackground = 0.0f;
-static const CGFloat FLZPositionModalPresentation = 1.0f;
+static const CGFloat FLZPositionModalMin = FLZPositionModal;
+static const CGFloat FLZPositionModalMax = FLZPositionModal + 1.0f;
 
 static const NSTimeInterval FLTrackRotateDuration = 0.1;
 static const NSTimeInterval FLBlinkHalfCycleDuration = 0.1;
@@ -165,12 +165,6 @@ struct FLWorldGestureState
   FLWorldLongPressMode longPressMode;
 };
 
-struct FLModalPresentationState
-{
-  SKSpriteNode *backgroundNode;
-  SKNode *presentedNode;
-};
-
 enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
 #pragma mark -
@@ -195,13 +189,6 @@ struct PointerPairHash
   SKNode *_trackNode;
   SKNode *_hudNode;
   SKNode *_linksNode;
-  SKNode *_modalNode;
-
-  UITapGestureRecognizer *_tapRecognizer;
-  UITapGestureRecognizer *_doubleTapRecognizer;
-  UILongPressGestureRecognizer *_longPressRecognizer;
-  UIPanGestureRecognizer *_panRecognizer;
-  UIPinchGestureRecognizer *_pinchRecognizer;
 
   FLCameraMode _cameraMode;
   BOOL _simulationRunning;
@@ -220,7 +207,6 @@ struct PointerPairHash
   FLTrackConflictState _trackConflictState;
   FLTrackMoveState _trackMoveState;
   FLLinkEditState _linkEditState;
-  FLModalPresentationState _modalPresentationState;
 
   HLMessageNode *_messageNode;
   FLTrain *_train;
@@ -370,10 +356,6 @@ struct PointerPairHash
   [self FL_simulationToolbarSetVisible:NO];
   [self FL_constructionToolbarSetVisible:NO];
   [self FL_trackConflictClear];
-  SKNode *modalPresentedNode = _modalPresentationState.presentedNode;
-  if (modalPresentedNode) {
-    [self FL_modalPresentationDismiss];
-  }
   BOOL messageNodeAddedToParent = (_messageNode && _messageNode.parent);
   if (messageNodeAddedToParent) {
     [_messageNode removeFromParent];
@@ -396,9 +378,6 @@ struct PointerPairHash
   }
   [self FL_simulationToolbarSetVisible:YES];
   [self FL_constructionToolbarSetVisible:YES];
-  if (modalPresentedNode) {
-    [self FL_modalPresentationPresent:modalPresentedNode];
-  }
   if (messageNodeAddedToParent) {
     [_hudNode addChild:_messageNode];
   }
@@ -430,6 +409,8 @@ struct PointerPairHash
 
 - (void)didMoveToView:(SKView *)view
 {
+  [super didMoveToView:view];
+
   if (!_contentCreated) {
     [self FL_createSceneContents];
     _contentCreated = YES;
@@ -437,47 +418,21 @@ struct PointerPairHash
 
   // note: No need for cancelsTouchesInView: Not currently handling any touches in the view.
 
-  _doubleTapRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleWorldDoubleTap:)];
-  _doubleTapRecognizer.delegate = self;
-  _doubleTapRecognizer.numberOfTapsRequired = 2;
-  [view addGestureRecognizer:_doubleTapRecognizer];
-
-  _tapRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleWorldTap:)];
-  _tapRecognizer.delegate = self;
-  // note: This slows down the single-tap recognizer noticeably.  And yet it's not really nice to have
-  // the tap and double-tap fire together.  Consider not using double-tap for these reasons.
-  //[_tapRecognizer requireGestureRecognizerToFail:_doubleTapRecognizer];
-  [view addGestureRecognizer:_tapRecognizer];
-
-  _longPressRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleWorldLongPress:)];
-  _longPressRecognizer.delegate = self;
-  [view addGestureRecognizer:_longPressRecognizer];
-
-  _panRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handleWorldPan:)];
-  _panRecognizer.delegate = self;
-  _panRecognizer.maximumNumberOfTouches = 1;
-  [view addGestureRecognizer:_panRecognizer];
-
-  _pinchRecognizer = [[UIPinchGestureRecognizer alloc] initWithTarget:self action:@selector(handleWorldPinch:)];
-  _pinchRecognizer.delegate = self;
-  [view addGestureRecognizer:_pinchRecognizer];
-}
-
-- (void)willMoveFromView:(SKView *)view
-{
-  [view removeGestureRecognizer:_doubleTapRecognizer];
-  [view removeGestureRecognizer:_tapRecognizer];
-  [view removeGestureRecognizer:_longPressRecognizer];
-  [view removeGestureRecognizer:_panRecognizer];
-  [view removeGestureRecognizer:_pinchRecognizer];
+  // note: HLScene (through [super]) needs shared gesture recognizers only for registered
+  // HLGestureTarget nodes.  We know ahead of time which ones we need.
+  [self needSharedTapGestureRecognizer];
+  [self needSharedDoubleTapGestureRecognizer];
+  [self needSharedLongPressGestureRecognizer];
+  [self needSharedPanGestureRecognizer];
+  [self needSharedPinchGestureRecognizer];
 }
 
 - (void)didChangeSize:(CGSize)oldSize
 {
+  [super didChangeSize:oldSize];
   [self FL_constructionToolbarUpdateGeometry];
   [self FL_simulationToolbarUpdateGeometry];
   [self FL_messageUpdateGeometry];
-  [self FL_modalPresentationUpdateGeometry];
 }
 
 - (void)FL_createSceneContents
@@ -1263,22 +1218,9 @@ struct PointerPairHash
   // instance, maybe it takes a sophisticated check to determine if a tap within the bounds of a toolbar
   // should count as a tap on the toolbar or a tap on the world behind it.
 
-  // Modal overlay layer.
-  if (_modalNode && _modalNode.parent) {
-    SKNode *node = [self nodeAtPoint:sceneLocation];
-    while (node != self) {
-      if ([node conformsToProtocol:@protocol(HLGestureTarget) ]) {
-        SKNode <HLGestureTarget> *target = (SKNode <HLGestureTarget> *)node;
-        BOOL isInside = NO;
-        if ([target addToGesture:gestureRecognizer firstTouch:touch isInside:&isInside]) {
-          return YES;
-        } else if (isInside) {
-          return NO;
-        }
-      }
-      node = node.parent;
-    }
-    return NO;
+  // Modal overlay layer (handled by HLScene).
+  if ([self modalNodePresented]) {
+    return [super gestureRecognizer:gestureRecognizer shouldReceiveTouch:touch];
   }
 
   // Construction toolbar.
@@ -1390,16 +1332,10 @@ struct PointerPairHash
 #pragma mark -
 #pragma mark Modal Presentation
 
-// TODO: For fun, try to use HLScene's version of this, with HLScene's gesture handling system?
-// Maybe if [self modalNodePresented], then our gesture handler calls [super]?
 - (void)presentModalNode:(SKNode *)node zPositionMin:(CGFloat)zPositionMin zPositionMax:(CGFloat)zPositionMax
 {
-  [self FL_modalPresentationPresent:node];
-}
-
-- (void)dismissModalNode
-{
-  [self FL_modalPresentationDismiss];
+  [self FL_simulationStop];
+  [super presentModalNode:node zPositionMin:FLZPositionModalMin zPositionMax:FLZPositionModalMax];
 }
 
 #pragma mark -
@@ -1413,12 +1349,12 @@ struct PointerPairHash
   // This is justified, perhaps, since FLTrackScene is the master scene in the app, but be sure
   // to design more modularly if copying this pattern for other scenes.
   NSDate *startDate = [NSDate date];
-  
+
   HLTextureStore *textureStore = [HLTextureStore sharedStore];
-  
+
   // Train.
   [textureStore setTextureWithImageNamed:@"engine" forKey:@"engine" filteringMode:SKTextureFilteringNearest];
-  
+
   // Segments.
   [textureStore setTextureWithImageNamed:@"straight" andUIImageWithImageNamed:@"straight-nonatlas" forKey:@"straight" filteringMode:SKTextureFilteringNearest];
   [textureStore setTextureWithImageNamed:@"curve" andUIImageWithImageNamed:@"curve-nonatlas" forKey:@"curve" filteringMode:SKTextureFilteringNearest];
@@ -1427,7 +1363,7 @@ struct PointerPairHash
   [textureStore setTextureWithImageNamed:@"jog-left" andUIImageWithImageNamed:@"jog-left-nonatlas" forKey:@"jog-left" filteringMode:SKTextureFilteringNearest];
   [textureStore setTextureWithImageNamed:@"jog-right" andUIImageWithImageNamed:@"jog-right-nonatlas" forKey:@"jog-right" filteringMode:SKTextureFilteringNearest];
   [textureStore setTextureWithImageNamed:@"cross" andUIImageWithImageNamed:@"cross-nonatlas" forKey:@"cross" filteringMode:SKTextureFilteringNearest];
-  
+
   // Tools.
   [textureStore setTextureWithImageNamed:@"menu" forKey:@"menu" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"play" forKey:@"play" filteringMode:SKTextureFilteringLinear];
@@ -1448,10 +1384,10 @@ struct PointerPairHash
   [textureStore setTextureWithImageNamed:@"exports" forKey:@"exports" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"link" forKey:@"link" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"export" forKey:@"export" filteringMode:SKTextureFilteringLinear];
-  
+
   // Other.
   [textureStore setTextureWithImageNamed:@"switch" forKey:@"switch" filteringMode:SKTextureFilteringNearest];
-  
+
   NSLog(@"FLTrackScene loadTextures: loaded in %0.2f seconds", [[NSDate date] timeIntervalSinceDate:startDate]);
 }
 
@@ -1462,7 +1398,7 @@ struct PointerPairHash
 
   HLEmitterStore *emitterStore = [HLEmitterStore sharedStore];
   SKEmitterNode *emitterNode;
-  
+
   emitterNode = [emitterStore setEmitterWithResource:@"sleeperDestruction" forKey:@"sleeperDestruction"];
   // note: This kind of scaling thing makes me think having an FLTrackArtScale is a bad idea.  Resample the art instead.
   emitterNode.xScale = FLTrackArtScale;
@@ -2852,41 +2788,6 @@ struct PointerPairHash
       std::cout << c;
     }
     std::cout << std::endl;
-  }
-}
-
-- (void)FL_modalPresentationPresent:(SKNode *)node
-{
-  [self FL_simulationStop];
-
-  if (!_modalNode) {
-    _modalNode = [SKNode node];
-    _modalNode.zPosition = FLZPositionModal;
-    _modalPresentationState.backgroundNode = [SKSpriteNode spriteNodeWithColor:[UIColor colorWithWhite:0.0f alpha:0.7f] size:self.size];
-    _modalPresentationState.backgroundNode.zPosition = FLZPositionModalBackground;
-    [_modalNode addChild:_modalPresentationState.backgroundNode];
-  }
-  [self addChild:_modalNode];
-  
-  node.zPosition = FLZPositionModalPresentation;
-  [_modalNode addChild:node];
-  _modalPresentationState.presentedNode = node;
-}
-
-- (void)FL_modalPresentationDismiss
-{
-  if (!_modalNode.parent || !_modalPresentationState.presentedNode) {
-    return;
-  }
-  [_modalPresentationState.presentedNode removeFromParent];
-  _modalPresentationState.presentedNode = nil;
-  [_modalNode removeFromParent];
-}
-
-- (void)FL_modalPresentationUpdateGeometry
-{
-  if (_modalPresentationState.backgroundNode) {
-    _modalPresentationState.backgroundNode.size = self.size;
   }
 }
 

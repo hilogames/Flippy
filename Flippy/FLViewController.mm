@@ -361,9 +361,19 @@ static NSString * const FLGameMenuExit = @"Exit";
   if (!_gameOverlay) {
     [self FL_gameOverlayCreate];
   }
+
   [_gameMenuNode navigateToTopMenuAnimation:HLMenuNodeAnimationNone];
   [_gameMessageNode hideMessage];
-  [_gameScene presentModalNode:_gameOverlay zPositionMin:0.0f zPositionMax:0.0f];
+
+  // note: Register (or re-register) the menu node for gesture handling.  We're
+  // being a bit sloppy here: The same modal overaly and menu node is used for
+  // all games, and so we only really need to register for the first appearance
+  // over a scene, but the call is idempotent, so it's okay.  And then really we
+  // should unregister when the modal node is dismissed, but instead we just mark
+  // the node "no coding" so that it doesn't matter if we unregister.
+  [_gameScene registerDescendant:_gameMenuNode withOptions:[NSSet setWithObjects:HLSceneChildGestureTarget, HLSceneChildNoCoding, nil]];
+  [_gameScene presentModalNode:_gameOverlay];
+
   _savedInGameOverlay = NO;
 }
 
@@ -425,7 +435,7 @@ static NSString * const FLGameMenuExit = @"Exit";
                                           [SKAction fadeAlphaTo:1.0f duration:FLLoadingPulseDuration] ]];
   pulse.timingMode = SKActionTimingEaseInEaseOut;
   [loadingLabelNode runAction:[SKAction repeatActionForever:pulse]];
-  [_loadingScene addChild: loadingLabelNode];
+  [_loadingScene addChild:loadingLabelNode];
 }
 
 - (void)FL_titleSceneCreate

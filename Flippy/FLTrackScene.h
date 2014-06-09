@@ -19,18 +19,10 @@
 @property (nonatomic, weak) id<FLTrackSceneDelegate> delegate;
 
 /**
- * Presents a node modally above the current scene, pausing the scene and disabling
- * other interaction.  Overrides the HLScene implementation so that we can hook it
- * into our own gesture handler system.  As a consequence, if the node or any of its
- * children conform to HLGestureTarget, it will receive gestures via the HLGestureTarget.
+ * Overrides the parent implementation to stop the simulation and provide zPosition values.
+ * The zPosition values passed as parameters are ignored.
  */
 - (void)presentModalNode:(SKNode *)node zPositionMin:(CGFloat)zPositionMin zPositionMax:(CGFloat)zPositionMax;
-
-/**
- * Dismisses the node currently presented by presentModalNode (if any).  Overrides
- * the HLScene implementation.
- */
-- (void)dismissModalNode;
 
 @end
 
