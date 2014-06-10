@@ -334,9 +334,6 @@ struct PointerPairHash
     return;
   }
 
-  // noob: Call [super] and do opt-out, or skip [super] and do opt-in?  Going with
-  // the former for now.
-
   // Remove nodes from hierarchy that should not be persisted.
   SKNode *holdTerrainNode = [_worldNode childNodeWithName:@"terrain"];
   [holdTerrainNode removeFromParent];
