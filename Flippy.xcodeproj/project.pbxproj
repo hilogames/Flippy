@@ -10,6 +10,7 @@
 		CB0DA5A618B7D8CE00E43D34 /* FLPath.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB0DA5A418B7D8CE00E43D34 /* FLPath.mm */; };
 		CB3E96BE189AB85900D0D567 /* tools.atlas in Resources */ = {isa = PBXBuildFile; fileRef = CB3E96BD189AB85900D0D567 /* tools.atlas */; };
 		CB3FBDCD1889860A00CE5BBD /* QuadTree.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */; };
+		CB4852F11949F41700B83C36 /* platform-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB4852F01949F41700B83C36 /* platform-nonatlas.png */; };
 		CB4D530F18A979550087E1F7 /* wooden-clatter-1.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB4D530A18A979550087E1F7 /* wooden-clatter-1.caf */; };
 		CB4D531018A979550087E1F7 /* wooden-click-1.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB4D530B18A979550087E1F7 /* wooden-click-1.caf */; };
 		CB4D531118A979550087E1F7 /* wooden-click-2.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB4D530C18A979550087E1F7 /* wooden-click-2.caf */; };
@@ -93,6 +94,7 @@
 		CB3E96BD189AB85900D0D567 /* tools.atlas */ = {isa = PBXFileReference; lastKnownFileType = folder.skatlas; path = tools.atlas; sourceTree = "<group>"; };
 		CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = QuadTree.cpp; sourceTree = "<group>"; };
 		CB3FBDCC1889860A00CE5BBD /* QuadTree.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = QuadTree.h; sourceTree = "<group>"; };
+		CB4852F01949F41700B83C36 /* platform-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "platform-nonatlas.png"; sourceTree = "<group>"; };
 		CB4D530A18A979550087E1F7 /* wooden-clatter-1.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "wooden-clatter-1.caf"; sourceTree = "<group>"; };
 		CB4D530B18A979550087E1F7 /* wooden-click-1.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "wooden-click-1.caf"; sourceTree = "<group>"; };
 		CB4D530C18A979550087E1F7 /* wooden-click-2.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "wooden-click-2.caf"; sourceTree = "<group>"; };
@@ -198,6 +200,7 @@
 				CB5D2FB71929452800CC4DBA /* join-left-nonatlas.png */,
 				CB5D2FB81929452800CC4DBA /* join-right-nonatlas.png */,
 				CB7D13871916DE68002B63D2 /* menu-button.png */,
+				CB4852F01949F41700B83C36 /* platform-nonatlas.png */,
 				CB88669418A544820045FD7E /* rail.png */,
 				CB88669818A549150045FD7E /* railDestruction.sks */,
 				CB88669518A544820045FD7E /* sleeper.png */,
@@ -427,6 +430,7 @@
 			files = (
 				CB5B70A218C956D20068F16D /* switch.png in Resources */,
 				CB88669918A549150045FD7E /* railDestruction.sks in Resources */,
+				CB4852F11949F41700B83C36 /* platform-nonatlas.png in Resources */,
 				CBA5ED541907007800DBF36E /* circuits in Resources */,
 				CB88668F18A540130045FD7E /* grass.png in Resources */,
 				CBB4B81B183C00E1003C3444 /* Images.xcassets in Resources */,

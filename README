@@ -7,26 +7,37 @@ circuits.
 
 Current
 
-  . Sound effects for toolbar operations.
-
-  . Start splash and start menu.  Button in simulation toolbar to
-    return to start menu.  Main: "Challenge" and "Sandbox".  Then:
-    A list of loads, or a "New" button.
-
-  . Menus: Get "back" button working.  Then: Put menu scene
-    functionality into a node, rather than a scene, so that it can
-    overlay a scene.  Include new functionality for disabling the
-    background (e.g. auto-pause of scene, and no gesture recognition).
-    Then make two menus: a main menu and an in-game menu.  In-game
-    menu will overlay the track scene.  Then go back and redo how the
-    view controller archives things, since it will now be different.
-
-  . Make a copy/duplicate of current selection.  Insert the same way
-    as an import, so factor out that code.
+  . Special beginning and end of line segments for Flippy: platforms.
 
   . Special input and output segments which have switches but no track
-    (and perhaps have a readout of binary value).  (Consider how this
-    would work in "puzzle" mode for the game.)
+    (and perhaps have a readout of binary value).
+
+    - Join segment state needs to be more visible.  Bigger blue
+      switches, and color highlighting associated with either 0 or 1
+      values.  Perhaps blue or green lever?  Or else a blue lever
+      which points to either red or black, for instance.
+
+    - You can flip inputs manually, but not outputs: They must be
+      linked.
+
+    - In challenge mode, you can't flip tracks manually.
+
+    - In challenge mode, you can't add inputs and outputs.
+
+    - Inputs and outputs have no paths (but are segments, for now,
+      since that's what goes on the grid).
+
+    - In challenge mode, you can't link to or from anything that is
+      linked to an input -- the train makes the connection.
+
+  . Tutorial mechanism for first challenge levels.
+
+  . Challenge levels: not, or, and, xor (no cross), xor (with cross).
+    Each one can be skipped?  Each one has hints?  If you can do it
+    under the piece count, then you unlock the corresponding gate in
+    sandbox mode.
+
+  . Challenge mode levels unlock gates and circuits in sandbox mode.
 
   . Pan world when track move (or multi-selection, or any pan gesture)
     goes to edge of scene.
@@ -36,11 +47,19 @@ Current
     (Get the track edit menu to report its width, I guess, and then
     do the centering in the handleGesture method.)
 
+  . Make a copy/duplicate of current selection.  Insert the same way
+    as an import, so factor out that code.
+
 If It Ships
 
   . Low memory warning.
 
+  . Infinite grid, and/or real quadtree.
+
 Lower Priority
+
+  . Prettier links.  Maybe quadratic Bezier curves for link nodes.
+    Maybe different coloring.
 
   . Long press on saved games deletes them.
 
@@ -49,7 +68,7 @@ Lower Priority
     (And wouldn't need UIImages anymore in HLTextureStore.)
 
   . Sound effects for train start, train stop, switch switching,
-    message appear, menu navigation, ...
+    message appear, toolbar navigation, ...
 
   . For multisegment rotation: In case of conflict, search for nearby
     pivot that would work without conflicts.  Shouldn't be hard to

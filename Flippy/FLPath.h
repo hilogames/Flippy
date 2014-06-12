@@ -13,7 +13,8 @@ enum FLPathType {
   FLPathTypeStraight,
   FLPathTypeCurve,
   FLPathTypeJogLeft,
-  FLPathTypeJogRight
+  FLPathTypeJogRight,
+  FLPathTypeHalf,
 };
 
 /**
@@ -96,4 +97,5 @@ private:
   FLPath curvePaths_[4];
   FLPath jogLeftPaths_[2];
   FLPath jogRightPaths_[2];
+  FLPath halfPaths_[4];
 };

@@ -1319,6 +1319,24 @@ struct PointerPairHash
   [self FL_linkSetSwitch:segmentNode pathId:pathId animated:YES];
 }
 
+- (void)train:(FLTrain *)train stoppedAtSegment:(FLSegmentNode *)segmentNode
+{
+  // note: Currently only one train, so if train stops then stop the whole simulation.
+  _simulationRunning = NO;
+  [self FL_simulationToolbarUpdateTools];
+  
+  if (segmentNode.segmentType == FLSegmentTypePlatform) {
+    SKAction *putTrainBackOnTrack = [SKAction runBlock:^{
+      [train moveToSegment:segmentNode pathId:0 progress:0.0f direction:FLTrainDirectionForward];
+    }];
+    // note: Strictly speaking, we aren't allowed to mess with the train's zRotation.  But
+    // we know the train is stopped, and we know we'll put it back on track in a second.
+    const NSTimeInterval FLTrainRotateDuration = 0.4;
+    [train runAction:[SKAction sequence:@[ [SKAction rotateByAngle:(CGFloat)M_PI duration:FLTrainRotateDuration],
+                                           putTrainBackOnTrack ]]];
+  }
+}
+
 - (void)train:(FLTrain *)train crashedAtSegment:(FLSegmentNode *)segmentNode
 {
   // note: Currently only one train, so if train stops then stop the whole simulation.
@@ -1360,6 +1378,7 @@ struct PointerPairHash
   [textureStore setTextureWithImageNamed:@"jog-left" andUIImageWithImageNamed:@"jog-left-nonatlas" forKey:@"jog-left" filteringMode:SKTextureFilteringNearest];
   [textureStore setTextureWithImageNamed:@"jog-right" andUIImageWithImageNamed:@"jog-right-nonatlas" forKey:@"jog-right" filteringMode:SKTextureFilteringNearest];
   [textureStore setTextureWithImageNamed:@"cross" andUIImageWithImageNamed:@"cross-nonatlas" forKey:@"cross" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"platform" andUIImageWithImageNamed:@"platform-nonatlas" forKey:@"platform" filteringMode:SKTextureFilteringNearest];
 
   // Tools.
   [textureStore setTextureWithImageNamed:@"menu" forKey:@"menu" filteringMode:SKTextureFilteringLinear];
@@ -1735,7 +1754,7 @@ struct PointerPairHash
 
 - (void)FL_constructionToolbarShowSegments:(int)page animation:(HLToolbarNodeAnimation)animation
 {
-  [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"main", @"straight", @"curve", @"join-left", @"join-right", @"jog-left", @"jog-right", @"cross" ]
+  [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"main", @"straight", @"curve", @"join-left", @"join-right", @"jog-left", @"jog-right", @"cross", @"platform" ]
                                                            store:[HLTextureStore sharedStore]
                                                        rotations:nil
                                                          offsets:@[ [NSValue valueWithCGPoint:CGPointZero],
@@ -1745,7 +1764,8 @@ struct PointerPairHash
                                                                     [NSValue valueWithCGPoint:CGPointMake(FLSegmentArtCurveShift, FLSegmentArtCurveShift)],
                                                                     [NSValue valueWithCGPoint:CGPointZero],
                                                                     [NSValue valueWithCGPoint:CGPointZero],
-                                                                    [NSValue valueWithCGPoint:CGPointZero] ]
+                                                                    [NSValue valueWithCGPoint:CGPointZero],
+                                                                    [NSValue valueWithCGPoint:CGPointMake(FLSegmentArtStraightShift, 0.0f)] ]
                                                         animation:animation];
   [_constructionToolbarState.navigationTools addObject:@"main"];
   [_constructionToolbarState.actionPanTools setObject:@"Straight Track" forKey:@"straight"];
@@ -1755,6 +1775,7 @@ struct PointerPairHash
   [_constructionToolbarState.actionPanTools setObject:@"Jog Left Track" forKey:@"jog-left"];
   [_constructionToolbarState.actionPanTools setObject:@"Jog Right Track" forKey:@"jog-right"];
   [_constructionToolbarState.actionPanTools setObject:@"Cross Track" forKey:@"cross"];
+  [_constructionToolbarState.actionPanTools setObject:@"Platform" forKey:@"platform"];
 }
 
 - (void)FL_constructionToolbarShowImports:(NSString *)importDirectory page:(int)page animation:(HLToolbarNodeAnimation)animation

@@ -28,10 +28,26 @@ FLTrackGrid::import(SKNode *parentNode)
   }
 }
 
+void
+trackGridIsOnEdge(FLTrackGrid& trackGrid, CGPoint worldLocation, bool *onEdgeX, bool *onEdgeY)
+{
+  CGFloat FLEpsilon = 0.001f;
+  
+  CGFloat segmentSize = trackGrid.segmentSize();
+  CGFloat halfSegmentSize = segmentSize / 2.0f;
+  
+  CGFloat edgeXRemainder = fmod(worldLocation.x + halfSegmentSize, segmentSize);
+  *onEdgeX = (edgeXRemainder > -FLEpsilon && edgeXRemainder < FLEpsilon)
+  || (edgeXRemainder > segmentSize - FLEpsilon && edgeXRemainder < segmentSize + FLEpsilon);
+  
+  CGFloat edgeYRemainder = fmod(worldLocation.y + halfSegmentSize, segmentSize);
+  *onEdgeY = (edgeYRemainder > -FLEpsilon && edgeYRemainder < FLEpsilon)
+  || (edgeYRemainder > segmentSize - FLEpsilon && edgeYRemainder < segmentSize + FLEpsilon);
+}
+
 size_t
 trackGridFindAdjacent(FLTrackGrid& trackGrid, CGPoint worldLocation, __strong FLSegmentNode *adjacent[])
 {
-  CGFloat FLEpsilon = 0.001f;
   CGFloat segmentSize = trackGrid.segmentSize();
   CGFloat halfSegmentSize = segmentSize / 2.0f;
 
@@ -39,13 +55,10 @@ trackGridFindAdjacent(FLTrackGrid& trackGrid, CGPoint worldLocation, __strong FL
   int gridY;
   trackGrid.convert(worldLocation, &gridX, &gridY);
 
-  CGFloat edgeXRemainder = fmod(worldLocation.x + halfSegmentSize, segmentSize);
-  bool onEdgeX = (edgeXRemainder > -FLEpsilon && edgeXRemainder < FLEpsilon)
-                 || (edgeXRemainder > segmentSize - FLEpsilon && edgeXRemainder < segmentSize + FLEpsilon);
-  CGFloat edgeYRemainder = fmod(worldLocation.y + halfSegmentSize, segmentSize);
-  bool onEdgeY = (edgeYRemainder > -FLEpsilon && edgeYRemainder < FLEpsilon)
-                 || (edgeYRemainder > segmentSize - FLEpsilon && edgeYRemainder < segmentSize + FLEpsilon);
-
+  bool onEdgeX;
+  bool onEdgeY;
+  trackGridIsOnEdge(trackGrid, worldLocation, &onEdgeX, &onEdgeY);
+  
   size_t adjacentCount = 0;
   if (onEdgeX && onEdgeY) {
     // Corner.
@@ -146,13 +159,22 @@ trackGridFindConnecting(FLTrackGrid& trackGrid,
   // be much slower.
 
   CGFloat segmentSize = trackGrid.segmentSize();
-  CGPoint cornerPoint;
+  CGPoint endPoint;
   CGFloat startRotation;
-  [startSegmentNode getPoint:&cornerPoint rotation:&startRotation forPath:startPathId progress:startProgress scale:segmentSize];
+  [startSegmentNode getPoint:&endPoint rotation:&startRotation forPath:startPathId progress:startProgress scale:segmentSize];
+
+  // note: Currently segments only connect at corners.  If the end point isn't on a corner (e.g.
+  // for the end of a platform) then it doesn't connect to anything.
+  bool onEdgeX;
+  bool onEdgeY;
+  trackGridIsOnEdge(trackGrid, endPoint, &onEdgeX, &onEdgeY);
+  if (!onEdgeX || !onEdgeY) {
+    return false;
+  }
 
   CGFloat halfSegmentSize = segmentSize / 2.0f;
-  int rightGridX = int(floor((cornerPoint.x + halfSegmentSize) / segmentSize + 0.5f));
-  int topGridY = int(floor((cornerPoint.y + halfSegmentSize) / segmentSize + 0.5f));
+  int rightGridX = int(floor((endPoint.x + halfSegmentSize) / segmentSize + 0.5f));
+  int topGridY = int(floor((endPoint.y + halfSegmentSize) / segmentSize + 0.5f));
 
   for (int gx = rightGridX - 1; gx <= rightGridX; ++gx) {
     for (int gy = topGridY - 1; gy <= topGridY; ++gy) {
@@ -162,7 +184,7 @@ trackGridFindConnecting(FLTrackGrid& trackGrid,
         continue;
       }
 
-      if ([segmentNode getPath:connectingPathId progress:connectingProgress forEndPoint:cornerPoint rotation:startRotation scale:segmentSize]) {
+      if ([segmentNode getPath:connectingPathId progress:connectingProgress forEndPoint:endPoint rotation:startRotation scale:segmentSize]) {
         *connectingSegmentNode = segmentNode;
         return true;
       }

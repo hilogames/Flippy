@@ -114,6 +114,8 @@ using namespace std;
       return @"jog-right";
     case FLSegmentTypeCross:
       return @"cross";
+    case FLSegmentTypePlatform:
+      return @"platform";
     case FLSegmentTypeNone:
     default:
       break;
@@ -138,8 +140,11 @@ using namespace std;
     return FLSegmentTypeJogRight;
   } else if ([key isEqualToString:@"cross"]) {
     return FLSegmentTypeCross;
+  } else if ([key isEqualToString:@"platform"]) {
+    return FLSegmentTypePlatform;
+  } else {
+    [NSException raise:@"FLSegmentNodeTexureKeyUnknown" format:@"Unknown segment texture key."];
   }
-  [NSException raise:@"FLSegmentNodeTexureKeyUnknown" format:@"Unknown segment texture key."];
   return FLSegmentTypeNone;
 }
 
@@ -306,10 +311,10 @@ using namespace std;
   for (int p = 0; p < pathCount; ++p) {
     const FLPath *path = paths[p];
 
-    // note: End points can (currently) only be in the corner of the unit square.  So no need
-    // for a tight comparison; really we just need to be within 0.5f (less an epsilon value
-    // for floating point error).  Similarly, rotations at end points can (currently) only
-    // be at right angles, so again, no need for a tight comparison.
+    // note: End points can are usually in corners of the unit square, but might be elsewhere
+    // (e.g. the center of an edge on platforms).  But no need for a tight comparison; if the
+    // endpoint is close to a corner, then it's assumed to be on a corner.  Similarly, rotations
+    // at end points can (currently) only be at right angles, so again, no need for a tight comparison.
 
     // note: If there are two paths from this endpoint, then either there is a switch
     // to choose between them, or else we choose the first one found.
@@ -363,6 +368,11 @@ using namespace std;
   return [self FL_path:pathId]->getLength();
 }
 
+- (int)pathCount
+{
+  return [self FL_allPathsCount];
+}
+
 - (const FLPath *)FL_path:(int)pathId
 {
   int rotationQuarters = convertRotationRadiansToQuarters(self.zRotation);
@@ -402,6 +412,9 @@ using namespace std;
         pathType = FLPathTypeJogRight;
       }
       break;
+    case FLSegmentTypePlatform:
+      pathType = FLPathTypeHalf;
+      break;
     case FLSegmentTypeNone:
     default:
       [NSException raise:@"FLSegmentNodeSegmentTypeInvalid" format:@"Invalid segment type."];
@@ -438,6 +451,36 @@ using namespace std;
       paths[0] = FLPathStore::sharedStore()->getPath(FLPathTypeJogLeft, rotationQuarters);
       paths[1] = FLPathStore::sharedStore()->getPath(FLPathTypeJogRight, rotationQuarters);
       return 2;
+    case FLSegmentTypePlatform:
+      paths[0] = FLPathStore::sharedStore()->getPath(FLPathTypeHalf, rotationQuarters);
+      return 1;
+    case FLSegmentTypeNone:
+    default:
+      [NSException raise:@"FLSegmentNodeSegmentTypeInvalid" format:@"Invalid segment type."];
+      return 0;
+  }
+}
+
+- (int)FL_allPathsCount
+{
+  // note: Increase FLSegmentNodePathsMax to match largest return value here.
+  switch (_segmentType) {
+    case FLSegmentTypeStraight:
+      return 1;
+    case FLSegmentTypeCurve:
+      return 1;
+    case FLSegmentTypeJoinLeft:
+      return 2;
+    case FLSegmentTypeJoinRight:
+      return 2;
+    case FLSegmentTypeJogLeft:
+      return 1;
+    case FLSegmentTypeJogRight:
+      return 1;
+    case FLSegmentTypeCross:
+      return 2;
+    case FLSegmentTypePlatform:
+      return 1;
     case FLSegmentTypeNone:
     default:
       [NSException raise:@"FLSegmentNodeSegmentTypeInvalid" format:@"Invalid segment type."];

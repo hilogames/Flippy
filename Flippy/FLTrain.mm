@@ -14,8 +14,8 @@
 
 using namespace std;
 
-static const int FLTrainDirectionForward = 1;
-static const int FLTrainDirectionReverse = -1;
+const int FLTrainDirectionForward = 1;
+const int FLTrainDirectionReverse = -1;
 
 @implementation FLTrain
 {
@@ -167,6 +167,12 @@ static const int FLTrainDirectionReverse = -1;
     }
   }
   
+  // If train arrived at a platform, then stop it gracefully.
+  if (_lastSegmentNode.segmentType == FLSegmentTypePlatform && _lastDirection == FLTrainDirectionReverse && _lastProgress < 0.0f) {
+    [self FL_stop];
+    return;
+  }
+
   // If the train tries to go past the end of the segment, then attempt to
   // switch to a connecting segment.
   if (_lastProgress < 0.0f || _lastProgress > 1.0f) {
@@ -182,6 +188,27 @@ static const int FLTrainDirectionReverse = -1;
   [_lastSegmentNode getPoint:&location rotation:&rotationRadians forPath:_lastPathId progress:_lastProgress scale:_trackGrid->segmentSize()];
   self.position = location;
   self.zRotation = (_lastDirection == FLTrainDirectionForward ? rotationRadians : rotationRadians + (CGFloat)M_PI);
+}
+
+- (BOOL)moveToSegment:(FLSegmentNode *)segmentNode pathId:(int)pathId progress:(CGFloat)progress direction:(int)direction
+{
+  if (pathId >= [segmentNode pathCount]) {
+    return NO;
+  }
+  
+  CGPoint location;
+  CGFloat rotationRadians;
+  [segmentNode getPoint:&location rotation:&rotationRadians forPath:pathId progress:progress scale:_trackGrid->segmentSize()];
+  self.position = location;
+  self.zRotation = (direction == FLTrainDirectionForward ? rotationRadians : rotationRadians + (CGFloat)M_PI);
+
+  _lastSegmentNode = segmentNode;
+  _lastPathId = pathId;
+  _lastPathLength = [segmentNode pathLengthForPath:pathId];
+  _lastProgress = progress;
+  _lastDirection = direction;
+  
+  return YES;
 }
 
 - (BOOL)moveToClosestOnTrackLocationForLocation:(CGPoint)worldLocation
@@ -219,6 +246,15 @@ static const int FLTrainDirectionReverse = -1;
   _lastDirection = direction;
 
   return YES;
+}
+
+- (void)FL_stop
+{
+  _running = NO;
+  id<FLTrainDelegate> delegate = _delegate;
+  if (delegate) {
+    [delegate train:self stoppedAtSegment:_lastSegmentNode];
+  }
 }
 
 - (void)FL_crash

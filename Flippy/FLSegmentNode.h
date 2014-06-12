@@ -28,7 +28,8 @@ enum FLSegmentType {
   FLSegmentTypeJoinRight,
   FLSegmentTypeJogLeft,
   FLSegmentTypeJogRight,
-  FLSegmentTypeCross
+  FLSegmentTypeCross,
+  FLSegmentTypePlatform,
 };
 
 inline int
@@ -76,6 +77,8 @@ convertRotationQuartersToRadians(int quarters)
 - (CGFloat)getClosestOnTrackPoint:(CGPoint *)onTrackPoint rotation:(CGFloat *)rotationRadians path:(int *)pathId progress:(CGFloat *)progress forOffTrackPoint:(CGPoint)offSegmentPoint scale:(CGFloat)scale precision:(CGFloat)progressPrecision;
 
 - (BOOL)getPath:(int *)pathId progress:(CGFloat *)progress forEndPoint:(CGPoint)endPoint rotation:(CGFloat)rotationRadians scale:(CGFloat)scale;
+
+- (int)pathCount;
 
 - (CGFloat)pathLengthForPath:(int)pathId;
 

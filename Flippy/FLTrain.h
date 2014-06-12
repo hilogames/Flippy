@@ -30,6 +30,9 @@ class FLTrackGrid;
  *    . zPosition
  */
 
+FOUNDATION_EXPORT const int FLTrainDirectionForward;
+FOUNDATION_EXPORT const int FLTrainDirectionReverse;
+
 @interface FLTrain : SKSpriteNode <NSCoding>
 
 @property (nonatomic, weak) id<FLTrainDelegate> delegate;
@@ -42,6 +45,8 @@ class FLTrackGrid;
 
 - (void)update:(CFTimeInterval)elapsedTime simulationSpeed:(int)simulationSpeed;
 
+- (BOOL)moveToSegment:(FLSegmentNode *)segmentNode pathId:(int)pathId progress:(CGFloat)progress direction:(int)direction;
+
 - (BOOL)moveToClosestOnTrackLocationForLocation:(CGPoint)worldLocation;
 
 @end
@@ -49,6 +54,8 @@ class FLTrackGrid;
 @protocol FLTrainDelegate
 
 - (void)train:(FLTrain *)train didSwitchSegment:(FLSegmentNode *)segmentNode toPathId:(int)pathId;
+
+- (void)train:(FLTrain *)train stoppedAtSegment:(FLSegmentNode *)segmentNode;
 
 - (void)train:(FLTrain *)train crashedAtSegment:(FLSegmentNode *)segmentNode;
 
