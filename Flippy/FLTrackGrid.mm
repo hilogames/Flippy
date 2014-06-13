@@ -36,13 +36,11 @@ trackGridIsOnEdge(FLTrackGrid& trackGrid, CGPoint worldLocation, bool *onEdgeX, 
   CGFloat segmentSize = trackGrid.segmentSize();
   CGFloat halfSegmentSize = segmentSize / 2.0f;
   
-  CGFloat edgeXRemainder = fmod(worldLocation.x + halfSegmentSize, segmentSize);
-  *onEdgeX = (edgeXRemainder > -FLEpsilon && edgeXRemainder < FLEpsilon)
-  || (edgeXRemainder > segmentSize - FLEpsilon && edgeXRemainder < segmentSize + FLEpsilon);
+  CGFloat edgeXRemainder = fabs(fmod(worldLocation.x + halfSegmentSize, segmentSize));
+  *onEdgeX = (edgeXRemainder < FLEpsilon || edgeXRemainder > segmentSize - FLEpsilon);
   
-  CGFloat edgeYRemainder = fmod(worldLocation.y + halfSegmentSize, segmentSize);
-  *onEdgeY = (edgeYRemainder > -FLEpsilon && edgeYRemainder < FLEpsilon)
-  || (edgeYRemainder > segmentSize - FLEpsilon && edgeYRemainder < segmentSize + FLEpsilon);
+  CGFloat edgeYRemainder = fabs(fmod(worldLocation.y + halfSegmentSize, segmentSize));
+  *onEdgeY = (edgeYRemainder < FLEpsilon || edgeYRemainder > segmentSize - FLEpsilon);
 }
 
 size_t

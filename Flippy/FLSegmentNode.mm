@@ -85,6 +85,9 @@ using namespace std;
   self = [super initWithCoder:aDecoder];
   if (self) {
     _segmentType = (FLSegmentType)[aDecoder decodeIntForKey:@"segmentType"];
+    // note: Object ivar is currently 0; "no path" value is -1.  Encoding does not
+    // store the switch child node, so it should be recreated as appropriate.
+    _switchPathId = FLSegmentSwitchPathIdNone;
     [self setSwitchPathId:[aDecoder decodeIntForKey:@"switchPathId"] animated:NO];
   }
   return self;
@@ -92,7 +95,20 @@ using namespace std;
 
 - (void)encodeWithCoder:(NSCoder *)aCoder
 {
+  // note: Remove node decorations (like switch) before encoding; we can recreate
+  // the decorations at runtime.  (This saves a little space, but the motivation
+  // here was to help with the fact that I keep changing the size of the decorations,
+  // which was a problem because the child node would load the new texture but
+  // keep the old texture size.)
+  int switchPathId = _switchPathId;
+  if (switchPathId != FLSegmentSwitchPathIdNone) {
+    [self setSwitchPathId:FLSegmentSwitchPathIdNone animated:NO];
+  }
   [super encodeWithCoder:aCoder];
+  if (switchPathId != FLSegmentSwitchPathIdNone) {
+    [self setSwitchPathId:switchPathId animated:NO];
+  }
+
   [aCoder encodeInt:(int)_segmentType forKey:@"segmentType"];
   [aCoder encodeInt:_switchPathId forKey:@"switchPathId"];
 }
@@ -173,8 +189,19 @@ using namespace std;
   if (_switchPathId == switchPathId) {
     return;
   }
+
   SKSpriteNode *switchNode;
+
   if (_switchPathId == FLSegmentSwitchPathIdNone) {
+
+    // TODO: Some old archives were encoded with extra switch child nodes.  And since
+    // then, I've changed the size of the texture.  So remove the old one if it's there.
+    // This check can be removed once all the old archives have been recreated.
+    switchNode = (SKSpriteNode *)[self childNodeWithName:@"switch"];
+    if (switchNode) {
+      [switchNode removeFromParent];
+    }
+    
     switchNode = [SKSpriteNode spriteNodeWithTexture:[[HLTextureStore sharedStore] textureForKey:@"switch"]];
     switchNode.name = @"switch";
     CGFloat halfBasicSize = FLSegmentArtSizeBasic / 2.0f;
@@ -191,6 +218,7 @@ using namespace std;
   } else {
     switchNode = (SKSpriteNode *)[self childNodeWithName:@"switch"];
   }
+
   if (switchPathId == FLSegmentSwitchPathIdNone) {
     [switchNode removeFromParent];
   } else {
@@ -206,6 +234,7 @@ using namespace std;
       [switchNode runAction:[SKAction rotateToAngle:newZRotation duration:0.1 shortestUnitArc:YES]];
     }
   }
+
   _switchPathId = switchPathId;
 }
 
@@ -324,8 +353,7 @@ using namespace std;
         && fabs(pathEndPoint.y - zeroProgressPoint.y) < 0.1f) {
       CGFloat zeroProgressRotation = path->getTangent(0.0f);
       CGFloat rotationDifference = fabs(fmod(rotationRadians - zeroProgressRotation, (CGFloat)M_PI));
-      if ((rotationDifference > -0.1f && rotationDifference < 0.1f)
-          || (rotationDifference > M_PI - 0.1f && rotationDifference < M_PI + 0.1f)) {
+      if (rotationDifference < 0.1f || rotationDifference > M_PI - 0.1f) {
         if (!foundOne || _switchPathId == p) {
           *pathId = p;
           *progress = 0.0f;
@@ -344,8 +372,7 @@ using namespace std;
         && fabs(pathEndPoint.y - oneProgressPoint.y) < 0.1f) {
       CGFloat oneProgressRotation = path->getTangent(1.0f);
       CGFloat rotationDifference = fabs(fmod(rotationRadians - oneProgressRotation, (CGFloat)M_PI));
-      if ((rotationDifference > -0.1f && rotationDifference < 0.1f)
-          || (rotationDifference > M_PI - 0.1f && rotationDifference < M_PI + 0.1f)) {
+      if (rotationDifference < 0.1f || rotationDifference > M_PI - 0.1f) {
         if (!foundOne || _switchPathId == p) {
           *pathId = p;
           *progress = 1.0f;
