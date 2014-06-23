@@ -7,15 +7,24 @@ circuits.
 
 Current
 
-  . Special beginning and end of line segments for Flippy: platforms.
-
   . Special input and output segments which have switches but no track
     (and perhaps have a readout of binary value).
 
-    - Join segment state needs to be more visible.  Bigger blue
-      switches, and color highlighting associated with either 0 or 1
-      values.  Perhaps blue or green lever?  Or else a blue lever
-      which points to either red or black, for instance.
+    - New "readout" segment.  Compose switch and value nodes together;
+      either a new subclass of FLSegmentNode, or just an option based
+      on type.  Make the value nodes overlap, and rearrange their
+      zPosition when selected.  Or make them flash or glow or
+      something.  (Wait to regenerate archives for next step.)
+
+    - Allow removal of switches on join segments; regenerate archived
+      gates and circuits accordingly; remove TODO code in
+      FLSegmentNode.mm.
+
+    - Button in construction toolbar for hiding all the values
+      underneath all the join segments?  They are a bit overwhelming.
+
+    - Higher-resolution value nodes, since they aren't really part of
+      the track?
 
     - You can flip inputs manually, but not outputs: They must be
       linked.

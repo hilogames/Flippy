@@ -56,6 +56,7 @@ using namespace std;
   if (self) {
     _segmentType = segmentType;
     _switchPathId = FLSegmentSwitchPathIdNone;
+    _showsSwitchValue = YES;
     if (segmentType == FLSegmentTypeJoinLeft || segmentType == FLSegmentTypeJoinRight) {
       // noob: Is it okay to be adding children nodes and stuff before finished initializating?
       // Ditto in other init methods.
@@ -73,6 +74,7 @@ using namespace std;
   if (self) {
     _segmentType = segmentType;
     _switchPathId = FLSegmentSwitchPathIdNone;
+    _showsSwitchValue = YES;
     if (segmentType == FLSegmentTypeJoinLeft || segmentType == FLSegmentTypeJoinRight) {
       [self setSwitchPathId:1 animated:NO];
     }
@@ -85,6 +87,7 @@ using namespace std;
   self = [super initWithCoder:aDecoder];
   if (self) {
     _segmentType = (FLSegmentType)[aDecoder decodeIntForKey:@"segmentType"];
+    _showsSwitchValue = [aDecoder decodeBoolForKey:@"showsSwitchValue"];
     // note: Object ivar is currently 0; "no path" value is -1.  Encoding does not
     // store the switch child node, so it should be recreated as appropriate.
     _switchPathId = FLSegmentSwitchPathIdNone;
@@ -102,6 +105,8 @@ using namespace std;
   // keep the old texture size.)
   int switchPathId = _switchPathId;
   if (switchPathId != FLSegmentSwitchPathIdNone) {
+    // note: Maybe faster to remove decorations from parent rather than deleting
+    // and recreating.  But this is safer, until proven detrimental.
     [self setSwitchPathId:FLSegmentSwitchPathIdNone animated:NO];
   }
   [super encodeWithCoder:aCoder];
@@ -110,7 +115,19 @@ using namespace std;
   }
 
   [aCoder encodeInt:(int)_segmentType forKey:@"segmentType"];
+  [aCoder encodeBool:_showsSwitchValue forKey:@"showsSwitchValue"];
   [aCoder encodeInt:_switchPathId forKey:@"switchPathId"];
+}
+
+- (id)copyWithZone:(NSZone *)zone
+{
+  FLSegmentNode *copy = [super copyWithZone:zone];
+  if (copy) {
+    copy->_segmentType = _segmentType;
+    copy->_switchPathId = _switchPathId;
+    copy->_showsSwitchValue = _showsSwitchValue;
+  }
+  return copy;
 }
 
 + (NSString *)keyForSegmentType:(FLSegmentType)segmentType
@@ -179,6 +196,17 @@ using namespace std;
   self.zRotation = convertRotationQuartersToRadians(zRotationQuarters);
 }
 
+- (void)setZRotation:(CGFloat)zRotation
+{
+  [super setZRotation:zRotation];
+  if (_showsSwitchValue) {
+    SKNode *valueNode = [self childNodeWithName:@"value"];
+    if (valueNode) {
+      valueNode.zRotation = (CGFloat)M_PI_2 - zRotation;
+    }
+  }
+}
+
 - (int)switchPathId
 {
   return _switchPathId;
@@ -219,7 +247,11 @@ using namespace std;
     switchNode = (SKSpriteNode *)[self childNodeWithName:@"switch"];
   }
 
-  if (switchPathId == FLSegmentSwitchPathIdNone) {
+  [self FL_hideSwitchValue];
+
+  _switchPathId = switchPathId;
+
+  if (_switchPathId == FLSegmentSwitchPathIdNone) {
     [switchNode removeFromParent];
   } else {
     CGFloat newZRotation = 0.0f;
@@ -233,9 +265,11 @@ using namespace std;
     } else {
       [switchNode runAction:[SKAction rotateToAngle:newZRotation duration:0.1 shortestUnitArc:YES]];
     }
-  }
 
-  _switchPathId = switchPathId;
+    if (_showsSwitchValue) {
+      [self FL_showSwitchValue];
+    }
+  }
 }
 
 - (int)toggleSwitchPathIdAnimated:(BOOL)animated
@@ -250,6 +284,44 @@ using namespace std;
   } else {
     [self setSwitchPathId:0 animated:animated];
     return 0;
+  }
+}
+
+- (void)setShowsSwitchValue:(BOOL)showsSwitchValue
+{
+  if (showsSwitchValue == _showsSwitchValue) {
+    return;
+  }
+  if (showsSwitchValue) {
+    [self FL_showSwitchValue];
+  } else {
+    [self FL_hideSwitchValue];
+  }
+  _showsSwitchValue = showsSwitchValue;
+}
+
+- (void)FL_showSwitchValue
+{
+  NSString *valueTextureKey;
+  if (_switchPathId == 0) {
+    valueTextureKey = @"value-0";
+  } else if (_switchPathId == 1) {
+    valueTextureKey = @"value-1";
+  }
+  if (valueTextureKey) {
+    SKNode *valueNode = [SKSpriteNode spriteNodeWithTexture:[[HLTextureStore sharedStore] textureForKey:valueTextureKey]];
+    valueNode.name = @"value";
+    valueNode.zPosition = -0.1f;
+    valueNode.zRotation = (CGFloat)M_PI_2 - self.zRotation;
+    [self addChild:valueNode];
+  }
+}
+
+- (void)FL_hideSwitchValue
+{
+  SKNode *valueNode = [self childNodeWithName:@"value"];
+  if (valueNode) {
+    [valueNode removeFromParent];
   }
 }
 

@@ -49,7 +49,7 @@ convertRotationQuartersToRadians(int quarters)
   return quarters * (CGFloat)M_PI_2;
 }
 
-@interface FLSegmentNode : SKSpriteNode <NSCoding>
+@interface FLSegmentNode : SKSpriteNode <NSCoding, NSCopying>
 
 @property (nonatomic) FLSegmentType segmentType;
 
@@ -60,6 +60,8 @@ convertRotationQuartersToRadians(int quarters)
 @property (nonatomic, readonly) int switchPathId;
 
 @property (nonatomic, readonly) CGPoint switchPosition;
+
+@property (nonatomic, assign) BOOL showsSwitchValue;
 
 + (NSString *)keyForSegmentType:(FLSegmentType)segmentType;
 

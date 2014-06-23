@@ -16,7 +16,6 @@
 		CB4D531118A979550087E1F7 /* wooden-click-2.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB4D530C18A979550087E1F7 /* wooden-click-2.caf */; };
 		CB4D531318A979550087E1F7 /* wooden-clickity-2.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB4D530E18A979550087E1F7 /* wooden-clickity-2.caf */; };
 		CB50C21718BF8F140072DA30 /* FLTrackGrid.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB50C21518BF8F140072DA30 /* FLTrackGrid.mm */; };
-		CB5B70A218C956D20068F16D /* switch.png in Resources */ = {isa = PBXBuildFile; fileRef = CB5B70A118C956D20068F16D /* switch.png */; };
 		CB5D2FBA1929452800CC4DBA /* cross-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB5D2FB31929452800CC4DBA /* cross-nonatlas.png */; };
 		CB5D2FBB1929452800CC4DBA /* curve-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB5D2FB41929452800CC4DBA /* curve-nonatlas.png */; };
 		CB5D2FBC1929452800CC4DBA /* jog-left-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB5D2FB51929452800CC4DBA /* jog-left-nonatlas.png */; };
@@ -101,7 +100,6 @@
 		CB4D530E18A979550087E1F7 /* wooden-clickity-2.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "wooden-clickity-2.caf"; sourceTree = "<group>"; };
 		CB50C21518BF8F140072DA30 /* FLTrackGrid.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLTrackGrid.mm; sourceTree = "<group>"; };
 		CB50C21618BF8F140072DA30 /* FLTrackGrid.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTrackGrid.h; sourceTree = "<group>"; };
-		CB5B70A118C956D20068F16D /* switch.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = switch.png; sourceTree = "<group>"; };
 		CB5D2FB31929452800CC4DBA /* cross-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "cross-nonatlas.png"; sourceTree = "<group>"; };
 		CB5D2FB41929452800CC4DBA /* curve-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "curve-nonatlas.png"; sourceTree = "<group>"; };
 		CB5D2FB51929452800CC4DBA /* jog-left-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "jog-left-nonatlas.png"; sourceTree = "<group>"; };
@@ -206,7 +204,6 @@
 				CB88669518A544820045FD7E /* sleeper.png */,
 				CB88669018A544530045FD7E /* sleeperDestruction.sks */,
 				CB5D2FB91929452800CC4DBA /* straight-nonatlas.png */,
-				CB5B70A118C956D20068F16D /* switch.png */,
 				CB3E96BD189AB85900D0D567 /* tools.atlas */,
 				CB657E991843E8DB00399E34 /* track.atlas */,
 			);
@@ -428,7 +425,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CB5B70A218C956D20068F16D /* switch.png in Resources */,
 				CB88669918A549150045FD7E /* railDestruction.sks in Resources */,
 				CB4852F11949F41700B83C36 /* platform-nonatlas.png in Resources */,
 				CBA5ED541907007800DBF36E /* circuits in Resources */,

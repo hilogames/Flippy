@@ -52,14 +52,19 @@ static const NSTimeInterval FLBlinkHalfCycleDuration = 0.1;
 
 // noob: The tool art uses a somewhat arbitrary size.  The display height is
 // chosen based on the screen layout.  Perhaps scaling like that is a bad idea.
-const CGFloat FLMainToolbarToolArtSize = 54.0f;
-const CGFloat FLMainToolbarToolHeight = 48.0f;
-const CGFloat FLMessageSpacer = 1.0f;
-const CGFloat FLMessageHeight = 20.0f;
+static const CGFloat FLMainToolbarToolArtSize = 54.0f;
+static const CGFloat FLMainToolbarToolHeight = 48.0f;
+static const CGFloat FLMessageSpacer = 1.0f;
+static const CGFloat FLMessageHeight = 20.0f;
 
 static NSString *FLGatesDirectoryPath;
 static NSString *FLCircuitsDirectoryPath;
 static NSString *FLExportsDirectoryPath;
+
+static const CGFloat FLLinkLineWidth = 2.0f;
+static SKColor *FLLinkLineColor = [SKColor colorWithRed:0.2f green:0.6f blue:0.9f alpha:1.0f];
+static const CGFloat FLLinkGlowWidth = 2.0f;
+static SKColor *FLLinkHighlightColor = [SKColor colorWithRed:0.2f green:0.9f blue:0.6f alpha:1.0f];
 
 #pragma mark -
 #pragma mark States
@@ -78,7 +83,7 @@ enum FLToolbarToolType { FLToolbarToolTypeNone, FLToolbarToolTypeActionTap, FLTo
 
 struct FLConstructionToolbarState
 {
-  FLConstructionToolbarState() : toolbarNode(nil), currentNavigation(@"main"), currentPage(0), deleteExportConfirmAlert(nil) {
+  FLConstructionToolbarState() : toolbarNode(nil), currentNavigation(@"main"), currentPage(0), deleteExportConfirmAlert(nil), valuesVisible(NO) {
     navigationTools = [NSMutableSet set];
     actionTapTools = [NSMutableSet set];
     actionPanTools = [NSMutableDictionary dictionary];
@@ -94,6 +99,7 @@ struct FLConstructionToolbarState
   UIAlertView *deleteExportConfirmAlert;
   NSString *deleteExportName;
   NSString *deleteExportDescription;
+  BOOL valuesVisible;
 };
 
 struct FLSimulationToolbarState
@@ -267,14 +273,14 @@ struct PointerPairHash
     _worldNode = [aDecoder decodeObjectForKey:@"worldNode"];
     _trackNode = [aDecoder decodeObjectForKey:@"trackNode"];
 
-    // Re-create nodes from the hierarchy that were removed during encoding.
+    // Recreate nodes from the hierarchy that were removed during encoding.
     [self FL_createTerrainNode];
     [self FL_createHudNode];
     [self FL_createLinksNode];
     [self FL_constructionToolbarSetVisible:YES];
     [self FL_simulationToolbarSetVisible:YES];
 
-    // Re-create track grid based on segments in track node.
+    // Recreate track grid based on segments in track node.
     _trackGrid.reset(new FLTrackGrid(FLSegmentArtSizeBasic * FLTrackArtScale));
     _trackGrid->import(_trackNode);
 
@@ -323,6 +329,10 @@ struct PointerPairHash
     if (linksVisible) {
       [_constructionToolbarState.toolbarNode setHighlight:YES forTool:@"link"];
       [_worldNode addChild:_linksNode];
+    }
+    BOOL valuesVisible = [aDecoder decodeBoolForKey:@"constructionToolbarStateValuesVisible"];
+    if (valuesVisible) {
+      [_constructionToolbarState.toolbarNode setHighlight:YES forTool:@"show-values"];
     }
   }
   return self;
@@ -400,6 +410,7 @@ struct PointerPairHash
   [aCoder encodeObject:_trackSelectState.selectedSegments forKey:@"trackSelectStateSelectedSegments"];
   [aCoder encodeBool:_trackEditMenuState.showing forKey:@"trackEditMenuStateShowing"];
   [aCoder encodeBool:linksVisible forKey:@"constructionToolbarStateLinksVisible"];
+  [aCoder encodeBool:_constructionToolbarState.valuesVisible forKey:@"constructionToolbarStateValuesVisible"];
   [aCoder encodeObject:_constructionToolbarState.currentNavigation forKey:@"constructionToolbarStateCurrentNavigation"];
   [aCoder encodeInt:_constructionToolbarState.currentPage forKey:@"constructionToolbarStateCurrentPage"];
 }
@@ -869,12 +880,14 @@ struct PointerPairHash
     [NSException raise:@"FLToolbarToolTypeUnknown" format:@"Tool '%@' not registered with a tool type.", tool];
   }
 
-  // Reset state on all mode buttons.
-  if (![tool isEqualToString:@"link"] && _linksNode.parent) {
-    [_linksNode removeFromParent];
-    // note: Right now, must be looking at main toolbar tools, or else links node
-    // wouldn't have been added to parent.  So no need to check.
-    [_constructionToolbarState.toolbarNode setHighlight:NO forTool:@"link"];
+  // If navigating, reset state on mode buttons.
+  if (toolType == FLToolbarToolTypeNavigation) {
+    if (![tool isEqualToString:@"link"] && _linksNode.parent) {
+      [_linksNode removeFromParent];
+      // note: Right now, must be looking at main toolbar tools, or else links node
+      // wouldn't have been added to parent.  So no need to check.
+      [_constructionToolbarState.toolbarNode setHighlight:NO forTool:@"link"];
+    }
   }
 
   if (toolType == FLToolbarToolTypeNavigation) {
@@ -921,6 +934,8 @@ struct PointerPairHash
       } else {
         [self FL_export];
       }
+    } else if ([tool isEqualToString:@"show-values"]) {
+      [self FL_valuesToggle];
     }
 
   } else if (toolType == FLToolbarToolTypeActionPan) {
@@ -1399,10 +1414,13 @@ struct PointerPairHash
   [textureStore setTextureWithImageNamed:@"circuits" forKey:@"circuits" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"exports" forKey:@"exports" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"link" forKey:@"link" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"show-values" forKey:@"show-values" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"export" forKey:@"export" filteringMode:SKTextureFilteringLinear];
 
   // Other.
-  [textureStore setTextureWithImageNamed:@"switch" forKey:@"switch" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"switch" forKey:@"switch" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"value-0" forKey:@"value-0" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"value-1" forKey:@"value-1" filteringMode:SKTextureFilteringLinear];
 
   NSLog(@"FLTrackScene loadTextures: loaded in %0.2f seconds", [[NSDate date] timeIntervalSinceDate:startDate]);
 }
@@ -1739,16 +1757,18 @@ struct PointerPairHash
 
 - (void)FL_constructionToolbarShowMain:(int)page animation:(HLToolbarNodeAnimation)animation
 {
-  [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"segments", @"gates", @"circuits", @"exports", @"link", @"export" ]
+  [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"segments", @"gates", @"circuits", @"exports", @"link", @"show-values", @"export" ]
                                                            store:[HLTextureStore sharedStore]
                                                        rotations:nil
                                                          offsets:nil
                                                        animation:animation];
+  [_constructionToolbarState.toolbarNode setHighlight:_constructionToolbarState.valuesVisible forTool:@"show-values"];
   [_constructionToolbarState.navigationTools addObject:@"segments"];
   [_constructionToolbarState.navigationTools addObject:@"gates"];
   [_constructionToolbarState.navigationTools addObject:@"circuits"];
   [_constructionToolbarState.navigationTools addObject:@"exports"];
   [_constructionToolbarState.modeTools addObject:@"link"];
+  [_constructionToolbarState.actionTapTools addObject:@"show-values"];
   [_constructionToolbarState.actionTapTools addObject:@"export"];
 }
 
@@ -1981,12 +2001,12 @@ struct PointerPairHash
 - (void)FL_messageShow:(NSString *)message
 {
   if (!_messageNode) {
-    _messageNode = [[HLMessageNode alloc] initWithColor:[UIColor colorWithWhite:0.0f alpha:0.5f] size:CGSizeZero];
+    _messageNode = [[HLMessageNode alloc] initWithColor:[SKColor colorWithWhite:0.0f alpha:0.5f] size:CGSizeZero];
     _messageNode.verticalAlignmentMode = HLLabelNodeVerticalAlignFontAscenderBias;
     _messageNode.messageLingerDuration = 2.0;
     _messageNode.fontName = @"Courier";
     _messageNode.fontSize = 14.0f;
-    _messageNode.fontColor = [UIColor whiteColor];
+    _messageNode.fontColor = [SKColor whiteColor];
     [self FL_messageUpdateGeometry];
   }
   [_messageNode showMessage:message parent:_hudNode];
@@ -2029,7 +2049,7 @@ struct PointerPairHash
   for (FLSegmentNode *segmentNode in segmentNodes) {
     SKSpriteNode *selectionSquare = [_trackSelectState.visualSquareNodes objectForKey:[NSValue valueWithPointer:(void *)segmentNode]];
     if (!selectionSquare) {
-      selectionSquare = [SKSpriteNode spriteNodeWithColor:[UIColor colorWithWhite:0.2f alpha:1.0f]
+      selectionSquare = [SKSpriteNode spriteNodeWithColor:[SKColor colorWithWhite:0.2f alpha:1.0f]
                                                      size:CGSizeMake(FLSegmentArtSizeBasic * FLTrackArtScale,
                                                                      FLSegmentArtSizeBasic * FLTrackArtScale)];
       selectionSquare.blendMode = SKBlendModeAdd;
@@ -2086,7 +2106,7 @@ struct PointerPairHash
 
 - (void)FL_trackConflictShow:(FLSegmentNode *)segmentNode
 {
-  SKSpriteNode *conflictNode = [SKSpriteNode spriteNodeWithColor:[UIColor colorWithRed:1.0f green:0.0f blue:0.0f alpha:1.0f]
+  SKSpriteNode *conflictNode = [SKSpriteNode spriteNodeWithColor:[SKColor colorWithRed:1.0f green:0.0f blue:0.0f alpha:1.0f]
                                                             size:CGSizeMake(FLSegmentArtSizeBasic * FLTrackArtScale,
                                                                             FLSegmentArtSizeBasic * FLTrackArtScale)];
   conflictNode.zPosition = FLZPositionWorldSelect;
@@ -2433,8 +2453,9 @@ struct PointerPairHash
   linkNode.path = linkPath;
   CGPathRelease(linkPath);
 
-  linkNode.strokeColor = [UIColor redColor];
-  linkNode.glowWidth = 2.0f;
+  linkNode.lineWidth = FLLinkLineWidth;
+  linkNode.strokeColor = FLLinkLineColor;
+  linkNode.glowWidth = FLLinkGlowWidth;
   [_linksNode addChild:linkNode];
 
   return linkNode;
@@ -2464,8 +2485,9 @@ struct PointerPairHash
                                                             highlightSideSize,
                                                             highlightSideSize),
                                                  NULL);
-  highlightNode.strokeColor = [UIColor redColor];
-  highlightNode.glowWidth = 2.0f;
+  highlightNode.lineWidth = FLLinkLineWidth;
+  highlightNode.strokeColor = FLLinkHighlightColor;
+  highlightNode.glowWidth = FLLinkGlowWidth;
   highlightNode.path = highlightPath;
   CGPathRelease(highlightPath);
   [_linksNode addChild:highlightNode];
@@ -2496,8 +2518,9 @@ struct PointerPairHash
                                                                 highlightSideSize),
                                                      NULL);
       highlightNode.path = highlightPath;
-      highlightNode.strokeColor = [UIColor redColor];
-      highlightNode.glowWidth = 2.0f;
+      highlightNode.lineWidth = FLLinkLineWidth;
+      highlightNode.strokeColor = FLLinkHighlightColor;
+      highlightNode.glowWidth = FLLinkGlowWidth;
       CGPathRelease(highlightPath);
       [_linksNode addChild:highlightNode];
       _linkEditState.endHighlightNode = highlightNode;
@@ -2592,6 +2615,17 @@ struct PointerPairHash
   }
 }
 
+- (void)FL_valuesToggle
+{
+  BOOL valuesVisible = !_constructionToolbarState.valuesVisible;
+  _constructionToolbarState.valuesVisible = valuesVisible;
+  [_constructionToolbarState.toolbarNode setHighlight:valuesVisible forTool:@"show-values"];
+  for (auto s : *_trackGrid) {
+    FLSegmentNode *segmentNode = s.second;
+    segmentNode.showsSwitchValue = valuesVisible;
+  }
+}
+
 - (void)FL_trackRotateSegment:(FLSegmentNode *)segmentNode rotateBy:(int)rotateBy animated:(BOOL)animated
 {
   // note: rotateBy positive is in the counterclockwise direction, but current implementation
@@ -2605,8 +2639,10 @@ struct PointerPairHash
     segmentNode.zRotationQuarters = newRotationQuarters;
     [self FL_linkRedrawForSegment:segmentNode];
   } else {
+    segmentNode.showsSwitchValue = NO;
     [segmentNode runAction:[SKAction rotateToAngle:(newRotationQuarters * (CGFloat)M_PI_2) duration:FLTrackRotateDuration shortestUnitArc:YES] completion:^{
       [self FL_linkRedrawForSegment:segmentNode];
+      segmentNode.showsSwitchValue = YES;
     }];
     [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-click-1.caf" waitForCompletion:NO]];
   }
@@ -2712,6 +2748,7 @@ struct PointerPairHash
       FLSegmentNode *segmentNodeCopy = [segmentNode copy];
       segmentNodeCopy.position = CGPointMake(segmentNode.position.x - pivot.x, segmentNode.position.y - pivot.y);
       [rotateNode addChild:segmentNodeCopy];
+      segmentNodeCopy.showsSwitchValue = NO;
     }
     rotateNode.position = pivot;
 
