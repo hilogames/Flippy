@@ -1037,6 +1037,11 @@ struct PointerPairHash
       NSString *description;
       NSArray *links;
       NSSet *newSegmentNodes = [self FL_importWithPath:importPath description:&description links:&links];
+      
+      // Configure imported segment set.
+      for (FLSegmentNode *segmentNode in newSegmentNodes) {
+        segmentNode.showsSwitchValue = _constructionToolbarState.valuesVisible;
+      }
 
       // Find position-aligned center point of the imported segment set.
       //
@@ -1488,14 +1493,22 @@ struct PointerPairHash
   }
   NSString *exportPath = [FLExportsDirectoryPath stringByAppendingPathComponent:[exportName stringByAppendingPathExtension:@"archive"]];
 
+  // Configure nodes for export (temporarily).
+  //
+  // note: Could normalize segment position so that, say, the lower-leftmost in the
+  // selection had position (0,0), but since a repositioning always happens on import,
+  // there doesn't seem to be a need for anything other than preserving relative
+  // position.
+  if (_constructionToolbarState.valuesVisible) {
+    for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
+      segmentNode.showsSwitchValue = NO;
+    }
+  }
+  
   NSMutableData *archiveData = [NSMutableData data];
   NSKeyedArchiver *aCoder = [[NSKeyedArchiver alloc] initForWritingWithMutableData:archiveData];
 
   [aCoder encodeObject:trackDescription forKey:@"trackDescription"];
-  // note: Could normalize segment position so that, say, the lower-leftmost in the
-  // selection had position (0,0), but since a respositioning always happens on import,
-  // there doesn't seem to be a need for anything other than preserving relative
-  // position.
   [aCoder encodeObject:_trackSelectState.selectedSegments forKey:@"segmentNodes"];
   NSMutableArray *links = [NSMutableArray array];
   for (auto link : _links) {
@@ -1511,6 +1524,13 @@ struct PointerPairHash
   [aCoder finishEncoding];
   [archiveData writeToFile:exportPath atomically:NO];
 
+  // Restore node configuration.
+  if (_constructionToolbarState.valuesVisible) {
+    for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
+      segmentNode.showsSwitchValue = YES;
+    }
+  }
+  
   [self FL_messageShow:[NSString stringWithFormat:@"Exported “%@”.", trackDescription]];
 
   return YES;
