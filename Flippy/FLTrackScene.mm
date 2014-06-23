@@ -2711,6 +2711,8 @@ struct PointerPairHash
   void (^finalizeRotation)(void) = ^{
     for (FLSegmentNode *segmentNode in segmentNodes) {
       trackGridConvertErase(*(self->_trackGrid), segmentNode.position);
+    }
+    for (FLSegmentNode *segmentNode in segmentNodes) {
       CGPoint positionRelativeToPivot = CGPointMake(segmentNode.position.x - pivot.x, segmentNode.position.y - pivot.y);
       rotatePoints(&positionRelativeToPivot, 1, normalRotationQuarters);
       segmentNode.position = CGPointMake(positionRelativeToPivot.x + pivot.x, positionRelativeToPivot.y + pivot.y);

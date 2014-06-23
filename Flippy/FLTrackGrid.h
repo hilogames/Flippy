@@ -115,6 +115,8 @@ public:
   iterator end() { return grid_.end(); }
   const_iterator end() const { return grid_.end(); }
 
+  size_t size() const { return grid_.size(); }
+
   void set(int gridX, int gridY, FLSegmentNode *value) { grid_[{ gridX, gridY }] = value; }
 
   void erase(int gridX, int gridY) { grid_.erase(gridX, gridY); }

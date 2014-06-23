@@ -48,6 +48,8 @@ public:
   iterator find(int x, int y);
   const_iterator find(int x, int y) const;
 
+  size_t size() const;
+
   Value get(int x, int y, Value&& defaultValue) const;
 
   Value& operator[](std::pair<int, int> xy);
@@ -98,6 +100,13 @@ typename QuadTree<Value>::const_iterator
 QuadTree<Value>::find(int x, int y) const
 {
   return grid_.find(std::make_pair(x, y));
+}
+
+template<typename Value>
+size_t
+QuadTree<Value>::size() const
+{
+  return grid_.size();
 }
 
 template<typename Value>
