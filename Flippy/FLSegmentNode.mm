@@ -18,6 +18,7 @@ const CGFloat FLSegmentArtSizeBasic = 36.0f;
 const CGFloat FLSegmentArtDrawnTrackNormalWidth = 14.0f;
 
 const CGFloat FLSegmentArtBasicInset = (FLSegmentArtSizeFull - FLSegmentArtSizeBasic) / 2.0f;
+const CGFloat FLSegmentArtInsideDrawnTrackInset = FLSegmentArtBasicInset + FLSegmentArtDrawnTrackNormalWidth / 2.0f;
 // note: The straight segment runs along the visual edge of a square; we'd like to shift
 // it to the visual center of the tool image.  Half the full texture size is the middle,
 // but need to subtract out the amount that the (centerpoint of the) drawn tracks are already
@@ -149,6 +150,8 @@ using namespace std;
       return @"cross";
     case FLSegmentTypePlatform:
       return @"platform";
+    case FLSegmentTypeReadout:
+      return @"readout";
     case FLSegmentTypeNone:
     default:
       break;
@@ -175,10 +178,81 @@ using namespace std;
     return FLSegmentTypeCross;
   } else if ([key isEqualToString:@"platform"]) {
     return FLSegmentTypePlatform;
+  } else if ([key isEqualToString:@"readout"]) {
+    return FLSegmentTypeReadout;
   } else {
     [NSException raise:@"FLSegmentNodeTexureKeyUnknown" format:@"Unknown segment texture key."];
   }
   return FLSegmentTypeNone;
+}
+
++ (UIImage *)createImageForReadoutSegment:(CGFloat)imageSize
+{
+  CGFloat FLSegmentArtReadoutComponentInset = FLSegmentArtBasicInset;
+
+  // note: Art constants in file are all scaled to full art size.  Our scaling
+  // factor brings everything into imageSize.
+  CGFloat scale = imageSize / FLSegmentArtSizeFull;
+  
+  HLTextureStore *textureStore = [HLTextureStore sharedStore];
+  
+  UIGraphicsBeginImageContext(CGSizeMake(imageSize, imageSize));
+  CGContextRef context = UIGraphicsGetCurrentContext();
+  // note: Flip, to account for differences in coordinate system for UIImage.
+  CGContextTranslateCTM(context, 0.0f, imageSize);
+  CGContextScaleCTM(context, 1.0f, -1.0f);
+  // note: The images we are composing -- and the image we want to produce -- have a standard
+  // "up" pointing to the right of the UIImage; the graphics context has a coordinate system with
+  // origin in the lower left.  We could rotate the context and draw with "up" along the positive
+  // y-axis, but then we'd have to rotate again in order to draw our images so that their "up" is
+  // up.  Instead, let's just do the math so that "up" goes along the positive x-axis of our context:
+  // this means you'll see width calculations being used in the y-dimension, and height in the x, etc.
+  // Here's the rotating code commented out just in case I change my mind:
+  //CGContextTranslateCTM(context, 0.0f, imageSize);
+  //CGContextRotateCTM(context, -(CGFloat)M_PI_2);
+
+  UIImage *value0Image = [textureStore imageForKey:@"value-0"];
+  CGRect value0Rect = CGRectMake((FLSegmentArtSizeFull - value0Image.size.height) / 2.0f * scale,
+                                 FLSegmentArtReadoutComponentInset * scale,
+                                 value0Image.size.height * scale,
+                                 value0Image.size.width * scale);
+  // note: The caller has put images into the HLTextureStore alongside textures, and we can use the
+  // textures as clues about how to scale the images.  In particular, if the texture uses filtering
+  // mode "nearest", then we're looking for a blocky, pixelated look.  Otherwise we want smooth.
+  if ([textureStore textureForKey:@"value-0"].filteringMode == SKTextureFilteringNearest) {
+    CGContextSetInterpolationQuality(context, kCGInterpolationNone);
+  } else {
+    CGContextSetInterpolationQuality(context, kCGInterpolationDefault);
+  }
+  CGContextDrawImage(context, value0Rect, [value0Image CGImage]);
+  
+  UIImage *value1Image = [textureStore imageForKey:@"value-1"];
+  CGRect value1Rect = CGRectMake((FLSegmentArtSizeFull - FLSegmentArtReadoutComponentInset) * scale,
+                                 (FLSegmentArtSizeFull - FLSegmentArtReadoutComponentInset) * scale,
+                                 -value1Image.size.height * scale,
+                                 -value1Image.size.width * scale);
+  if ([textureStore textureForKey:@"value-1"].filteringMode == SKTextureFilteringNearest) {
+    CGContextSetInterpolationQuality(context, kCGInterpolationNone);
+  } else {
+    CGContextSetInterpolationQuality(context, kCGInterpolationDefault);
+  }
+  CGContextDrawImage(context, value1Rect, [value1Image CGImage]);
+
+  UIImage *switchImage = [textureStore imageForKey:@"switch"];
+  CGRect switchRect = CGRectMake((FLSegmentArtReadoutComponentInset + value0Image.size.width / 4.0f - switchImage.size.height / 2.0f) * scale,
+                                 (FLSegmentArtSizeFull - FLSegmentArtReadoutComponentInset - (value1Image.size.height + switchImage.size.width) / 2.0f) * scale,
+                                 switchImage.size.height * scale,
+                                 switchImage.size.width * scale);
+  if ([textureStore textureForKey:@"switch"].filteringMode == SKTextureFilteringNearest) {
+    CGContextSetInterpolationQuality(context, kCGInterpolationNone);
+  } else {
+    CGContextSetInterpolationQuality(context, kCGInterpolationDefault);
+  }
+  CGContextDrawImage(context, switchRect, [switchImage CGImage]);
+  
+  UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+  UIGraphicsEndImageContext();
+  return image;
 }
 
 - (NSString *)segmentKey
@@ -255,10 +329,11 @@ using namespace std;
     [switchNode removeFromParent];
   } else {
     CGFloat newZRotation = 0.0f;
+    const CGFloat switchAngle = (CGFloat)M_PI / 7.4f;
     if (_segmentType == FLSegmentTypeJoinLeft) {
-      newZRotation = (switchPathId - 1) * (CGFloat)M_PI / 8.0f;
+      newZRotation = (switchPathId - 1) * switchAngle;
     } else if (_segmentType == FLSegmentTypeJoinRight) {
-      newZRotation = (CGFloat)M_PI + (1 - switchPathId) * (CGFloat)M_PI / 8.0f;
+      newZRotation = (CGFloat)M_PI + (1 - switchPathId) * switchAngle;
     }
     if (_switchPathId == FLSegmentSwitchPathIdNone || !animated) {
       switchNode.zRotation = newZRotation;

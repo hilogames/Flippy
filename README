@@ -39,6 +39,8 @@ Current
     - In challenge mode, you can't link to or from anything that is
       linked to an input -- the train makes the connection.
 
+  . Prettier highlight of join segment when linking.
+
   . Tutorial mechanism for first challenge levels.
 
   . Challenge levels: not, or, and, xor (no cross), xor (with cross).
@@ -66,6 +68,9 @@ If It Ships
   . Infinite grid, and/or real quadtree.
 
 Lower Priority
+
+  . Track destruction of readout and platform should not show the
+    same particle emitters as normal segments.
 
   . Prettier links.  Maybe quadratic Bezier curves for link nodes.
     Maybe different coloring.

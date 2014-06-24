@@ -14,7 +14,11 @@ FOUNDATION_EXPORT const CGFloat FLSegmentArtSizeFull;
 FOUNDATION_EXPORT const CGFloat FLSegmentArtSizeBasic;
 // "Track normal width" is the pixel width of the drawn tracks (widest: sleepers).
 FOUNDATION_EXPORT const CGFloat FLSegmentArtDrawnTrackNormalWidth;
+// The basic art is centered inside the full art; this is the inset.
 FOUNDATION_EXPORT const CGFloat FLSegmentArtBasicInset;
+// The inside-drawn-track-inset is the distance from the edge of the full art
+// to the inside edge of the drawn track (if the track is drawn along an edge).
+FOUNDATION_EXPORT const CGFloat FLSegmentArtInsideDrawnTrackInset;
 FOUNDATION_EXPORT const CGFloat FLSegmentArtStraightShift;
 FOUNDATION_EXPORT const CGFloat FLSegmentArtCurveShift;
 
@@ -30,6 +34,7 @@ enum FLSegmentType {
   FLSegmentTypeJogRight,
   FLSegmentTypeCross,
   FLSegmentTypePlatform,
+  FLSegmentTypeReadout,
 };
 
 inline int
@@ -66,6 +71,18 @@ convertRotationQuartersToRadians(int quarters)
 + (NSString *)keyForSegmentType:(FLSegmentType)segmentType;
 
 + (FLSegmentType)segmentTypeForKey:(NSString *)key;
+
+/**
+ * Creates a image of the readout segment in one of its possible states.
+ * (The readout segment as represented in the node tree, by comparison,
+ * is composed of a number of sprites which can change position dynamically.)
+ *
+ * note: Components of the image (for example, the switch and the "value"
+ * bubbles) are scaled to imageSize either with interpolation or without,
+ * according to the filteringMode of the texture which corresponds to the
+ * component image in the texture store.
+ */
++ (UIImage *)createImageForReadoutSegment:(CGFloat)imageSize;
 
 - (id)initWithSegmentType:(FLSegmentType)segmentType;
 

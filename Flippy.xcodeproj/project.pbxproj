@@ -8,6 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		CB0DA5A618B7D8CE00E43D34 /* FLPath.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB0DA5A418B7D8CE00E43D34 /* FLPath.mm */; };
+		CB3D2876195881460049CC5F /* switch-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB3D2873195881460049CC5F /* switch-nonatlas.png */; };
+		CB3D2877195881460049CC5F /* value-0-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB3D2874195881460049CC5F /* value-0-nonatlas.png */; };
+		CB3D2878195881460049CC5F /* value-1-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB3D2875195881460049CC5F /* value-1-nonatlas.png */; };
 		CB3E96BE189AB85900D0D567 /* tools.atlas in Resources */ = {isa = PBXBuildFile; fileRef = CB3E96BD189AB85900D0D567 /* tools.atlas */; };
 		CB3FBDCD1889860A00CE5BBD /* QuadTree.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */; };
 		CB4852F11949F41700B83C36 /* platform-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB4852F01949F41700B83C36 /* platform-nonatlas.png */; };
@@ -90,6 +93,9 @@
 		CB0464A318AA6F7F00ABCA03 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		CB0DA5A418B7D8CE00E43D34 /* FLPath.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLPath.mm; sourceTree = "<group>"; };
 		CB0DA5A518B7D8CE00E43D34 /* FLPath.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLPath.h; sourceTree = "<group>"; };
+		CB3D2873195881460049CC5F /* switch-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "switch-nonatlas.png"; sourceTree = "<group>"; };
+		CB3D2874195881460049CC5F /* value-0-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "value-0-nonatlas.png"; sourceTree = "<group>"; };
+		CB3D2875195881460049CC5F /* value-1-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "value-1-nonatlas.png"; sourceTree = "<group>"; };
 		CB3E96BD189AB85900D0D567 /* tools.atlas */ = {isa = PBXFileReference; lastKnownFileType = folder.skatlas; path = tools.atlas; sourceTree = "<group>"; };
 		CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = QuadTree.cpp; sourceTree = "<group>"; };
 		CB3FBDCC1889860A00CE5BBD /* QuadTree.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = QuadTree.h; sourceTree = "<group>"; };
@@ -204,8 +210,11 @@
 				CB88669518A544820045FD7E /* sleeper.png */,
 				CB88669018A544530045FD7E /* sleeperDestruction.sks */,
 				CB5D2FB91929452800CC4DBA /* straight-nonatlas.png */,
+				CB3D2873195881460049CC5F /* switch-nonatlas.png */,
 				CB3E96BD189AB85900D0D567 /* tools.atlas */,
 				CB657E991843E8DB00399E34 /* track.atlas */,
+				CB3D2874195881460049CC5F /* value-0-nonatlas.png */,
+				CB3D2875195881460049CC5F /* value-1-nonatlas.png */,
 			);
 			name = Images;
 			sourceTree = "<group>";
@@ -436,6 +445,7 @@
 				CB5D2FBB1929452800CC4DBA /* curve-nonatlas.png in Resources */,
 				CB4D531118A979550087E1F7 /* wooden-click-2.caf in Resources */,
 				CB5D2FC01929452800CC4DBA /* straight-nonatlas.png in Resources */,
+				CB3D2878195881460049CC5F /* value-1-nonatlas.png in Resources */,
 				CB5D2FBF1929452800CC4DBA /* join-right-nonatlas.png in Resources */,
 				CB5D2FBA1929452800CC4DBA /* cross-nonatlas.png in Resources */,
 				CB88669618A544820045FD7E /* rail.png in Resources */,
@@ -446,6 +456,8 @@
 				CB5D2FBE1929452800CC4DBA /* join-left-nonatlas.png in Resources */,
 				CB4D531318A979550087E1F7 /* wooden-clickity-2.caf in Resources */,
 				CB657E9A1843E8DB00399E34 /* track.atlas in Resources */,
+				CB3D2876195881460049CC5F /* switch-nonatlas.png in Resources */,
+				CB3D2877195881460049CC5F /* value-0-nonatlas.png in Resources */,
 				CB7D13881916DE68002B63D2 /* menu-button.png in Resources */,
 				CB88669218A544530045FD7E /* sleeperDestruction.sks in Resources */,
 				CB3E96BE189AB85900D0D567 /* tools.atlas in Resources */,

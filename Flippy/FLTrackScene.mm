@@ -1378,6 +1378,10 @@ struct PointerPairHash
 
 + (void)FL_loadTextures
 {
+  // note: This is typically called on a background thread, and we load all our textures into a store
+  // for convenient re-use.  It's not clear to me that SKTextures's preloadTextures:withCompletionHandler:
+  // would do any better, but it might be worth checking.
+
   // note: Some sloppiness here in terms of resource-management: We use the shared HLTextureStore
   // rather than maintaining our own and passing it to those who need it; we preload textures for
   // (for example) FLTrain and FLSegmentNode rather than asking them to load themselves; etc.
@@ -1389,16 +1393,6 @@ struct PointerPairHash
 
   // Train.
   [textureStore setTextureWithImageNamed:@"engine" forKey:@"engine" filteringMode:SKTextureFilteringNearest];
-
-  // Segments.
-  [textureStore setTextureWithImageNamed:@"straight" andUIImageWithImageNamed:@"straight-nonatlas" forKey:@"straight" filteringMode:SKTextureFilteringNearest];
-  [textureStore setTextureWithImageNamed:@"curve" andUIImageWithImageNamed:@"curve-nonatlas" forKey:@"curve" filteringMode:SKTextureFilteringNearest];
-  [textureStore setTextureWithImageNamed:@"join-left" andUIImageWithImageNamed:@"join-left-nonatlas" forKey:@"join-left" filteringMode:SKTextureFilteringNearest];
-  [textureStore setTextureWithImageNamed:@"join-right" andUIImageWithImageNamed:@"join-right-nonatlas" forKey:@"join-right" filteringMode:SKTextureFilteringNearest];
-  [textureStore setTextureWithImageNamed:@"jog-left" andUIImageWithImageNamed:@"jog-left-nonatlas" forKey:@"jog-left" filteringMode:SKTextureFilteringNearest];
-  [textureStore setTextureWithImageNamed:@"jog-right" andUIImageWithImageNamed:@"jog-right-nonatlas" forKey:@"jog-right" filteringMode:SKTextureFilteringNearest];
-  [textureStore setTextureWithImageNamed:@"cross" andUIImageWithImageNamed:@"cross-nonatlas" forKey:@"cross" filteringMode:SKTextureFilteringNearest];
-  [textureStore setTextureWithImageNamed:@"platform" andUIImageWithImageNamed:@"platform-nonatlas" forKey:@"platform" filteringMode:SKTextureFilteringNearest];
 
   // Tools.
   [textureStore setTextureWithImageNamed:@"menu" forKey:@"menu" filteringMode:SKTextureFilteringLinear];
@@ -1423,10 +1417,23 @@ struct PointerPairHash
   [textureStore setTextureWithImageNamed:@"export" forKey:@"export" filteringMode:SKTextureFilteringLinear];
 
   // Other.
-  [textureStore setTextureWithImageNamed:@"switch" forKey:@"switch" filteringMode:SKTextureFilteringLinear];
-  [textureStore setTextureWithImageNamed:@"value-0" forKey:@"value-0" filteringMode:SKTextureFilteringLinear];
-  [textureStore setTextureWithImageNamed:@"value-1" forKey:@"value-1" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"switch" andUIImageWithImageNamed:@"switch-nonatlas" forKey:@"switch" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"value-0" andUIImageWithImageNamed:@"value-0-nonatlas" forKey:@"value-0" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"value-1" andUIImageWithImageNamed:@"value-1-nonatlas" forKey:@"value-1" filteringMode:SKTextureFilteringNearest];
 
+  // Segments.
+  [textureStore setTextureWithImageNamed:@"straight" andUIImageWithImageNamed:@"straight-nonatlas" forKey:@"straight" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"curve" andUIImageWithImageNamed:@"curve-nonatlas" forKey:@"curve" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"join-left" andUIImageWithImageNamed:@"join-left-nonatlas" forKey:@"join-left" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"join-right" andUIImageWithImageNamed:@"join-right-nonatlas" forKey:@"join-right" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"jog-left" andUIImageWithImageNamed:@"jog-left-nonatlas" forKey:@"jog-left" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"jog-right" andUIImageWithImageNamed:@"jog-right-nonatlas" forKey:@"jog-right" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"cross" andUIImageWithImageNamed:@"cross-nonatlas" forKey:@"cross" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"platform" andUIImageWithImageNamed:@"platform-nonatlas" forKey:@"platform" filteringMode:SKTextureFilteringNearest];
+  // note: This looks particularly bad when used as a toolbar image -- which in fact is its only purpose.  But *all*
+  // the segments look bad, so I'm choosing not to use linear filtering on this one, for now; see the TODO in HLToolbarNode.
+  [textureStore setTextureWithImage:[FLSegmentNode createImageForReadoutSegment:FLSegmentArtSizeFull] forKey:@"readout" filteringMode:SKTextureFilteringLinear];
+  
   NSLog(@"FLTrackScene loadTextures: loaded in %0.2f seconds", [[NSDate date] timeIntervalSinceDate:startDate]);
 }
 
@@ -1613,6 +1620,13 @@ struct PointerPairHash
 
 - (UIImage *)FL_createImageForSegments:(NSSet *)segmentNodes withSize:(CGFloat)imageSize
 {
+  // TODO: Can this same purpose (eventually, to create a sprite node with this image)
+  // be accomplished by calling "textureFromNode" method?  But keep in mind my desire
+  // to trace out the path of the track segments with a constant-width line (with respect
+  // to the final image size, no matter how many segments there are) rather than shrinking
+  // the image down until you can't even see the shape -- textureFromNode probably can't
+  // do that.
+
   CGFloat segmentsPositionTop;
   CGFloat segmentsPositionBottom;
   CGFloat segmentsPositionLeft;
@@ -1794,7 +1808,7 @@ struct PointerPairHash
 
 - (void)FL_constructionToolbarShowSegments:(int)page animation:(HLToolbarNodeAnimation)animation
 {
-  [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"main", @"straight", @"curve", @"join-left", @"join-right", @"jog-left", @"jog-right", @"cross", @"platform" ]
+  [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"main", @"straight", @"curve", @"join-left", @"join-right", @"jog-left", @"jog-right", @"cross", @"readout", @"platform" ]
                                                            store:[HLTextureStore sharedStore]
                                                        rotations:nil
                                                          offsets:@[ [NSValue valueWithCGPoint:CGPointZero],
@@ -1802,6 +1816,7 @@ struct PointerPairHash
                                                                     [NSValue valueWithCGPoint:CGPointMake(FLSegmentArtCurveShift, -FLSegmentArtCurveShift)],
                                                                     [NSValue valueWithCGPoint:CGPointMake(FLSegmentArtCurveShift, -FLSegmentArtCurveShift)],
                                                                     [NSValue valueWithCGPoint:CGPointMake(FLSegmentArtCurveShift, FLSegmentArtCurveShift)],
+                                                                    [NSValue valueWithCGPoint:CGPointZero],
                                                                     [NSValue valueWithCGPoint:CGPointZero],
                                                                     [NSValue valueWithCGPoint:CGPointZero],
                                                                     [NSValue valueWithCGPoint:CGPointZero],
@@ -1815,6 +1830,7 @@ struct PointerPairHash
   [_constructionToolbarState.actionPanTools setObject:@"Jog Left Track" forKey:@"jog-left"];
   [_constructionToolbarState.actionPanTools setObject:@"Jog Right Track" forKey:@"jog-right"];
   [_constructionToolbarState.actionPanTools setObject:@"Cross Track" forKey:@"cross"];
+  [_constructionToolbarState.actionPanTools setObject:@"Input or Output Value" forKey:@"readout"];
   [_constructionToolbarState.actionPanTools setObject:@"Platform" forKey:@"platform"];
 }
 
