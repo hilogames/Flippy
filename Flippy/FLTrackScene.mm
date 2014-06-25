@@ -1012,6 +1012,7 @@ struct PointerPairHash
     if ([_constructionToolbarState.currentNavigation isEqualToString:@"segments"]) {
 
       FLSegmentNode *newSegmentNode = [self FL_createSegmentWithTextureKey:tool];
+      newSegmentNode.showsSwitchValue = _constructionToolbarState.valuesVisible;
       newSegmentNode.zRotation = (CGFloat)M_PI_2;
       // note: Locate the new segment underneath the current touch, even though it's
       // not yet added to the node hierarchy.  (The track move routines translate nodes
@@ -1598,8 +1599,6 @@ struct PointerPairHash
   SKSpriteNode *sprite = [SKSpriteNode spriteNodeWithTexture:texture];
   sprite.name = spriteName;
   sprite.scale = FLTrackArtScale;
-  //// note: The textureKey in user data is currently only used for debugging.
-  //sprite.userData = [NSMutableDictionary dictionaryWithDictionary:@{ @"textureKey" : textureKey }];
   [parent addChild:sprite];
   return sprite;
 }
