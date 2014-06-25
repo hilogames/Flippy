@@ -51,34 +51,33 @@ using namespace std;
 
 - (id)initWithSegmentType:(FLSegmentType)segmentType
 {
-  NSString *key = [FLSegmentNode keyForSegmentType:segmentType];
-  SKTexture *texture = [[HLTextureStore sharedStore] textureForKey:key];
-  self = [super initWithTexture:texture];
-  if (self) {
-    _segmentType = segmentType;
-    _switchPathId = FLSegmentSwitchPathIdNone;
-    _showsSwitchValue = YES;
-    if (segmentType == FLSegmentTypeJoinLeft || segmentType == FLSegmentTypeJoinRight) {
-      // noob: Is it okay to be adding children nodes and stuff before finished initializating?
-      // Ditto in other init methods.
-      [self setSwitchPathId:1 animated:NO];
-    }
-  }
-  return self;
+  NSString *textureKey = [FLSegmentNode keyForSegmentType:segmentType];
+  return [self initWithSegmentType:segmentType textureKey:textureKey];
 }
 
 - (id)initWithTextureKey:(NSString *)textureKey
 {
   FLSegmentType segmentType = [FLSegmentNode segmentTypeForKey:textureKey];
-  SKTexture *texture = [[HLTextureStore sharedStore] textureForKey:textureKey];
-  self = [super initWithTexture:texture];
+  return [self initWithSegmentType:segmentType textureKey:textureKey];
+}
+
+- (id)initWithSegmentType:(FLSegmentType)segmentType textureKey:(NSString *)textureKey
+{
+  if (segmentType == FLSegmentTypeReadout) {
+    self = [super initWithColor:[SKColor clearColor] size:CGSizeMake(FLSegmentArtSizeFull, FLSegmentArtSizeFull)];
+  } else {
+    SKTexture *texture = [[HLTextureStore sharedStore] textureForKey:textureKey];
+    self = [super initWithTexture:texture];
+  }
   if (self) {
     _segmentType = segmentType;
-    _switchPathId = FLSegmentSwitchPathIdNone;
-    _showsSwitchValue = YES;
-    if (segmentType == FLSegmentTypeJoinLeft || segmentType == FLSegmentTypeJoinRight) {
-      [self setSwitchPathId:1 animated:NO];
+    if (_segmentType == FLSegmentTypeJoinLeft || _segmentType == FLSegmentTypeJoinRight || _segmentType == FLSegmentTypeReadout) {
+      _switchPathId = 1;
+    } else {
+      _switchPathId = FLSegmentSwitchPathIdNone;
     }
+    _showsSwitchValue = NO;
+    [self FL_createContent];
   }
   return self;
 }
@@ -89,31 +88,35 @@ using namespace std;
   if (self) {
     _segmentType = (FLSegmentType)[aDecoder decodeIntForKey:@"segmentType"];
     _showsSwitchValue = [aDecoder decodeBoolForKey:@"showsSwitchValue"];
-    // note: Object ivar is currently 0; "no path" value is -1.  Encoding does not
-    // store the switch child node, so it should be recreated as appropriate.
-    _switchPathId = FLSegmentSwitchPathIdNone;
-    [self setSwitchPathId:[aDecoder decodeIntForKey:@"switchPathId"] animated:NO];
+    _switchPathId = [aDecoder decodeIntForKey:@"switchPathId"];
+
+    // TODO: Some old archives were encoded with child nodes named "switch".  Get rid
+    // of it, if it's there, so that it doesn't interfere with our assumption that we
+    // do not encode child "content".  (And don't try to reuse it in the new content,
+    // since the old "switch" node texture size is wrong.)  REMOVE THIS CHECK ONCE
+    // ALL THE OLD ARCHIVES HAVE BEEN RECREATED.
+    SKNode *switchNode = [self childNodeWithName:@"switch"];
+    if (switchNode) {
+      [switchNode removeFromParent];
+    }
+
+    // note: Content is deleted before encoding; recreate it.
+    [self FL_createContent];
   }
   return self;
 }
 
 - (void)encodeWithCoder:(NSCoder *)aCoder
 {
-  // note: Remove node decorations (like switch) before encoding; we can recreate
-  // the decorations at runtime.  (This saves a little space, but the motivation
-  // here was to help with the fact that I keep changing the size of the decorations,
-  // which was a problem because the child node would load the new texture but
-  // keep the old texture size.)
-  int switchPathId = _switchPathId;
-  if (switchPathId != FLSegmentSwitchPathIdNone) {
-    // note: Maybe faster to remove decorations from parent rather than deleting
-    // and recreating.  But this is safer, until proven detrimental.
-    [self setSwitchPathId:FLSegmentSwitchPathIdNone animated:NO];
-  }
+  // note: Remove child node "content" (like switch) before encoding; it will be re-created
+  // at decoding.  (This saves a little space, but the primary motivation here was to help
+  // with the fact that I keep changing the appearance of the child nodes, which was
+  // a problem because the textures would be reloaded but with the old texture size.)
+  [self FL_deleteContent];
   [super encodeWithCoder:aCoder];
-  if (switchPathId != FLSegmentSwitchPathIdNone) {
-    [self setSwitchPathId:switchPathId animated:NO];
-  }
+  // note: It might prove slow to delete and recreate; if so, we could remove and re-add
+  // children instead.
+  [self FL_createContent];
 
   [aCoder encodeInt:(int)_segmentType forKey:@"segmentType"];
   [aCoder encodeBool:_showsSwitchValue forKey:@"showsSwitchValue"];
@@ -127,6 +130,8 @@ using namespace std;
     copy->_segmentType = _segmentType;
     copy->_switchPathId = _switchPathId;
     copy->_showsSwitchValue = _showsSwitchValue;
+    // note: Not calling [copy createContent] because all content is assumed to be
+    // represented in the node tree.
   }
   return copy;
 }
@@ -292,57 +297,25 @@ using namespace std;
     return;
   }
 
-  SKSpriteNode *switchNode;
-
-  if (_switchPathId == FLSegmentSwitchPathIdNone) {
-
-    // TODO: Some old archives were encoded with extra switch child nodes.  And since
-    // then, I've changed the size of the texture.  So remove the old one if it's there.
-    // This check can be removed once all the old archives have been recreated.
-    switchNode = (SKSpriteNode *)[self childNodeWithName:@"switch"];
-    if (switchNode) {
-      [switchNode removeFromParent];
+  if (switchPathId == FLSegmentSwitchPathIdNone) {
+    [self FL_deleteContentSwitch];
+    if (_showsSwitchValue) {
+      [self FL_deleteContentValue];
     }
-    
-    switchNode = [SKSpriteNode spriteNodeWithTexture:[[HLTextureStore sharedStore] textureForKey:@"switch"]];
-    switchNode.name = @"switch";
-    CGFloat halfBasicSize = FLSegmentArtSizeBasic / 2.0f;
-    CGFloat switchInset = FLSegmentArtSizeBasic / 6.0f;
-    if (_segmentType == FLSegmentTypeJoinLeft) {
-      switchNode.position = CGPointMake(-halfBasicSize + switchInset, halfBasicSize);
-    } else if (_segmentType == FLSegmentTypeJoinRight) {
-      switchNode.position = CGPointMake(halfBasicSize - switchInset, halfBasicSize);
-    } else {
-      switchNode.position = CGPointZero;
-    }
-    switchNode.zPosition = 0.1f;
-    [self addChild:switchNode];
-  } else {
-    switchNode = (SKSpriteNode *)[self childNodeWithName:@"switch"];
   }
 
-  [self FL_hideSwitchValue];
-
+  int oldSwitchPathId = _switchPathId;
   _switchPathId = switchPathId;
-
-  if (_switchPathId == FLSegmentSwitchPathIdNone) {
-    [switchNode removeFromParent];
-  } else {
-    CGFloat newZRotation = 0.0f;
-    const CGFloat switchAngle = (CGFloat)M_PI / 7.4f;
-    if (_segmentType == FLSegmentTypeJoinLeft) {
-      newZRotation = (switchPathId - 1) * switchAngle;
-    } else if (_segmentType == FLSegmentTypeJoinRight) {
-      newZRotation = (CGFloat)M_PI + (1 - switchPathId) * switchAngle;
-    }
-    if (_switchPathId == FLSegmentSwitchPathIdNone || !animated) {
-      switchNode.zRotation = newZRotation;
-    } else {
-      [switchNode runAction:[SKAction rotateToAngle:newZRotation duration:0.1 shortestUnitArc:YES]];
-    }
-
+  
+  if (oldSwitchPathId == FLSegmentSwitchPathIdNone) {
+    [self FL_createContentSwitch];
     if (_showsSwitchValue) {
-      [self FL_showSwitchValue];
+      [self FL_createContentValue];
+    }
+  } else {
+    [self FL_updateContentSwitchAnimated:animated];
+    if (_showsSwitchValue) {
+      [self FL_updateContentValueAnimated:animated];
     }
   }
 }
@@ -352,13 +325,15 @@ using namespace std;
   if (_switchPathId == FLSegmentSwitchPathIdNone) {
     return FLSegmentSwitchPathIdNone;
   }
-  // note: Currently, there are only two switch positions.
   if (_switchPathId == 0) {
     [self setSwitchPathId:1 animated:animated];
     return 1;
-  } else {
+  } else if (_switchPathId == 1) {
     [self setSwitchPathId:0 animated:animated];
     return 0;
+  } else {
+    [NSException raise:@"FLSegmentNodeSwitchPathIdInvalid" format:@"Invalid switch path id; must be 0 or 1 to toggle."];
+    return -1;
   }
 }
 
@@ -367,36 +342,16 @@ using namespace std;
   if (showsSwitchValue == _showsSwitchValue) {
     return;
   }
-  if (showsSwitchValue) {
-    [self FL_showSwitchValue];
-  } else {
-    [self FL_hideSwitchValue];
+  if (_showsSwitchValue) {
+    if (_switchPathId != FLSegmentSwitchPathIdNone) {
+      [self FL_deleteContentValue];
+    }
   }
   _showsSwitchValue = showsSwitchValue;
-}
-
-- (void)FL_showSwitchValue
-{
-  NSString *valueTextureKey;
-  if (_switchPathId == 0) {
-    valueTextureKey = @"value-0";
-  } else if (_switchPathId == 1) {
-    valueTextureKey = @"value-1";
-  }
-  if (valueTextureKey) {
-    SKNode *valueNode = [SKSpriteNode spriteNodeWithTexture:[[HLTextureStore sharedStore] textureForKey:valueTextureKey]];
-    valueNode.name = @"value";
-    valueNode.zPosition = -0.1f;
-    valueNode.zRotation = (CGFloat)M_PI_2 - self.zRotation;
-    [self addChild:valueNode];
-  }
-}
-
-- (void)FL_hideSwitchValue
-{
-  SKNode *valueNode = [self childNodeWithName:@"value"];
-  if (valueNode) {
-    [valueNode removeFromParent];
+  if (_showsSwitchValue) {
+    if (_switchPathId != FLSegmentSwitchPathIdNone) {
+      [self FL_createContentValue];
+    }
   }
 }
 
@@ -545,6 +500,168 @@ using namespace std;
 - (int)pathCount
 {
   return [self FL_allPathsCount];
+}
+
+- (void)FL_createContent
+{
+  // note: Assume the content does not already exist.  Create content according to
+  // *current* object state.
+
+  if (_segmentType == FLSegmentTypeReadout) {
+    [self FL_createContentReadout];
+  }
+
+  if (_switchPathId != FLSegmentSwitchPathIdNone) {
+    [self FL_createContentSwitch];
+    if (_showsSwitchValue) {
+      [self FL_createContentValue];
+    }
+  }
+}
+
+- (void)FL_deleteContent
+{
+  // note: Assume content has been created according to *current* object state.
+  // After deletion, the caller should change object state accordingly.
+
+  if (_segmentType == FLSegmentTypeReadout) {
+    [self FL_deleteContentReadout];
+  }
+  
+  if (_switchPathId != FLSegmentSwitchPathIdNone) {
+    [self FL_deleteContentSwitch];
+    if (_showsSwitchValue) {
+      [self FL_deleteContentValue];
+    }
+  }
+}
+
+- (void)FL_createContentReadout
+{
+  // note: Assume the content does not already exist.  Create content according to
+  // *current* object state.
+  
+  // note: Additionally, since this is a helper method, assume _segmentType is
+  // FLSegmentTypeReadout.   (That is, the caller is responsible to short-circuit
+  // the call in cases where it obviously won't do anything; this prevents duplicate
+  // checking.)
+}
+
+- (void)FL_deleteContentReadout
+{
+  // note: Assume content has been created according to *current* object state.
+  // After deletion, the caller should change object state accordingly.
+}
+
+- (void)FL_createContentSwitch
+{
+  // note: Assume the content does not already exist.  Create content according to
+  // *current* object state.
+
+  // note: Additionally, since this is a helper method, assume _switchPathId is
+  // not FLSegmentSwitchPathIdNone.  (That is, the caller is responsible to short-
+  // circuit the call in cases where it obviously won't do anything; this prevents
+  // duplicate checking.)
+
+  SKSpriteNode *switchNode = [SKSpriteNode spriteNodeWithTexture:[[HLTextureStore sharedStore] textureForKey:@"switch"]];
+  switchNode.name = @"switch";
+
+  CGFloat halfBasicSize = FLSegmentArtSizeBasic / 2.0f;
+  CGFloat switchInset = FLSegmentArtSizeBasic / 6.0f;
+  if (_segmentType == FLSegmentTypeJoinLeft) {
+    switchNode.position = CGPointMake(-halfBasicSize + switchInset, halfBasicSize);
+  } else if (_segmentType == FLSegmentTypeJoinRight) {
+    switchNode.position = CGPointMake(halfBasicSize - switchInset, halfBasicSize);
+  } else {
+    switchNode.position = CGPointZero;
+  }
+  switchNode.zPosition = 0.1f;
+
+  [self addChild:switchNode];
+
+  [self FL_updateContentSwitchAnimated:NO];
+}
+
+- (void)FL_updateContentSwitchAnimated:(BOOL)animated
+{
+  // note: Assume content has been created according to current object state
+  // with the exception that _switchPathId has changed from one value to another
+  // (neither of them FLSegmentSwitchPathIdNone).
+
+  SKSpriteNode *switchNode = (SKSpriteNode *)[self childNodeWithName:@"switch"];
+
+  CGFloat newZRotation = 0.0f;
+  const CGFloat switchAngle = (CGFloat)M_PI / 7.4f;
+  if (_segmentType == FLSegmentTypeJoinLeft) {
+    newZRotation = (_switchPathId - 1) * switchAngle;
+  } else if (_segmentType == FLSegmentTypeJoinRight) {
+    newZRotation = (CGFloat)M_PI + (1 - _switchPathId) * switchAngle;
+  }
+  if (_switchPathId == FLSegmentSwitchPathIdNone || !animated) {
+    switchNode.zRotation = newZRotation;
+  } else {
+    [switchNode runAction:[SKAction rotateToAngle:newZRotation duration:0.1 shortestUnitArc:YES]];
+  }
+}
+
+- (void)FL_deleteContentSwitch
+{
+  // note: Assume content has been created according to *current* object state.
+  // After deletion, the caller should change object state accordingly.
+  // For example, we may assume that _switchPathId is not FLSegmentSwitchPathIdNone,
+  // and that the child node "switch" exists and has been added to self.
+  SKSpriteNode *switchNode = (SKSpriteNode *)[self childNodeWithName:@"switch"];
+  [switchNode removeFromParent];
+}
+
+- (void)FL_createContentValue
+{
+  // note: Assume the content does not already exist.  Create content according to
+  // *current* object state.
+  
+  // note: Additionally, since is a helper method, assume _showsSwitchValue is YES.
+  // (That is, the caller is responsible to short-circuit the call in cases where
+  // it obviously won't do anything; this prevents duplicate checking.)
+
+  NSString *valueTextureKey;
+  if (_switchPathId == 0) {
+    valueTextureKey = @"value-0";
+  } else if (_switchPathId == 1) {
+    valueTextureKey = @"value-1";
+  }
+  if (valueTextureKey) {
+    SKNode *valueNode = [SKSpriteNode spriteNodeWithTexture:[[HLTextureStore sharedStore] textureForKey:valueTextureKey]];
+    valueNode.name = @"value";
+    valueNode.zPosition = -0.1f;
+    valueNode.zRotation = (CGFloat)M_PI_2 - self.zRotation;
+    [self addChild:valueNode];
+  }
+}
+
+- (void)FL_updateContentValueAnimated:(BOOL)animated
+{
+  // note: Assume content has been created according to current object state
+  // with the exception that _switchPathId has changed from one value to another
+  // (neither of them FLSegmentSwitchPathIdNone).
+  
+  // note: Additionally, since is a helper method, assume _showsSwitchValue is YES.
+  // (That is, the caller is responsible to short-circuit the call in cases where
+  // it obviously won't do anything; this prevents duplicate checking.)
+
+  // TODO: Animation.
+
+  [self FL_deleteContentValue];
+  [self FL_createContentValue];
+}
+
+- (void)FL_deleteContentValue
+{
+  // note: Assume content has been created according to *current* object state.
+  // After deletion, the caller should change object state accordingly.
+  // For example, we may assume _showsSwitchValue is YES and that the child
+  // node "value" exists and has been added to self.
+  SKNode *valueNode = [self childNodeWithName:@"value"];
+  [valueNode removeFromParent];
 }
 
 - (const FLPath *)FL_path:(int)pathId
