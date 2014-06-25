@@ -149,7 +149,7 @@ const int FLTrainDirectionReverse = -1;
   if (_lastSegmentNode.switchPathId != FLSegmentSwitchPathIdNone
       && _lastSegmentNode.switchPathId != _lastPathId) {
     if (_lastDirection == FLTrainDirectionForward) {
-      if (_lastProgress > 0.9f) {
+      if (_lastProgress > 0.7f) {
         [_lastSegmentNode setSwitchPathId:_lastPathId animated:YES];
         id<FLTrainDelegate> delegate = _delegate;
         if (delegate) {
@@ -157,7 +157,7 @@ const int FLTrainDirectionReverse = -1;
         }
       }
     } else {
-      if (_lastProgress < 0.1f) {
+      if (_lastProgress < 0.3f) {
         [_lastSegmentNode setSwitchPathId:_lastPathId animated:YES];
         id<FLTrainDelegate> delegate = _delegate;
         if (delegate) {
