@@ -325,13 +325,16 @@ struct PointerPairHash
         || _constructionToolbarState.currentPage != 0) {
       [self FL_constructionToolbarUpdateToolsAnimation:HLToolbarNodeAnimationNone];
     }
+    // TODO: Shouldn't this state be decoded before creating the toolbar, above?  Then at creation
+    // the toolbar should be checking these things anyway (e.g. whether _worldNode has _linksNode
+    // as a child).
     BOOL linksVisible = [aDecoder decodeBoolForKey:@"constructionToolbarStateLinksVisible"];
     if (linksVisible) {
       [_constructionToolbarState.toolbarNode setHighlight:YES forTool:@"link"];
       [_worldNode addChild:_linksNode];
     }
-    BOOL valuesVisible = [aDecoder decodeBoolForKey:@"constructionToolbarStateValuesVisible"];
-    if (valuesVisible) {
+    _constructionToolbarState.valuesVisible = [aDecoder decodeBoolForKey:@"constructionToolbarStateValuesVisible"];
+    if (_constructionToolbarState.valuesVisible) {
       [_constructionToolbarState.toolbarNode setHighlight:YES forTool:@"show-values"];
     }
   }

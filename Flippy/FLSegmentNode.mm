@@ -332,7 +332,7 @@ using namespace std;
     [self setSwitchPathId:0 animated:animated];
     return 0;
   } else {
-    [NSException raise:@"FLSegmentNodeSwitchPathIdInvalid" format:@"Invalid switch path id; must be 0 or 1 to toggle."];
+    [NSException raise:@"FLSegmentNodeSwitchPathIdInvalid" format:@"Invalid switch path id %d.", _switchPathId];
     return -1;
   }
 }
@@ -619,39 +619,69 @@ using namespace std;
   // note: Assume the content does not already exist.  Create content according to
   // *current* object state.
   
-  // note: Additionally, since is a helper method, assume _showsSwitchValue is YES.
+  // note: Additionally, since is a helper method, assume _showsSwitchValue is YES
+  // and that _switchPathId is not FLSegmentSwitchPathIdNone.
   // (That is, the caller is responsible to short-circuit the call in cases where
   // it obviously won't do anything; this prevents duplicate checking.)
 
-  NSString *valueTextureKey;
+  SKTexture *valueTexture;
   if (_switchPathId == 0) {
-    valueTextureKey = @"value-0";
+    valueTexture = [[HLTextureStore sharedStore] textureForKey:@"value-0"];
   } else if (_switchPathId == 1) {
-    valueTextureKey = @"value-1";
+    valueTexture = [[HLTextureStore sharedStore] textureForKey:@"value-1"];
+  } else {
+    [NSException raise:@"FLSegmentNodeSwitchPathIdInvalid" format:@"Invalid switch path id %d.", _switchPathId];
   }
-  if (valueTextureKey) {
-    SKNode *valueNode = [SKSpriteNode spriteNodeWithTexture:[[HLTextureStore sharedStore] textureForKey:valueTextureKey]];
-    valueNode.name = @"value";
-    valueNode.zPosition = -0.1f;
-    valueNode.zRotation = (CGFloat)M_PI_2 - self.zRotation;
-    [self addChild:valueNode];
-  }
+
+  SKNode *valueNode = [SKSpriteNode spriteNodeWithTexture:valueTexture];
+  valueNode.name = @"value";
+  valueNode.zPosition = -0.1f;
+  valueNode.zRotation = (CGFloat)M_PI_2 - self.zRotation;
+  [self addChild:valueNode];
 }
 
 - (void)FL_updateContentValueAnimated:(BOOL)animated
 {
   // note: Assume content has been created according to current object state
-  // with the exception that _switchPathId has changed from one value to another
-  // (neither of them FLSegmentSwitchPathIdNone).
+  // with the exception that _switchPathId has changed from one value to another,
+  // neither of them FLSegmentSwitchPathIdNone.  (The old value is currently
+  // not tracked or needed.)
   
   // note: Additionally, since is a helper method, assume _showsSwitchValue is YES.
   // (That is, the caller is responsible to short-circuit the call in cases where
   // it obviously won't do anything; this prevents duplicate checking.)
 
-  // TODO: Animation.
+  SKTexture *valueTexture;
+  if (_switchPathId == 0) {
+    valueTexture = [[HLTextureStore sharedStore] textureForKey:@"value-0"];
+  } else if (_switchPathId == 1) {
+    valueTexture = [[HLTextureStore sharedStore] textureForKey:@"value-1"];
+  } else {
+    [NSException raise:@"FLSegmentNodeSwitchPathIdInvalid" format:@"Invalid switch path id %d.", _switchPathId];
+  }
 
-  [self FL_deleteContentValue];
-  [self FL_createContentValue];
+  SKSpriteNode *valueNode = (SKSpriteNode *)[self childNodeWithName:@"value"];
+
+  valueNode.texture = valueTexture;
+  if (animated) {
+
+    // noob: Fade-from-white effect.  I'm not sure if this is performant, or if there is a better/easier
+    // way to do this.
+    
+    SKCropNode *whiteLayer = [[SKCropNode alloc] init];
+    SKSpriteNode *maskNode = [valueNode copy];
+    [maskNode removeFromParent];
+    whiteLayer.maskNode = maskNode;
+    whiteLayer.zPosition = 0.01f;
+    SKSpriteNode *whiteNode = [SKSpriteNode spriteNodeWithColor:[SKColor whiteColor] size:maskNode.size];
+    [whiteLayer addChild:whiteNode];
+    [valueNode addChild:whiteLayer];
+
+    SKAction *whiteFade = [SKAction sequence:@[ [SKAction fadeAlphaTo:0.0f duration:0.5],
+                                                [SKAction removeFromParent] ]];
+    whiteFade.timingMode = SKActionTimingEaseOut;
+    [whiteLayer runAction:whiteFade];
+  }
 }
 
 - (void)FL_deleteContentValue
@@ -708,7 +738,7 @@ using namespace std;
       break;
     case FLSegmentTypeNone:
     default:
-      [NSException raise:@"FLSegmentNodeSegmentTypeInvalid" format:@"Invalid segment type."];
+      [NSException raise:@"FLSegmentNodeSegmentTypeInvalid" format:@"Invalid segment type %d.", _segmentType];
   }
   return FLPathStore::sharedStore()->getPath(pathType, rotationQuarters);
 }
@@ -747,7 +777,7 @@ using namespace std;
       return 1;
     case FLSegmentTypeNone:
     default:
-      [NSException raise:@"FLSegmentNodeSegmentTypeInvalid" format:@"Invalid segment type."];
+      [NSException raise:@"FLSegmentNodeSegmentTypeInvalid" format:@"Invalid segment type %d.", _segmentType];
       return 0;
   }
 }
@@ -774,7 +804,7 @@ using namespace std;
       return 1;
     case FLSegmentTypeNone:
     default:
-      [NSException raise:@"FLSegmentNodeSegmentTypeInvalid" format:@"Invalid segment type."];
+      [NSException raise:@"FLSegmentNodeSegmentTypeInvalid" format:@"Invalid segment type %d.", _segmentType];
       return 0;
   }
 }

@@ -63,7 +63,7 @@ Current
 
 If It Ships
 
-  . Low memory warning.
+  . Low memory warning.  (Test in debugger.)
 
   . Infinite grid, and/or real quadtree.
 
