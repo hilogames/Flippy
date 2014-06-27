@@ -36,6 +36,34 @@ const int FLSegmentSwitchPathIdNone = -1;
 
 static const unsigned int FLSegmentNodePathsMax = 2;
 
+static const CGFloat FLZPositionValue = -0.3f;
+static const CGFloat FLZPositionReadoutValueBottom = -0.3f;
+static const CGFloat FLZPositionReadoutValueTop = -0.2f;
+static const CGFloat FLZPositionValueOverlay = -0.1f;
+static const CGFloat FLZPositionSwitch = 0.1f;
+
+static const NSTimeInterval FLFlashDuration = 0.5;
+
+// note: Layout of components inside the "readout" (FLSegmentTypeReadout) segment
+// are all scaled to a segment size of FLSegmentArtSizeFull x FLSegmentArtSizeFull,
+// with origin in the lower left corner and "up" orientation pointing along the
+// positive x-axis (as is standard for art assets).
+static const CGFloat FLSegmentArtReadoutComponentInset = FLSegmentArtBasicInset;
+static const CGFloat FLSegmentArtReadoutValueSize = 22.0f;
+static const CGFloat FLSegmentArtReadoutSwitchSize = 39.0f;
+static CGPoint FLReadoutValue0Position = {
+  FLSegmentArtSizeFull / 2.0f,
+  FLSegmentArtReadoutComponentInset + FLSegmentArtReadoutValueSize / 2.0f,
+};
+static CGPoint FLReadoutValue1Position = {
+  FLSegmentArtSizeFull - FLSegmentArtReadoutComponentInset - FLSegmentArtReadoutValueSize / 2.0f,
+  FLSegmentArtSizeFull - FLSegmentArtReadoutComponentInset - FLSegmentArtReadoutValueSize / 2.0f
+};
+static CGPoint FLReadoutSwitchPosition = {
+  FLSegmentArtReadoutComponentInset + FLSegmentArtReadoutValueSize / 4.0f,
+  FLSegmentArtSizeFull - FLSegmentArtReadoutComponentInset - FLSegmentArtReadoutValueSize / 2.0f
+};
+
 using namespace std;
 
 @implementation FLSegmentNode
@@ -193,8 +221,6 @@ using namespace std;
 
 + (UIImage *)createImageForReadoutSegment:(CGFloat)imageSize
 {
-  CGFloat FLSegmentArtReadoutComponentInset = FLSegmentArtBasicInset;
-
   // note: Art constants in file are all scaled to full art size.  Our scaling
   // factor brings everything into imageSize.
   CGFloat scale = imageSize / FLSegmentArtSizeFull;
@@ -216,11 +242,14 @@ using namespace std;
   //CGContextTranslateCTM(context, 0.0f, imageSize);
   //CGContextRotateCTM(context, -(CGFloat)M_PI_2);
 
+  const CGFloat scaledReadoutValueSize = FLSegmentArtReadoutValueSize * scale;
+  const CGFloat scaledReadoutSwitchSize = FLSegmentArtReadoutSwitchSize * scale;
+
   UIImage *value0Image = [textureStore imageForKey:@"value-0"];
-  CGRect value0Rect = CGRectMake((FLSegmentArtSizeFull - value0Image.size.height) / 2.0f * scale,
-                                 FLSegmentArtReadoutComponentInset * scale,
-                                 value0Image.size.height * scale,
-                                 value0Image.size.width * scale);
+  CGRect value0Rect = CGRectMake((FLReadoutValue0Position.x - FLSegmentArtReadoutValueSize / 2.0f) * scale,
+                                 (FLReadoutValue0Position.y - FLSegmentArtReadoutValueSize / 2.0f) * scale,
+                                 scaledReadoutValueSize,
+                                 scaledReadoutValueSize);
   // note: The caller has put images into the HLTextureStore alongside textures, and we can use the
   // textures as clues about how to scale the images.  In particular, if the texture uses filtering
   // mode "nearest", then we're looking for a blocky, pixelated look.  Otherwise we want smooth.
@@ -232,10 +261,10 @@ using namespace std;
   CGContextDrawImage(context, value0Rect, [value0Image CGImage]);
   
   UIImage *value1Image = [textureStore imageForKey:@"value-1"];
-  CGRect value1Rect = CGRectMake((FLSegmentArtSizeFull - FLSegmentArtReadoutComponentInset) * scale,
-                                 (FLSegmentArtSizeFull - FLSegmentArtReadoutComponentInset) * scale,
-                                 -value1Image.size.height * scale,
-                                 -value1Image.size.width * scale);
+  CGRect value1Rect = CGRectMake((FLReadoutValue1Position.x - FLSegmentArtReadoutValueSize / 2.0f) * scale,
+                                 (FLReadoutValue1Position.y - FLSegmentArtReadoutValueSize / 2.0f) * scale,
+                                 scaledReadoutValueSize,
+                                 scaledReadoutValueSize);
   if ([textureStore textureForKey:@"value-1"].filteringMode == SKTextureFilteringNearest) {
     CGContextSetInterpolationQuality(context, kCGInterpolationNone);
   } else {
@@ -244,10 +273,10 @@ using namespace std;
   CGContextDrawImage(context, value1Rect, [value1Image CGImage]);
 
   UIImage *switchImage = [textureStore imageForKey:@"switch"];
-  CGRect switchRect = CGRectMake((FLSegmentArtReadoutComponentInset + value0Image.size.width / 4.0f - switchImage.size.height / 2.0f) * scale,
-                                 (FLSegmentArtSizeFull - FLSegmentArtReadoutComponentInset - (value1Image.size.height + switchImage.size.width) / 2.0f) * scale,
-                                 switchImage.size.height * scale,
-                                 switchImage.size.width * scale);
+  CGRect switchRect = CGRectMake((FLReadoutSwitchPosition.x - FLSegmentArtReadoutSwitchSize / 2.0f) * scale,
+                                 (FLReadoutSwitchPosition.y - FLSegmentArtReadoutSwitchSize / 2.0f) * scale,
+                                 scaledReadoutSwitchSize,
+                                 scaledReadoutSwitchSize);
   if ([textureStore textureForKey:@"switch"].filteringMode == SKTextureFilteringNearest) {
     CGContextSetInterpolationQuality(context, kCGInterpolationNone);
   } else {
@@ -278,11 +307,8 @@ using namespace std;
 - (void)setZRotation:(CGFloat)zRotation
 {
   [super setZRotation:zRotation];
-  if (_showsSwitchValue) {
-    SKNode *valueNode = [self childNodeWithName:@"value"];
-    if (valueNode) {
-      valueNode.zRotation = (CGFloat)M_PI_2 - zRotation;
-    }
+  if (_switchPathId != FLSegmentSwitchPathIdNone && _showsSwitchValue && _segmentType != FLSegmentTypeReadout) {
+    [self FL_rotateContentValue];
   }
 }
 
@@ -299,7 +325,9 @@ using namespace std;
 
   if (switchPathId == FLSegmentSwitchPathIdNone) {
     [self FL_deleteContentSwitch];
-    if (_showsSwitchValue) {
+    if (_segmentType == FLSegmentTypeReadout) {
+      [NSException raise:@"FLSegmentNodeSwitchPathIdInvalid" format:@"Invalid switch path id %d for readout segment.", _switchPathId];
+    } else if (_showsSwitchValue) {
       [self FL_deleteContentValue];
     }
   }
@@ -309,12 +337,16 @@ using namespace std;
   
   if (oldSwitchPathId == FLSegmentSwitchPathIdNone) {
     [self FL_createContentSwitch];
-    if (_showsSwitchValue) {
+    if (_segmentType == FLSegmentTypeReadout) {
+      [NSException raise:@"FLSegmentNodeSwitchPathIdInvalid" format:@"Invalid switch path id %d for readout segment.", _switchPathId];
+    } else if (_showsSwitchValue) {
       [self FL_createContentValue];
     }
-  } else {
+  } else if (switchPathId != FLSegmentSwitchPathIdNone) {
     [self FL_updateContentSwitchAnimated:animated];
-    if (_showsSwitchValue) {
+    if (_segmentType == FLSegmentTypeReadout) {
+      [self FL_updateContentReadoutAnimated:animated];
+    } else if (_showsSwitchValue) {
       [self FL_updateContentValueAnimated:animated];
     }
   }
@@ -342,13 +374,13 @@ using namespace std;
   if (showsSwitchValue == _showsSwitchValue) {
     return;
   }
-  if (_showsSwitchValue) {
+  if (_showsSwitchValue && _segmentType != FLSegmentTypeReadout) {
     if (_switchPathId != FLSegmentSwitchPathIdNone) {
       [self FL_deleteContentValue];
     }
   }
   _showsSwitchValue = showsSwitchValue;
-  if (_showsSwitchValue) {
+  if (_showsSwitchValue && _segmentType != FLSegmentTypeReadout) {
     if (_switchPathId != FLSegmentSwitchPathIdNone) {
       [self FL_createContentValue];
     }
@@ -381,10 +413,13 @@ using namespace std;
   }
 }
 
-- (CGFloat)getClosestOnTrackPoint:(CGPoint *)onTrackPoint rotation:(CGFloat *)rotationRadians path:(int *)pathId progress:(CGFloat *)progress forOffTrackPoint:(CGPoint)offTrackPoint scale:(CGFloat)scale precision:(CGFloat)progressPrecision
+- (BOOL)getClosestOnTrackPoint:(CGPoint *)onTrackPoint distance:(CGFloat *)distance rotation:(CGFloat *)rotationRadians path:(int *)pathId progress:(CGFloat *)progress forOffTrackPoint:(CGPoint)offTrackPoint scale:(CGFloat)scale precision:(CGFloat)progressPrecision
 {
   const FLPath *paths[FLSegmentNodePathsMax];
   int pathCount = [self FL_allPaths:paths];
+  if (pathCount == 0) {
+    return NO;
+  }
 
   // note: Again, note that path points are contained within the unit square centered on the origin.
   // Segment points, on the other hand, are in the segment's parent's coordinate system (that is,
@@ -400,18 +435,21 @@ using namespace std;
     const FLPath *path = paths[p];
     CGPoint onPathPoint;
     CGFloat onPathProgress;
-    CGFloat distance = path->getClosestOnPathPoint(&onPathPoint, &onPathProgress, offPathPoint, progressPrecision);
-    if (closestPathId == -1 || distance < closestDistance) {
+    CGFloat onPathDistance = path->getClosestOnPathPoint(&onPathPoint, &onPathProgress, offPathPoint, progressPrecision);
+    if (closestPathId == -1 || onPathDistance < closestDistance) {
       closestPathId = p;
       closestPoint = onPathPoint;
       closestProgress = onPathProgress;
-      closestDistance = distance;
+      closestDistance = onPathDistance;
     }
   }
 
   if (onTrackPoint) {
     onTrackPoint->x = closestPoint.x * scale + self.position.x;
     onTrackPoint->y = closestPoint.y * scale + self.position.y;
+  }
+  if (distance) {
+    *distance = closestDistance;
   }
   if (rotationRadians) {
     *rotationRadians = paths[closestPathId]->getTangent(closestProgress);
@@ -422,7 +460,7 @@ using namespace std;
   if (progress) {
     *progress = closestProgress;
   }
-  return closestDistance;
+  return YES;
 }
 
 - (BOOL)getPath:(int *)pathId progress:(CGFloat *)progress forEndPoint:(CGPoint)endPoint rotation:(CGFloat)rotationRadians scale:(CGFloat)scale
@@ -506,6 +544,9 @@ using namespace std;
 {
   // note: Assume the content does not already exist.  Create content according to
   // *current* object state.
+  
+  // noob: A less strict and more-explicit way to do this "according to current
+  // object state" thing would be to pass the relevant state variables as parameters.
 
   if (_segmentType == FLSegmentTypeReadout) {
     [self FL_createContentReadout];
@@ -513,7 +554,7 @@ using namespace std;
 
   if (_switchPathId != FLSegmentSwitchPathIdNone) {
     [self FL_createContentSwitch];
-    if (_showsSwitchValue) {
+    if (_showsSwitchValue && _segmentType != FLSegmentTypeReadout) {
       [self FL_createContentValue];
     }
   }
@@ -530,7 +571,7 @@ using namespace std;
   
   if (_switchPathId != FLSegmentSwitchPathIdNone) {
     [self FL_deleteContentSwitch];
-    if (_showsSwitchValue) {
+    if (_showsSwitchValue && _segmentType != FLSegmentTypeReadout) {
       [self FL_deleteContentValue];
     }
   }
@@ -542,15 +583,65 @@ using namespace std;
   // *current* object state.
   
   // note: Additionally, since this is a helper method, assume _segmentType is
-  // FLSegmentTypeReadout.   (That is, the caller is responsible to short-circuit
-  // the call in cases where it obviously won't do anything; this prevents duplicate
-  // checking.)
+  // FLSegmentTypeReadout and _switchPathId is not FLSegmentNodeSwitchPathIdNone.
+  // (That is, the caller is responsible to short-circuit the call in cases where
+  // it obviously won't do anything; this prevents duplicate checking.)
+
+  HLTextureStore *textureStore = [HLTextureStore sharedStore];
+
+  // note: Art assets assume origin in the lower left; node layout, though, has origin
+  // in the center.
+
+  SKSpriteNode *value0Node = [SKSpriteNode spriteNodeWithTexture:[textureStore textureForKey:@"value-0"]];
+  value0Node.name = @"readout-value-0";
+  value0Node.position = CGPointMake(FLReadoutValue0Position.x - FLSegmentArtSizeFull / 2.0f,
+                                    FLReadoutValue0Position.y - FLSegmentArtSizeFull / 2.0f);
+  [self addChild:value0Node];
+  
+  SKSpriteNode *value1Node = [SKSpriteNode spriteNodeWithTexture:[textureStore textureForKey:@"value-1"]];
+  value1Node.name = @"readout-value-1";
+  value1Node.position = CGPointMake(FLReadoutValue1Position.x - FLSegmentArtSizeFull / 2.0f,
+                                    FLReadoutValue1Position.y - FLSegmentArtSizeFull / 2.0f);
+  [self addChild:value1Node];
+
+  [self FL_updateContentReadoutAnimated:NO];
+}
+
+- (void)FL_updateContentReadoutAnimated:(BOOL)animated
+{
+  // note: Assume content has been created according to current object state
+  // with the exception that _switchPathId has changed from one value to another
+  // (neither of them FLSegmentSwitchPathIdNone).
+
+  SKSpriteNode *topValueNode;
+  SKSpriteNode *bottomValueNode;
+  if (_switchPathId == 0) {
+    topValueNode = (SKSpriteNode *)[self childNodeWithName:@"readout-value-0"];
+    bottomValueNode = (SKSpriteNode *)[self childNodeWithName:@"readout-value-1"];
+  } else if (_switchPathId == 1) {
+    topValueNode = (SKSpriteNode *)[self childNodeWithName:@"readout-value-1"];
+    bottomValueNode = (SKSpriteNode *)[self childNodeWithName:@"readout-value-0"];
+  } else {
+    [NSException raise:@"FLSegmentNodeSwitchPathIdInvalid" format:@"Invalid switch path id %d.", _switchPathId];
+  }
+  
+  topValueNode.zPosition = FLZPositionReadoutValueTop;
+  bottomValueNode.zPosition = FLZPositionReadoutValueBottom;
+
+  if (animated) {
+    [self FL_runActionFlashWhiteValue:topValueNode];
+    [self FL_runActionFlashBlackValue:bottomValueNode];
+  }
 }
 
 - (void)FL_deleteContentReadout
 {
   // note: Assume content has been created according to *current* object state.
   // After deletion, the caller should change object state accordingly.
+  SKNode *value0Node = [self childNodeWithName:@"readout-value-0"];
+  [value0Node removeFromParent];
+  SKNode *value1Node = [self childNodeWithName:@"readout-value-1"];
+  [value1Node removeFromParent];
 }
 
 - (void)FL_createContentSwitch
@@ -572,10 +663,13 @@ using namespace std;
     switchNode.position = CGPointMake(-halfBasicSize + switchInset, halfBasicSize);
   } else if (_segmentType == FLSegmentTypeJoinRight) {
     switchNode.position = CGPointMake(halfBasicSize - switchInset, halfBasicSize);
+  } else if (_segmentType == FLSegmentTypeReadout) {
+    switchNode.position = CGPointMake(FLReadoutSwitchPosition.x - FLSegmentArtSizeFull / 2.0f,
+                                      FLReadoutSwitchPosition.y - FLSegmentArtSizeFull / 2.0f);
   } else {
     switchNode.position = CGPointZero;
   }
-  switchNode.zPosition = 0.1f;
+  switchNode.zPosition = FLZPositionSwitch;
 
   [self addChild:switchNode];
 
@@ -591,12 +685,16 @@ using namespace std;
   SKSpriteNode *switchNode = (SKSpriteNode *)[self childNodeWithName:@"switch"];
 
   CGFloat newZRotation = 0.0f;
-  const CGFloat switchAngle = (CGFloat)M_PI / 7.4f;
+  const CGFloat switchAngleJoin = (CGFloat)M_PI / 7.4f;
+  const CGFloat switchAngleReadout = (CGFloat)M_PI / 3.7f;
   if (_segmentType == FLSegmentTypeJoinLeft) {
-    newZRotation = (_switchPathId - 1) * switchAngle;
+    newZRotation = (_switchPathId - 1) * switchAngleJoin;
   } else if (_segmentType == FLSegmentTypeJoinRight) {
-    newZRotation = (CGFloat)M_PI + (1 - _switchPathId) * switchAngle;
+    newZRotation = (CGFloat)M_PI + (1 - _switchPathId) * switchAngleJoin;
+  } else if (_segmentType == FLSegmentTypeReadout) {
+    newZRotation = (_switchPathId - 1) * switchAngleReadout;
   }
+
   if (_switchPathId == FLSegmentSwitchPathIdNone || !animated) {
     switchNode.zRotation = newZRotation;
   } else {
@@ -619,8 +717,9 @@ using namespace std;
   // note: Assume the content does not already exist.  Create content according to
   // *current* object state.
   
-  // note: Additionally, since is a helper method, assume _showsSwitchValue is YES
-  // and that _switchPathId is not FLSegmentSwitchPathIdNone.
+  // note: Additionally, since is a helper method, assume _showsSwitchValue is YES,
+  // _switchPathId is not FLSegmentSwitchPathIdNone, and _segmentType is not
+  // FLSegmentTypeReadout.
   // (That is, the caller is responsible to short-circuit the call in cases where
   // it obviously won't do anything; this prevents duplicate checking.)
 
@@ -635,7 +734,7 @@ using namespace std;
 
   SKNode *valueNode = [SKSpriteNode spriteNodeWithTexture:valueTexture];
   valueNode.name = @"value";
-  valueNode.zPosition = -0.1f;
+  valueNode.zPosition = FLZPositionValue;
   valueNode.zRotation = (CGFloat)M_PI_2 - self.zRotation;
   [self addChild:valueNode];
 }
@@ -647,7 +746,8 @@ using namespace std;
   // neither of them FLSegmentSwitchPathIdNone.  (The old value is currently
   // not tracked or needed.)
   
-  // note: Additionally, since is a helper method, assume _showsSwitchValue is YES.
+  // note: Additionally, since is a helper method, assume _showsSwitchValue is YES
+  // and _segmentType is not FLSegmentTypeReadout.
   // (That is, the caller is responsible to short-circuit the call in cases where
   // it obviously won't do anything; this prevents duplicate checking.)
 
@@ -664,24 +764,22 @@ using namespace std;
 
   valueNode.texture = valueTexture;
   if (animated) {
-
-    // noob: Fade-from-white effect.  I'm not sure if this is performant, or if there is a better/easier
-    // way to do this.
-    
-    SKCropNode *whiteLayer = [[SKCropNode alloc] init];
-    SKSpriteNode *maskNode = [valueNode copy];
-    [maskNode removeFromParent];
-    whiteLayer.maskNode = maskNode;
-    whiteLayer.zPosition = 0.01f;
-    SKSpriteNode *whiteNode = [SKSpriteNode spriteNodeWithColor:[SKColor whiteColor] size:maskNode.size];
-    [whiteLayer addChild:whiteNode];
-    [valueNode addChild:whiteLayer];
-
-    SKAction *whiteFade = [SKAction sequence:@[ [SKAction fadeAlphaTo:0.0f duration:0.5],
-                                                [SKAction removeFromParent] ]];
-    whiteFade.timingMode = SKActionTimingEaseOut;
-    [whiteLayer runAction:whiteFade];
+    [self FL_runActionFlashWhiteValue:valueNode];
   }
+}
+
+- (void)FL_rotateContentValue
+{
+  // note: Assume content has been created according to *current* object state.
+  
+  // note: Additionally, since is a helper method, assume _showsSwitchValue is YES,
+  // _switchPathId is not FLSegmentSwitchPathIdNone, and _segmentType is not
+  // FLSegmentTypeReadout.
+  // (That is, the caller is responsible to short-circuit the call in cases where
+  // it obviously won't do anything; this prevents duplicate checking.)
+
+  SKNode *valueNode = [self childNodeWithName:@"value"];
+  valueNode.zRotation = (CGFloat)M_PI_2 - self.zRotation;
 }
 
 - (void)FL_deleteContentValue
@@ -692,6 +790,38 @@ using namespace std;
   // node "value" exists and has been added to self.
   SKNode *valueNode = [self childNodeWithName:@"value"];
   [valueNode removeFromParent];
+}
+
+- (void)FL_runActionFlashWhiteValue:(SKNode *)valueNode
+{
+  // noob: Flash-white-and-fade effect.  Easier/better/more-performant/more-standard
+  // way to do this?  (n.b. Colorize only works for tinting towards black, not
+  // towards white.)
+  
+  SKCropNode *whiteLayer = [[SKCropNode alloc] init];
+  SKSpriteNode *maskNode = [valueNode copy];
+  maskNode.position = CGPointZero;
+  [maskNode removeFromParent];
+  whiteLayer.maskNode = maskNode;
+  whiteLayer.zPosition = FLZPositionValueOverlay - valueNode.zPosition;
+  SKSpriteNode *whiteNode = [SKSpriteNode spriteNodeWithColor:[SKColor whiteColor] size:maskNode.size];
+  [whiteLayer addChild:whiteNode];
+  [valueNode addChild:whiteLayer];
+  
+  SKAction *whiteFlash = [SKAction sequence:@[ [SKAction fadeAlphaTo:0.0f duration:FLFlashDuration],
+                                               [SKAction removeFromParent] ]];
+  whiteFlash.timingMode = SKActionTimingEaseOut;
+  [whiteLayer runAction:whiteFlash];
+}
+
+- (void)FL_runActionFlashBlackValue:(SKSpriteNode *)valueNode
+{
+  [valueNode removeActionForKey:@"flashBlack"];
+  valueNode.color = [SKColor blackColor];
+  valueNode.colorBlendFactor = 1.0f;
+  SKAction *blackFlash = [SKAction colorizeWithColorBlendFactor:0.0f duration:FLFlashDuration];
+  blackFlash.timingMode = SKActionTimingEaseOut;
+  [valueNode runAction:blackFlash withKey:@"flashBlack"];
 }
 
 - (const FLPath *)FL_path:(int)pathId
@@ -736,6 +866,7 @@ using namespace std;
     case FLSegmentTypePlatform:
       pathType = FLPathTypeHalf;
       break;
+    case FLSegmentTypeReadout:
     case FLSegmentTypeNone:
     default:
       [NSException raise:@"FLSegmentNodeSegmentTypeInvalid" format:@"Invalid segment type %d.", _segmentType];
@@ -775,6 +906,8 @@ using namespace std;
     case FLSegmentTypePlatform:
       paths[0] = FLPathStore::sharedStore()->getPath(FLPathTypeHalf, rotationQuarters);
       return 1;
+    case FLSegmentTypeReadout:
+      return 0;
     case FLSegmentTypeNone:
     default:
       [NSException raise:@"FLSegmentNodeSegmentTypeInvalid" format:@"Invalid segment type %d.", _segmentType];
@@ -802,6 +935,8 @@ using namespace std;
       return 2;
     case FLSegmentTypePlatform:
       return 1;
+    case FLSegmentTypeReadout:
+      return 0;
     case FLSegmentTypeNone:
     default:
       [NSException raise:@"FLSegmentNodeSegmentTypeInvalid" format:@"Invalid segment type %d.", _segmentType];

@@ -125,11 +125,13 @@ trackGridFindClosestOnTrackPoint(FLTrackGrid& trackGrid,
       if (!segmentNode) {
         continue;
       }
-      CGFloat distance = [segmentNode getClosestOnTrackPoint:nil rotation:nil path:nil progress:nil
-                                            forOffTrackPoint:worldLocation scale:segmentSize precision:closestSegmentPrecision];
-      if (!closestSegmentNode || distance < closestDistance) {
-        closestSegmentNode = segmentNode;
-        closestDistance = distance;
+      CGFloat distance;
+      if ([segmentNode getClosestOnTrackPoint:nil distance:&distance rotation:nil path:nil progress:nil
+                             forOffTrackPoint:worldLocation scale:segmentSize precision:closestSegmentPrecision]) {
+        if (!closestSegmentNode || distance < closestDistance) {
+          closestSegmentNode = segmentNode;
+          closestDistance = distance;
+        }
       }
     }
   }
@@ -139,8 +141,8 @@ trackGridFindClosestOnTrackPoint(FLTrackGrid& trackGrid,
 
   // Do a precise search on the closest segment.
   *onTrackSegment = closestSegmentNode;
-  *onTrackDistance = [closestSegmentNode getClosestOnTrackPoint:onTrackPoint rotation:onTrackRotation path:onTrackPathId progress:onTrackProgress
-                                               forOffTrackPoint:worldLocation scale:segmentSize precision:progressPrecision];
+  [closestSegmentNode getClosestOnTrackPoint:onTrackPoint distance:onTrackDistance rotation:onTrackRotation path:onTrackPathId progress:onTrackProgress
+                            forOffTrackPoint:worldLocation scale:segmentSize precision:progressPrecision];
 
   return YES;
 }
