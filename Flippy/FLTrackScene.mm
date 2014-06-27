@@ -47,6 +47,7 @@ static const CGFloat FLZPositionWorldOverlay = 5.0f;
 static const CGFloat FLZPositionModalMin = FLZPositionModal;
 static const CGFloat FLZPositionModalMax = FLZPositionModal + 1.0f;
 
+static const NSTimeInterval FLWorldAdjustDuration = 0.5;
 static const NSTimeInterval FLTrackRotateDuration = 0.1;
 static const NSTimeInterval FLBlinkHalfCycleDuration = 0.1;
 
@@ -1127,38 +1128,54 @@ struct PointerPairHash
   }
 
   if ([tool isEqualToString:@"menu"]) {
-
     id<FLTrackSceneDelegate> delegate = self.delegate;
     if (delegate) {
       [delegate trackSceneDidTapMenuButton:self];
     }
-
   } else if ([tool isEqualToString:@"play"]) {
-
     [self FL_simulationStart];
-
   } else if ([tool isEqualToString:@"pause"]) {
-
     [self FL_simulationStop];
-
   } else if ([tool isEqualToString:@"ff"]) {
-
     [self FL_simulationCycleSpeed];
-
   } else if ([tool isEqualToString:@"fff"]) {
-
     [self FL_simulationCycleSpeed];
-
   } else if ([tool isEqualToString:@"center"]) {
-
     CGPoint trainSceneLocation = [self convertPoint:_train.position fromNode:_worldNode];
     CGPoint worldPosition = CGPointMake(_worldNode.position.x - trainSceneLocation.x,
                                         _worldNode.position.y - trainSceneLocation.y);
-    SKAction *move = [SKAction moveTo:worldPosition duration:0.5];
+    SKAction *move = [SKAction moveTo:worldPosition duration:FLWorldAdjustDuration];
     move.timingMode = SKActionTimingEaseInEaseOut;
     [_worldNode runAction:move completion:^{
       self->_cameraMode = FLCameraModeFollowTrain;
     }];
+  }
+}
+
+- (void)handleSimulationToolbarLongPress:(UIGestureRecognizer *)gestureRecognizer
+{
+  if (gestureRecognizer.state != UIGestureRecognizerStateBegan) {
+    return;
+  }
+  
+  CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
+  CGPoint sceneLocation = [self convertPointFromView:viewLocation];
+  CGPoint toolbarLocation = [_simulationToolbarState.toolbarNode convertPoint:sceneLocation fromNode:self];
+  NSString *tool = [_simulationToolbarState.toolbarNode toolAtLocation:toolbarLocation];
+  if (!tool) {
+    return;
+  }
+
+  if ([tool isEqualToString:@"center"]) {
+    CGFloat startScale = _worldNode.xScale;
+    SKAction *scaleWorld = [SKAction customActionWithDuration:FLWorldAdjustDuration actionBlock:^(SKNode *node, CGFloat elapsedTime){
+      CGFloat currentScale = startScale + (1.0f - startScale) * (CGFloat)(elapsedTime / FLWorldAdjustDuration);
+      self->_worldNode.xScale = currentScale;
+      self->_worldNode.yScale = currentScale;
+      [self FL_trackEditMenuScaleToWorld];
+    }];
+    scaleWorld.timingMode = SKActionTimingEaseInEaseOut;
+    [_worldNode runAction:scaleWorld];
   }
 }
 
@@ -1273,6 +1290,11 @@ struct PointerPairHash
     if (gestureRecognizer == _tapRecognizer) {
       [gestureRecognizer removeTarget:nil action:nil];
       [gestureRecognizer addTarget:self action:@selector(handleSimulationToolbarTap:)];
+      return YES;
+    }
+    if (gestureRecognizer == _longPressRecognizer) {
+      [gestureRecognizer removeTarget:nil action:nil];
+      [gestureRecognizer addTarget:self action:@selector(handleSimulationToolbarLongPress:)];
       return YES;
     }
     return NO;
