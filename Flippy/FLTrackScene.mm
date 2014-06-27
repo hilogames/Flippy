@@ -1372,14 +1372,12 @@ struct PointerPairHash
   [self FL_simulationToolbarUpdateTools];
   
   if (segmentNode.segmentType == FLSegmentTypePlatform) {
-    SKAction *putTrainBackOnTrack = [SKAction runBlock:^{
-      [train moveToSegment:segmentNode pathId:0 progress:0.0f direction:FLTrainDirectionForward];
-    }];
     // note: Strictly speaking, we aren't allowed to mess with the train's zRotation.  But
     // we know the train is stopped, and we know we'll put it back on track in a second.
     const NSTimeInterval FLTrainRotateDuration = 0.4;
-    [train runAction:[SKAction sequence:@[ [SKAction rotateByAngle:(CGFloat)M_PI duration:FLTrainRotateDuration],
-                                           putTrainBackOnTrack ]]];
+    [train runAction:[SKAction rotateByAngle:(CGFloat)M_PI duration:FLTrainRotateDuration] completion:^{
+      [train moveToSegment:segmentNode pathId:0 progress:0.0f direction:FLTrainDirectionForward];
+    }];
   }
 }
 

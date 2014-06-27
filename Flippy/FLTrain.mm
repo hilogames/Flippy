@@ -169,45 +169,50 @@ const int FLTrainDirectionReverse = -1;
   
   // If train arrived at a platform, then stop it gracefully.
   if (_lastSegmentNode.segmentType == FLSegmentTypePlatform && _lastDirection == FLTrainDirectionReverse && _lastProgress < 0.0f) {
+    _lastProgress = 0.0f;
+    [self FL_moveToCurrent];
     [self FL_stop];
     return;
   }
 
   // If the train tries to go past the end of the segment, then attempt to
   // switch to a connecting segment.
-  if (_lastProgress < 0.0f || _lastProgress > 1.0f) {
+  if (_lastProgress < 0.0f) {
     if (![self FL_switchToConnectingSegment]) {
+      _lastProgress = 0.0f;
+      [self FL_moveToCurrent];
+      [self FL_crash];
+      return;
+    }
+  } else if (_lastProgress > 1.0f) {
+    if (![self FL_switchToConnectingSegment]) {
+      _lastProgress = 1.0f;
+      [self FL_moveToCurrent];
       [self FL_crash];
       return;
     }
   }
 
   // Show the train at the new position.
-  CGPoint location;
-  CGFloat rotationRadians;
-  [_lastSegmentNode getPoint:&location rotation:&rotationRadians forPath:_lastPathId progress:_lastProgress scale:_trackGrid->segmentSize()];
-  self.position = location;
-  self.zRotation = (_lastDirection == FLTrainDirectionForward ? rotationRadians : rotationRadians + (CGFloat)M_PI);
+  [self FL_moveToCurrent];
 }
 
 - (BOOL)moveToSegment:(FLSegmentNode *)segmentNode pathId:(int)pathId progress:(CGFloat)progress direction:(int)direction
 {
-  if (pathId >= [segmentNode pathCount]) {
+  if (pathId >= [segmentNode pathCount]
+      || progress < 0.0f
+      || progress > 1.0f) {
     return NO;
   }
   
-  CGPoint location;
-  CGFloat rotationRadians;
-  [segmentNode getPoint:&location rotation:&rotationRadians forPath:pathId progress:progress scale:_trackGrid->segmentSize()];
-  self.position = location;
-  self.zRotation = (direction == FLTrainDirectionForward ? rotationRadians : rotationRadians + (CGFloat)M_PI);
-
   _lastSegmentNode = segmentNode;
   _lastPathId = pathId;
   _lastPathLength = [segmentNode pathLengthForPath:pathId];
   _lastProgress = progress;
   _lastDirection = direction;
-  
+
+  [self FL_moveToCurrent];
+
   return YES;
 }
 
@@ -246,6 +251,15 @@ const int FLTrainDirectionReverse = -1;
   _lastDirection = direction;
 
   return YES;
+}
+
+- (void)FL_moveToCurrent
+{
+  CGPoint location;
+  CGFloat rotationRadians;
+  [_lastSegmentNode getPoint:&location rotation:&rotationRadians forPath:_lastPathId progress:_lastProgress scale:_trackGrid->segmentSize()];
+  self.position = location;
+  self.zRotation = (_lastDirection == FLTrainDirectionForward ? rotationRadians : rotationRadians + (CGFloat)M_PI);
 }
 
 - (void)FL_stop
