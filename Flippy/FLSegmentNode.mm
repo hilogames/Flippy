@@ -224,9 +224,9 @@ using namespace std;
   // note: Art constants in file are all scaled to full art size.  Our scaling
   // factor brings everything into imageSize.
   CGFloat scale = imageSize / FLSegmentArtSizeFull;
-  
+
   HLTextureStore *textureStore = [HLTextureStore sharedStore];
-  
+
   UIGraphicsBeginImageContext(CGSizeMake(imageSize, imageSize));
   CGContextRef context = UIGraphicsGetCurrentContext();
   // note: Flip, to account for differences in coordinate system for UIImage.
@@ -259,7 +259,7 @@ using namespace std;
     CGContextSetInterpolationQuality(context, kCGInterpolationDefault);
   }
   CGContextDrawImage(context, value0Rect, [value0Image CGImage]);
-  
+
   UIImage *value1Image = [textureStore imageForKey:@"value-1"];
   CGRect value1Rect = CGRectMake((FLReadoutValue1Position.x - FLSegmentArtReadoutValueSize / 2.0f) * scale,
                                  (FLReadoutValue1Position.y - FLSegmentArtReadoutValueSize / 2.0f) * scale,
@@ -283,7 +283,7 @@ using namespace std;
     CGContextSetInterpolationQuality(context, kCGInterpolationDefault);
   }
   CGContextDrawImage(context, switchRect, [switchImage CGImage]);
-  
+
   UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
   UIGraphicsEndImageContext();
   return image;
@@ -334,7 +334,7 @@ using namespace std;
 
   int oldSwitchPathId = _switchPathId;
   _switchPathId = switchPathId;
-  
+
   if (oldSwitchPathId == FLSegmentSwitchPathIdNone) {
     [self FL_createContentSwitch];
     if (_segmentType == FLSegmentTypeReadout) {
@@ -463,70 +463,116 @@ using namespace std;
   return YES;
 }
 
-- (BOOL)getPath:(int *)pathId progress:(CGFloat *)progress forEndPoint:(CGPoint)endPoint rotation:(CGFloat)rotationRadians scale:(CGFloat)scale
+- (BOOL)getPath:(int *)pathId progress:(CGFloat *)progress forEndPoint:(CGPoint)endPoint progress:(CGFloat)forProgress rotation:(CGFloat)forRotationRadians scale:(CGFloat)scale
 {
   CGPoint pathEndPoint = CGPointMake((endPoint.x - self.position.x) / scale, (endPoint.y - self.position.y) / scale);
 
-  // note: The required information about the paths -- i.e the path's endpoints, with tangent and progress
-  // at those endpoints -- is known statically by the path itself.  Switch information -- i.e. which paths
-  // are being switched, and at which endpoints -- is known statically by the segment.  So this entire
-  // function could be written as a single static lookup table.  But it seems like more fun to do all
-  // tests dynamically, using simple getPoint() and getTangent() methods.
+  // note: The required information about the paths -- i.e the path's endpoints, with
+  // tangent and progress at those endpoints -- is known statically by the path itself.
+  // Switch information -- i.e. which paths are being switched, and at which endpoints --
+  // is known statically by the segment.  So this entire function could be written as a
+  // single static lookup table.  But it seems like more fun to do all tests dynamically,
+  // using simple getPoint() and getTangent() methods.
+
+  // note: End points must be close together in order to connect, but there is currently
+  // no need for a tight comparison, since end points are always snapped to a corner or
+  // center of an edge.  Similarly, tangents at end points can (currently) only be at
+  // right angles, so again, no need for a tight comparison.
+  const CGFloat FLEndPointComparisonEpsilon = 0.1f;
+  const CGFloat FLTangentComparisonEpsilon = 0.1f;
+
+  // note: Tangents have direction (whatdya call it: theta vs theta+pi) based on progress
+  // points.  Connecting paths won't "go back the other direction", e.g. two curve
+  // segments placed as in the shape of the number 3.  If the progress points of the two
+  // segments are the same, then they connect if the difference between the two tangents
+  // is pi.
+  const CGFloat FLProgressComparisonEpsilon = 0.1f;
+  const BOOL forProgressIsZero = (forProgress < FLProgressComparisonEpsilon);
+
+  // note: If there are two connecting paths from this endpoint, then either there is a
+  // switch to choose between them, or else we choose the first one found.
 
   const FLPath *paths[FLSegmentNodePathsMax];
   int pathCount = [self FL_allPaths:paths];
 
+  const CGFloat FL2Pi = (CGFloat)(M_PI * 2.0);
+
   BOOL foundOne = NO;
   for (int p = 0; p < pathCount; ++p) {
     const FLPath *path = paths[p];
-
-    // note: End points can are usually in corners of the unit square, but might be elsewhere
-    // (e.g. the center of an edge on platforms).  But no need for a tight comparison; if the
-    // endpoint is close to a corner, then it's assumed to be on a corner.  Similarly, rotations
-    // at end points can (currently) only be at right angles, so again, no need for a tight comparison.
-
-    // note: If there are two paths from this endpoint, then either there is a switch
-    // to choose between them, or else we choose the first one found.
-
+    
     CGPoint zeroProgressPoint = path->getPoint(0.0f);
-    if (fabs(pathEndPoint.x - zeroProgressPoint.x) < 0.1f
-        && fabs(pathEndPoint.y - zeroProgressPoint.y) < 0.1f) {
+    if (fabs(pathEndPoint.x - zeroProgressPoint.x) < FLEndPointComparisonEpsilon
+        && fabs(pathEndPoint.y - zeroProgressPoint.y) < FLEndPointComparisonEpsilon) {
       CGFloat zeroProgressRotation = path->getTangent(0.0f);
-      CGFloat rotationDifference = fabs(fmod(rotationRadians - zeroProgressRotation, (CGFloat)M_PI));
-      if (rotationDifference < 0.1f || rotationDifference > M_PI - 0.1f) {
-        if (!foundOne || _switchPathId == p) {
+      CGFloat rotationDifference = fabs(fmod(forRotationRadians - zeroProgressRotation, FL2Pi));
+      BOOL isConnectingRotation = NO;
+      if (forProgressIsZero) {
+        isConnectingRotation = (rotationDifference > M_PI - FLTangentComparisonEpsilon
+                                && rotationDifference < M_PI + FLTangentComparisonEpsilon);
+      } else {
+        isConnectingRotation = (rotationDifference < FLTangentComparisonEpsilon
+                                || rotationDifference > FL2Pi - FLTangentComparisonEpsilon);
+      }
+      if (isConnectingRotation) {
+        if (_switchPathId == FLSegmentSwitchPathIdNone || _switchPathId == p) {
+          // note: The switch might not be relevant, even if set to this path;
+          // it might only be for travel in the other direction.  But at least
+          // we know there is no other better alternative to consider.
+          *pathId = p;
+          *progress = 0.0f;
+          return YES;
+        }
+        // note: The switch is set, but not to this path.  So we need to check
+        // the path that the switch has selected to see if it's relevant to this
+        // intersection.  (It might be inefficient to continue in the loop when
+        // in fact there is only exactly one other path that we care about.  But
+        // segments generally contain so few paths that it doesn't really matter.)
+        // Check foundOne just so that we end up returning "the first one found" if
+        // the switch proves not to be relevant.
+        if (!foundOne) {
           *pathId = p;
           *progress = 0.0f;
           foundOne = YES;
         }
-        if (_switchPathId == FLSegmentSwitchPathIdNone) {
-          return YES;
-        } else {
-          continue;
-        }
+        // note: No need to check the other endpoint, if this one hooks up.  That said:
+        // I can conceive of a switched segment with a path that loops around with both
+        // endpoints on the same corner with the same tangent.  So if such a segment
+        // exists, then don't continue the loop here (because we need to check the other
+        // endpoint).
+        continue;
       }
     }
 
     CGPoint oneProgressPoint = path->getPoint(1.0f);
-    if (fabs(pathEndPoint.x - oneProgressPoint.x) < 0.1f
-        && fabs(pathEndPoint.y - oneProgressPoint.y) < 0.1f) {
+    if (fabs(pathEndPoint.x - oneProgressPoint.x) < FLEndPointComparisonEpsilon
+        && fabs(pathEndPoint.y - oneProgressPoint.y) < FLEndPointComparisonEpsilon) {
       CGFloat oneProgressRotation = path->getTangent(1.0f);
-      CGFloat rotationDifference = fabs(fmod(rotationRadians - oneProgressRotation, (CGFloat)M_PI));
-      if (rotationDifference < 0.1f || rotationDifference > M_PI - 0.1f) {
-        if (!foundOne || _switchPathId == p) {
+      CGFloat rotationDifference = fabs(fmod(forRotationRadians - oneProgressRotation, FL2Pi));
+      BOOL isConnectingRotation = NO;
+      if (forProgressIsZero) {
+        isConnectingRotation = (rotationDifference < FLTangentComparisonEpsilon
+                                || rotationDifference > FL2Pi - FLTangentComparisonEpsilon);
+      } else {
+        isConnectingRotation = (rotationDifference > M_PI - FLTangentComparisonEpsilon
+                                && rotationDifference < M_PI + FLTangentComparisonEpsilon);
+      }
+      if (isConnectingRotation) {
+        if (_switchPathId == FLSegmentSwitchPathIdNone || _switchPathId == p) {
+          *pathId = p;
+          *progress = 1.0f;
+          return YES;
+        }
+        if (!foundOne) {
           *pathId = p;
           *progress = 1.0f;
           foundOne = YES;
         }
-        if (_switchPathId == FLSegmentSwitchPathIdNone) {
-          return YES;
-        } else {
-          continue;
-        }
+        continue;
       }
     }
   }
-  
+
   return foundOne;
 }
 
@@ -544,7 +590,7 @@ using namespace std;
 {
   // note: Assume the content does not already exist.  Create content according to
   // *current* object state.
-  
+
   // noob: A less strict and more-explicit way to do this "according to current
   // object state" thing would be to pass the relevant state variables as parameters.
 
@@ -568,7 +614,7 @@ using namespace std;
   if (_segmentType == FLSegmentTypeReadout) {
     [self FL_deleteContentReadout];
   }
-  
+
   if (_switchPathId != FLSegmentSwitchPathIdNone) {
     [self FL_deleteContentSwitch];
     if (_showsSwitchValue && _segmentType != FLSegmentTypeReadout) {
@@ -581,7 +627,7 @@ using namespace std;
 {
   // note: Assume the content does not already exist.  Create content according to
   // *current* object state.
-  
+
   // note: Additionally, since this is a helper method, assume _segmentType is
   // FLSegmentTypeReadout and _switchPathId is not FLSegmentNodeSwitchPathIdNone.
   // (That is, the caller is responsible to short-circuit the call in cases where
@@ -597,7 +643,7 @@ using namespace std;
   value0Node.position = CGPointMake(FLReadoutValue0Position.x - FLSegmentArtSizeFull / 2.0f,
                                     FLReadoutValue0Position.y - FLSegmentArtSizeFull / 2.0f);
   [self addChild:value0Node];
-  
+
   SKSpriteNode *value1Node = [SKSpriteNode spriteNodeWithTexture:[textureStore textureForKey:@"value-1"]];
   value1Node.name = @"readout-value-1";
   value1Node.position = CGPointMake(FLReadoutValue1Position.x - FLSegmentArtSizeFull / 2.0f,
@@ -624,7 +670,7 @@ using namespace std;
   } else {
     [NSException raise:@"FLSegmentNodeSwitchPathIdInvalid" format:@"Invalid switch path id %d.", _switchPathId];
   }
-  
+
   topValueNode.zPosition = FLZPositionReadoutValueTop;
   bottomValueNode.zPosition = FLZPositionReadoutValueBottom;
 
@@ -716,7 +762,7 @@ using namespace std;
 {
   // note: Assume the content does not already exist.  Create content according to
   // *current* object state.
-  
+
   // note: Additionally, since is a helper method, assume _showsSwitchValue is YES,
   // _switchPathId is not FLSegmentSwitchPathIdNone, and _segmentType is not
   // FLSegmentTypeReadout.
@@ -745,7 +791,7 @@ using namespace std;
   // with the exception that _switchPathId has changed from one value to another,
   // neither of them FLSegmentSwitchPathIdNone.  (The old value is currently
   // not tracked or needed.)
-  
+
   // note: Additionally, since is a helper method, assume _showsSwitchValue is YES
   // and _segmentType is not FLSegmentTypeReadout.
   // (That is, the caller is responsible to short-circuit the call in cases where
@@ -771,7 +817,7 @@ using namespace std;
 - (void)FL_rotateContentValue
 {
   // note: Assume content has been created according to *current* object state.
-  
+
   // note: Additionally, since is a helper method, assume _showsSwitchValue is YES,
   // _switchPathId is not FLSegmentSwitchPathIdNone, and _segmentType is not
   // FLSegmentTypeReadout.
@@ -797,7 +843,7 @@ using namespace std;
   // noob: Flash-white-and-fade effect.  Easier/better/more-performant/more-standard
   // way to do this?  (n.b. Colorize only works for tinting towards black, not
   // towards white.)
-  
+
   SKCropNode *whiteLayer = [[SKCropNode alloc] init];
   SKSpriteNode *maskNode = [valueNode copy];
   maskNode.position = CGPointZero;
@@ -807,7 +853,7 @@ using namespace std;
   SKSpriteNode *whiteNode = [SKSpriteNode spriteNodeWithColor:[SKColor whiteColor] size:maskNode.size];
   [whiteLayer addChild:whiteNode];
   [valueNode addChild:whiteLayer];
-  
+
   SKAction *whiteFlash = [SKAction sequence:@[ [SKAction fadeAlphaTo:0.0f duration:FLFlashDuration],
                                                [SKAction removeFromParent] ]];
   whiteFlash.timingMode = SKActionTimingEaseOut;

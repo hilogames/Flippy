@@ -184,7 +184,7 @@ trackGridFindConnecting(FLTrackGrid& trackGrid,
         continue;
       }
 
-      if ([segmentNode getPath:connectingPathId progress:connectingProgress forEndPoint:endPoint rotation:startRotation scale:segmentSize]) {
+      if ([segmentNode getPath:connectingPathId progress:connectingProgress forEndPoint:endPoint progress:startProgress rotation:startRotation scale:segmentSize]) {
         *connectingSegmentNode = segmentNode;
         return true;
       }
