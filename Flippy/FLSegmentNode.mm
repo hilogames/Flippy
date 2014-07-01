@@ -312,6 +312,13 @@ using namespace std;
   }
 }
 
+- (BOOL)canHaveSwitch
+{
+  return _segmentType == FLSegmentTypeJoinLeft
+    || _segmentType == FLSegmentTypeJoinRight
+    || _segmentType == FLSegmentTypeReadout;
+}
+
 - (int)switchPathId
 {
   return _switchPathId;

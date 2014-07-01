@@ -12,7 +12,10 @@ Current
 
     - Allow removal of switches on join segments; regenerate archived
       gates and circuits accordingly; remove TODO code in
-      FLSegmentNode.mm.
+      FLSegmentNode.mm.  Since all joins really do need switches,
+      perhaps the option is a "hide" not a removal.  Well, except that
+      might be harder, since now there's another variable to check.
+      So yeah just remove the switch completely.
 
     - You can flip inputs manually, but not outputs: They must be
       linked.

@@ -434,6 +434,11 @@ struct PointerPairHash
   // HLGestureTarget nodes.  We know ahead of time which ones we need.
   [self needSharedTapGestureRecognizer];
   [self needSharedDoubleTapGestureRecognizer];
+  // note: This can be nice, but it slows down the single-tap recognition significantly
+  // (and, in my opinion, unacceptably).  Instead there should be code in the double-tap
+  // recognizers to "undo" any undesirable effect of single-tapping; see how that goes.
+  // For example, see code in handleWorldDoubleTap.
+  //[_tapRecognizer requireGestureRecognizerToFail:_doubleTapRecognizer];
   [self needSharedLongPressGestureRecognizer];
   [self needSharedPanGestureRecognizer];
   [self needSharedPinchGestureRecognizer];
@@ -635,7 +640,16 @@ struct PointerPairHash
 
   FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY);
   if (segmentNode && segmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
-    [self FL_linkToggleSwitch:segmentNode animated:YES];
+    [self FL_linkSwitchToggleAnimated:YES forSegment:segmentNode];
+  }
+  
+  // note: Our current gesture single- and double- tap recognizers (created
+  // by HLScene's needShared*GestureRecognizer methods) do not require the
+  // other recognizer to fail.  Instead, try here to undo the common effect
+  // of a single tap.
+  if ([self FL_trackSelectedCount] == 1 && [self FL_trackSelected:segmentNode]) {
+    [self FL_trackSelectClear];
+    [self FL_trackEditMenuHideAnimated:YES];
   }
 }
 
@@ -1192,12 +1206,32 @@ struct PointerPairHash
     [self FL_trackRotateSegments:_trackSelectState.selectedSegments rotateBy:1 animated:YES];
   } else if ([button isEqualToString:@"toggle-switch"]) {
     for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
-      [self FL_linkToggleSwitch:segmentNode animated:YES];
+      [self FL_linkSwitchToggleAnimated:YES forSegment:segmentNode];
     }
   } else if ([button isEqualToString:@"delete"]) {
     [self FL_trackEraseSegments:_trackSelectState.selectedSegments animated:YES];
     [self FL_trackEditMenuHideAnimated:NO];
     [self FL_trackSelectClear];
+  }
+}
+
+- (void)handleTrackEditMenuLongPress:(UIGestureRecognizer *)gestureRecognizer
+{
+  if (gestureRecognizer.state != UIGestureRecognizerStateBegan) {
+    return;
+  }
+
+  CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
+  CGPoint sceneLocation = [self convertPointFromView:viewLocation];
+  CGPoint toolbarLocation = [_trackEditMenuState.editMenuNode convertPoint:sceneLocation fromNode:self];
+  NSString *button = [_trackEditMenuState.editMenuNode toolAtLocation:toolbarLocation];
+
+  if ([button isEqualToString:@"toggle-switch"]) {
+    BOOL setEnabled = ![_trackEditMenuState.editMenuNode enabledForTool:button];
+    for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
+      [self FL_linkSwitchSetEnabled:setEnabled forSegment:segmentNode];
+    }
+    [_trackEditMenuState.editMenuNode setEnabled:setEnabled forTool:button];
   }
 }
 
@@ -1309,6 +1343,11 @@ struct PointerPairHash
       [gestureRecognizer addTarget:self action:@selector(handleTrackEditMenuTap:)];
       return YES;
     }
+    if (gestureRecognizer == _longPressRecognizer) {
+      [gestureRecognizer removeTarget:nil action:nil];
+      [gestureRecognizer addTarget:self action:@selector(handleTrackEditMenuLongPress:)];
+      return YES;
+    }
     return NO;
   }
 
@@ -1362,7 +1401,7 @@ struct PointerPairHash
 
 - (void)train:(FLTrain *)train didSwitchSegment:(FLSegmentNode *)segmentNode toPathId:(int)pathId
 {
-  [self FL_linkSetSwitch:segmentNode pathId:pathId animated:YES];
+  [self FL_linkSwitchSetPathId:pathId animated:YES forSegment:segmentNode];
 }
 
 - (void)train:(FLTrain *)train stoppedAtSegment:(FLSegmentNode *)segmentNode
@@ -2162,6 +2201,14 @@ struct PointerPairHash
   return (_trackSelectState.selectedSegments == nil);
 }
 
+- (NSUInteger)FL_trackSelectedCount
+{
+  if (!_trackSelectState.selectedSegments) {
+    return 0;
+  }
+  return [_trackSelectState.selectedSegments count];
+}
+
 - (void)FL_trackConflictShow:(FLSegmentNode *)segmentNode
 {
   SKSpriteNode *conflictNode = [SKSpriteNode spriteNodeWithColor:[SKColor colorWithRed:1.0f green:0.0f blue:0.0f alpha:1.0f]
@@ -2431,18 +2478,22 @@ struct PointerPairHash
   CGFloat segmentsPositionRight;
   [self FL_getSegmentsExtremes:segmentNodes left:&segmentsPositionLeft right:&segmentsPositionRight top:&segmentsPositionTop bottom:&segmentsPositionBottom];
   BOOL hasSwitch = NO;
+  BOOL canHaveSwitch = NO;
   for (FLSegmentNode *segmentNode in segmentNodes) {
-    if (segmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
-      hasSwitch = YES;
-      break;
+    if ([segmentNode canHaveSwitch]) {
+      canHaveSwitch = YES;
+      if (segmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
+        hasSwitch = YES;
+        break;
+      }
     }
   }
 
   // Update tool list according to selection.
   NSUInteger toolCount = [_trackEditMenuState.editMenuNode toolCount];
-  if ((hasSwitch && toolCount != 4)
-      || (!hasSwitch && toolCount != 3)) {
-    if (!hasSwitch) {
+  if ((canHaveSwitch && toolCount != 4)
+      || (!canHaveSwitch && toolCount != 3)) {
+    if (!canHaveSwitch) {
       [_trackEditMenuState.editMenuNode setToolsWithTextureKeys:@[ @"rotate-ccw", @"delete", @"rotate-cw" ]
                                                           store:[HLTextureStore sharedStore]
                                                       rotations:nil
@@ -2455,6 +2506,9 @@ struct PointerPairHash
                                                         offsets:nil
                                                       animation:HLToolbarNodeAnimationNone];
     }
+  }
+  if (canHaveSwitch) {
+    [_trackEditMenuState.editMenuNode setEnabled:hasSwitch forTool:@"toggle-switch"];
   }
 
   // Show menu.
@@ -2653,7 +2707,7 @@ struct PointerPairHash
   }
 }
 
-- (void)FL_linkSetSwitch:(FLSegmentNode *)segmentNode pathId:(int)pathId animated:(BOOL)animated
+- (void)FL_linkSwitchSetPathId:(int)pathId animated:(BOOL)animated forSegment:(FLSegmentNode *)segmentNode
 {
   [segmentNode setSwitchPathId:pathId animated:animated];
   vector<FLSegmentNode *> links;
@@ -2663,13 +2717,30 @@ struct PointerPairHash
   }
 }
 
-- (void)FL_linkToggleSwitch:(FLSegmentNode *)segmentNode animated:(BOOL)animated
+- (void)FL_linkSwitchToggleAnimated:(BOOL)animated forSegment:(FLSegmentNode *)segmentNode
 {
   int pathId = [segmentNode toggleSwitchPathIdAnimated:animated];
   vector<FLSegmentNode *> links;
   _links.get(segmentNode, &links);
   for (auto link : links) {
     [link setSwitchPathId:pathId animated:animated];
+  }
+}
+
+- (void)FL_linkSwitchSetEnabled:(BOOL)enabled forSegment:(FLSegmentNode *)segmentNode
+{
+  int currentPathId = [segmentNode switchPathId];
+  if (enabled == (currentPathId != FLSegmentSwitchPathIdNone)) {
+    return;
+  }
+
+  if (enabled) {
+    if ([segmentNode canHaveSwitch]) {
+      [segmentNode setSwitchPathId:1 animated:NO];
+    }
+  } else {
+    [segmentNode setSwitchPathId:FLSegmentSwitchPathIdNone animated:NO];
+    _links.erase(segmentNode);
   }
 }
 
