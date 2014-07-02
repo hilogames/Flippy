@@ -9,6 +9,7 @@
 #import "FLTrain.h"
 
 #import <HLSpriteKit/HLTextureStore.h>
+#import <HLSpriteKit/HLError.h>
 
 #include "FLTrackGrid.h"
 
@@ -216,23 +217,54 @@ const int FLTrainDirectionReverse = -1;
   return YES;
 }
 
-- (BOOL)moveToClosestOnTrackLocationForLocation:(CGPoint)worldLocation
+- (BOOL)moveToClosestOnTrackLocationForLocation:(CGPoint)worldLocation gridSearchDistance:(int)gridSearchDistance progressPrecision:(CGFloat)progressPrecision
 {
-  // note: Search distance 1 means we'll look at the 9 segments centered around worldLocation.
-  const int FLGridSearchDistance = 1;
-  const CGFloat FLProgressPrecision = 0.01f;
-
   CGFloat distance;
   CGPoint location;
   CGFloat rotationRadians;
   FLSegmentNode *segmentNode;
   int pathId;
   CGFloat progress;
-  if (!trackGridFindClosestOnTrackPoint(*_trackGrid, worldLocation, FLGridSearchDistance, FLProgressPrecision,
+  if (!trackGridFindClosestOnTrackPoint(*_trackGrid, worldLocation, gridSearchDistance, progressPrecision,
                                         &distance, &location, &rotationRadians, &segmentNode, &pathId, &progress)) {
     return NO;
   }
 
+  // Choose from among switched paths, if relevant.
+  //
+  // note: This could alternately be done in FLSegmentNode's getClosestOnTrackPoint
+  // (called by the track grid already) which must examine each of the segment paths
+  // to see which one is closest.  But: 1) It's hard for that method to be certain
+  // about the precisions desired by the caller; 2) We're the ones who will later
+  // decide to turn the train in the direction where the switch becomes relevant,
+  // and it's only then that this becomes a user-facing problem.
+  if (segmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
+    if (progress < progressPrecision || progress > 1.0f - progressPrecision) {
+      const CGFloat segmentSize = _trackGrid->segmentSize();
+      CGPoint endPoint;
+      if (progress < progressPrecision) {
+        [segmentNode getPoint:&endPoint rotation:NULL forPath:pathId progress:0.0f scale:segmentSize];
+      } else {
+        [segmentNode getPoint:&endPoint rotation:NULL forPath:pathId progress:1.0f scale:segmentSize];
+      }
+      int switchedPathId;
+      CGFloat switchedProgress;
+      if (![segmentNode getConnectingPath:&switchedPathId progress:&switchedProgress forEndPoint:endPoint scale:segmentSize]) {
+        HLError(HLLevelError, @"FLTrain moveToClosestOnTrackLocationForLocation:gridSearchDistance:progressPrecision:"
+                " Could not find path at end point of already-found path.");
+      } else if (pathId != switchedPathId) {
+        pathId = switchedPathId;
+        // note: Use switchedProgress (that is, either 0 or 1 exactly), even though that was not necessarily the
+        // closest on-track point.  Mostly just because it's easier.  But also, the effect, if any, will be a small
+        // snap-to-intersection, which might nicely visually cue what is happening.
+        progress = switchedProgress;
+        // note: Location and rotation probably won't be much different; we would just need to flip rotatation by Pi
+        // if progress changed.  But recalculating will be more accurate.
+        [segmentNode getPoint:&location rotation:&rotationRadians forPath:pathId progress:progress scale:segmentSize];
+      }
+    }
+  }
+  
   // Point train inward.
   //
   // note: Easy way to do this: Currently, all paths are closest to the center of the segment at their
@@ -242,7 +274,7 @@ const int FLTrainDirectionReverse = -1;
 
   self.position = location;
   self.zRotation = (direction == FLTrainDirectionForward ? rotationRadians : rotationRadians + (CGFloat)M_PI);
-  //NSLog(@"progress %3.2f zRotation %.2f", progress, rotationRadians / M_PI * 180.0f);
+  //NSLog(@"path %d progress %3.2f zRotation %.3f", pathId, progress, rotationRadians / M_PI * 180.0f);
 
   _lastSegmentNode = segmentNode;
   _lastPathId = pathId;

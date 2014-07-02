@@ -460,7 +460,28 @@ using namespace std;
   return YES;
 }
 
-- (BOOL)getPath:(int *)pathId progress:(CGFloat *)progress forEndPoint:(CGPoint)endPoint progress:(CGFloat)forProgress rotation:(CGFloat)forRotationRadians scale:(CGFloat)scale
+- (BOOL)getConnectingPath:(int *)pathId progress:(CGFloat *)progress forEndPoint:(CGPoint)endPoint scale:(CGFloat)scale
+{
+  return [self FL_getConnectingPath:pathId progress:progress forEndPoint:endPoint doRotationCheck:NO rotation:0.0f progress:0.0f scale:scale];
+}
+
+- (BOOL)getConnectingPath:(int *)pathId
+                 progress:(CGFloat *)progress
+              forEndPoint:(CGPoint)endPoint
+                 rotation:(CGFloat)forRotationRadians
+                 progress:(CGFloat)forProgress
+                    scale:(CGFloat)scale
+{
+  return [self FL_getConnectingPath:pathId progress:progress forEndPoint:endPoint doRotationCheck:YES rotation:forRotationRadians progress:forProgress scale:scale];
+}
+
+- (BOOL)FL_getConnectingPath:(int *)pathId
+                    progress:(CGFloat *)progress
+                 forEndPoint:(CGPoint)endPoint
+             doRotationCheck:(BOOL)doRotationCheck
+                    rotation:(CGFloat)forRotationRadians
+                    progress:(CGFloat)forProgress
+                       scale:(CGFloat)scale
 {
   CGPoint pathEndPoint = CGPointMake((endPoint.x - self.position.x) / scale, (endPoint.y - self.position.y) / scale);
 
@@ -501,17 +522,19 @@ using namespace std;
     CGPoint zeroProgressPoint = path->getPoint(0.0f);
     if (fabs(pathEndPoint.x - zeroProgressPoint.x) < FLEndPointComparisonEpsilon
         && fabs(pathEndPoint.y - zeroProgressPoint.y) < FLEndPointComparisonEpsilon) {
-      CGFloat zeroProgressRotation = path->getTangent(0.0f);
-      CGFloat rotationDifference = fabs(fmod(forRotationRadians - zeroProgressRotation, FL2Pi));
       BOOL isConnectingRotation = NO;
-      if (forProgressIsZero) {
-        isConnectingRotation = (rotationDifference > M_PI - FLTangentComparisonEpsilon
-                                && rotationDifference < M_PI + FLTangentComparisonEpsilon);
-      } else {
-        isConnectingRotation = (rotationDifference < FLTangentComparisonEpsilon
-                                || rotationDifference > FL2Pi - FLTangentComparisonEpsilon);
+      if (doRotationCheck) {
+        CGFloat zeroProgressRotation = path->getTangent(0.0f);
+        CGFloat rotationDifference = fabs(fmod(forRotationRadians - zeroProgressRotation, FL2Pi));
+        if (forProgressIsZero) {
+          isConnectingRotation = (rotationDifference > M_PI - FLTangentComparisonEpsilon
+                                  && rotationDifference < M_PI + FLTangentComparisonEpsilon);
+        } else {
+          isConnectingRotation = (rotationDifference < FLTangentComparisonEpsilon
+                                  || rotationDifference > FL2Pi - FLTangentComparisonEpsilon);
+        }
       }
-      if (isConnectingRotation) {
+      if (isConnectingRotation || !doRotationCheck) {
         if (_switchPathId == FLSegmentSwitchPathIdNone || _switchPathId == p) {
           // note: The switch might not be relevant, even if set to this path;
           // it might only be for travel in the other direction.  But at least
@@ -544,17 +567,19 @@ using namespace std;
     CGPoint oneProgressPoint = path->getPoint(1.0f);
     if (fabs(pathEndPoint.x - oneProgressPoint.x) < FLEndPointComparisonEpsilon
         && fabs(pathEndPoint.y - oneProgressPoint.y) < FLEndPointComparisonEpsilon) {
-      CGFloat oneProgressRotation = path->getTangent(1.0f);
-      CGFloat rotationDifference = fabs(fmod(forRotationRadians - oneProgressRotation, FL2Pi));
       BOOL isConnectingRotation = NO;
-      if (forProgressIsZero) {
-        isConnectingRotation = (rotationDifference < FLTangentComparisonEpsilon
-                                || rotationDifference > FL2Pi - FLTangentComparisonEpsilon);
-      } else {
-        isConnectingRotation = (rotationDifference > M_PI - FLTangentComparisonEpsilon
-                                && rotationDifference < M_PI + FLTangentComparisonEpsilon);
+      if (doRotationCheck) {
+        CGFloat oneProgressRotation = path->getTangent(1.0f);
+        CGFloat rotationDifference = fabs(fmod(forRotationRadians - oneProgressRotation, FL2Pi));
+        if (forProgressIsZero) {
+          isConnectingRotation = (rotationDifference < FLTangentComparisonEpsilon
+                                  || rotationDifference > FL2Pi - FLTangentComparisonEpsilon);
+        } else {
+          isConnectingRotation = (rotationDifference > M_PI - FLTangentComparisonEpsilon
+                                  && rotationDifference < M_PI + FLTangentComparisonEpsilon);
+        }
       }
-      if (isConnectingRotation) {
+      if (isConnectingRotation || !doRotationCheck) {
         if (_switchPathId == FLSegmentSwitchPathIdNone || _switchPathId == p) {
           *pathId = p;
           *progress = 1.0f;

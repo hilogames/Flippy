@@ -74,7 +74,8 @@ public:
   CGPoint getPoint(CGFloat progress) const;
   // note: Tangent values returned are in the range [-M_PI,+M_PI].
   CGFloat getTangent(CGFloat progress) const;
-  CGFloat getLength() const;
+  static CGFloat getLength(FLPathType pathType);
+  CGFloat getLength() const { return FLPath::getLength(pathType_); }
   CGFloat getClosestOnPathPoint(CGPoint *onPathPoint, CGFloat *onPathProgress, CGPoint offPathPoint, CGFloat progressPrecision) const;
 private:
   CGPoint getPointLinear(CGFloat progress) const;

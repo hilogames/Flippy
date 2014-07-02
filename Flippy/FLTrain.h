@@ -47,7 +47,22 @@ FOUNDATION_EXPORT const int FLTrainDirectionReverse;
 
 - (BOOL)moveToSegment:(FLSegmentNode *)segmentNode pathId:(int)pathId progress:(CGFloat)progress direction:(int)direction;
 
-- (BOOL)moveToClosestOnTrackLocationForLocation:(CGPoint)worldLocation;
+/**
+ * Searches the track grid for a nearby segment with the closest on-track point to the passed point.
+ *
+ * @param The point for which the search is performed, in world coordinates.
+ *
+ * @param The "radius" of segments (adjacent to the segment containing the passed point) searched.
+ *        More precisely: A square of segments are checked; the square is centered on the segment
+ *        that contains the passed point; the square's edge length is (2 * gridSearchDistance) + 1.
+ *
+ * @param The precision used for searching for points along the track paths of searched segments.
+ *        The measurement unit is "progress", since that's the unit used to measure segment paths.
+ *        For visual purposes, the caller might choose to pass "progress per pixel": Under normal
+ *        circumstances that will be a straight track segment progress length (1.0) divided by the
+ *        pixels per (basic) segment edge (_trackGrid->segmentSize()) scaled by current worldScale.
+ */
+- (BOOL)moveToClosestOnTrackLocationForLocation:(CGPoint)worldLocation gridSearchDistance:(int)gridSearchDistance progressPrecision:(CGFloat)progressPrecision;
 
 @end
 

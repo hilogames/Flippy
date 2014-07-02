@@ -97,7 +97,31 @@ convertRotationQuartersToRadians(int quarters)
 
 - (BOOL)getClosestOnTrackPoint:(CGPoint *)onTrackPoint distance:(CGFloat *)distance rotation:(CGFloat *)rotationRadians path:(int *)pathId progress:(CGFloat *)progress forOffTrackPoint:(CGPoint)offSegmentPoint scale:(CGFloat)scale precision:(CGFloat)progressPrecision;
 
-- (BOOL)getPath:(int *)pathId progress:(CGFloat *)progress forEndPoint:(CGPoint)endPoint progress:(CGFloat)forProgress rotation:(CGFloat)rotationRadians scale:(CGFloat)scale;
+/**
+ * Returns true if a path can be found that connects to the passed end point.
+ * Importantly: If more than one path connects at that point, and the segment switches
+ * between them, the path selected by the switch will be returned.
+ */
+- (BOOL)getConnectingPath:(int *)pathId progress:(CGFloat *)progress forEndPoint:(CGPoint)endPoint scale:(CGFloat)scale;
+
+/**
+ * Returns true if a path can be found that connects to the passed end point, with
+ * the same requirements as getConnectingPath but also matching rotation information.
+ *
+ * "Matching rotation information" means that the directed tangent of the connecting
+ * path must match the directed tangent passed in (by parameters forProgress and
+ * rotation).  That is: The passed progress and rotation together imply not just
+ * a tangent of a curve but also a *direction* along the curve; the connecting path
+ * must (by its calculated progress and tangent) have the same tangent and direction.
+ * For example: Imagine two curved segment pieces stacked on top of each other in the
+ * shape of a letter C.  The train goes halfway through the curve from the top and
+ * wants to connect to the lower segment.  The passed rotation is passed in either
+ * PI/2 or -PI/2, depending on implementation; the passed progress is either 0 or
+ * or 1, depending on implementation.  The lower segment will match.  A counter
+ * example: Picture the same situation but with curved segments stacked in the shape
+ * of the number 3.
+ */
+- (BOOL)getConnectingPath:(int *)pathId progress:(CGFloat *)progress forEndPoint:(CGPoint)endPoint rotation:(CGFloat)rotationRadians progress:(CGFloat)forProgress scale:(CGFloat)scale;
 
 - (int)pathCount;
 

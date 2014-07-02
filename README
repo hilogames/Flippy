@@ -7,10 +7,6 @@ circuits.
 
 Current
 
-  . BUG: Start train at position 0.0 on a join segment, with switch
-    set to 0; it doesn't follow the switch.  (If there is a straight
-    segment in front, it does fine.)
-
   . BUG: When linking segments, force them to be aligned to the same
     value.
 

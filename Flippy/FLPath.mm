@@ -230,9 +230,9 @@ FLPath::getClosestOnPathPoint(CGPoint *onPathPoint, CGFloat *onPathProgress, CGP
 }
 
 CGFloat
-FLPath::getLength() const
+FLPath::getLength(FLPathType pathType)
 {
-  switch (pathType_) {
+  switch (pathType) {
     case FLPathTypeStraight:
       return 1.0f;
     case FLPathTypeCurve:

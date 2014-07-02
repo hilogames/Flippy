@@ -1237,11 +1237,21 @@ struct PointerPairHash
 
 - (void)handleTrainPan:(UIGestureRecognizer *)gestureRecognizer
 {
+  static CGFloat progressPrecision;
+  if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
+    // note: This seems to work pretty well.  When adjusting, consider two things: 1) When the pan
+    // gesture moves a pixel, the train should also move; 2) When the gesture puts the train at the
+    // end of a switched segment (like a join), this precision determines how close it has to be
+    // to the end of the path so that the switch is considered relevant (and will determine which
+    // path the train ends up on).
+    progressPrecision = FLPath::getLength(FLPathTypeStraight) / _trackGrid->segmentSize() / _worldNode.xScale;
+  }
   if (gestureRecognizer.state != UIGestureRecognizerStateCancelled) {
+    const int FLGridSearchDistance = 1;
     CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
     CGPoint sceneLocation = [self convertPointFromView:viewLocation];
     CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
-    [_train moveToClosestOnTrackLocationForLocation:worldLocation];
+    [_train moveToClosestOnTrackLocationForLocation:worldLocation gridSearchDistance:FLGridSearchDistance progressPrecision:progressPrecision];
   }
 }
 
