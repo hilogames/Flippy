@@ -118,16 +118,6 @@ using namespace std;
     _showsSwitchValue = [aDecoder decodeBoolForKey:@"showsSwitchValue"];
     _switchPathId = [aDecoder decodeIntForKey:@"switchPathId"];
 
-    // TODO: Some old archives were encoded with child nodes named "switch".  Get rid
-    // of it, if it's there, so that it doesn't interfere with our assumption that we
-    // do not encode child "content".  (And don't try to reuse it in the new content,
-    // since the old "switch" node texture size is wrong.)  REMOVE THIS CHECK ONCE
-    // ALL THE OLD ARCHIVES HAVE BEEN RECREATED.
-    SKNode *switchNode = [self childNodeWithName:@"switch"];
-    if (switchNode) {
-      [switchNode removeFromParent];
-    }
-
     // note: Content is deleted before encoding; recreate it.
     [self FL_createContent];
   }
