@@ -7,9 +7,6 @@ circuits.
 
 Current
 
-  . BUG: When linking segments, force them to be aligned to the same
-    value.
-
   . Special input and output segments which have switches but no track
     (and perhaps have a readout of binary value).
 

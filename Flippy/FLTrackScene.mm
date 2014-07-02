@@ -2681,6 +2681,7 @@ struct PointerPairHash
                                                     [SKAction fadeInWithDuration:FLBlinkHalfCycleDuration] ]];
       [_linkEditState.connectorNode runAction:blinkAction];
       _links.insert(_linkEditState.beginNode, _linkEditState.endNode, _linkEditState.connectorNode);
+      [_linkEditState.endNode setSwitchPathId:[_linkEditState.beginNode switchPathId] animated:YES];
       preserveConnectorNode = YES;
     }
   }
