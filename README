@@ -10,9 +10,6 @@ Current
   . Special input and output segments which have switches but no track
     (and perhaps have a readout of binary value).
 
-    - Visual nit-pick: Try dimming the unselected value on readout
-      segments.
-
     - You can flip inputs manually, but not outputs: They must be
       linked.
 

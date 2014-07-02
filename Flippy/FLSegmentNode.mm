@@ -694,7 +694,14 @@ using namespace std;
   }
 
   topValueNode.zPosition = FLZPositionReadoutValueTop;
+  topValueNode.colorBlendFactor = 0.0f;
+  topValueNode.xScale = 1.0f;
+  topValueNode.yScale = 1.0f;
   bottomValueNode.zPosition = FLZPositionReadoutValueBottom;
+  bottomValueNode.color = [SKColor blackColor];
+  bottomValueNode.colorBlendFactor = 0.8f;
+  bottomValueNode.xScale = 0.8f;
+  bottomValueNode.yScale = 0.8f;
 
   if (animated) {
     [self FL_runActionFlashWhiteValue:topValueNode];
@@ -872,7 +879,10 @@ using namespace std;
   [maskNode removeFromParent];
   whiteLayer.maskNode = maskNode;
   whiteLayer.zPosition = FLZPositionValueOverlay - valueNode.zPosition;
-  SKSpriteNode *whiteNode = [SKSpriteNode spriteNodeWithColor:[SKColor whiteColor] size:maskNode.size];
+  // note: Cheating a bit here by hard-coding 2x node size: We know that sometimes the caller
+  // is growing or shrinking the node at the same time it flashes it.
+  SKSpriteNode *whiteNode = [SKSpriteNode spriteNodeWithColor:[SKColor whiteColor]
+                                                         size:CGSizeMake(maskNode.size.width * 2.0f, maskNode.size.height * 2.0f)];
   [whiteLayer addChild:whiteNode];
   [valueNode addChild:whiteLayer];
 
@@ -885,9 +895,13 @@ using namespace std;
 - (void)FL_runActionFlashBlackValue:(SKSpriteNode *)valueNode
 {
   [valueNode removeActionForKey:@"flashBlack"];
+  
+  SKColor *oldColor = valueNode.color;
+  CGFloat oldColorBlendFactor = valueNode.colorBlendFactor;
+
   valueNode.color = [SKColor blackColor];
   valueNode.colorBlendFactor = 1.0f;
-  SKAction *blackFlash = [SKAction colorizeWithColorBlendFactor:0.0f duration:FLFlashDuration];
+  SKAction *blackFlash = [SKAction colorizeWithColor:oldColor colorBlendFactor:oldColorBlendFactor duration:FLFlashDuration];
   blackFlash.timingMode = SKActionTimingEaseOut;
   [valueNode runAction:blackFlash withKey:@"flashBlack"];
 }
