@@ -23,6 +23,13 @@
 using namespace std;
 using namespace HLCommon;
 
+NSString * const FLGameTypeChallengeTag = @"challenge";
+NSString * const FLGameTypeChallengeLabel = @"game";
+NSString * const FLGameTypeChallengeTitle = @"Game";
+NSString * const FLGameTypeSandboxTag = @"sandbox";
+NSString * const FLGameTypeSandboxLabel = @"sandbox";
+NSString * const FLGameTypeSandboxTitle = @"Sandbox";
+
 static const CGFloat FLWorldScaleMin = 0.125f;
 static const CGFloat FLWorldScaleMax = 2.0f;
 static const CGSize FLWorldSize = { 3000.0f, 3000.0f };
@@ -265,6 +272,7 @@ struct PointerPairHash
 
     _contentCreated = YES;
 
+    _gameType = (FLGameType)[aDecoder decodeIntForKey:@"gameType"];
     _cameraMode = (FLCameraMode)[aDecoder decodeIntForKey:@"cameraMode"];
     _simulationRunning = [aDecoder decodeBoolForKey:@"simulationRunning"];
     _simulationSpeed = [aDecoder decodeIntForKey:@"simulationSpeed"];
@@ -407,6 +415,7 @@ struct PointerPairHash
   [aCoder encodeObject:links forKey:@"links"];
 
   // Encode other state.
+  [aCoder encodeInt:(int)_gameType forKey:@"gameType"];
   [aCoder encodeInt:(int)_cameraMode forKey:@"cameraMode"];
   [aCoder encodeBool:_simulationRunning forKey:@"simulationRunning"];
   [aCoder encodeInt:_simulationSpeed forKey:@"simulationSpeed"];

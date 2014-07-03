@@ -27,12 +27,6 @@ static const CGFloat FLMessageNodeHeight = 32.0f;
 
 static const NSUInteger FLSaveGameSlotCount = 3;
 
-static NSString * const FLSaveLabelChallenge = @"Game";
-static NSString * const FLSaveLabelSandbox = @"Sandbox";
-
-static NSString * const FLGameTypeChallenge = @"challenge";
-static NSString * const FLGameTypeSandbox = @"sandbox";
-
 static NSString * const FLCommonMenuBack = @"Back";
 static NSString * const FLCommonMenuEmptySlot = @"(Empty)";
 static NSString * const FLCommonMenuNew = @"New";
@@ -303,9 +297,8 @@ static NSString * const FLGameMenuExit = @"Exit";
   if (menuNode == _gameMenuNode) {
 
     if ([menuItem.text isEqualToString:FLGameMenuSave]) {
-      // TODO: If _gameScene is a challenge game, then update menu for FLGameTypeChallenge.
-      [self FL_commonMenuUpdateSaves:(HLMenu *)menuItem forGameType:FLGameTypeSandbox includeNewButton:NO];
-      [self FL_gameOverlayShowMessage:@"Choose save game slot."];
+      [self FL_commonMenuUpdateSaves:(HLMenu *)menuItem forGameType:_gameScene.gameType includeNewButton:NO];
+      [self FL_gameOverlayShowMessage:@"Choose save slot."];
     }
 
     return YES;
@@ -322,9 +315,9 @@ static NSString * const FLGameMenuExit = @"Exit";
   if (menuNode == _titleMenuNode) {
 
     if ([menuItem.text isEqualToString:FLTitleMenuChallenge]) {
-      [self FL_titleSceneShowMessage:@"Choose game to load."];
+      [self FL_titleSceneShowMessage:[NSString stringWithFormat:@"Choose %@ to load.", FLGameTypeChallengeLabel]];
     } else if ([menuItem.text isEqualToString:FLTitleMenuSandbox]) {
-      [self FL_titleSceneShowMessage:@"Choose game to load."];
+      [self FL_titleSceneShowMessage:[NSString stringWithFormat:@"Choose %@ to load.", FLGameTypeSandboxLabel]];
     } else if ([menuItemParent.text isEqualToString:FLTitleMenuChallenge]) {
       [self FL_loadFromTitleMenu:FLGameTypeChallenge menuItem:menuItem itemIndex:itemIndex];
     } else if ([menuItemParent.text isEqualToString:FLTitleMenuSandbox]) {
@@ -341,8 +334,7 @@ static NSString * const FLGameMenuExit = @"Exit";
     } else if ([menuItemParent.text isEqualToString:FLGameMenuSave]) {
       if (![menuItem isKindOfClass:[HLMenuBackItem class]]) {
         _savedInGameOverlay = YES;
-        // TODO: If _gameScene is a challenge game, then save game for FLGameTypeChallenge.
-        NSString *savePath = [self FL_savePathForGameType:FLGameTypeSandbox saveNumber:itemIndex];
+        NSString *savePath = [self FL_savePathForGameType:_gameScene.gameType saveNumber:itemIndex];
         [self FL_saveFromGameMenuConfirm:savePath];
       }
     } else if ([menuItem.text isEqualToString:FLGameMenuExit]) {
@@ -579,7 +571,7 @@ static NSString * const FLGameMenuExit = @"Exit";
   return buttonPrototype;
 }
 
-- (NSUInteger)FL_commonMenuUpdateSaves:(HLMenu *)saveMenu forGameType:(NSString *)gameType includeNewButton:(BOOL)includeNewButton
+- (NSUInteger)FL_commonMenuUpdateSaves:(HLMenu *)saveMenu forGameType:(FLGameType)gameType includeNewButton:(BOOL)includeNewButton
 {
   [saveMenu removeAllItems];
 
@@ -590,9 +582,9 @@ static NSString * const FLGameMenuExit = @"Exit";
   NSUInteger saveCount = 0;
   for (NSUInteger saveNumber = 0; saveNumber < FLSaveGameSlotCount; ++saveNumber) {
     HLMenuItem *saveGameMenuItem = [[HLMenuItem alloc] init];
-    NSString *saveName = [self FL_saveNameForGameType:gameType saveNumber:saveNumber];
-    if (saveName) {
-      saveGameMenuItem.text = saveName;
+    NSString *saveLabel = [self FL_saveLabelForGameType:gameType saveNumber:saveNumber];
+    if (saveLabel) {
+      saveGameMenuItem.text = saveLabel;
       saveGameMenuItem.buttonPrototype = [FLViewController FL_sharedMenuButtonPrototypeSaveGame];
       ++saveCount;
     } else {
@@ -606,13 +598,13 @@ static NSString * const FLGameMenuExit = @"Exit";
   return saveCount;
 }
 
-- (BOOL)FL_saveExistsForGameType:(NSString *)gameType saveNumber:(NSUInteger)saveNumber
+- (BOOL)FL_saveExistsForGameType:(FLGameType)gameType saveNumber:(NSUInteger)saveNumber
 {
   NSString *savePath = [self FL_savePathForGameType:gameType saveNumber:saveNumber];
   return [[NSFileManager defaultManager] fileExistsAtPath:savePath];
 }
 
-- (NSString *)FL_saveNameForGameType:(NSString *)gameType saveNumber:(NSUInteger)saveNumber
+- (NSString *)FL_saveLabelForGameType:(FLGameType)gameType saveNumber:(NSUInteger)saveNumber
 {
   static NSDateFormatter *dateFormatter = nil;
   if (!dateFormatter) {
@@ -628,24 +620,32 @@ static NSString * const FLGameMenuExit = @"Exit";
   }
   NSDate *saveDate = (NSDate *)[attributes objectForKey:NSFileCreationDate];
 
-  NSString *gameTypeSaveLabel;
-  if ([gameType isEqualToString:FLGameTypeChallenge]) {
-    gameTypeSaveLabel = FLSaveLabelChallenge;
-  } else if ([gameType isEqualToString:FLGameTypeSandbox]) {
-    gameTypeSaveLabel = FLSaveLabelSandbox;
+  NSString *gameTypeSaveTitle;
+  if (gameType == FLGameTypeChallenge) {
+    gameTypeSaveTitle = FLGameTypeChallengeTitle;
+  } else if (gameType == FLGameTypeSandbox) {
+    gameTypeSaveTitle = FLGameTypeSandboxTitle;
   } else {
-    [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type '%@'.", gameType];
+    [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %d.", gameType];
   }
   
   return [NSString stringWithFormat:@"%@ %lu (%@)",
-          gameTypeSaveLabel,
+          gameTypeSaveTitle,
           (unsigned long)saveNumber + 1,
           [dateFormatter stringFromDate:saveDate]];
 }
 
-- (NSString *)FL_savePathForGameType:(NSString *)gameType saveNumber:(NSUInteger)saveNumber
+- (NSString *)FL_savePathForGameType:(FLGameType)gameType saveNumber:(NSUInteger)saveNumber
 {
-  NSString *saveName = [NSString stringWithFormat:@"save-%@-%lu", gameType, (unsigned long)saveNumber];
+  NSString *gameTypeSaveTag;
+  if (gameType == FLGameTypeChallenge) {
+    gameTypeSaveTag = FLGameTypeChallengeTag;
+  } else if (gameType == FLGameTypeSandbox) {
+    gameTypeSaveTag = FLGameTypeSandboxTag;
+  } else {
+    [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %d.", gameType];
+  }
+  NSString *saveName = [NSString stringWithFormat:@"save-%@-%lu", gameTypeSaveTag, (unsigned long)saveNumber];
   return [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0]
           stringByAppendingPathComponent:[saveName stringByAppendingPathExtension:@"archive"]];
 }
@@ -675,7 +675,7 @@ static NSString * const FLGameMenuExit = @"Exit";
   [self FL_gameOverlayShowMessage:@"Game saved."];
 }
 
-- (void)FL_loadFromTitleMenu:(NSString *)gameType menuItem:(HLMenuItem *)menuItem itemIndex:(NSUInteger)itemIndex
+- (void)FL_loadFromTitleMenu:(FLGameType)gameType menuItem:(HLMenuItem *)menuItem itemIndex:(NSUInteger)itemIndex
 {
   // note: Item index: First "New" button, then saves (including empties), then "Back" button.
   // We handle it all (for now).
@@ -694,13 +694,13 @@ static NSString * const FLGameMenuExit = @"Exit";
   [self FL_load:gameType isNew:isNew otherwiseSaveNumber:(itemIndex - 1)];
 }
 
-- (void)FL_load:(NSString *)gameType isNew:(BOOL)isNew otherwiseSaveNumber:(NSUInteger)saveNumber
+- (void)FL_load:(FLGameType)gameType isNew:(BOOL)isNew otherwiseSaveNumber:(NSUInteger)saveNumber
 {
   if (isNew) {
     _gameScene = [FLTrackScene sceneWithSize:self.view.bounds.size];
     _gameScene.delegate = self;
     _gameScene.scaleMode = SKSceneScaleModeResizeFill;
-    // TODO: Set up for challenge vs sandbox game.
+    _gameScene.gameType = gameType;
   }
 
   // Bypass loading screen if short load time is guaranteed.
