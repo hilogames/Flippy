@@ -10,15 +10,14 @@ Current
   . Special input and output segments which have switches but no track
     (and perhaps have a readout of binary value).
 
-    - You can flip inputs manually, but not outputs: They must be
-      linked.
+    - In challenge mode, you can only flip inputs.
 
-    - In challenge mode, you can't flip tracks manually.
+    - In challenge mode, outputs and inputs are visually
+      differentiated.  (In sandbox mode, you can toggle their
+      appearance in the track edit menu?)  It would be nice to label
+      them, perhaps with letters.
 
     - In challenge mode, you can't add inputs and outputs.
-
-    - Inputs and outputs have no paths (but are segments, for now,
-      since that's what goes on the grid).
 
     - In challenge mode, you can't link to or from anything that is
       linked to an input -- the train makes the connection.

@@ -1231,7 +1231,13 @@ struct PointerPairHash
     for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
       [self FL_linkSwitchSetEnabled:setEnabled forSegment:segmentNode];
     }
-    [_trackEditMenuState.editMenuNode setEnabled:setEnabled forTool:button];
+    // note: It should be possible to avoid recreating the track edit menu, and instead
+    // just determine for ourselves whether or not the toggle-switch button should be
+    // enabled or not.  And in particular, we have the advantage of knowing it was already
+    // displayed, and so the decision whether to enable it or not should be somewhat
+    // trivial.  However, until performance is an issue, don't violate the encapsulation
+    // here; just let the track menu figure it out.
+    [self FL_trackEditMenuShowAnimated:NO];
   }
 }
 
@@ -2738,20 +2744,30 @@ struct PointerPairHash
   }
 }
 
-- (void)FL_linkSwitchSetEnabled:(BOOL)enabled forSegment:(FLSegmentNode *)segmentNode
+- (BOOL)FL_linkSwitchSetEnabled:(BOOL)enabled forSegment:(FLSegmentNode *)segmentNode
 {
+  // note: Returns the enabled state of the switch (resulting from this call).  Note
+  // that the method is defensively programmed as a convenience for some callers (and
+  // won't set the enabled value requested if it can't be done), which makes such a
+  // return value necessary.
   int currentPathId = [segmentNode switchPathId];
   if (enabled == (currentPathId != FLSegmentSwitchPathIdNone)) {
-    return;
+    return enabled;
   }
 
   if (enabled) {
     if ([segmentNode canHaveSwitch]) {
       [segmentNode setSwitchPathId:1 animated:NO];
+      return YES;
     }
+    return NO;
   } else {
-    [segmentNode setSwitchPathId:FLSegmentSwitchPathIdNone animated:NO];
-    _links.erase(segmentNode);
+    if (![segmentNode mustHaveSwitch]) {
+      [segmentNode setSwitchPathId:FLSegmentSwitchPathIdNone animated:NO];
+      _links.erase(segmentNode);
+      return NO;
+    }
+    return YES;
   }
 }
 

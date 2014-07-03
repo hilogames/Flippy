@@ -89,6 +89,7 @@ convertRotationQuartersToRadians(int quarters)
 - (id)initWithTextureKey:(NSString *)textureKey;
 
 - (BOOL)canHaveSwitch;
+- (BOOL)mustHaveSwitch;
 
 - (void)setSwitchPathId:(int)switchPathId animated:(BOOL)animated;
 - (int)toggleSwitchPathIdAnimated:(BOOL)animated;

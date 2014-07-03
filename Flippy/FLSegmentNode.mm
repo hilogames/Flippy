@@ -309,6 +309,11 @@ using namespace std;
     || _segmentType == FLSegmentTypeReadout;
 }
 
+- (BOOL)mustHaveSwitch
+{
+  return _segmentType == FLSegmentTypeReadout;
+}
+
 - (int)switchPathId
 {
   return _switchPathId;
