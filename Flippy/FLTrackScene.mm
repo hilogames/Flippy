@@ -26,6 +26,11 @@ using namespace HLCommon;
 NSString * const FLGameTypeChallengeTag = @"challenge";
 NSString * const FLGameTypeChallengeLabel = @"game";
 NSString * const FLGameTypeChallengeTitle = @"Game";
+
+NSString * const FLGameTypeChallengeLevelTitle[FLGameTypeChallengeLevelCount] = {
+  @"To Be Or Not To Be",
+};
+
 NSString * const FLGameTypeSandboxTag = @"sandbox";
 NSString * const FLGameTypeSandboxLabel = @"sandbox";
 NSString * const FLGameTypeSandboxTitle = @"Sandbox";
@@ -273,6 +278,7 @@ struct PointerPairHash
     _contentCreated = YES;
 
     _gameType = (FLGameType)[aDecoder decodeIntForKey:@"gameType"];
+    _gameLevel = [aDecoder decodeIntForKey:@"gameLevel"];
     _cameraMode = (FLCameraMode)[aDecoder decodeIntForKey:@"cameraMode"];
     _simulationRunning = [aDecoder decodeBoolForKey:@"simulationRunning"];
     _simulationSpeed = [aDecoder decodeIntForKey:@"simulationSpeed"];
@@ -416,6 +422,7 @@ struct PointerPairHash
 
   // Encode other state.
   [aCoder encodeInt:(int)_gameType forKey:@"gameType"];
+  [aCoder encodeInt:_gameLevel forKey:@"gameLevel"];
   [aCoder encodeInt:(int)_cameraMode forKey:@"cameraMode"];
   [aCoder encodeBool:_simulationRunning forKey:@"simulationRunning"];
   [aCoder encodeInt:_simulationSpeed forKey:@"simulationSpeed"];
@@ -451,6 +458,13 @@ struct PointerPairHash
   [self needSharedLongPressGestureRecognizer];
   [self needSharedPanGestureRecognizer];
   [self needSharedPinchGestureRecognizer];
+  
+  if (_gameType == FLGameTypeChallenge) {
+    if (_gameLevel < 0 || _gameLevel >= FLGameTypeChallengeLevelCount) {
+      [NSException raise:@"FLGameLevelInvalid" format:@"Invalid game level."];
+    }
+    [self FL_messageShow:FLGameTypeChallengeLevelTitle[_gameLevel]];
+  }
 }
 
 - (void)didChangeSize:(CGSize)oldSize
@@ -1505,9 +1519,9 @@ struct PointerPairHash
   [textureStore setTextureWithImageNamed:@"export" forKey:@"export" filteringMode:SKTextureFilteringLinear];
 
   // Other.
-  [textureStore setTextureWithImageNamed:@"switch" andUIImageWithImageNamed:@"switch-nonatlas" forKey:@"switch" filteringMode:SKTextureFilteringLinear];
-  [textureStore setTextureWithImageNamed:@"value-0" andUIImageWithImageNamed:@"value-0-nonatlas" forKey:@"value-0" filteringMode:SKTextureFilteringNearest];
-  [textureStore setTextureWithImageNamed:@"value-1" andUIImageWithImageNamed:@"value-1-nonatlas" forKey:@"value-1" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"switch" andUIImageWithImageNamed:@"switch-nonatlas.png" forKey:@"switch" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"value-0" andUIImageWithImageNamed:@"value-0-nonatlas.png" forKey:@"value-0" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"value-1" andUIImageWithImageNamed:@"value-1-nonatlas.png" forKey:@"value-1" filteringMode:SKTextureFilteringNearest];
 
   // Segments.
   [textureStore setTextureWithImageNamed:@"straight" andUIImageWithImageNamed:@"straight-nonatlas" forKey:@"straight" filteringMode:SKTextureFilteringNearest];
@@ -2807,7 +2821,7 @@ struct PointerPairHash
     segmentNode.showsSwitchValue = NO;
     [segmentNode runAction:[SKAction rotateToAngle:(newRotationQuarters * (CGFloat)M_PI_2) duration:FLTrackRotateDuration shortestUnitArc:YES] completion:^{
       [self FL_linkRedrawForSegment:segmentNode];
-      segmentNode.showsSwitchValue = YES;
+      segmentNode.showsSwitchValue = self->_constructionToolbarState.valuesVisible;
     }];
     [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-click-1.caf" waitForCompletion:NO]];
   }

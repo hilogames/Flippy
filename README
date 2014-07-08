@@ -7,8 +7,21 @@ circuits.
 
 Current
 
+  . Challenge Mode specials
+
+    - Load level.  New menu button for resetting level progress.
+
+    - Game status information area in game overlay (in VC), including
+      name and number of current level.
+
+    - Display level goal somewhere, clearly.  Maybe an overlay with
+      mode button?  Might need readout labels (mentioned below) to
+      make this clear, e.g. goal is "B is 'not' (the opposite of) A".
+
   . Special input and output segments which have switches but no track
     (and perhaps have a readout of binary value).
+
+    - In challenge mode, you can't add inputs and outputs.
 
     - In challenge mode, you can only flip inputs.
 
@@ -17,14 +30,15 @@ Current
       appearance in the track edit menu?)  It would be nice to label
       them, perhaps with letters.
 
-    - In challenge mode, you can't add inputs and outputs.
-
     - In challenge mode, you can't link to or from anything that is
       linked to an input -- the train makes the connection.
 
   . Prettier highlight of join segment when linking.
 
   . Tutorial mechanism for first challenge levels.
+
+    - Show non-modal box highlighting an element.  Pan to element when
+      tutorial message appears.  Tap message box for hints?
 
   . Challenge levels: not, or, and, xor (no cross), xor (with cross).
     Each one can be skipped?  Each one has hints?  If you can do it
@@ -51,6 +65,17 @@ If It Ships
   . Infinite grid, and/or real quadtree.
 
 Lower Priority
+
+  . For challenge games, show the level title in the save game slots
+    when loading and saving.  (Need to encode the level number
+    separately from the track scene, I think, so that the track scene
+    doesn't have to be unencoded just to get some meta information.  I
+    think it is possible to encode it at the top level of the archive,
+    and then open the archive and only decode the meta-information
+    keys, without decoding the track scene.  Although: Does prepping
+    an NSKeyedUnarchiver with binary XML data, and then scanning
+    through it, require too much time even without encoding the track
+    scene within?)
 
   . Track destruction of readout and platform should not show the
     same particle emitters as normal segments.

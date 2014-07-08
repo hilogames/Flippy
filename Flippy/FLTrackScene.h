@@ -20,6 +20,8 @@ typedef enum FLGameType {
 FOUNDATION_EXPORT NSString * const FLGameTypeChallengeTag;
 FOUNDATION_EXPORT NSString * const FLGameTypeChallengeLabel;
 FOUNDATION_EXPORT NSString * const FLGameTypeChallengeTitle;
+static const int FLGameTypeChallengeLevelCount = 1;
+FOUNDATION_EXPORT NSString * const FLGameTypeChallengeLevelTitle[FLGameTypeChallengeLevelCount];
 
 FOUNDATION_EXPORT NSString * const FLGameTypeSandboxTag;
 FOUNDATION_EXPORT NSString * const FLGameTypeSandboxLabel;
@@ -32,6 +34,7 @@ FOUNDATION_EXPORT NSString * const FLGameTypeSandboxTitle;
 @property (nonatomic, weak) id<FLTrackSceneDelegate> delegate;
 
 @property (nonatomic, assign) FLGameType gameType;
+@property (nonatomic, assign) int gameLevel;
 
 /**
  * Overrides the parent implementation to stop the simulation and provide zPosition values.

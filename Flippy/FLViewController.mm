@@ -315,9 +315,9 @@ static NSString * const FLGameMenuExit = @"Exit";
   if (menuNode == _titleMenuNode) {
 
     if ([menuItem.text isEqualToString:FLTitleMenuChallenge]) {
-      [self FL_titleSceneShowMessage:[NSString stringWithFormat:@"Choose %@ to load.", FLGameTypeChallengeLabel]];
+      [self FL_titleSceneShowMessage:@"Choose game to load."];
     } else if ([menuItem.text isEqualToString:FLTitleMenuSandbox]) {
-      [self FL_titleSceneShowMessage:[NSString stringWithFormat:@"Choose %@ to load.", FLGameTypeSandboxLabel]];
+      [self FL_titleSceneShowMessage:@"Choose game to load."];
     } else if ([menuItemParent.text isEqualToString:FLTitleMenuChallenge]) {
       [self FL_loadFromTitleMenu:FLGameTypeChallenge menuItem:menuItem itemIndex:itemIndex];
     } else if ([menuItemParent.text isEqualToString:FLTitleMenuSandbox]) {
@@ -422,11 +422,20 @@ static NSString * const FLGameMenuExit = @"Exit";
   SKLabelNode *loadingLabelNode = [SKLabelNode labelNodeWithFontNamed:@"Courier"];
   loadingLabelNode.fontSize = 18.0f;
   loadingLabelNode.text = @"Loading...";
-  SKAction *pulse = [SKAction sequence:@[ [SKAction fadeAlphaTo:0.5f duration:FLLoadingPulseDuration],
-                                          [SKAction fadeAlphaTo:1.0f duration:FLLoadingPulseDuration] ]];
+  loadingLabelNode.alpha = 0.0f;
+  SKAction *pulse = [SKAction sequence:@[ [SKAction fadeAlphaTo:1.0f duration:FLLoadingPulseDuration],
+                                          [SKAction fadeAlphaTo:0.5f duration:FLLoadingPulseDuration] ]];
   pulse.timingMode = SKActionTimingEaseInEaseOut;
   [loadingLabelNode runAction:[SKAction repeatActionForever:pulse]];
   [_loadingScene addChild:loadingLabelNode];
+}
+
+- (void)FL_loadingSceneReset
+{
+  // note: Start with label faded all the way out, so that a quick load screen will
+  // be a simple black.
+  SKLabelNode *loadingLabelNode = (SKLabelNode *)[[_loadingScene children] objectAtIndex:0];
+  loadingLabelNode.alpha = 0.0f;
 }
 
 - (void)FL_titleSceneCreate
@@ -598,6 +607,18 @@ static NSString * const FLGameMenuExit = @"Exit";
   return saveCount;
 }
 
+- (NSString *)FL_levelPathForGameType:(FLGameType)gameType levelNumber:(int)levelNumber
+{
+  NSString *gameTypeTag;
+  if (gameType == FLGameTypeChallenge) {
+    gameTypeTag = FLGameTypeChallengeTag;
+  } else {
+    [NSException raise:@"FLViewControllerGameTypeInvalid" format:@"Invalid game type %d for level information.", gameType];
+  }
+  NSString *fileName = [NSString stringWithFormat:@"level-%@-%d", gameTypeTag, levelNumber];
+  return [[NSBundle mainBundle] pathForResource:fileName ofType:@"archive" inDirectory:@"levels"];
+}
+
 - (BOOL)FL_saveExistsForGameType:(FLGameType)gameType saveNumber:(NSUInteger)saveNumber
 {
   NSString *savePath = [self FL_savePathForGameType:gameType saveNumber:saveNumber];
@@ -637,17 +658,17 @@ static NSString * const FLGameMenuExit = @"Exit";
 
 - (NSString *)FL_savePathForGameType:(FLGameType)gameType saveNumber:(NSUInteger)saveNumber
 {
-  NSString *gameTypeSaveTag;
+  NSString *gameTypeTag;
   if (gameType == FLGameTypeChallenge) {
-    gameTypeSaveTag = FLGameTypeChallengeTag;
+    gameTypeTag = FLGameTypeChallengeTag;
   } else if (gameType == FLGameTypeSandbox) {
-    gameTypeSaveTag = FLGameTypeSandboxTag;
+    gameTypeTag = FLGameTypeSandboxTag;
   } else {
     [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %d.", gameType];
   }
-  NSString *saveName = [NSString stringWithFormat:@"save-%@-%lu", gameTypeSaveTag, (unsigned long)saveNumber];
+  NSString *fileName = [NSString stringWithFormat:@"save-%@-%lu", gameTypeTag, (unsigned long)saveNumber];
   return [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0]
-          stringByAppendingPathComponent:[saveName stringByAppendingPathExtension:@"archive"]];
+          stringByAppendingPathComponent:[fileName stringByAppendingPathExtension:@"archive"]];
 }
 
 - (void)FL_saveFromGameMenuConfirm:(NSString *)savePath
@@ -696,42 +717,54 @@ static NSString * const FLGameMenuExit = @"Exit";
 
 - (void)FL_load:(FLGameType)gameType isNew:(BOOL)isNew otherwiseSaveNumber:(NSUInteger)saveNumber
 {
-  if (isNew) {
-    _gameScene = [FLTrackScene sceneWithSize:self.view.bounds.size];
-    _gameScene.delegate = self;
-    _gameScene.scaleMode = SKSceneScaleModeResizeFill;
-    _gameScene.gameType = gameType;
-  }
-
-  // Bypass loading screen if short load time is guaranteed.
-  if (isNew && [FLTrackScene sceneAssetsLoaded]) {
-    [self.skView presentScene:_gameScene transition:[SKTransition fadeWithDuration:FLSceneTransitionDuration]];
-    _currentScene = _gameScene;
-    return;
-  }
-  
   if (!_loadingScene) {
     [self FL_loadingSceneCreate];
   }
+  [self FL_loadingSceneReset];
   [self.skView presentScene:_loadingScene];
 
   [FLTrackScene loadSceneAssetsWithCompletion:^{
 
     // noob: So this is executed on the main thread by the callback; does that mean
-    // the animations on the loading screen will hang while we're loading?
+    // the animations on the loading screen will hang until this block completes?
 
-    if (!isNew) {
+    if (isNew) {
+      if (gameType == FLGameTypeSandbox) {
+        self->_gameScene = [FLTrackScene sceneWithSize:self.view.bounds.size];
+        self->_gameScene.delegate = self;
+        self->_gameScene.scaleMode = SKSceneScaleModeResizeFill;
+        self->_gameScene.gameType = gameType;
+        self->_gameScene.gameLevel = 0;
+      } else if (gameType == FLGameTypeChallenge) {
+        int gameLevel = 0;
+        NSString *levelPath = [self FL_levelPathForGameType:self->_gameScene.gameType levelNumber:gameLevel];
+        self->_gameScene = [NSKeyedUnarchiver unarchiveObjectWithFile:levelPath];
+        if (!self->_gameScene) {
+          [NSException raise:@"FLGameLoadFailure" format:@"Could not load new game type %d level %d from archive '%@'.", gameType, gameLevel, levelPath];
+        }
+        self->_gameScene.delegate = self;
+        // note: These archives weren't necessarily created with the correct level or game type information.
+        self->_gameScene.gameType = gameType;
+        self->_gameScene.gameLevel = gameLevel;
+      } else {
+        [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %d.", gameType];
+      }
+    } else {
       NSString *savePath = [self FL_savePathForGameType:gameType saveNumber:saveNumber];
       // note: Scene size can be wrong in simulator when loading game on different device.  This might
       // be identical or related to the problem documented in viewWillAppear, because it seems similarly
       // fishy: After we unarchive a scene with scaleMode SKSceneScaleModeResizeFill, shouldn't it
       // resize itself immediately when presented in the view?
       self->_gameScene = [NSKeyedUnarchiver unarchiveObjectWithFile:savePath];
+      if (!self->_gameScene) {
+        [NSException raise:@"FLGameLoadFailure" format:@"Could not load game type %d save number %d from archive '%@'.", gameType, saveNumber, savePath];
+      }
       self->_gameScene.delegate = self;
     }
 
     [self.skView presentScene:self->_gameScene transition:[SKTransition fadeWithDuration:FLSceneTransitionDuration]];
     self->_currentScene = self->_gameScene;
+
   }];
 }
 
