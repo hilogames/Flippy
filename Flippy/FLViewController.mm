@@ -9,6 +9,7 @@
 #import "FLViewController.h"
 
 #import "FLTrackScene.h"
+#import "DSMultilineLabelNode.h"
 #import <HLSpriteKit/HLError.h>
 
 typedef enum FLViewControllerScene { FLViewControllerSceneNone, FLViewControllerSceneTitle, FLViewControllerSceneGame } FLViewControllerScene;
@@ -55,6 +56,7 @@ static NSString * const FLGameMenuExit = @"Exit";
   SKNode *_gameOverlay;
   HLMenuNode *_gameMenuNode;
   HLMessageNode *_gameMessageNode;
+  DSMultilineLabelNode *_gameStatusNode;
   BOOL _savedInGameOverlay;
 
   UIAlertView *_saveConfirmAlert;
@@ -194,7 +196,7 @@ static NSString * const FLGameMenuExit = @"Exit";
 
 - (void)viewWillAppear:(BOOL)animated
 {
-  // note: Sometimes getting wrong dimensions from view.bounds.size when in landscape.
+  // TODO: Sometimes getting wrong dimensions from view.bounds.size when in landscape.
   // See notes here:
   //
   //   http://filipstefansson.com/2013/10/31/fix-spritekit-scalemod-in-landscape-orientation.html
@@ -247,6 +249,13 @@ static NSString * const FLGameMenuExit = @"Exit";
 - (void)viewWillDisappear:(BOOL)animated
 {
   [NSException raise:@"FLViewControllerBadState" format:@"Method viewWillAppear assumes that the view never disappears."];
+}
+
+- (void)viewDidLayoutSubviews
+{
+  if (_gameScene && _gameOverlay && [_gameScene modalNodePresented]) {
+    [self FL_gameOverlayUpdateGeometry];
+  }
 }
 
 - (SKView *)skView
@@ -357,6 +366,9 @@ static NSString * const FLGameMenuExit = @"Exit";
   if (!_gameOverlay) {
     [self FL_gameOverlayCreate];
   }
+  
+  [self FL_gameStatusUpdateText];
+  [self FL_gameOverlayUpdateGeometry];
 
   [_gameMenuNode navigateToTopMenuAnimation:HLMenuNodeAnimationNone];
   [_gameMessageNode hideMessage];
@@ -410,7 +422,7 @@ static NSString * const FLGameMenuExit = @"Exit";
 
 - (HLMessageNode *)FL_commonMessageNodeCreate
 {
-  HLMessageNode *messageNode = [[HLMessageNode alloc] initWithColor:[UIColor colorWithWhite:1.0f alpha:0.5f] size:CGSizeZero];
+  HLMessageNode *messageNode = [[HLMessageNode alloc] initWithColor:[UIColor colorWithWhite:1.0f alpha:0.7f] size:CGSizeZero];
   messageNode.verticalAlignmentMode = HLLabelNodeVerticalAlignFontAscenderBias;
   messageNode.messageAnimationDuration = FLOffscreenSlideDuration;
   messageNode.messageLingerDuration = 2.0;
@@ -512,6 +524,13 @@ static NSString * const FLGameMenuExit = @"Exit";
 {
   _gameOverlay = [SKNode node];
 
+  SKSpriteNode *statusBackgroundNode = [SKSpriteNode spriteNodeWithColor:[SKColor colorWithRed:0.4f green:0.5f blue:0.8f alpha:0.9f] size:CGSizeZero];
+  [_gameOverlay addChild:statusBackgroundNode];
+  _gameStatusNode = [DSMultilineLabelNode labelNodeWithFontNamed:@"Courier"];
+  _gameStatusNode.fontSize = 18.0f;
+  _gameStatusNode.fontColor = [SKColor whiteColor];
+  [statusBackgroundNode addChild:_gameStatusNode];
+
   _gameMenuNode = [self FL_commonMenuNodeCreate];
   [_gameOverlay addChild:_gameMenuNode];
 
@@ -520,24 +539,22 @@ static NSString * const FLGameMenuExit = @"Exit";
   _gameMessageNode = [self FL_commonMessageNodeCreate];
 }
 
-- (void)FL_gameOverlayShowMessage:(NSString *)message
+- (void)FL_gameOverlayUpdateGeometry
 {
-  // noob: Considered designs for messages:
-  // The message node could be part of the menu node, but the menu node knows
-  // nothing about how the message node should appear, or its geometry, or the
-  // scene geometry.  The message node could be part of the track scene, but
-  // the track scene only knows that it's displaying a single modal node.  The
-  // message node could be an automatic addition to the modal presentation system,
-  // but again the modal presentation system doesn't know where it should appear,
-  // or how it should look.  So.  We make our own custom menu+message node to
-  // present modally.  If it proves useful, we could abstract it into an
-  // HLModalMessageMenu or something.
-  
-  // note: Could maintain the size and shape of the message node only when
-  // our own geometry changes.  But easier to do it for every message, for now.
-  _gameMessageNode.position = CGPointMake(0.0f, _gameMenuNode.position.y + _gameMenuNode.itemSpacing);
+  const CGFloat FLMessageSeparator = _gameMenuNode.itemSpacing;
+  _gameMessageNode.position = CGPointMake(0.0f, _gameMenuNode.position.y + FLMessageSeparator);
   _gameMessageNode.size = CGSizeMake(_gameScene.size.width, FLMessageNodeHeight);
   
+  const CGFloat FLStatusSeperator = _gameMenuNode.itemSpacing - FLMessageNodeHeight;
+  const CGFloat FLStatusLabelPad = 5.0f;
+  SKSpriteNode *statusBackgroundNode = (SKSpriteNode *)_gameStatusNode.parent;
+  _gameStatusNode.paragraphWidth = _gameScene.size.width - 2.0f * FLStatusLabelPad;
+  statusBackgroundNode.size = CGSizeMake(_gameScene.size.width, _gameStatusNode.size.height + 2.0f * FLStatusLabelPad);
+  statusBackgroundNode.position = CGPointMake(0.0f, (_gameScene.size.height - statusBackgroundNode.size.height) / 2.0f - FLStatusSeperator);
+}
+
+- (void)FL_gameOverlayShowMessage:(NSString *)message
+{
   [_gameMessageNode showMessage:message parent:_gameOverlay];
 }
 
@@ -550,6 +567,32 @@ static NSString * const FLGameMenuExit = @"Exit";
   [menu addItem:[HLMenuItem menuItemWithText:FLGameMenuRestart]];
   [menu addItem:[HLMenuItem menuItemWithText:FLGameMenuExit]];
   [_gameMenuNode setMenu:menu animation:HLMenuNodeAnimationNone];
+}
+
+- (void)FL_gameStatusUpdateText
+{
+  // note: Caller will probably need to call FL_gameOverlayUpdateGeometry after this.
+  // If it becomes common to update the text more often than the the rest of the
+  // overlay geometry needs to updated, then we'll split out our own geometry updating
+  // code and call it separately when needed.
+  if (!_gameScene) {
+    return;
+  }
+  switch (_gameScene.gameType) {
+    case FLGameTypeChallenge:
+      _gameStatusNode.text = [NSString stringWithFormat:@"Level %d:\n“%@”\n%ld segments used",
+                              _gameScene.gameLevel,
+                              FLGameTypeChallengeLevelTitle[_gameScene.gameLevel],
+                              [_gameScene segmentCount]];
+      break;
+    case FLGameTypeSandbox:
+      _gameStatusNode.text = [NSString stringWithFormat:@"%@\n%ld segments used",
+                              FLGameTypeSandboxTitle,
+                              [_gameScene segmentCount]];
+      break;
+    default:
+      [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %d.", _gameScene.gameType];
+  }
 }
 
 + (HLLabelButtonNode *)FL_sharedMenuButtonPrototypeBasic
@@ -769,7 +812,7 @@ static NSString * const FLGameMenuExit = @"Exit";
       }
     } else {
       NSString *savePath = [self FL_savePathForGameType:gameType saveNumber:saveNumber];
-      // note: Scene size can be wrong in simulator when loading game on different device.  This might
+      // TODO: Scene size can be wrong in simulator when loading game on different device.  This might
       // be identical or related to the problem documented in viewWillAppear, because it seems similarly
       // fishy: After we unarchive a scene with scaleMode SKSceneScaleModeResizeFill, shouldn't it
       // resize itself immediately when presented in the view?

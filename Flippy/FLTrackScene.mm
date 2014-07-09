@@ -610,6 +610,11 @@ struct PointerPairHash
   }
 }
 
+- (size_t)segmentCount
+{
+  return _trackGrid->size();
+}
+
 #pragma mark -
 #pragma mark UIAlertViewDelegate
 

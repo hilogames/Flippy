@@ -36,11 +36,7 @@ FOUNDATION_EXPORT NSString * const FLGameTypeSandboxTitle;
 @property (nonatomic, assign) FLGameType gameType;
 @property (nonatomic, assign) int gameLevel;
 
-/**
- * Overrides the parent implementation to stop the simulation and provide zPosition values.
- * The zPosition values passed as parameters are ignored.
- */
-- (void)presentModalNode:(SKNode *)node zPositionMin:(CGFloat)zPositionMin zPositionMax:(CGFloat)zPositionMax;
+- (size_t)segmentCount;
 
 @end
 

@@ -9,9 +9,6 @@ Current
 
   . Challenge Mode specials
 
-    - Game status information area in game overlay (in VC), including
-      name and number of current level.
-
     - Display level goal somewhere, clearly.  Maybe an overlay with
       mode button?  Might need readout labels (mentioned below) to
       make this clear, e.g. goal is "B is 'not' (the opposite of) A".
