@@ -9,8 +9,6 @@ Current
 
   . Challenge Mode specials
 
-    - Load level.  New menu button for resetting level progress.
-
     - Game status information area in game overlay (in VC), including
       name and number of current level.
 
@@ -46,6 +44,8 @@ Current
     sandbox mode.
 
   . Challenge mode levels unlock gates and circuits in sandbox mode.
+    Completion of levels unlocks ability to start new challenge game
+    at (solved) levels.
 
   . Pan world when track move (or multi-selection, or any pan gesture)
     goes to edge of scene.

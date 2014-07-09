@@ -39,6 +39,7 @@ static NSString * const FLTitleMenuAbout = @"About";
 
 static NSString * const FLGameMenuResume = @"Resume";
 static NSString * const FLGameMenuSave = @"Save";
+static NSString * const FLGameMenuRestart = @"Restart";
 static NSString * const FLGameMenuExit = @"Exit";
 
 @implementation FLViewController
@@ -58,6 +59,7 @@ static NSString * const FLGameMenuExit = @"Exit";
 
   UIAlertView *_saveConfirmAlert;
   NSString *_saveConfirmPath;
+  UIAlertView *_restartConfirmAlert;
   UIAlertView *_exitConfirmAlert;
 }
 
@@ -278,7 +280,7 @@ static NSString * const FLGameMenuExit = @"Exit";
       // note: The important thing is the update of the menu, above.  But as a bonus, go straight
       // to new game if there are no saves.
       if (saveCount == 0) {
-        [self FL_load:FLGameTypeSandbox isNew:YES otherwiseSaveNumber:0];
+        [self FL_load:FLGameTypeSandbox gameLevel:0 isNew:YES otherwiseSaveNumber:0];
         return NO;
       }
     } else if ([menuItem.text isEqualToString:FLTitleMenuChallenge]) {
@@ -286,7 +288,7 @@ static NSString * const FLGameMenuExit = @"Exit";
       // note: The important thing is the update of the menu, above.  But as a bonus, go straight
       // to new game if there are no saves.
       if (saveCount == 0) {
-        [self FL_load:FLGameTypeChallenge isNew:YES otherwiseSaveNumber:0];
+        [self FL_load:FLGameTypeChallenge gameLevel:0 isNew:YES otherwiseSaveNumber:0];
         return NO;
       }
     }
@@ -331,6 +333,8 @@ static NSString * const FLGameMenuExit = @"Exit";
 
     if ([menuItem.text isEqualToString:FLGameMenuResume]) {
       [_gameScene dismissModalNode];
+    } else if ([menuItem.text isEqualToString:FLGameMenuRestart]) {
+      [self FL_restartFromGameMenuConfirm];
     } else if ([menuItemParent.text isEqualToString:FLGameMenuSave]) {
       if (![menuItem isKindOfClass:[HLMenuBackItem class]]) {
         _savedInGameOverlay = YES;
@@ -373,13 +377,17 @@ static NSString * const FLGameMenuExit = @"Exit";
 
 - (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex
 {
-  if (alertView == _exitConfirmAlert) {
-    if (buttonIndex == 1) {
-      [self FL_exitFromGameMenu];
-    }
-  } else if (alertView == _saveConfirmAlert) {
+  if (alertView == _saveConfirmAlert) {
     if (buttonIndex == 1) {
       [self FL_saveFromGameMenu:_saveConfirmPath];
+    }
+  } else if (alertView == _restartConfirmAlert) {
+    if (buttonIndex == 1) {
+      [self FL_restartFromGameMenu];
+    }
+  } else if (alertView == _exitConfirmAlert) {
+    if (buttonIndex == 1) {
+      [self FL_exitFromGameMenu];
     }
   }
 }
@@ -539,6 +547,7 @@ static NSString * const FLGameMenuExit = @"Exit";
   [menu addItem:[HLMenuItem menuItemWithText:FLGameMenuResume]];
   // note: Create empty save menu for now; update later with FL_menuUpdateSaves.
   [menu addItem:[HLMenu menuWithText:FLGameMenuSave items:@[]]];
+  [menu addItem:[HLMenuItem menuItemWithText:FLGameMenuRestart]];
   [menu addItem:[HLMenuItem menuItemWithText:FLGameMenuExit]];
   [_gameMenuNode setMenu:menu animation:HLMenuNodeAnimationNone];
 }
@@ -607,7 +616,7 @@ static NSString * const FLGameMenuExit = @"Exit";
   return saveCount;
 }
 
-- (NSString *)FL_levelPathForGameType:(FLGameType)gameType levelNumber:(int)levelNumber
+- (NSString *)FL_levelPathForGameType:(FLGameType)gameType gameLevel:(int)gameLevel
 {
   NSString *gameTypeTag;
   if (gameType == FLGameTypeChallenge) {
@@ -615,7 +624,7 @@ static NSString * const FLGameMenuExit = @"Exit";
   } else {
     [NSException raise:@"FLViewControllerGameTypeInvalid" format:@"Invalid game type %d for level information.", gameType];
   }
-  NSString *fileName = [NSString stringWithFormat:@"level-%@-%d", gameTypeTag, levelNumber];
+  NSString *fileName = [NSString stringWithFormat:@"level-%@-%d", gameTypeTag, gameLevel];
   return [[NSBundle mainBundle] pathForResource:fileName ofType:@"archive" inDirectory:@"levels"];
 }
 
@@ -642,12 +651,15 @@ static NSString * const FLGameMenuExit = @"Exit";
   NSDate *saveDate = (NSDate *)[attributes objectForKey:NSFileCreationDate];
 
   NSString *gameTypeSaveTitle;
-  if (gameType == FLGameTypeChallenge) {
-    gameTypeSaveTitle = FLGameTypeChallengeTitle;
-  } else if (gameType == FLGameTypeSandbox) {
-    gameTypeSaveTitle = FLGameTypeSandboxTitle;
-  } else {
-    [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %d.", gameType];
+  switch (gameType) {
+    case FLGameTypeChallenge:
+      gameTypeSaveTitle = FLGameTypeChallengeTitle;
+      break;
+    case FLGameTypeSandbox:
+      gameTypeSaveTitle = FLGameTypeSandboxTitle;
+      break;
+    default:
+      [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %d.", gameType];
   }
   
   return [NSString stringWithFormat:@"%@ %lu (%@)",
@@ -659,11 +671,14 @@ static NSString * const FLGameMenuExit = @"Exit";
 - (NSString *)FL_savePathForGameType:(FLGameType)gameType saveNumber:(NSUInteger)saveNumber
 {
   NSString *gameTypeTag;
-  if (gameType == FLGameTypeChallenge) {
-    gameTypeTag = FLGameTypeChallengeTag;
-  } else if (gameType == FLGameTypeSandbox) {
-    gameTypeTag = FLGameTypeSandboxTag;
-  } else {
+  switch (gameType) {
+    case FLGameTypeChallenge:
+      gameTypeTag = FLGameTypeChallengeTag;
+      break;
+    case FLGameTypeSandbox:
+      gameTypeTag = FLGameTypeSandboxTag;
+      break;
+    default:
     [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %d.", gameType];
   }
   NSString *fileName = [NSString stringWithFormat:@"save-%@-%lu", gameTypeTag, (unsigned long)saveNumber];
@@ -712,10 +727,10 @@ static NSString * const FLGameMenuExit = @"Exit";
 
   BOOL isNew = (itemIndex == 0);
 
-  [self FL_load:gameType isNew:isNew otherwiseSaveNumber:(itemIndex - 1)];
+  [self FL_load:gameType gameLevel:0 isNew:isNew otherwiseSaveNumber:(itemIndex - 1)];
 }
 
-- (void)FL_load:(FLGameType)gameType isNew:(BOOL)isNew otherwiseSaveNumber:(NSUInteger)saveNumber
+- (void)FL_load:(FLGameType)gameType gameLevel:(int)gameLevel isNew:(BOOL)isNew otherwiseSaveNumber:(NSUInteger)saveNumber
 {
   if (!_loadingScene) {
     [self FL_loadingSceneCreate];
@@ -729,25 +744,28 @@ static NSString * const FLGameMenuExit = @"Exit";
     // the animations on the loading screen will hang until this block completes?
 
     if (isNew) {
-      if (gameType == FLGameTypeSandbox) {
-        self->_gameScene = [FLTrackScene sceneWithSize:self.view.bounds.size];
-        self->_gameScene.delegate = self;
-        self->_gameScene.scaleMode = SKSceneScaleModeResizeFill;
-        self->_gameScene.gameType = gameType;
-        self->_gameScene.gameLevel = 0;
-      } else if (gameType == FLGameTypeChallenge) {
-        int gameLevel = 0;
-        NSString *levelPath = [self FL_levelPathForGameType:self->_gameScene.gameType levelNumber:gameLevel];
-        self->_gameScene = [NSKeyedUnarchiver unarchiveObjectWithFile:levelPath];
-        if (!self->_gameScene) {
-          [NSException raise:@"FLGameLoadFailure" format:@"Could not load new game type %d level %d from archive '%@'.", gameType, gameLevel, levelPath];
+      switch (gameType) {
+        case FLGameTypeSandbox:
+          self->_gameScene = [FLTrackScene sceneWithSize:self.view.bounds.size];
+          self->_gameScene.delegate = self;
+          self->_gameScene.scaleMode = SKSceneScaleModeResizeFill;
+          self->_gameScene.gameType = gameType;
+          self->_gameScene.gameLevel = gameLevel;
+          break;
+        case FLGameTypeChallenge: {
+          NSString *levelPath = [self FL_levelPathForGameType:self->_gameScene.gameType gameLevel:gameLevel];
+          self->_gameScene = [NSKeyedUnarchiver unarchiveObjectWithFile:levelPath];
+          if (!self->_gameScene) {
+            [NSException raise:@"FLGameLoadFailure" format:@"Could not load new game type %d level %d from archive '%@'.", gameType, gameLevel, levelPath];
+          }
+          self->_gameScene.delegate = self;
+          // note: These archives weren't necessarily created with the correct level or game type information.
+          self->_gameScene.gameType = gameType;
+          self->_gameScene.gameLevel = gameLevel;
+          break;
         }
-        self->_gameScene.delegate = self;
-        // note: These archives weren't necessarily created with the correct level or game type information.
-        self->_gameScene.gameType = gameType;
-        self->_gameScene.gameLevel = gameLevel;
-      } else {
-        [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %d.", gameType];
+        default:
+          [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %d.", gameType];
       }
     } else {
       NSString *savePath = [self FL_savePathForGameType:gameType saveNumber:saveNumber];
@@ -760,12 +778,47 @@ static NSString * const FLGameMenuExit = @"Exit";
         [NSException raise:@"FLGameLoadFailure" format:@"Could not load game type %d save number %d from archive '%@'.", gameType, saveNumber, savePath];
       }
       self->_gameScene.delegate = self;
+      // note: Trust the archive with game type and level information, for now; ignore passed values.
     }
 
     [self.skView presentScene:self->_gameScene transition:[SKTransition fadeWithDuration:FLSceneTransitionDuration]];
     self->_currentScene = self->_gameScene;
 
   }];
+}
+
+- (void)FL_restartFromGameMenuConfirm
+{
+  if (_savedInGameOverlay) {
+    [self FL_restartFromGameMenu];
+    return;
+  }
+  
+  NSString *title;
+  switch (_gameScene.gameType) {
+    case FLGameTypeChallenge:
+      title = [NSString stringWithFormat:@"All unsaved changes to the %@ level will be lost. Restart level anyway?", FLGameTypeChallengeLabel];
+      break;
+    case FLGameTypeSandbox:
+      title = [NSString stringWithFormat:@"The %@ will be completely cleared and all unsaved progress will be lost. Restart anyway?", FLGameTypeSandboxLabel];
+      break;
+    default:
+      [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %d.", _gameScene.gameType];
+  }
+
+  UIAlertView *confirmAlert = [[UIAlertView alloc] initWithTitle:title
+                                                         message:nil
+                                                        delegate:self
+                                               cancelButtonTitle:@"Cancel"
+                                               otherButtonTitles:@"Restart", nil];
+  confirmAlert.alertViewStyle = UIAlertViewStyleDefault;
+  [confirmAlert show];
+  _restartConfirmAlert = confirmAlert;
+}
+
+- (void)FL_restartFromGameMenu
+{
+  [self FL_load:_gameScene.gameType gameLevel:_gameScene.gameLevel isNew:YES otherwiseSaveNumber:0];
 }
 
 - (void)FL_exitFromGameMenuConfirm
