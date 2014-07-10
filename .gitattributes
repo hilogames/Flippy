@@ -1,0 +1,3 @@
+# Strings files use UTF-16 which usually converts well to UTF-8
+# (for diffing and paging tools which aren't UTF-16 aware).
+*.strings diff=utf16

@@ -12,11 +12,22 @@ Current
     - Display level goal somewhere, clearly.  Maybe an overlay with
       mode button?  Might need readout labels (mentioned below) to
       make this clear, e.g. goal is "B is 'not' (the opposite of) A".
+      Or perhaps integrate with tutorial system, e.g. when you push
+      Goals button then we show tutorial text bubbles for inputs and
+      outputs.
+
+    - Goal: B = ¬A (B is not A)
+      After the train has stopped, output B shows the opposite value
+      as input A.
 
   . Special input and output segments which have switches but no track
     (and perhaps have a readout of binary value).
 
     - In challenge mode, you can't add inputs and outputs.
+
+    - In challenge mode, you can't move train arbitrarily; you just do
+      a single run.  (Need a stop/reset/home button to put train back
+      at the official start.)
 
     - In challenge mode, you can only flip inputs.
 
@@ -60,6 +71,9 @@ If It Ships
   . Low memory warning.  (Test in debugger.)
 
   . Infinite grid, and/or real quadtree.
+
+  . Localize the saved circuit/gate names, perhaps in a plist like the
+    challenge level information.
 
 Lower Priority
 

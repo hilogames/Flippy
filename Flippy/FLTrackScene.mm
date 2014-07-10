@@ -15,6 +15,7 @@
 #include <memory>
 #include <tgmath.h>
 
+#import "FLConstants.h"
 #include "FLLinks.h"
 #import "FLPath.h"
 #import "FLSegmentNode.h"
@@ -24,16 +25,10 @@ using namespace std;
 using namespace HLCommon;
 
 NSString * const FLGameTypeChallengeTag = @"challenge";
-NSString * const FLGameTypeChallengeLabel = @"game";
-NSString * const FLGameTypeChallengeTitle = @"Game";
-
-NSString * const FLGameTypeChallengeLevelTitle[FLGameTypeChallengeLevelCount] = {
-  @"To Be Or Not To Be",
-};
+NSString * const FLGameTypeChallengeTitle = NSLocalizedString(@"Game", @"Game information: the label used for a challenge game.");
 
 NSString * const FLGameTypeSandboxTag = @"sandbox";
-NSString * const FLGameTypeSandboxLabel = @"sandbox";
-NSString * const FLGameTypeSandboxTitle = @"Sandbox";
+NSString * const FLGameTypeSandboxTitle = NSLocalizedString(@"Sandbox", @"Game information: the label used for a sandbox game.");
 
 static const CGFloat FLWorldScaleMin = 0.125f;
 static const CGFloat FLWorldScaleMax = 2.0f;
@@ -460,10 +455,7 @@ struct PointerPairHash
   [self needSharedPinchGestureRecognizer];
   
   if (_gameType == FLGameTypeChallenge) {
-    if (_gameLevel < 0 || _gameLevel >= FLGameTypeChallengeLevelCount) {
-      [NSException raise:@"FLGameLevelInvalid" format:@"Invalid game level."];
-    }
-    [self FL_messageShow:FLGameTypeChallengeLevelTitle[_gameLevel]];
+    [self FL_messageShow:FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsTitle)];
   }
 }
 

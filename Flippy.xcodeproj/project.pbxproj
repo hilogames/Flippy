@@ -12,6 +12,9 @@
 		CB05B3B5196B358800FF58A5 /* levels in Resources */ = {isa = PBXBuildFile; fileRef = CB05B3B4196B358800FF58A5 /* levels */; };
 		CB0DA5A618B7D8CE00E43D34 /* FLPath.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB0DA5A418B7D8CE00E43D34 /* FLPath.mm */; };
 		CB3FBDCD1889860A00CE5BBD /* QuadTree.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */; };
+		CB485D88196ECE2B00E8646B /* ChallengeLevels.plist in Resources */ = {isa = PBXBuildFile; fileRef = CB485D87196ECE2B00E8646B /* ChallengeLevels.plist */; };
+		CB485D92196ED4D900E8646B /* FLConstants.m in Sources */ = {isa = PBXBuildFile; fileRef = CB485D91196ED4D900E8646B /* FLConstants.m */; };
+		CB485D95196EE0CC00E8646B /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = CB485D93196EE0CC00E8646B /* Localizable.strings */; };
 		CB50C21718BF8F140072DA30 /* FLTrackGrid.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB50C21518BF8F140072DA30 /* FLTrackGrid.mm */; };
 		CB6C2F39196DCFA1000976A5 /* DSMultilineLabelNode.m in Sources */ = {isa = PBXBuildFile; fileRef = CB6C2F38196DCFA1000976A5 /* DSMultilineLabelNode.m */; };
 		CB7B494C18D39E1C00FACEF4 /* FLLinks.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB7B494A18D39E1C00FACEF4 /* FLLinks.mm */; };
@@ -100,6 +103,10 @@
 		CB0DA5A518B7D8CE00E43D34 /* FLPath.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLPath.h; sourceTree = "<group>"; };
 		CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = QuadTree.cpp; sourceTree = "<group>"; };
 		CB3FBDCC1889860A00CE5BBD /* QuadTree.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = QuadTree.h; sourceTree = "<group>"; };
+		CB485D87196ECE2B00E8646B /* ChallengeLevels.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = ChallengeLevels.plist; sourceTree = "<group>"; };
+		CB485D90196ED4D900E8646B /* FLConstants.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLConstants.h; sourceTree = "<group>"; };
+		CB485D91196ED4D900E8646B /* FLConstants.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FLConstants.m; sourceTree = "<group>"; };
+		CB485D94196EE0CC00E8646B /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		CB50C21518BF8F140072DA30 /* FLTrackGrid.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLTrackGrid.mm; sourceTree = "<group>"; };
 		CB50C21618BF8F140072DA30 /* FLTrackGrid.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTrackGrid.h; sourceTree = "<group>"; };
 		CB6C2F37196DCFA1000976A5 /* DSMultilineLabelNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DSMultilineLabelNode.h; sourceTree = "<group>"; };
@@ -291,6 +298,8 @@
 				CB960313196B87AE00569870 /* Emitters */,
 				CBB4B809183C00E1003C3444 /* FLAppDelegate.h */,
 				CBB4B80A183C00E1003C3444 /* FLAppDelegate.mm */,
+				CB485D90196ED4D900E8646B /* FLConstants.h */,
+				CB485D91196ED4D900E8646B /* FLConstants.m */,
 				CBF959E418A1913F005F01A6 /* FLGestureTarget.h */,
 				CB7B494B18D39E1C00FACEF4 /* FLLinks.h */,
 				CB7B494A18D39E1C00FACEF4 /* FLLinks.mm */,
@@ -319,10 +328,12 @@
 		CBB4B801183C00E1003C3444 /* Supporting Files */ = {
 			isa = PBXGroup;
 			children = (
+				CB485D87196ECE2B00E8646B /* ChallengeLevels.plist */,
 				CBB4B802183C00E1003C3444 /* Flippy-Info.plist */,
-				CBB4B803183C00E1003C3444 /* InfoPlist.strings */,
-				CBB4B806183C00E1003C3444 /* main.m */,
 				CBB4B808183C00E1003C3444 /* Flippy-Prefix.pch */,
+				CBB4B803183C00E1003C3444 /* InfoPlist.strings */,
+				CB485D93196EE0CC00E8646B /* Localizable.strings */,
+				CBB4B806183C00E1003C3444 /* main.m */,
 			);
 			name = "Supporting Files";
 			sourceTree = "<group>";
@@ -474,6 +485,7 @@
 				CB05B3B1196B353A00FF58A5 /* sleeperDestruction.sks in Resources */,
 				CB96033C196B88AD00569870 /* straight-nonatlas.png in Resources */,
 				CBA5ED521906FECD00DBF36E /* gates in Resources */,
+				CB485D95196EE0CC00E8646B /* Localizable.strings in Resources */,
 				CB960308196B86FF00569870 /* rail.png in Resources */,
 				CB96033B196B88AD00569870 /* platform-nonatlas.png in Resources */,
 				CB960301196B86FF00569870 /* grass.png in Resources */,
@@ -483,6 +495,7 @@
 				CB960336196B88AD00569870 /* curve-nonatlas.png in Resources */,
 				CB96033F196B88AD00569870 /* value-1-nonatlas.png in Resources */,
 				CB960309196B86FF00569870 /* sleeper.png in Resources */,
+				CB485D88196ECE2B00E8646B /* ChallengeLevels.plist in Resources */,
 				CBB4B805183C00E1003C3444 /* InfoPlist.strings in Resources */,
 				CB960338196B88AD00569870 /* jog-right-nonatlas.png in Resources */,
 				CB05B3B0196B353A00FF58A5 /* railDestruction.sks in Resources */,
@@ -512,6 +525,7 @@
 				CB0DA5A618B7D8CE00E43D34 /* FLPath.mm in Sources */,
 				CB929EAE18B93AE200543F25 /* FLSegmentNode.mm in Sources */,
 				CB3FBDCD1889860A00CE5BBD /* QuadTree.cpp in Sources */,
+				CB485D92196ED4D900E8646B /* FLConstants.m in Sources */,
 				CBB4B807183C00E1003C3444 /* main.m in Sources */,
 				CBB4B814183C00E1003C3444 /* FLViewController.mm in Sources */,
 				CB7B494C18D39E1C00FACEF4 /* FLLinks.mm in Sources */,
@@ -543,6 +557,14 @@
 /* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
+		CB485D93196EE0CC00E8646B /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				CB485D94196EE0CC00E8646B /* en */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
 		CBB4B803183C00E1003C3444 /* InfoPlist.strings */ = {
 			isa = PBXVariantGroup;
 			children = (

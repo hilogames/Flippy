@@ -8,9 +8,11 @@
 
 #import "FLViewController.h"
 
-#import "FLTrackScene.h"
-#import "DSMultilineLabelNode.h"
 #import <HLSpriteKit/HLError.h>
+
+#import "DSMultilineLabelNode.h"
+#import "FLConstants.h"
+#import "FLTrackScene.h"
 
 typedef enum FLViewControllerScene { FLViewControllerSceneNone, FLViewControllerSceneTitle, FLViewControllerSceneGame } FLViewControllerScene;
 
@@ -28,20 +30,18 @@ static const CGFloat FLMessageNodeHeight = 32.0f;
 
 static const NSUInteger FLSaveGameSlotCount = 3;
 
-static NSString * const FLCommonMenuBack = @"Back";
-static NSString * const FLCommonMenuEmptySlot = @"(Empty)";
-static NSString * const FLCommonMenuNew = @"New";
+static NSString * const FLCommonMenuBack = NSLocalizedString(@"Back", @"Menu item: return to previous menu.");
+static NSString * const FLCommonMenuEmptySlot = NSLocalizedString(@"(Empty)", @"Menu item: no game in this save slot.");
+static NSString * const FLCommonMenuNew = NSLocalizedString(@"New", @"Menu item: start a new game.");
 
-static NSString * const FLTitleMenuChallenge = @"Play";
-static NSString * const FLTitleMenuChallengeNewPath = @"Play/New";
-static NSString * const FLTitleMenuSandbox = @"Sandbox";
-static NSString * const FLTitleMenuSandboxNewPath = @"Sandbox/New";
-static NSString * const FLTitleMenuAbout = @"About";
+static NSString * const FLTitleMenuChallenge = NSLocalizedString(@"Play", @"Menu item: start a new or load an old challenge game.");
+static NSString * const FLTitleMenuSandbox = NSLocalizedString(@"Sandbox", @"Menu item: start a new or load an old sandbox game.");
+static NSString * const FLTitleMenuAbout = NSLocalizedString(@"About", @"Menu item: show game production information.");
 
-static NSString * const FLGameMenuResume = @"Resume";
-static NSString * const FLGameMenuSave = @"Save";
-static NSString * const FLGameMenuRestart = @"Restart";
-static NSString * const FLGameMenuExit = @"Exit";
+static NSString * const FLGameMenuResume = NSLocalizedString(@"Resume", @"Menu item: continue the current game.");
+static NSString * const FLGameMenuSave = NSLocalizedString(@"Save", @"Menu item: save the current game.");
+static NSString * const FLGameMenuRestart = NSLocalizedString(@"Restart", @"Menu item: restart current level.");
+static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item: exit current game, returning to title screen.");
 
 @implementation FLViewController
 {
@@ -320,7 +320,7 @@ static NSString * const FLGameMenuExit = @"Exit";
 
 - (void)menuNode:(HLMenuNode *)menuNode didTapMenuItem:(HLMenuItem *)menuItem itemIndex:(NSUInteger)itemIndex
 {
-  NSLog(@"did tap menu item %@", [menuItem path]);
+  NSLog(@"did tap menu item %@", [[menuItem pathComponents] componentsJoinedByString:@"/"]);
   HLMenuItem *menuItemParent = menuItem.parent;
 
   if (menuNode == _titleMenuNode) {
@@ -580,15 +580,18 @@ static NSString * const FLGameMenuExit = @"Exit";
   }
   switch (_gameScene.gameType) {
     case FLGameTypeChallenge:
-      _gameStatusNode.text = [NSString stringWithFormat:@"Level %d:\n“%@”\n%ld segments used",
+      _gameStatusNode.text = [NSString stringWithFormat:@"%@ %d:\n“%@”\n%ld %@",
+                              NSLocalizedString(@"Level", @"Game information: followed by a level number."),
                               _gameScene.gameLevel,
-                              FLGameTypeChallengeLevelTitle[_gameScene.gameLevel],
-                              [_gameScene segmentCount]];
+                              FLChallengeLevelsInfo(_gameScene.gameLevel, FLChallengeLevelsTitle),
+                              [_gameScene segmentCount],
+                              NSLocalizedString(@"segments used", @"Game information: preceded by a number of segments used in a track.")];
       break;
     case FLGameTypeSandbox:
-      _gameStatusNode.text = [NSString stringWithFormat:@"%@\n%ld segments used",
+      _gameStatusNode.text = [NSString stringWithFormat:@"%@\n%ld %@",
                               FLGameTypeSandboxTitle,
-                              [_gameScene segmentCount]];
+                              [_gameScene segmentCount],
+                              NSLocalizedString(@"segments used", @"Game information: preceded by a number of segments used in a track.")];
       break;
     default:
       [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %d.", _gameScene.gameType];
@@ -736,11 +739,12 @@ static NSString * const FLGameMenuExit = @"Exit";
     return;
   }
 
-  UIAlertView *confirmAlert = [[UIAlertView alloc] initWithTitle:@"Saving will overwrite an old game. Save anyway?"
+  UIAlertView *confirmAlert = [[UIAlertView alloc] initWithTitle:NSLocalizedString(@"Saving will overwrite an old game. Save anyway?",
+                                                                                   @"Alert prompt: confirmation of intention to save a game.")
                                                          message:nil
                                                         delegate:self
-                                               cancelButtonTitle:@"Cancel"
-                                               otherButtonTitles:@"Save", nil];
+                                               cancelButtonTitle:NSLocalizedString(@"Cancel", @"Alert button: cancel save.")
+                                               otherButtonTitles:FLGameMenuSave, nil];
   confirmAlert.alertViewStyle = UIAlertViewStyleDefault;
   [confirmAlert show];
   _saveConfirmAlert = confirmAlert;
@@ -796,7 +800,7 @@ static NSString * const FLGameMenuExit = @"Exit";
           self->_gameScene.gameLevel = gameLevel;
           break;
         case FLGameTypeChallenge: {
-          NSString *levelPath = [self FL_levelPathForGameType:self->_gameScene.gameType gameLevel:gameLevel];
+          NSString *levelPath = [self FL_levelPathForGameType:gameType gameLevel:gameLevel];
           self->_gameScene = [NSKeyedUnarchiver unarchiveObjectWithFile:levelPath];
           if (!self->_gameScene) {
             [NSException raise:@"FLGameLoadFailure" format:@"Could not load new game type %d level %d from archive '%@'.", gameType, gameLevel, levelPath];
@@ -840,10 +844,12 @@ static NSString * const FLGameMenuExit = @"Exit";
   NSString *title;
   switch (_gameScene.gameType) {
     case FLGameTypeChallenge:
-      title = [NSString stringWithFormat:@"All unsaved changes to the %@ level will be lost. Restart level anyway?", FLGameTypeChallengeLabel];
+      title = NSLocalizedString(@"All unsaved changes to the level will be lost. Restart level anyway?",
+                                @"Alert prompt: confirmation of intention to restart a level of a challenge game.");
       break;
     case FLGameTypeSandbox:
-      title = [NSString stringWithFormat:@"The %@ will be completely cleared and all unsaved progress will be lost. Restart anyway?", FLGameTypeSandboxLabel];
+      title = NSLocalizedString(@"The sandbox will be completely cleared and all unsaved progress will be lost. Restart anyway?",
+                                @"Alert prompt: confirmation of intention to restart a sandbox game.");
       break;
     default:
       [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %d.", _gameScene.gameType];
@@ -852,8 +858,8 @@ static NSString * const FLGameMenuExit = @"Exit";
   UIAlertView *confirmAlert = [[UIAlertView alloc] initWithTitle:title
                                                          message:nil
                                                         delegate:self
-                                               cancelButtonTitle:@"Cancel"
-                                               otherButtonTitles:@"Restart", nil];
+                                               cancelButtonTitle:NSLocalizedString(@"Cancel", @"Alert button: cancel restart.")
+                                               otherButtonTitles:FLGameMenuRestart, nil];
   confirmAlert.alertViewStyle = UIAlertViewStyleDefault;
   [confirmAlert show];
   _restartConfirmAlert = confirmAlert;
@@ -871,11 +877,12 @@ static NSString * const FLGameMenuExit = @"Exit";
     return;
   }
 
-  UIAlertView *confirmAlert = [[UIAlertView alloc] initWithTitle:@"Unsaved changes will be lost. Exit anyway?"
+  UIAlertView *confirmAlert = [[UIAlertView alloc] initWithTitle:NSLocalizedString(@"Unsaved changes will be lost. Exit anyway?",
+                                                                                   @"Alert prompt: confirmation of intention to exit a game.")
                                                          message:nil
                                                         delegate:self
-                                               cancelButtonTitle:@"Cancel"
-                                               otherButtonTitles:@"Exit", nil];
+                                               cancelButtonTitle:NSLocalizedString(@"Cancel", @"Alert button: cancel exit.")
+                                               otherButtonTitles:FLGameMenuExit, nil];
   confirmAlert.alertViewStyle = UIAlertViewStyleDefault;
   [confirmAlert show];
   _exitConfirmAlert = confirmAlert;

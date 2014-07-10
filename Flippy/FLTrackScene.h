@@ -18,13 +18,8 @@ typedef enum FLGameType {
 } FLGameType;
 
 FOUNDATION_EXPORT NSString * const FLGameTypeChallengeTag;
-FOUNDATION_EXPORT NSString * const FLGameTypeChallengeLabel;
 FOUNDATION_EXPORT NSString * const FLGameTypeChallengeTitle;
-static const int FLGameTypeChallengeLevelCount = 1;
-FOUNDATION_EXPORT NSString * const FLGameTypeChallengeLevelTitle[FLGameTypeChallengeLevelCount];
-
 FOUNDATION_EXPORT NSString * const FLGameTypeSandboxTag;
-FOUNDATION_EXPORT NSString * const FLGameTypeSandboxLabel;
 FOUNDATION_EXPORT NSString * const FLGameTypeSandboxTitle;
 
 @protocol FLTrackSceneDelegate;
