@@ -7,19 +7,6 @@ circuits.
 
 Current
 
-  . Challenge Mode specials
-
-    - Display level goal somewhere, clearly.  Maybe an overlay with
-      mode button?  Might need readout labels (mentioned below) to
-      make this clear, e.g. goal is "B is 'not' (the opposite of) A".
-      Or perhaps integrate with tutorial system, e.g. when you push
-      Goals button then we show tutorial text bubbles for inputs and
-      outputs.
-
-    - Goal: B = ¬A (B is not A)
-      After the train has stopped, output B shows the opposite value
-      as input A.
-
   . Special input and output segments which have switches but no track
     (and perhaps have a readout of binary value).
 
@@ -31,13 +18,13 @@ Current
 
     - In challenge mode, you can only flip inputs.
 
+    - In challenge mode, you can't link to or from anything that is
+      linked to an input -- the train makes the connection.
+
     - In challenge mode, outputs and inputs are visually
       differentiated.  (In sandbox mode, you can toggle their
       appearance in the track edit menu?)  It would be nice to label
       them, perhaps with letters.
-
-    - In challenge mode, you can't link to or from anything that is
-      linked to an input -- the train makes the connection.
 
   . Prettier highlight of join segment when linking.
 

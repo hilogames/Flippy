@@ -8,7 +8,7 @@
 		<key>goal-short</key>
 		<string>B = ¬A (B is not A)</string>
 		<key>goal-long</key>
-		<string>After the train has stopped, output B shows the opposite value as input A.</string>
+		<string>After the train has stopped, output B should show the opposite value as input A.</string>
 	</dict>
 </array>
 </plist>

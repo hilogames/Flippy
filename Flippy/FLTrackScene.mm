@@ -9,12 +9,14 @@
 #import "FLTrackScene.h"
 
 #import <HLSpriteKit/HLEmitterStore.h>
+#import <HLSpriteKit/HLGestureTarget.h>
 #import <HLSpriteKit/HLMessageNode.h>
 #import <HLSpriteKit/HLTextureStore.h>
 #import <HLSpriteKit/HLToolbarNode.h>
 #include <memory>
 #include <tgmath.h>
 
+#import "DSMultilineLabelNode.h"
 #import "FLConstants.h"
 #include "FLLinks.h"
 #import "FLPath.h"
@@ -455,7 +457,7 @@ struct PointerPairHash
   [self needSharedPinchGestureRecognizer];
   
   if (_gameType == FLGameTypeChallenge) {
-    [self FL_messageShow:FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsTitle)];
+    [self FL_goalsShow];
   }
 }
 
@@ -599,6 +601,14 @@ struct PointerPairHash
 
   if (_simulationRunning) {
     [_train update:elapsedTime simulationSpeed:_simulationSpeed];
+  }
+}
+
+- (void)setGameType:(FLGameType)gameType
+{
+  _gameType = gameType;
+  if (_simulationToolbarState.toolbarNode) {
+    [self FL_simulationToolbarUpdateTools];
   }
 }
 
@@ -1183,6 +1193,8 @@ struct PointerPairHash
     [_worldNode runAction:move completion:^{
       self->_cameraMode = FLCameraModeFollowTrain;
     }];
+  } else if ([tool isEqualToString:@"goals"]) {
+    [self FL_goalsShow];
   }
 }
 
@@ -1500,6 +1512,7 @@ struct PointerPairHash
   [textureStore setTextureWithImageNamed:@"ff" forKey:@"ff" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"fff" forKey:@"fff" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"center" forKey:@"center" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"goals" forKey:@"goals" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"delete" forKey:@"delete" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"rotate-cw" forKey:@"rotate-cw" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"rotate-ccw" forKey:@"rotate-ccw" filteringMode:SKTextureFilteringLinear];
@@ -2100,6 +2113,9 @@ struct PointerPairHash
   }
   [textureKeys addObject:speedTool];
   [textureKeys addObject:@"center"];
+  if (_gameType == FLGameTypeChallenge) {
+    [textureKeys addObject:@"goals"];
+  }
   [_simulationToolbarState.toolbarNode setToolsWithTextureKeys:textureKeys
                                                          store:[HLTextureStore sharedStore]
                                                      rotations:nil
@@ -2153,6 +2169,43 @@ struct PointerPairHash
   }
   _messageNode.position = CGPointMake(0.0f, bottom + FLMessageSpacer);
   _messageNode.size = CGSizeMake(self.size.width, FLMessageHeight);
+}
+
+- (void)FL_goalsShow
+{
+  SKNode *goalsOverlay = [SKNode node];
+  
+  // note: Show in a square that won't have to change size if the interface rotates.
+  CGFloat edgeSizeMax = MIN(self.scene.size.width, self.scene.size.height);
+  DSMultilineLabelNode *labelNode = [DSMultilineLabelNode labelNodeWithFontNamed:@"Courier"];
+  labelNode.fontSize = 18.0f;
+  labelNode.fontColor = [SKColor whiteColor];
+  labelNode.text = [NSString stringWithFormat:@"%@ %d:\n“%@”\n\n%@:\n%@\n\n%@",
+                    NSLocalizedString(@"Level", @"Game information: followed by a level number."),
+                    _gameLevel,
+                    FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsTitle),
+                    NSLocalizedString(@"Goals", @"Game information: the header over the description of goals for the current level."),
+                    FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsGoalShort),
+                    FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsGoalLong)];
+  labelNode.paragraphWidth = edgeSizeMax;
+  [goalsOverlay addChild:labelNode];
+  
+  HLGestureTargetSpriteNode *dismissNode = [HLGestureTargetSpriteNode spriteNodeWithColor:[SKColor clearColor] size:self.scene.size];
+  // noob: Some confusion around zPositions here.  I know that HLScene's presentModalNode
+  // will put the goalsOverlay somewhere between our passed min and max (FLZPositionModalMin
+  // and FLZPositionModalMax), but I don't know then exactly where dismissNode will end up.
+  // It doesn't matter, though, as long as it's at the top of the goalsOverlay.
+  dismissNode.zPosition = 0.1f;
+  dismissNode.addsToTapGestureRecognizer = YES;
+  __weak HLGestureTargetSpriteNode *dismissNodeWeak = dismissNode;
+  dismissNode.handleGestureBlock = ^(UIGestureRecognizer *gestureRecognizer){
+    [self unregisterDescendant:dismissNodeWeak];
+    [self dismissModalNode];
+  };
+  [self registerDescendant:dismissNode withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
+  [goalsOverlay addChild:dismissNode];
+
+  [self presentModalNode:goalsOverlay];
 }
 
 - (void)FL_trackSelect:(NSSet *)segmentNodes
