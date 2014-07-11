@@ -34,7 +34,9 @@ enum FLSegmentType {
   FLSegmentTypeJogRight,
   FLSegmentTypeCross,
   FLSegmentTypePlatform,
-  FLSegmentTypeReadout,
+  FLSegmentTypePlatformStart,
+  FLSegmentTypeReadoutInput,
+  FLSegmentTypeReadoutOutput,
 };
 
 inline int
@@ -82,7 +84,7 @@ convertRotationQuartersToRadians(int quarters)
  * according to the filteringMode of the texture which corresponds to the
  * component image in the texture store.
  */
-+ (UIImage *)createImageForReadoutSegment:(CGFloat)imageSize;
++ (UIImage *)createImageForReadoutSegment:(FLSegmentType)segmentType imageSize:(CGFloat)imageSize;
 
 - (id)initWithSegmentType:(FLSegmentType)segmentType;
 

@@ -63,6 +63,10 @@ static CGPoint FLReadoutSwitchPosition = {
   FLSegmentArtReadoutComponentInset + FLSegmentArtReadoutValueSize / 4.0f,
   FLSegmentArtSizeFull - FLSegmentArtReadoutComponentInset - FLSegmentArtReadoutValueSize / 2.0f
 };
+static CGPoint FLReadoutInOutPosition = {
+  FLSegmentArtReadoutComponentInset,
+  FLReadoutValue0Position.y
+};
 
 using namespace std;
 
@@ -91,7 +95,7 @@ using namespace std;
 
 - (id)initWithSegmentType:(FLSegmentType)segmentType textureKey:(NSString *)textureKey
 {
-  if (segmentType == FLSegmentTypeReadout) {
+  if (segmentType == FLSegmentTypeReadoutInput || segmentType == FLSegmentTypeReadoutOutput) {
     self = [super initWithColor:[SKColor clearColor] size:CGSizeMake(FLSegmentArtSizeFull, FLSegmentArtSizeFull)];
   } else {
     SKTexture *texture = [[HLTextureStore sharedStore] textureForKey:textureKey];
@@ -99,7 +103,8 @@ using namespace std;
   }
   if (self) {
     _segmentType = segmentType;
-    if (_segmentType == FLSegmentTypeJoinLeft || _segmentType == FLSegmentTypeJoinRight || _segmentType == FLSegmentTypeReadout) {
+    if (_segmentType == FLSegmentTypeJoinLeft || _segmentType == FLSegmentTypeJoinRight
+        || _segmentType == FLSegmentTypeReadoutInput || _segmentType == FLSegmentTypeReadoutOutput) {
       _switchPathId = 1;
     } else {
       _switchPathId = FLSegmentSwitchPathIdNone;
@@ -173,14 +178,16 @@ using namespace std;
       return @"cross";
     case FLSegmentTypePlatform:
       return @"platform";
-    case FLSegmentTypeReadout:
-      return @"readout";
+    case FLSegmentTypePlatformStart:
+      return @"platform-start";
+    case FLSegmentTypeReadoutInput:
+      return @"readout-input";
+    case FLSegmentTypeReadoutOutput:
+      return @"readout-output";
     case FLSegmentTypeNone:
     default:
-      break;
+      return nil;
   }
-  [NSException raise:@"FLSegmentNodeSegmentTypeUnknown" format:@"Unknown segment type."];
-  return nil;
 }
 
 + (FLSegmentType)segmentTypeForKey:(NSString *)key
@@ -201,16 +208,22 @@ using namespace std;
     return FLSegmentTypeCross;
   } else if ([key isEqualToString:@"platform"]) {
     return FLSegmentTypePlatform;
-  } else if ([key isEqualToString:@"readout"]) {
-    return FLSegmentTypeReadout;
+  } else if ([key isEqualToString:@"platform-start"]) {
+    return FLSegmentTypePlatformStart;
+  } else if ([key isEqualToString:@"readout-input"]) {
+    return FLSegmentTypeReadoutInput;
+  } else if ([key isEqualToString:@"readout-output"]) {
+    return FLSegmentTypeReadoutOutput;
   } else {
     [NSException raise:@"FLSegmentNodeTexureKeyUnknown" format:@"Unknown segment texture key."];
   }
   return FLSegmentTypeNone;
 }
 
-+ (UIImage *)createImageForReadoutSegment:(CGFloat)imageSize
++ (UIImage *)createImageForReadoutSegment:(FLSegmentType)segmentType imageSize:(CGFloat)imageSize
 {
+  // TODO: Or just create a node and call textureFromNode?
+  
   // note: Art constants in file are all scaled to full art size.  Our scaling
   // factor brings everything into imageSize.
   CGFloat scale = imageSize / FLSegmentArtSizeFull;
@@ -297,7 +310,8 @@ using namespace std;
 - (void)setZRotation:(CGFloat)zRotation
 {
   [super setZRotation:zRotation];
-  if (_switchPathId != FLSegmentSwitchPathIdNone && _showsSwitchValue && _segmentType != FLSegmentTypeReadout) {
+  BOOL segmentTypeReadout = (_segmentType == FLSegmentTypeReadoutInput || _segmentType == FLSegmentTypeReadoutOutput);
+  if (_switchPathId != FLSegmentSwitchPathIdNone && _showsSwitchValue && !segmentTypeReadout) {
     [self FL_rotateContentValue];
   }
 }
@@ -306,12 +320,14 @@ using namespace std;
 {
   return _segmentType == FLSegmentTypeJoinLeft
     || _segmentType == FLSegmentTypeJoinRight
-    || _segmentType == FLSegmentTypeReadout;
+    || _segmentType == FLSegmentTypeReadoutInput
+    || _segmentType == FLSegmentTypeReadoutOutput;
 }
 
 - (BOOL)mustHaveSwitch
 {
-  return _segmentType == FLSegmentTypeReadout;
+  return _segmentType == FLSegmentTypeReadoutInput
+    || _segmentType == FLSegmentTypeReadoutOutput;
 }
 
 - (int)switchPathId
@@ -325,9 +341,10 @@ using namespace std;
     return;
   }
 
+  BOOL segmentTypeReadout = (_segmentType == FLSegmentTypeReadoutInput || _segmentType == FLSegmentTypeReadoutOutput);
   if (switchPathId == FLSegmentSwitchPathIdNone) {
     [self FL_deleteContentSwitch];
-    if (_segmentType == FLSegmentTypeReadout) {
+    if (segmentTypeReadout) {
       [NSException raise:@"FLSegmentNodeSwitchPathIdInvalid" format:@"Invalid switch path id %d for readout segment.", _switchPathId];
     } else if (_showsSwitchValue) {
       [self FL_deleteContentValue];
@@ -339,14 +356,14 @@ using namespace std;
 
   if (oldSwitchPathId == FLSegmentSwitchPathIdNone) {
     [self FL_createContentSwitch];
-    if (_segmentType == FLSegmentTypeReadout) {
+    if (segmentTypeReadout) {
       [NSException raise:@"FLSegmentNodeSwitchPathIdInvalid" format:@"Invalid switch path id %d for readout segment.", _switchPathId];
     } else if (_showsSwitchValue) {
       [self FL_createContentValue];
     }
   } else if (switchPathId != FLSegmentSwitchPathIdNone) {
     [self FL_updateContentSwitchAnimated:animated];
-    if (_segmentType == FLSegmentTypeReadout) {
+    if (segmentTypeReadout) {
       [self FL_updateContentReadoutAnimated:animated];
     } else if (_showsSwitchValue) {
       [self FL_updateContentValueAnimated:animated];
@@ -376,13 +393,14 @@ using namespace std;
   if (showsSwitchValue == _showsSwitchValue) {
     return;
   }
-  if (_showsSwitchValue && _segmentType != FLSegmentTypeReadout) {
+  BOOL segmentTypeReadout = (_segmentType == FLSegmentTypeReadoutInput || _segmentType == FLSegmentTypeReadoutOutput);
+  if (_showsSwitchValue && !segmentTypeReadout) {
     if (_switchPathId != FLSegmentSwitchPathIdNone) {
       [self FL_deleteContentValue];
     }
   }
   _showsSwitchValue = showsSwitchValue;
-  if (_showsSwitchValue && _segmentType != FLSegmentTypeReadout) {
+  if (_showsSwitchValue && !segmentTypeReadout) {
     if (_switchPathId != FLSegmentSwitchPathIdNone) {
       [self FL_createContentValue];
     }
@@ -620,14 +638,15 @@ using namespace std;
 
   // noob: A less strict and more-explicit way to do this "according to current
   // object state" thing would be to pass the relevant state variables as parameters.
-
-  if (_segmentType == FLSegmentTypeReadout) {
+  
+  BOOL segmentTypeReadout = (_segmentType == FLSegmentTypeReadoutInput || _segmentType == FLSegmentTypeReadoutOutput);
+  if (segmentTypeReadout) {
     [self FL_createContentReadout];
   }
 
   if (_switchPathId != FLSegmentSwitchPathIdNone) {
     [self FL_createContentSwitch];
-    if (_showsSwitchValue && _segmentType != FLSegmentTypeReadout) {
+    if (_showsSwitchValue && !segmentTypeReadout) {
       [self FL_createContentValue];
     }
   }
@@ -638,13 +657,14 @@ using namespace std;
   // note: Assume content has been created according to *current* object state.
   // After deletion, the caller should change object state accordingly.
 
-  if (_segmentType == FLSegmentTypeReadout) {
+  BOOL segmentTypeReadout = (_segmentType == FLSegmentTypeReadoutInput || _segmentType == FLSegmentTypeReadoutOutput);
+  if (segmentTypeReadout) {
     [self FL_deleteContentReadout];
   }
 
   if (_switchPathId != FLSegmentSwitchPathIdNone) {
     [self FL_deleteContentSwitch];
-    if (_showsSwitchValue && _segmentType != FLSegmentTypeReadout) {
+    if (_showsSwitchValue && !segmentTypeReadout) {
       [self FL_deleteContentValue];
     }
   }
@@ -676,6 +696,21 @@ using namespace std;
   value1Node.position = CGPointMake(FLReadoutValue1Position.x - FLSegmentArtSizeFull / 2.0f,
                                     FLReadoutValue1Position.y - FLSegmentArtSizeFull / 2.0f);
   [self addChild:value1Node];
+  
+  SKLabelNode *inOutNode = [SKLabelNode labelNodeWithFontNamed:@"Courier-Bold"];
+  inOutNode.zRotation = (CGFloat)(-M_PI_2);
+  inOutNode.fontSize = 10.0f;
+  inOutNode.fontColor = [SKColor blackColor];
+  if (_segmentType == FLSegmentTypeReadoutInput) {
+    inOutNode.text = @"IN";
+  } else if (_segmentType == FLSegmentTypeReadoutOutput) {
+    inOutNode.text = @"OUT";
+  } else {
+    inOutNode.text = @"???";
+  }
+  inOutNode.position = CGPointMake(FLReadoutInOutPosition.x - FLSegmentArtSizeFull / 2.0f,
+                                   FLReadoutInOutPosition.y - FLSegmentArtSizeFull / 2.0f);
+  [self addChild:inOutNode];
 
   [self FL_updateContentReadoutAnimated:NO];
 }
@@ -743,7 +778,7 @@ using namespace std;
     switchNode.position = CGPointMake(-halfBasicSize + switchInset, halfBasicSize);
   } else if (_segmentType == FLSegmentTypeJoinRight) {
     switchNode.position = CGPointMake(halfBasicSize - switchInset, halfBasicSize);
-  } else if (_segmentType == FLSegmentTypeReadout) {
+  } else if (_segmentType == FLSegmentTypeReadoutInput || _segmentType == FLSegmentTypeReadoutOutput) {
     switchNode.position = CGPointMake(FLReadoutSwitchPosition.x - FLSegmentArtSizeFull / 2.0f,
                                       FLReadoutSwitchPosition.y - FLSegmentArtSizeFull / 2.0f);
   } else {
@@ -771,7 +806,7 @@ using namespace std;
     newZRotation = (_switchPathId - 1) * switchAngleJoin;
   } else if (_segmentType == FLSegmentTypeJoinRight) {
     newZRotation = (CGFloat)M_PI + (1 - _switchPathId) * switchAngleJoin;
-  } else if (_segmentType == FLSegmentTypeReadout) {
+  } else if (_segmentType == FLSegmentTypeReadoutInput || _segmentType == FLSegmentTypeReadoutOutput) {
     newZRotation = (_switchPathId - 1) * switchAngleReadout;
   }
 
@@ -951,9 +986,11 @@ using namespace std;
       }
       break;
     case FLSegmentTypePlatform:
+    case FLSegmentTypePlatformStart:
       pathType = FLPathTypeHalf;
       break;
-    case FLSegmentTypeReadout:
+    case FLSegmentTypeReadoutInput:
+    case FLSegmentTypeReadoutOutput:
     case FLSegmentTypeNone:
     default:
       [NSException raise:@"FLSegmentNodeSegmentTypeInvalid" format:@"Invalid segment type %d.", _segmentType];
@@ -991,9 +1028,11 @@ using namespace std;
       paths[1] = FLPathStore::sharedStore()->getPath(FLPathTypeJogRight, rotationQuarters);
       return 2;
     case FLSegmentTypePlatform:
+    case FLSegmentTypePlatformStart:
       paths[0] = FLPathStore::sharedStore()->getPath(FLPathTypeHalf, rotationQuarters);
       return 1;
-    case FLSegmentTypeReadout:
+    case FLSegmentTypeReadoutInput:
+    case FLSegmentTypeReadoutOutput:
       return 0;
     case FLSegmentTypeNone:
     default:
@@ -1021,8 +1060,10 @@ using namespace std;
     case FLSegmentTypeCross:
       return 2;
     case FLSegmentTypePlatform:
+    case FLSegmentTypePlatformStart:
       return 1;
-    case FLSegmentTypeReadout:
+    case FLSegmentTypeReadoutInput:
+    case FLSegmentTypeReadoutOutput:
       return 0;
     case FLSegmentTypeNone:
     default:

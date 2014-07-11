@@ -1458,7 +1458,7 @@ struct PointerPairHash
   _simulationRunning = NO;
   [self FL_simulationToolbarUpdateTools];
 
-  if (segmentNode.segmentType == FLSegmentTypePlatform) {
+  if (segmentNode.segmentType == FLSegmentTypePlatform || segmentNode.segmentType == FLSegmentTypePlatformStart) {
     // note: Strictly speaking, we aren't allowed to mess with the train's zRotation.  But
     // we know the train is stopped, and we know we'll put it back on track in a second.
     const NSTimeInterval FLTrainRotateDuration = 0.4;
@@ -1542,9 +1542,11 @@ struct PointerPairHash
   [textureStore setTextureWithImageNamed:@"jog-right" andUIImageWithImageNamed:@"jog-right-nonatlas" forKey:@"jog-right" filteringMode:SKTextureFilteringNearest];
   [textureStore setTextureWithImageNamed:@"cross" andUIImageWithImageNamed:@"cross-nonatlas" forKey:@"cross" filteringMode:SKTextureFilteringNearest];
   [textureStore setTextureWithImageNamed:@"platform" andUIImageWithImageNamed:@"platform-nonatlas" forKey:@"platform" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"platform-start" andUIImageWithImageNamed:@"platform-start-nonatlas" forKey:@"platform-start" filteringMode:SKTextureFilteringNearest];
   // note: This looks particularly bad when used as a toolbar image -- which in fact is its only purpose.  But *all*
   // the segments look bad, so I'm choosing not to use linear filtering on this one, for now; see the TODO in HLToolbarNode.
-  [textureStore setTextureWithImage:[FLSegmentNode createImageForReadoutSegment:FLSegmentArtSizeFull] forKey:@"readout" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImage:[FLSegmentNode createImageForReadoutSegment:FLSegmentTypeReadoutInput imageSize:FLSegmentArtSizeFull] forKey:@"readout-input" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImage:[FLSegmentNode createImageForReadoutSegment:FLSegmentTypeReadoutOutput imageSize:FLSegmentArtSizeFull] forKey:@"readout-output" filteringMode:SKTextureFilteringLinear];
 
   NSLog(@"FLTrackScene loadTextures: loaded in %0.2f seconds", [[NSDate date] timeIntervalSinceDate:startDate]);
 }
@@ -1974,15 +1976,27 @@ struct PointerPairHash
   [_constructionToolbarState.actionPanTools setObject:@"Cross Track" forKey:@"cross"];
 
   if (_gameType == FLGameTypeSandbox) {
-    [textureKeys addObject:@"readout"];
+    [textureKeys addObject:@"readout-input"];
     [offsets addObject:[NSValue valueWithCGPoint:CGPointZero]];
-    [_constructionToolbarState.actionPanTools setObject:@"Input or Output Value" forKey:@"readout"];
+    [_constructionToolbarState.actionPanTools setObject:@"Input Value" forKey:@"readout-input"];
+  }
+
+  if (_gameType == FLGameTypeSandbox) {
+    [textureKeys addObject:@"readout-output"];
+    [offsets addObject:[NSValue valueWithCGPoint:CGPointZero]];
+    [_constructionToolbarState.actionPanTools setObject:@"Output Value" forKey:@"readout-output"];
   }
 
   if (_gameType == FLGameTypeSandbox) {
     [textureKeys addObject:@"platform"];
     [offsets addObject:[NSValue valueWithCGPoint:CGPointMake(FLSegmentArtStraightShift, 0.0f)]];
     [_constructionToolbarState.actionPanTools setObject:@"Platform" forKey:@"platform"];
+  }
+
+  if (_gameType == FLGameTypeSandbox) {
+    [textureKeys addObject:@"platform-start"];
+    [offsets addObject:[NSValue valueWithCGPoint:CGPointMake(FLSegmentArtStraightShift, 0.0f)]];
+    [_constructionToolbarState.actionPanTools setObject:@"Starting Platform" forKey:@"platform-start"];
   }
 
   [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:textureKeys

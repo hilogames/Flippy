@@ -7,36 +7,39 @@ circuits.
 
 Current
 
-  . Special input and output segments which have switches but no track
-    (and perhaps have a readout of binary value).
+  . Label inputs and outputs with letters.  Perhaps also display label
+    on any switches directly linked to inputs or outputs.  Since the
+    label is going to be a data member of FLSegmentNode, perhaps the
+    display code shall be written so that any segment node can have
+    a label.
 
-    - Challenge mode gets a button for "check solution".  Same as
-      goals button for now.
+    - try a big-ass 0.2 alpha bold letter on top?
 
-      . Need official start platform.  (Colored specially.  Perhaps
-        allow user to make other non-start platforms.)  Need official
-        input segments.  Use segment type for both, I guess.
+    - in sandbox mode, need way to set the label
 
-      . Solve method starts at start with each permutation of inputs.
-        Follows track; detects infinite looping.
+  . Challenge mode gets a button for "check solution".  Same as goals
+    button for now.  (Sandbox mode can get this button too, which
+    lists all known inputs and outputs, but without a "goal" column in
+    the truth table.)
+
+      . For each start platform, for each permutation of inputs,
+        solve.  (If any one start platform can solve, then break loop
+        and success.)  Follows track; detects infinite looping.
 
       . Show results in Goals overlay, in the form of a truth table of
         desired and actual results.
 
            INPUTS  GOAL  CURRENT
-           A       B     B
-           0       1     1
-           1       0     1!
+           ---------------------
+             A      X      X
+           ---------------------
+             0      1      1
+             1      0     *1*
 
-    - In challenge mode, you can only flip inputs.
+  . In challenge mode, you can't link to or from anything that is
+    linked to an input -- the train makes the connection.
 
-    - In challenge mode, you can't link to or from anything that is
-      linked to an input -- the train makes the connection.
-
-    - In challenge mode, outputs and inputs are visually
-      differentiated.  (In sandbox mode, you can toggle their
-      appearance in the track edit menu?)  It would be nice to label
-      them, perhaps with letters.
+  . In challenge mode, can't delete inputs and outputs.
 
   . Prettier highlight of join segment when linking.
 
