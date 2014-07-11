@@ -10,11 +10,23 @@ Current
   . Special input and output segments which have switches but no track
     (and perhaps have a readout of binary value).
 
-    - In challenge mode, you can't add inputs and outputs.
+    - Challenge mode gets a button for "check solution".  Same as
+      goals button for now.
 
-    - In challenge mode, you can't move train arbitrarily; you just do
-      a single run.  (Need a stop/reset/home button to put train back
-      at the official start.)
+      . Need official start platform.  (Colored specially.  Perhaps
+        allow user to make other non-start platforms.)  Need official
+        input segments.  Use segment type for both, I guess.
+
+      . Solve method starts at start with each permutation of inputs.
+        Follows track; detects infinite looping.
+
+      . Show results in Goals overlay, in the form of a truth table of
+        desired and actual results.
+
+           INPUTS  GOAL  CURRENT
+           A       B     B
+           0       1     1
+           1       0     1!
 
     - In challenge mode, you can only flip inputs.
 

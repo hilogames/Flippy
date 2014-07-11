@@ -455,7 +455,7 @@ struct PointerPairHash
   [self needSharedLongPressGestureRecognizer];
   [self needSharedPanGestureRecognizer];
   [self needSharedPinchGestureRecognizer];
-  
+
   if (_gameType == FLGameTypeChallenge) {
     [self FL_goalsShow];
   }
@@ -672,7 +672,7 @@ struct PointerPairHash
   if (segmentNode && segmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
     [self FL_linkSwitchToggleAnimated:YES forSegment:segmentNode];
   }
-  
+
   // note: Our current gesture single- and double- tap recognizers (created
   // by HLScene's needShared*GestureRecognizer methods) do not require the
   // other recognizer to fail.  Instead, try here to undo the common effect
@@ -1086,7 +1086,7 @@ struct PointerPairHash
       NSString *description;
       NSArray *links;
       NSSet *newSegmentNodes = [self FL_importWithPath:importPath description:&description links:&links];
-      
+
       // Configure imported segment set.
       for (FLSegmentNode *segmentNode in newSegmentNodes) {
         segmentNode.showsSwitchValue = _constructionToolbarState.valuesVisible;
@@ -1203,7 +1203,7 @@ struct PointerPairHash
   if (gestureRecognizer.state != UIGestureRecognizerStateBegan) {
     return;
   }
-  
+
   CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
   CGPoint sceneLocation = [self convertPointFromView:viewLocation];
   CGPoint toolbarLocation = [_simulationToolbarState.toolbarNode convertPoint:sceneLocation fromNode:self];
@@ -1457,7 +1457,7 @@ struct PointerPairHash
   // note: Currently only one train, so if train stops then stop the whole simulation.
   _simulationRunning = NO;
   [self FL_simulationToolbarUpdateTools];
-  
+
   if (segmentNode.segmentType == FLSegmentTypePlatform) {
     // note: Strictly speaking, we aren't allowed to mess with the train's zRotation.  But
     // we know the train is stopped, and we know we'll put it back on track in a second.
@@ -1545,7 +1545,7 @@ struct PointerPairHash
   // note: This looks particularly bad when used as a toolbar image -- which in fact is its only purpose.  But *all*
   // the segments look bad, so I'm choosing not to use linear filtering on this one, for now; see the TODO in HLToolbarNode.
   [textureStore setTextureWithImage:[FLSegmentNode createImageForReadoutSegment:FLSegmentArtSizeFull] forKey:@"readout" filteringMode:SKTextureFilteringLinear];
-  
+
   NSLog(@"FLTrackScene loadTextures: loaded in %0.2f seconds", [[NSDate date] timeIntervalSinceDate:startDate]);
 }
 
@@ -1623,7 +1623,7 @@ struct PointerPairHash
       segmentNode.showsSwitchValue = NO;
     }
   }
-  
+
   NSMutableData *archiveData = [NSMutableData data];
   NSKeyedArchiver *aCoder = [[NSKeyedArchiver alloc] initForWritingWithMutableData:archiveData];
 
@@ -1649,7 +1649,7 @@ struct PointerPairHash
       segmentNode.showsSwitchValue = YES;
     }
   }
-  
+
   [self FL_messageShow:[NSString stringWithFormat:@"Exported “%@”.", trackDescription]];
 
   return YES;
@@ -1901,47 +1901,95 @@ struct PointerPairHash
 
 - (void)FL_constructionToolbarShowMain:(int)page animation:(HLToolbarNodeAnimation)animation
 {
-  [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"segments", @"gates", @"circuits", @"exports", @"link", @"show-values", @"export" ]
+  NSMutableArray *textureKeys = [NSMutableArray array];
+
+  [textureKeys addObject:@"segments"];
+  [_constructionToolbarState.navigationTools addObject:@"segments"];
+  
+  if ([self FL_unlocked:FLUnlockGates]) {
+    [textureKeys addObject:@"gates"];
+    [_constructionToolbarState.navigationTools addObject:@"gates"];
+  }
+
+  if ([self FL_unlocked:FLUnlockCircuits]) {
+    [textureKeys addObject:@"circuits"];
+    [_constructionToolbarState.navigationTools addObject:@"circuits"];
+  }
+
+  [textureKeys addObject:@"exports"];
+  [_constructionToolbarState.navigationTools addObject:@"exports"];
+
+  [textureKeys addObject:@"link"];
+  [_constructionToolbarState.modeTools addObject:@"link"];
+
+  [textureKeys addObject:@"show-values"];
+  [_constructionToolbarState.actionTapTools addObject:@"show-values"];
+
+  [textureKeys addObject:@"export"];
+  [_constructionToolbarState.actionTapTools addObject:@"export"];
+
+  [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:textureKeys
                                                            store:[HLTextureStore sharedStore]
                                                        rotations:nil
                                                          offsets:nil
                                                        animation:animation];
   [_constructionToolbarState.toolbarNode setHighlight:_constructionToolbarState.valuesVisible forTool:@"show-values"];
-  [_constructionToolbarState.navigationTools addObject:@"segments"];
-  [_constructionToolbarState.navigationTools addObject:@"gates"];
-  [_constructionToolbarState.navigationTools addObject:@"circuits"];
-  [_constructionToolbarState.navigationTools addObject:@"exports"];
-  [_constructionToolbarState.modeTools addObject:@"link"];
-  [_constructionToolbarState.actionTapTools addObject:@"show-values"];
-  [_constructionToolbarState.actionTapTools addObject:@"export"];
 }
 
 - (void)FL_constructionToolbarShowSegments:(int)page animation:(HLToolbarNodeAnimation)animation
 {
-  [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:@[ @"main", @"straight", @"curve", @"join-left", @"join-right", @"jog-left", @"jog-right", @"cross", @"readout", @"platform" ]
+  NSMutableArray *textureKeys = [NSMutableArray array];
+  NSMutableArray *offsets = [NSMutableArray array];
+
+  [textureKeys addObject:@"main"];
+  [offsets addObject:[NSValue valueWithCGPoint:CGPointZero]];
+  [_constructionToolbarState.navigationTools addObject:@"main"];
+
+  [textureKeys addObject:@"straight"];
+  [offsets addObject:[NSValue valueWithCGPoint:CGPointMake(FLSegmentArtStraightShift, 0.0f)]];
+  [_constructionToolbarState.actionPanTools setObject:@"Straight Track" forKey:@"straight"];
+
+  [textureKeys addObject:@"curve"];
+  [offsets addObject:[NSValue valueWithCGPoint:CGPointMake(FLSegmentArtCurveShift, -FLSegmentArtCurveShift)]];
+  [_constructionToolbarState.actionPanTools setObject:@"Curved Track" forKey:@"curve"];
+
+  [textureKeys addObject:@"join-left"];
+  [offsets addObject:[NSValue valueWithCGPoint:CGPointMake(FLSegmentArtCurveShift, -FLSegmentArtCurveShift)]];
+  [_constructionToolbarState.actionPanTools setObject:@"Join Left Track" forKey:@"join-left"];
+
+  [textureKeys addObject:@"join-right"];
+  [offsets addObject:[NSValue valueWithCGPoint:CGPointMake(FLSegmentArtCurveShift, FLSegmentArtCurveShift)]];
+  [_constructionToolbarState.actionPanTools setObject:@"Join Right Track" forKey:@"join-right"];
+
+  [textureKeys addObject:@"jog-left"];
+  [offsets addObject:[NSValue valueWithCGPoint:CGPointZero]];
+  [_constructionToolbarState.actionPanTools setObject:@"Jog Left Track" forKey:@"jog-left"];
+
+  [textureKeys addObject:@"jog-right"];
+  [offsets addObject:[NSValue valueWithCGPoint:CGPointZero]];
+  [_constructionToolbarState.actionPanTools setObject:@"Jog Right Track" forKey:@"jog-right"];
+
+  [textureKeys addObject:@"cross"];
+  [offsets addObject:[NSValue valueWithCGPoint:CGPointZero]];
+  [_constructionToolbarState.actionPanTools setObject:@"Cross Track" forKey:@"cross"];
+
+  if (_gameType == FLGameTypeSandbox) {
+    [textureKeys addObject:@"readout"];
+    [offsets addObject:[NSValue valueWithCGPoint:CGPointZero]];
+    [_constructionToolbarState.actionPanTools setObject:@"Input or Output Value" forKey:@"readout"];
+  }
+
+  if (_gameType == FLGameTypeSandbox) {
+    [textureKeys addObject:@"platform"];
+    [offsets addObject:[NSValue valueWithCGPoint:CGPointMake(FLSegmentArtStraightShift, 0.0f)]];
+    [_constructionToolbarState.actionPanTools setObject:@"Platform" forKey:@"platform"];
+  }
+
+  [_constructionToolbarState.toolbarNode setToolsWithTextureKeys:textureKeys
                                                            store:[HLTextureStore sharedStore]
                                                        rotations:nil
-                                                         offsets:@[ [NSValue valueWithCGPoint:CGPointZero],
-                                                                    [NSValue valueWithCGPoint:CGPointMake(FLSegmentArtStraightShift, 0.0f)],
-                                                                    [NSValue valueWithCGPoint:CGPointMake(FLSegmentArtCurveShift, -FLSegmentArtCurveShift)],
-                                                                    [NSValue valueWithCGPoint:CGPointMake(FLSegmentArtCurveShift, -FLSegmentArtCurveShift)],
-                                                                    [NSValue valueWithCGPoint:CGPointMake(FLSegmentArtCurveShift, FLSegmentArtCurveShift)],
-                                                                    [NSValue valueWithCGPoint:CGPointZero],
-                                                                    [NSValue valueWithCGPoint:CGPointZero],
-                                                                    [NSValue valueWithCGPoint:CGPointZero],
-                                                                    [NSValue valueWithCGPoint:CGPointZero],
-                                                                    [NSValue valueWithCGPoint:CGPointMake(FLSegmentArtStraightShift, 0.0f)] ]
+                                                         offsets:offsets
                                                         animation:animation];
-  [_constructionToolbarState.navigationTools addObject:@"main"];
-  [_constructionToolbarState.actionPanTools setObject:@"Straight Track" forKey:@"straight"];
-  [_constructionToolbarState.actionPanTools setObject:@"Curved Track" forKey:@"curve"];
-  [_constructionToolbarState.actionPanTools setObject:@"Join Left Track" forKey:@"join-left"];
-  [_constructionToolbarState.actionPanTools setObject:@"Join Right Track" forKey:@"join-right"];
-  [_constructionToolbarState.actionPanTools setObject:@"Jog Left Track" forKey:@"jog-left"];
-  [_constructionToolbarState.actionPanTools setObject:@"Jog Right Track" forKey:@"jog-right"];
-  [_constructionToolbarState.actionPanTools setObject:@"Cross Track" forKey:@"cross"];
-  [_constructionToolbarState.actionPanTools setObject:@"Input or Output Value" forKey:@"readout"];
-  [_constructionToolbarState.actionPanTools setObject:@"Platform" forKey:@"platform"];
 }
 
 - (void)FL_constructionToolbarShowImports:(NSString *)importDirectory page:(int)page animation:(HLToolbarNodeAnimation)animation
@@ -2174,7 +2222,7 @@ struct PointerPairHash
 - (void)FL_goalsShow
 {
   SKNode *goalsOverlay = [SKNode node];
-  
+
   // note: Show in a square that won't have to change size if the interface rotates.
   CGFloat edgeSizeMax = MIN(self.scene.size.width, self.scene.size.height);
   DSMultilineLabelNode *labelNode = [DSMultilineLabelNode labelNodeWithFontNamed:@"Courier"];
@@ -2189,7 +2237,7 @@ struct PointerPairHash
                     FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsGoalLong)];
   labelNode.paragraphWidth = edgeSizeMax;
   [goalsOverlay addChild:labelNode];
-  
+
   HLGestureTargetSpriteNode *dismissNode = [HLGestureTargetSpriteNode spriteNodeWithColor:[SKColor clearColor] size:self.scene.size];
   // noob: Some confusion around zPositions here.  I know that HLScene's presentModalNode
   // will put the goalsOverlay somewhere between our passed min and max (FLZPositionModalMin
@@ -3075,6 +3123,38 @@ struct PointerPairHash
     }
     std::cout << std::endl;
   }
+}
+
+typedef enum FLUnlockItem {
+  FLUnlockGates,
+  FLUnlockGateNot,
+  FLUnlockCircuits,
+} FLUnlockItem;
+
+- (BOOL)FL_unlocked:(FLUnlockItem)item
+{
+  if (_gameType == FLGameTypeChallenge) {
+    switch (item) {
+      case FLUnlockGates:
+      case FLUnlockGateNot:
+        return _gameLevel >= 1;
+      case FLUnlockCircuits:
+        return NO;
+      default:
+        [NSException raise:@"FLUnlockItemUnknown" format:@"Unknown unlock item %d.", item];
+    }
+  } else if (_gameType == FLGameTypeSandbox) {
+    switch (item) {
+      case FLUnlockGates:
+      case FLUnlockGateNot:
+        return [[NSUserDefaults standardUserDefaults] boolForKey:@"FLUnlockGateNot"];
+      case FLUnlockCircuits:
+        return [[NSUserDefaults standardUserDefaults] boolForKey:@"FLUnlockCircuits"];
+      default:
+        [NSException raise:@"FLUnlockItemUnknown" format:@"Unknown unlock item %d.", item];
+    }
+  }
+  return NO;
 }
 
 @end
