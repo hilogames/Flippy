@@ -41,6 +41,7 @@ static const CGFloat FLZPositionReadoutValueBottom = -0.3f;
 static const CGFloat FLZPositionReadoutValueTop = -0.2f;
 static const CGFloat FLZPositionValueOverlay = -0.1f;
 static const CGFloat FLZPositionSwitch = 0.1f;
+static const CGFloat FLZPositionLabel = 0.2f;
 
 static const NSTimeInterval FLFlashDuration = 0.5;
 
@@ -109,6 +110,7 @@ using namespace std;
     } else {
       _switchPathId = FLSegmentSwitchPathIdNone;
     }
+    _showsLabel = YES;
     _showsSwitchValue = NO;
     [self FL_createContent];
   }
@@ -120,8 +122,10 @@ using namespace std;
   self = [super initWithCoder:aDecoder];
   if (self) {
     _segmentType = (FLSegmentType)[aDecoder decodeIntForKey:@"segmentType"];
-    _showsSwitchValue = [aDecoder decodeBoolForKey:@"showsSwitchValue"];
+    _label = (char)[aDecoder decodeIntForKey:@"label"];
     _switchPathId = [aDecoder decodeIntForKey:@"switchPathId"];
+    _showsLabel = [aDecoder decodeBoolForKey:@"showsLabel"];
+    _showsSwitchValue = [aDecoder decodeBoolForKey:@"showsSwitchValue"];
 
     // note: Content is deleted before encoding; recreate it.
     [self FL_createContent];
@@ -142,8 +146,10 @@ using namespace std;
   [self FL_createContent];
 
   [aCoder encodeInt:(int)_segmentType forKey:@"segmentType"];
-  [aCoder encodeBool:_showsSwitchValue forKey:@"showsSwitchValue"];
+  [aCoder encodeInt:(int)_label forKey:@"label"];
   [aCoder encodeInt:_switchPathId forKey:@"switchPathId"];
+  [aCoder encodeBool:_showsLabel forKey:@"showsLabel"];
+  [aCoder encodeBool:_showsSwitchValue forKey:@"showsSwitchValue"];
 }
 
 - (id)copyWithZone:(NSZone *)zone
@@ -151,7 +157,9 @@ using namespace std;
   FLSegmentNode *copy = [super copyWithZone:zone];
   if (copy) {
     copy->_segmentType = _segmentType;
+    copy->_label = _label;
     copy->_switchPathId = _switchPathId;
+    copy->_showsLabel = _showsLabel;
     copy->_showsSwitchValue = _showsSwitchValue;
     // note: Not calling [copy createContent] because all content is assumed to be
     // represented in the node tree.
@@ -223,7 +231,7 @@ using namespace std;
 + (UIImage *)createImageForReadoutSegment:(FLSegmentType)segmentType imageSize:(CGFloat)imageSize
 {
   // TODO: Or just create a node and call textureFromNode?
-  
+
   // note: Art constants in file are all scaled to full art size.  Our scaling
   // factor brings everything into imageSize.
   CGFloat scale = imageSize / FLSegmentArtSizeFull;
@@ -311,8 +319,13 @@ using namespace std;
 {
   [super setZRotation:zRotation];
   BOOL segmentTypeReadout = (_segmentType == FLSegmentTypeReadoutInput || _segmentType == FLSegmentTypeReadoutOutput);
-  if (_switchPathId != FLSegmentSwitchPathIdNone && _showsSwitchValue && !segmentTypeReadout) {
-    [self FL_rotateContentValue];
+  if (_switchPathId != FLSegmentSwitchPathIdNone) {
+    if (_showsSwitchValue && !segmentTypeReadout) {
+      [self FL_rotateContentValue];
+    }
+    if (_showsLabel) {
+      [self FL_rotateContentLabel];
+    }
   }
 }
 
@@ -385,6 +398,24 @@ using namespace std;
   } else {
     [NSException raise:@"FLSegmentNodeSwitchPathIdInvalid" format:@"Invalid switch path id %d.", _switchPathId];
     return -1;
+  }
+}
+
+- (void)setShowsLabel:(BOOL)showsLabel
+{
+  if (showsLabel == _showsLabel) {
+    return;
+  }
+  if (_showsLabel) {
+    if (_label != '\0') {
+      [self FL_deleteContentLabel];
+    }
+  }
+  _showsLabel = showsLabel;
+  if (_showsLabel) {
+    if (_label != '\0') {
+      [self FL_createContentLabel];
+    }
   }
 }
 
@@ -541,7 +572,7 @@ using namespace std;
   BOOL foundOne = NO;
   for (int p = 0; p < pathCount; ++p) {
     const FLPath *path = paths[p];
-    
+
     CGPoint zeroProgressPoint = path->getPoint(0.0f);
     if (fabs(pathEndPoint.x - zeroProgressPoint.x) < FLEndPointComparisonEpsilon
         && fabs(pathEndPoint.y - zeroProgressPoint.y) < FLEndPointComparisonEpsilon) {
@@ -638,10 +669,14 @@ using namespace std;
 
   // noob: A less strict and more-explicit way to do this "according to current
   // object state" thing would be to pass the relevant state variables as parameters.
-  
+
   BOOL segmentTypeReadout = (_segmentType == FLSegmentTypeReadoutInput || _segmentType == FLSegmentTypeReadoutOutput);
   if (segmentTypeReadout) {
     [self FL_createContentReadout];
+  }
+
+  if (_label != '\0' && _showsLabel) {
+    [self FL_createContentLabel];
   }
 
   if (_switchPathId != FLSegmentSwitchPathIdNone) {
@@ -660,6 +695,10 @@ using namespace std;
   BOOL segmentTypeReadout = (_segmentType == FLSegmentTypeReadoutInput || _segmentType == FLSegmentTypeReadoutOutput);
   if (segmentTypeReadout) {
     [self FL_deleteContentReadout];
+  }
+
+  if (_label != '\0' && _showsLabel) {
+    [self FL_deleteContentLabel];
   }
 
   if (_switchPathId != FLSegmentSwitchPathIdNone) {
@@ -696,7 +735,7 @@ using namespace std;
   value1Node.position = CGPointMake(FLReadoutValue1Position.x - FLSegmentArtSizeFull / 2.0f,
                                     FLReadoutValue1Position.y - FLSegmentArtSizeFull / 2.0f);
   [self addChild:value1Node];
-  
+
   SKLabelNode *inOutNode = [SKLabelNode labelNodeWithFontNamed:@"Courier-Bold"];
   inOutNode.zRotation = (CGFloat)(-M_PI_2);
   inOutNode.fontSize = 10.0f;
@@ -757,6 +796,49 @@ using namespace std;
   [value0Node removeFromParent];
   SKNode *value1Node = [self childNodeWithName:@"readout-value-1"];
   [value1Node removeFromParent];
+}
+
+- (void)FL_createContentLabel
+{
+  // note: Assume the content does not already exist.  Create content according to
+  // *current* object state.
+
+  // note: Additionally, since this is a helper method, assume _label is not '\0'
+  // and _showsLabel is YES.
+  // (That is, the caller is responsible to short-circuit the call in cases where
+  // it obviously won't do anything; this prevents duplicate checking.)
+  SKLabelNode *labelNode = [SKLabelNode labelNodeWithFontNamed:@"Arial-BoldMT"];
+  labelNode.name = @"label";
+  labelNode.text = [NSString stringWithFormat:@"%c", _label];
+  labelNode.fontSize = FLSegmentArtSizeBasic + FLSegmentArtBasicInset;
+  labelNode.fontColor = [SKColor whiteColor];
+  labelNode.horizontalAlignmentMode = SKLabelHorizontalAlignmentModeCenter;
+  labelNode.verticalAlignmentMode = SKLabelVerticalAlignmentModeCenter;
+  labelNode.zRotation = -self.zRotation;
+  labelNode.zPosition = FLZPositionLabel;
+  [self addChild:labelNode];
+}
+
+- (void)FL_rotateContentLabel
+{
+  // note: Assume content has been created according to *current* object state.
+
+  // note: Additionally, since this is a helper method, assume _label is not '\0'
+  // and _showsLabel is YES.
+  // (That is, the caller is responsible to short-circuit the call in cases where
+  // it obviously won't do anything; this prevents duplicate checking.)
+  SKNode *labelNode = [self childNodeWithName:@"label"];
+  labelNode.zRotation = -self.zRotation;
+}
+
+- (void)FL_deleteContentLabel
+{
+  // note: Assume content has been created according to *current* object state.  After
+  // deletion, the caller should change object state accordingly.  For example, we may
+  // assume that _label is not '\0', _showsLabel is YES, and that the child node "label"
+  // exists and has been added to self.
+  SKNode *labelNode = [self childNodeWithName:@"label"];
+  [labelNode removeFromParent];
 }
 
 - (void)FL_createContentSwitch
@@ -935,7 +1017,7 @@ using namespace std;
 - (void)FL_runActionFlashBlackValue:(SKSpriteNode *)valueNode
 {
   [valueNode removeActionForKey:@"flashBlack"];
-  
+
   SKColor *oldColor = valueNode.color;
   CGFloat oldColorBlendFactor = valueNode.colorBlendFactor;
 

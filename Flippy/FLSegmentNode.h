@@ -64,9 +64,13 @@ convertRotationQuartersToRadians(int quarters)
 
 @property (nonatomic) int zRotationQuarters;
 
+@property (nonatomic, assign) char label;
+
 @property (nonatomic, readonly) int switchPathId;
 
 @property (nonatomic, readonly) CGPoint switchPosition;
+
+@property (nonatomic, assign) BOOL showsLabel;
 
 @property (nonatomic, assign) BOOL showsSwitchValue;
 

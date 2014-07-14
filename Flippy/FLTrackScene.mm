@@ -93,7 +93,7 @@ enum FLToolbarToolType { FLToolbarToolTypeNone, FLToolbarToolTypeActionTap, FLTo
 
 struct FLConstructionToolbarState
 {
-  FLConstructionToolbarState() : toolbarNode(nil), currentNavigation(@"main"), currentPage(0), deleteExportConfirmAlert(nil), valuesVisible(NO) {
+  FLConstructionToolbarState() : toolbarNode(nil), currentNavigation(@"main"), currentPage(0), deleteExportConfirmAlert(nil), labelsVisible(YES), valuesVisible(NO) {
     navigationTools = [NSMutableSet set];
     actionTapTools = [NSMutableSet set];
     actionPanTools = [NSMutableDictionary dictionary];
@@ -109,6 +109,7 @@ struct FLConstructionToolbarState
   UIAlertView *deleteExportConfirmAlert;
   NSString *deleteExportName;
   NSString *deleteExportDescription;
+  BOOL labelsVisible;
   BOOL valuesVisible;
 };
 
@@ -345,10 +346,10 @@ struct PointerPairHash
       [_constructionToolbarState.toolbarNode setHighlight:YES forTool:@"link"];
       [_worldNode addChild:_linksNode];
     }
+    _constructionToolbarState.labelsVisible = [aDecoder decodeBoolForKey:@"constructionToolbarStateLabelsVisible"];
+    [_constructionToolbarState.toolbarNode setHighlight:_constructionToolbarState.labelsVisible forTool:@"show-labels"];
     _constructionToolbarState.valuesVisible = [aDecoder decodeBoolForKey:@"constructionToolbarStateValuesVisible"];
-    if (_constructionToolbarState.valuesVisible) {
-      [_constructionToolbarState.toolbarNode setHighlight:YES forTool:@"show-values"];
-    }
+    [_constructionToolbarState.toolbarNode setHighlight:_constructionToolbarState.valuesVisible forTool:@"show-values"];
   }
   return self;
 }
@@ -428,6 +429,7 @@ struct PointerPairHash
   [aCoder encodeBool:_trackEditMenuState.showing forKey:@"trackEditMenuStateShowing"];
   [aCoder encodeBool:linksVisible forKey:@"constructionToolbarStateLinksVisible"];
   [aCoder encodeBool:_constructionToolbarState.valuesVisible forKey:@"constructionToolbarStateValuesVisible"];
+  [aCoder encodeBool:_constructionToolbarState.labelsVisible forKey:@"constructionToolbarStateLabelsVisible"];
   [aCoder encodeObject:_constructionToolbarState.currentNavigation forKey:@"constructionToolbarStateCurrentNavigation"];
   [aCoder encodeInt:_constructionToolbarState.currentPage forKey:@"constructionToolbarStateCurrentPage"];
 }
@@ -984,6 +986,8 @@ struct PointerPairHash
       }
     } else if ([tool isEqualToString:@"show-values"]) {
       [self FL_valuesToggle];
+    } else if ([tool isEqualToString:@"show-labels"]) {
+      [self FL_labelsToggle];
     }
 
   } else if (toolType == FLToolbarToolTypeActionPan) {
@@ -1060,6 +1064,7 @@ struct PointerPairHash
     if ([_constructionToolbarState.currentNavigation isEqualToString:@"segments"]) {
 
       FLSegmentNode *newSegmentNode = [self FL_createSegmentWithTextureKey:tool];
+      newSegmentNode.showsLabel = _constructionToolbarState.labelsVisible;
       newSegmentNode.showsSwitchValue = _constructionToolbarState.valuesVisible;
       newSegmentNode.zRotation = (CGFloat)M_PI_2;
       // note: Locate the new segment underneath the current touch, even though it's
@@ -1089,6 +1094,7 @@ struct PointerPairHash
 
       // Configure imported segment set.
       for (FLSegmentNode *segmentNode in newSegmentNodes) {
+        segmentNode.showsLabel = _constructionToolbarState.labelsVisible;
         segmentNode.showsSwitchValue = _constructionToolbarState.valuesVisible;
       }
 
@@ -1525,6 +1531,7 @@ struct PointerPairHash
   [textureStore setTextureWithImageNamed:@"circuits" forKey:@"circuits" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"exports" forKey:@"exports" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"link" forKey:@"link" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"show-labels" forKey:@"show-labels" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"show-values" forKey:@"show-values" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"export" forKey:@"export" filteringMode:SKTextureFilteringLinear];
 
@@ -1620,6 +1627,11 @@ struct PointerPairHash
   // selection had position (0,0), but since a repositioning always happens on import,
   // there doesn't seem to be a need for anything other than preserving relative
   // position.
+  if (_constructionToolbarState.labelsVisible) {
+    for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
+      segmentNode.showsLabel = NO;
+    }
+  }
   if (_constructionToolbarState.valuesVisible) {
     for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
       segmentNode.showsSwitchValue = NO;
@@ -1646,6 +1658,11 @@ struct PointerPairHash
   [archiveData writeToFile:exportPath atomically:NO];
 
   // Restore node configuration.
+  if (_constructionToolbarState.labelsVisible) {
+    for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
+      segmentNode.showsLabel = YES;
+    }
+  }
   if (_constructionToolbarState.valuesVisible) {
     for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
       segmentNode.showsSwitchValue = YES;
@@ -1907,7 +1924,7 @@ struct PointerPairHash
 
   [textureKeys addObject:@"segments"];
   [_constructionToolbarState.navigationTools addObject:@"segments"];
-  
+
   if ([self FL_unlocked:FLUnlockGates]) {
     [textureKeys addObject:@"gates"];
     [_constructionToolbarState.navigationTools addObject:@"gates"];
@@ -1927,6 +1944,9 @@ struct PointerPairHash
   [textureKeys addObject:@"show-values"];
   [_constructionToolbarState.actionTapTools addObject:@"show-values"];
 
+  [textureKeys addObject:@"show-labels"];
+  [_constructionToolbarState.actionTapTools addObject:@"show-labels"];
+
   [textureKeys addObject:@"export"];
   [_constructionToolbarState.actionTapTools addObject:@"export"];
 
@@ -1936,6 +1956,7 @@ struct PointerPairHash
                                                          offsets:nil
                                                        animation:animation];
   [_constructionToolbarState.toolbarNode setHighlight:_constructionToolbarState.valuesVisible forTool:@"show-values"];
+  [_constructionToolbarState.toolbarNode setHighlight:_constructionToolbarState.labelsVisible forTool:@"show-labels"];
 }
 
 - (void)FL_constructionToolbarShowSegments:(int)page animation:(HLToolbarNodeAnimation)animation
@@ -2906,6 +2927,17 @@ struct PointerPairHash
   }
 }
 
+- (void)FL_labelsToggle
+{
+  BOOL labelsVisible = !_constructionToolbarState.labelsVisible;
+  _constructionToolbarState.labelsVisible = labelsVisible;
+  [_constructionToolbarState.toolbarNode setHighlight:labelsVisible forTool:@"show-labels"];
+  for (auto s : *_trackGrid) {
+    FLSegmentNode *segmentNode = s.second;
+    segmentNode.showsLabel = labelsVisible;
+  }
+}
+
 - (void)FL_valuesToggle
 {
   BOOL valuesVisible = !_constructionToolbarState.valuesVisible;
@@ -2930,9 +2962,11 @@ struct PointerPairHash
     segmentNode.zRotationQuarters = newRotationQuarters;
     [self FL_linkRedrawForSegment:segmentNode];
   } else {
+    segmentNode.showsLabel = NO;
     segmentNode.showsSwitchValue = NO;
     [segmentNode runAction:[SKAction rotateToAngle:(newRotationQuarters * (CGFloat)M_PI_2) duration:FLTrackRotateDuration shortestUnitArc:YES] completion:^{
       [self FL_linkRedrawForSegment:segmentNode];
+      segmentNode.showsLabel = self->_constructionToolbarState.labelsVisible;
       segmentNode.showsSwitchValue = self->_constructionToolbarState.valuesVisible;
     }];
     [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-click-1.caf" waitForCompletion:NO]];
@@ -3041,6 +3075,7 @@ struct PointerPairHash
       FLSegmentNode *segmentNodeCopy = [segmentNode copy];
       segmentNodeCopy.position = CGPointMake(segmentNode.position.x - pivot.x, segmentNode.position.y - pivot.y);
       [rotateNode addChild:segmentNodeCopy];
+      segmentNodeCopy.showsLabel = NO;
       segmentNodeCopy.showsSwitchValue = NO;
     }
     rotateNode.position = pivot;
