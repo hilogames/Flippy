@@ -341,7 +341,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   if (menuNode == _gameMenuNode) {
 
     if ([menuItem.text isEqualToString:FLGameMenuResume]) {
-      [_gameScene dismissModalNode];
+      [_gameScene dismissModalNodeAnimation:HLScenePresentationAnimationFade];
     } else if ([menuItem.text isEqualToString:FLGameMenuRestart]) {
       [self FL_restartFromGameMenuConfirm];
     } else if ([menuItemParent.text isEqualToString:FLGameMenuSave]) {
@@ -379,7 +379,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   // over a scene, but the call is idempotent, so it's okay.  And then really we
   // should unregister when the modal node is dismissed, we don't bother.
   [_gameScene registerDescendant:_gameMenuNode withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
-  [_gameScene presentModalNode:_gameOverlay];
+  [_gameScene presentModalNode:_gameOverlay animation:HLScenePresentationAnimationFade];
 
   _savedInGameOverlay = NO;
 }
@@ -890,7 +890,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
 
 - (void)FL_exitFromGameMenu
 {
-  [_gameScene dismissModalNode];
+  [_gameScene dismissModalNodeAnimation:HLScenePresentationAnimationFade];
   if (!_titleScene) {
     [self FL_titleSceneCreate];
   } else {

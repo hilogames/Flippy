@@ -401,6 +401,27 @@ using namespace std;
   }
 }
 
+- (void)setLabel:(char)label
+{
+  if (_label == label) {
+    return;
+  }
+  if (_showsLabel) {
+    if (label == '\0') {
+      [self FL_deleteContentLabel];
+    }
+  }
+  char oldLabel = _label;
+  _label = label;
+  if (_showsLabel) {
+    if (oldLabel == '\0') {
+      [self FL_createContentLabel];
+    } else if (_label != '\0') {
+      [self FL_updateContentLabel];
+    }
+  }
+}
+
 - (void)setShowsLabel:(BOOL)showsLabel
 {
   if (showsLabel == _showsLabel) {
@@ -817,6 +838,18 @@ using namespace std;
   labelNode.zRotation = -self.zRotation;
   labelNode.zPosition = FLZPositionLabel;
   [self addChild:labelNode];
+}
+
+- (void)FL_updateContentLabel
+{
+  // note: Assume content has been created according to *current* object state.
+  
+  // note: Additionally, since this is a helper method, assume _label is not '\0'
+  // and _showsLabel is YES.
+  // (That is, the caller is responsible to short-circuit the call in cases where
+  // it obviously won't do anything; this prevents duplicate checking.)
+  SKLabelNode *labelNode = (SKLabelNode *)[self childNodeWithName:@"label"];
+  labelNode.text = [NSString stringWithFormat:@"%c", _label];
 }
 
 - (void)FL_rotateContentLabel

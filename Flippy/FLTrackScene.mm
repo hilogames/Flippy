@@ -8,6 +8,7 @@
 
 #import "FLTrackScene.h"
 
+#import <HLSpriteKit/HLButtonGrid.h>
 #import <HLSpriteKit/HLEmitterStore.h>
 #import <HLSpriteKit/HLGestureTarget.h>
 #import <HLSpriteKit/HLMessageNode.h>
@@ -75,6 +76,32 @@ static const CGFloat FLLinkLineWidth = 2.0f;
 static SKColor *FLLinkLineColor = [SKColor colorWithRed:0.2f green:0.6f blue:0.9f alpha:1.0f];
 static const CGFloat FLLinkGlowWidth = 2.0f;
 static SKColor *FLLinkHighlightColor = [SKColor colorWithRed:0.2f green:0.9f blue:0.6f alpha:1.0f];
+
+// Choose 36 letters: A-Z and 0-9
+static const int FLLabelPickerWidth = 6;
+static char FLLabelPickerLabels[] = {
+  'A', 'B', 'C', 'D', 'E', 'F',
+  'G', 'H', 'I', 'J', 'K', 'L',
+  'M', 'N', 'O', 'P', 'Q', 'R',
+  'S', 'T', 'U', 'V', 'W', 'X',
+  'Y', 'Z', '0', '1', '2', '3',
+  '4', '5', '6', '7', '8', '9',
+  '\0'
+};
+static const int FLLabelPickerSize = sizeof(FLLabelPickerLabels);
+static NSString *FLLabelPickerLabelNone = NSLocalizedString(@"No Label", @"Label picker: Text representing a value of 'no label' in the picker interface.");
+static int FLSquareIndexForLabelPickerLabel(char label) {
+  if (label >= 'A' && label <= 'Z') {
+    return label - 'A';
+  }
+  if (label >= '0' && label <= '9') {
+    return 26 + label - '0';
+  }
+  if (label == '\0') {
+    return 36;
+  }
+  return -1;
+}
 
 #pragma mark -
 #pragma mark States
@@ -165,6 +192,13 @@ struct FLLinkEditState
   SKShapeNode *endHighlightNode;
 };
 
+struct FLLabelState
+{
+  FLLabelState() : labelPicker(nil), segmentNodesToBeLabeled(nil) {}
+  HLButtonGrid *labelPicker;
+  NSSet *segmentNodesToBeLabeled;
+};
+
 enum FLWorldPanType { FLWorldPanTypeNone, FLWorldPanTypeScroll, FLWorldPanTypeTrackMove, FLWorldPanTypeLink };
 
 enum FLWorldLongPressMode { FLWorldLongPressModeNone, FLWorldLongPressModeAdd, FLWorldLongPressModeErase };
@@ -224,6 +258,7 @@ struct PointerPairHash
   FLTrackConflictState _trackConflictState;
   FLTrackMoveState _trackMoveState;
   FLLinkEditState _linkEditState;
+  FLLabelState _labelState;
 
   HLMessageNode *_messageNode;
   FLTrain *_train;
@@ -1246,6 +1281,8 @@ struct PointerPairHash
     for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
       [self FL_linkSwitchToggleAnimated:YES forSegment:segmentNode];
     }
+  } else if ([button isEqualToString:@"set-label"]) {
+    [self FL_labelPickForSegments:_trackSelectState.selectedSegments];
   } else if ([button isEqualToString:@"delete"]) {
     [self FL_trackEraseSegments:_trackSelectState.selectedSegments animated:YES];
     [self FL_trackEditMenuHideAnimated:NO];
@@ -1484,10 +1521,13 @@ struct PointerPairHash
 #pragma mark -
 #pragma mark Modal Presentation
 
-- (void)presentModalNode:(SKNode *)node zPositionMin:(CGFloat)zPositionMin zPositionMax:(CGFloat)zPositionMax
+- (void)presentModalNode:(SKNode *)node
+               animation:(HLScenePresentationAnimation)animation
+            zPositionMin:(CGFloat)zPositionMin
+            zPositionMax:(CGFloat)zPositionMax
 {
   [self FL_simulationStop];
-  [super presentModalNode:node zPositionMin:FLZPositionModalMin zPositionMax:FLZPositionModalMax];
+  [super presentModalNode:node animation:animation zPositionMin:FLZPositionModalMin zPositionMax:FLZPositionModalMax];
 }
 
 #pragma mark -
@@ -1522,6 +1562,7 @@ struct PointerPairHash
   [textureStore setTextureWithImageNamed:@"delete" forKey:@"delete" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"rotate-cw" forKey:@"rotate-cw" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"rotate-ccw" forKey:@"rotate-ccw" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"set-label" forKey:@"set-label" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"toggle-switch" forKey:@"toggle-switch" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"main" forKey:@"main" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"next" forKey:@"next" filteringMode:SKTextureFilteringLinear];
@@ -2283,12 +2324,12 @@ struct PointerPairHash
   __weak HLGestureTargetSpriteNode *dismissNodeWeak = dismissNode;
   dismissNode.handleGestureBlock = ^(UIGestureRecognizer *gestureRecognizer){
     [self unregisterDescendant:dismissNodeWeak];
-    [self dismissModalNode];
+    [self dismissModalNodeAnimation:HLScenePresentationAnimationFade];
   };
   [self registerDescendant:dismissNode withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
   [goalsOverlay addChild:dismissNode];
 
-  [self presentModalNode:goalsOverlay];
+  [self presentModalNode:goalsOverlay animation:HLScenePresentationAnimationFade];
 }
 
 - (void)FL_trackSelect:(NSSet *)segmentNodes
@@ -2663,16 +2704,16 @@ struct PointerPairHash
 
   // Update tool list according to selection.
   NSUInteger toolCount = [_trackEditMenuState.editMenuNode toolCount];
-  if ((canHaveSwitch && toolCount != 4)
-      || (!canHaveSwitch && toolCount != 3)) {
+  BOOL currentEditMenuNodeHasSwitch = (toolCount == 5);
+  if (canHaveSwitch != currentEditMenuNodeHasSwitch) {
     if (!canHaveSwitch) {
-      [_trackEditMenuState.editMenuNode setToolsWithTextureKeys:@[ @"rotate-ccw", @"delete", @"rotate-cw" ]
+      [_trackEditMenuState.editMenuNode setToolsWithTextureKeys:@[ @"rotate-ccw", @"set-label", @"delete", @"rotate-cw" ]
                                                           store:[HLTextureStore sharedStore]
                                                       rotations:nil
                                                         offsets:nil
                                                       animation:HLToolbarNodeAnimationNone];
     } else {
-      [_trackEditMenuState.editMenuNode setToolsWithTextureKeys:@[ @"rotate-ccw", @"toggle-switch", @"delete", @"rotate-cw" ]
+      [_trackEditMenuState.editMenuNode setToolsWithTextureKeys:@[ @"rotate-ccw", @"toggle-switch", @"set-label", @"delete", @"rotate-cw" ]
                                                           store:[HLTextureStore sharedStore]
                                                       rotations:nil
                                                         offsets:nil
@@ -2936,6 +2977,92 @@ struct PointerPairHash
     FLSegmentNode *segmentNode = s.second;
     segmentNode.showsLabel = labelsVisible;
   }
+}
+
+- (void)FL_labelPickForSegments:(NSSet *)segmentNodes
+{
+  if (!_labelState.labelPicker) {
+
+    NSMutableArray *letterNodes = [NSMutableArray array];
+    CGFloat letterWidthMax = 0.0f;
+    CGFloat letterHeightMax = 0.0f;
+    for (int i = 0; i < FLLabelPickerSize; ++i) {
+      SKLabelNode *letterNode = [SKLabelNode labelNodeWithFontNamed:@"Arial-BoldMT"];
+      letterNode.fontColor = [SKColor whiteColor];
+      if (i + 1 == FLLabelPickerSize) {
+        letterNode.fontSize = 20.0f;
+        letterNode.text = FLLabelPickerLabelNone;
+      } else {
+        letterNode.fontSize = 28.0f;
+        letterNode.text = [NSString stringWithFormat:@"%c", FLLabelPickerLabels[i]];
+        if (letterNode.frame.size.width > letterWidthMax) {
+          letterWidthMax = letterNode.frame.size.width;
+        }
+        if (letterNode.frame.size.height > letterHeightMax) {
+          letterHeightMax = letterNode.frame.size.height;
+        }
+      }
+      letterNode.horizontalAlignmentMode = SKLabelHorizontalAlignmentModeCenter;
+      letterNode.verticalAlignmentMode = SKLabelVerticalAlignmentModeCenter;
+      [letterNodes addObject:letterNode];
+    }
+
+    CGFloat squareEdgeSize = MAX(letterWidthMax, letterHeightMax) + 2.0f;
+    _labelState.labelPicker = [[HLButtonGrid alloc] initWithGridWidth:FLLabelPickerWidth
+                                                           squareCount:FLLabelPickerSize
+                                                           layoutMode:HLButtonGridLayoutModeFill
+                                                           squareSize:CGSizeMake(squareEdgeSize, squareEdgeSize)
+                                                 backgroundBorderSize:5.0f
+                                                  squareSeparatorSize:1.0f];
+    _labelState.labelPicker.backgroundColor = [SKColor colorWithRed:0.2f green:0.25f blue:0.4f alpha:1.0f];
+    _labelState.labelPicker.squareColor = [SKColor colorWithRed:0.4f green:0.5f blue:0.8f alpha:1.0f];
+    _labelState.labelPicker.highlightColor = [SKColor colorWithRed:0.6f green:0.75f blue:1.0f alpha:1.0f];
+    _labelState.labelPicker.buttons = letterNodes;
+    // note: Could easily store referenes to segmentNodes in the block for each invocation,
+    // and do all the work there, too, but I felt slightly anxious that then the block
+    // would retain references to objects that might not be needed otherwise.  So,
+    // an object method instead, with explicit state stored here in _labelState and
+    // then cleared in the callback.
+    _labelState.labelPicker.squareTappedBlock = ^(int squareIndex){
+      [self FL_labelPicked:squareIndex];
+    };
+    // note: Could register and unregister for each pick, but it seems okay to just
+    // leave the one picker registered the whole time.
+    [self registerDescendant:_labelState.labelPicker withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
+  }
+
+  BOOL firstSegment = YES;
+  char commonLabel;
+  BOOL allSegmentsHaveCommonLabel = YES;
+  for (FLSegmentNode *segmentNode in segmentNodes) {
+    char label = segmentNode.label;
+    if (firstSegment) {
+      commonLabel = label;
+      firstSegment = NO;
+    } else if (label != commonLabel) {
+      allSegmentsHaveCommonLabel = NO;
+      break;
+    }
+  }
+  if (allSegmentsHaveCommonLabel) {
+    int squareIndex = FLSquareIndexForLabelPickerLabel(commonLabel);
+    [_labelState.labelPicker setSelectionForSquare:squareIndex];
+  } else {
+    [_labelState.labelPicker clearSelection];
+  }
+
+  _labelState.segmentNodesToBeLabeled = segmentNodes;
+  [self presentModalNode:_labelState.labelPicker animation:HLScenePresentationAnimationFade];
+}
+
+- (void)FL_labelPicked:(int)squareIndex
+{
+  [_labelState.labelPicker setSelectionForSquare:squareIndex];
+  for (FLSegmentNode *segmentNode in _labelState.segmentNodesToBeLabeled) {
+    segmentNode.label = FLLabelPickerLabels[squareIndex];
+  }
+  _labelState.segmentNodesToBeLabeled = nil;
+  [self dismissModalNodeAnimation:HLScenePresentationAnimationFade];
 }
 
 - (void)FL_valuesToggle
