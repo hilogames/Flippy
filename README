@@ -7,9 +7,7 @@ circuits.
 
 Current
 
-  . Label inputs and outputs with letters.
-
-    - add labels to challenge level 0
+  . Bug in presentModalNode in track scene.
 
   . Challenge mode gets a button for "check solution".  Same as goals
     button for now.  (Sandbox mode can get this button too, which
