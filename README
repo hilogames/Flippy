@@ -9,8 +9,6 @@ Current
 
   . Label inputs and outputs with letters.
 
-    - in challenge mode, don't allow setting labels
-
     - add labels to challenge level 0
 
   . Challenge mode gets a button for "check solution".  Same as goals
@@ -34,8 +32,6 @@ Current
 
   . In challenge mode, you can't link to or from anything that is
     linked to an input -- the train makes the connection.
-
-  . In challenge mode, can't delete inputs and outputs.
 
   . Prettier highlight of join segment when linking.
 

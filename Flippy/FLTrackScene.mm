@@ -715,7 +715,7 @@ struct PointerPairHash
     if (segmentNode) {
       if ([self FL_trackSelected:segmentNode]) {
         _worldGestureState.longPressMode = FLWorldLongPressModeErase;
-        [self FL_trackSelectErase:segmentNode];
+        [self FL_trackSelectEraseSegment:segmentNode];
       } else {
         _worldGestureState.longPressMode = FLWorldLongPressModeAdd;
         [self FL_trackSelect:[NSSet setWithObject:segmentNode]];
@@ -736,7 +736,7 @@ struct PointerPairHash
         if (_worldGestureState.longPressMode == FLWorldLongPressModeAdd) {
           [self FL_trackSelect:[NSSet setWithObject:segmentNode]];
         } else {
-          [self FL_trackSelectErase:segmentNode];
+          [self FL_trackSelectEraseSegment:segmentNode];
         }
       }
     }
@@ -978,14 +978,16 @@ struct PointerPairHash
     [self FL_constructionToolbarUpdateToolsAnimation:animation];
 
     if ([newNavigation isEqualToString:@"exports"] && _constructionToolbarState.toolbarNode.toolCount == 1) {
-      [self FL_messageShow:@"No exports found."];
+      [self FL_messageShow:NSLocalizedString(@"No exports found.",
+                                             @"Message to user: Shown when navigating to exports submenu, but no exports are found.")];
     }
 
   } else if (toolType == FLToolbarToolTypeActionTap) {
 
     if ([toolTag isEqualToString:@"export"]) {
       if ([self FL_trackSelectedNone]) {
-        [self FL_messageShow:@"Export: Make a selection."];
+        [self FL_messageShow:NSLocalizedString(@"Export: Make a selection.",
+                                               @"Message to user: Shown when export button is pressed but no track selection currently exists.")];
       } else {
         [self FL_export];
       }
@@ -1141,7 +1143,9 @@ struct PointerPairHash
                                            segmentNode.position.y + shift.y);
       }
 
-      [self FL_messageShow:[NSString stringWithFormat:@"Added '%@' to track." , description]];
+      [self FL_messageShow:[NSString stringWithFormat:NSLocalizedString(@"Added “%@” to track.",
+                                                                        @"Message to user: Shown after successful import of {export name}."),
+                            description]];
       [self FL_trackMoveBeganWithNodes:newSegmentNodes location:worldLocation completion:^(BOOL placed){
         if (placed) {
           NSUInteger l = 0;
@@ -1256,9 +1260,26 @@ struct PointerPairHash
   } else if ([button isEqualToString:@"set-label"]) {
     [self FL_labelPickForSegments:_trackSelectState.selectedSegments];
   } else if ([button isEqualToString:@"delete"]) {
-    [self FL_trackEraseSegments:_trackSelectState.selectedSegments animated:YES];
-    [self FL_trackEditMenuHideAnimated:NO];
-    [self FL_trackSelectClear];
+    if (_gameType == FLGameTypeSandbox) {
+      [self FL_trackEraseSegments:_trackSelectState.selectedSegments animated:YES];
+      [self FL_trackSelectClear];
+      [self FL_trackEditMenuHideAnimated:YES];
+    } else {
+      NSMutableSet *eraseSegments = [NSMutableSet set];
+      for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
+        if ([self FL_gameTypeChallengeCanEraseSegment:segmentNode]) {
+          [eraseSegments addObject:segmentNode];
+        }
+      }
+      if ([eraseSegments count] > 0) {
+        [self FL_trackEraseSegments:eraseSegments animated:YES];
+        [self FL_trackSelectEraseSegments:eraseSegments];
+        [self FL_trackEditMenuUpdateAnimated:YES];
+      } else {
+        [self FL_messageShow:NSLocalizedString(@"Cannot delete in this level.",
+                                               @"Message to user: Shown when user tries to delete special track segments in challenge mode.")];
+      }
+    }
   }
 }
 
@@ -1659,7 +1680,9 @@ struct PointerPairHash
   [aCoder finishEncoding];
   [archiveData writeToFile:exportPath atomically:NO];
 
-  [self FL_messageShow:[NSString stringWithFormat:@"Exported “%@”.", trackDescription]];
+  [self FL_messageShow:[NSString stringWithFormat:NSLocalizedString(@"Exported “%@”.",
+                                                                    @"Message to user: Shown after a successful export of {export name}."),
+                        trackDescription]];
 
   return YES;
 }
@@ -1670,7 +1693,9 @@ struct PointerPairHash
   NSString *exportPath = [FLExportsDirectoryPath stringByAppendingPathComponent:[exportName stringByAppendingPathExtension:@"archive"]];
   [fileManager removeItemAtPath:exportPath error:nil];
 
-  [self FL_messageShow:[NSString stringWithFormat:@"Deleted “%@”.", trackDescription]];
+  [self FL_messageShow:[NSString stringWithFormat:NSLocalizedString(@"Deleted “%@”.",
+                                                                    @"Message to user: Shown after a successful deletion of {export name}."),
+                        trackDescription]];
   if ([_constructionToolbarState.currentNavigation isEqualToString:@"exports"]) {
     // note: Page might be too large as a result of the deletion.
     int pageMax = [self FL_constructionToolbarImportsPageMax:FLExportsDirectoryPath];
@@ -2390,12 +2415,26 @@ struct PointerPairHash
   }
 }
 
-- (void)FL_trackSelectErase:(FLSegmentNode *)segmentNode
+- (void)FL_trackSelectEraseSegment:(FLSegmentNode *)segmentNode
 {
   if (!_trackSelectState.selectedSegments) {
     return;
   }
+  [self FL_trackSelectEraseCommon:segmentNode];
+}
 
+- (void)FL_trackSelectEraseSegments:(NSSet *)segmentNodes
+{
+  if (!_trackSelectState.selectedSegments) {
+    return;
+  }
+  for (FLSegmentNode *segmentNode in segmentNodes) {
+    [self FL_trackSelectEraseCommon:segmentNode];
+  }
+}
+
+- (void)FL_trackSelectEraseCommon:(FLSegmentNode *)segmentNode
+{
   SKSpriteNode *selectionSquare = [_trackSelectState.visualSquareNodes objectForKey:[NSValue valueWithPointer:(void *)segmentNode]];
   if (selectionSquare) {
     if ([_trackSelectState.visualSquareNodes count] == 1) {
@@ -2708,6 +2747,7 @@ struct PointerPairHash
   [self FL_getSegmentsExtremes:segmentNodes left:&segmentsPositionLeft right:&segmentsPositionRight top:&segmentsPositionTop bottom:&segmentsPositionBottom];
   BOOL hasSwitch = NO;
   BOOL canHaveSwitch = NO;
+  BOOL canLabelAny = (_gameType == FLGameTypeSandbox);
   for (FLSegmentNode *segmentNode in segmentNodes) {
     if ([segmentNode canHaveSwitch]) {
       canHaveSwitch = YES;
@@ -2717,26 +2757,38 @@ struct PointerPairHash
       }
     }
   }
-
-  // Update tool list according to selection.
-  NSUInteger toolCount = [_trackEditMenuState.editMenuNode toolCount];
-  if ((canHaveSwitch && toolCount != 4)
-      || (!canHaveSwitch && toolCount != 3)) {
-    NSArray *textureKeys;
-    if (!canHaveSwitch) {
-      textureKeys = @[ @"rotate-ccw", @"set-label", @"delete", @"rotate-cw" ];
-    } else {
-      textureKeys = @[ @"rotate-ccw", @"toggle-switch", @"set-label", @"delete", @"rotate-cw" ];
+  BOOL canDeleteAny = NO;
+  if (_gameType == FLGameTypeSandbox) {
+    canDeleteAny = YES;
+  } else {
+    for (FLSegmentNode *segmentNode in segmentNodes) {
+      if ([self FL_gameTypeChallengeCanEraseSegment:segmentNode]) {
+        canDeleteAny = YES;
+        break;
+      }
     }
-    NSMutableArray *toolNodes = [NSMutableArray array];
-    for (NSString *textureKey in textureKeys) {
-      [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-    }
-    [_trackEditMenuState.editMenuNode setTools:toolNodes tags:textureKeys animation:HLToolbarNodeAnimationNone];
   }
+
+  // Update tools.
+  NSMutableArray *textureKeys = [NSMutableArray array];
+  [textureKeys addObject:@"rotate-ccw"];
+  if (canHaveSwitch) {
+    [textureKeys addObject:@"toggle-switch"];
+  }
+  if (canLabelAny) {
+    [textureKeys addObject:@"set-label"];
+  }
+  [textureKeys addObject:@"delete"];
+  [textureKeys addObject:@"rotate-cw"];
+  NSMutableArray *toolNodes = [NSMutableArray array];
+  for (NSString *textureKey in textureKeys) {
+    [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+  }
+  [_trackEditMenuState.editMenuNode setTools:toolNodes tags:textureKeys animation:HLToolbarNodeAnimationNone];
   if (canHaveSwitch) {
     [_trackEditMenuState.editMenuNode setEnabled:hasSwitch forTool:@"toggle-switch"];
   }
+  [_trackEditMenuState.editMenuNode setEnabled:canDeleteAny forTool:@"delete"];
 
   // Show menu.
   const CGFloat FLTrackEditMenuBottomPad = 20.0f;
@@ -3356,6 +3408,18 @@ typedef enum FLUnlockItem {
     }
   }
   return NO;
+}
+
+- (BOOL)FL_gameTypeChallengeCanEraseSegment:(FLSegmentNode *)segmentNode
+{
+  // note: If this ends up getting specified per-level, then should put it into the
+  // game information plist.  Also, game type logic is scattered around right now,
+  // but could make a general system for it like FL_unlocked, where certain named
+  // permissions are routed through a single FL_allowed or FL_included or
+  // something method.
+  return (segmentNode.segmentType != FLSegmentTypeReadoutInput
+          && segmentNode.segmentType != FLSegmentTypeReadoutOutput
+          && segmentNode.segmentType != FLSegmentTypePlatformStart);
 }
 
 @end
