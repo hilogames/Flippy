@@ -7,6 +7,9 @@ circuits.
 
 Current
 
+  . BUG: Links not getting decoded from level 0 save file on actual
+    iPhone (though it works in simulator)?
+
   . Challenge mode gets a button for "check solution".  Same as goals
     button for now.  (Sandbox mode can get this button too, which
     lists all known inputs and outputs, but without a "goal" column in

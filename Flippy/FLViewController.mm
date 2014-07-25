@@ -374,7 +374,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   [_gameMessageNode hideMessage];
 
   // note: Register (or re-register) the menu node for gesture handling.  We're
-  // being a bit sloppy here: The same modal overaly and menu node is used for
+  // being a bit sloppy here: The same modal overlay and menu node is used for
   // all games, and so we only really need to register for the first appearance
   // over a scene, but the call is idempotent, so it's okay.  And then really we
   // should unregister when the modal node is dismissed, we don't bother.
@@ -805,6 +805,12 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
           if (!self->_gameScene) {
             [NSException raise:@"FLGameLoadFailure" format:@"Could not load new game type %d level %d from archive '%@'.", gameType, gameLevel, levelPath];
           }
+          // note: Scene size in archive might be different from our current scene size;
+          // this happens most often when unarchiving a level that was created on a different
+          // device (or device simulation).  It's possible that the scaleMode of resize-fill
+          // should realize this and use the correct size when it is presented, but apparently
+          // (at least with current SDK) it does not.
+          self->_gameScene.size = self.view.bounds.size;
           self->_gameScene.delegate = self;
           // note: These archives weren't necessarily created with the correct level or game type information.
           self->_gameScene.gameType = gameType;
@@ -816,14 +822,11 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
       }
     } else {
       NSString *savePath = [self FL_savePathForGameType:gameType saveNumber:saveNumber];
-      // TODO: Scene size can be wrong in simulator when loading game on different device.  This might
-      // be identical or related to the problem documented in viewWillAppear, because it seems similarly
-      // fishy: After we unarchive a scene with scaleMode SKSceneScaleModeResizeFill, shouldn't it
-      // resize itself immediately when presented in the view?
       self->_gameScene = [NSKeyedUnarchiver unarchiveObjectWithFile:savePath];
       if (!self->_gameScene) {
-        [NSException raise:@"FLGameLoadFailure" format:@"Could not load game type %d save number %d from archive '%@'.", gameType, saveNumber, savePath];
+        [NSException raise:@"FLGameLoadFailure" format:@"Could not load game type %d save number %lu from archive '%@'.", gameType, (unsigned long)saveNumber, savePath];
       }
+      self->_gameScene.size = self.view.bounds.size;
       self->_gameScene.delegate = self;
       // note: Trust the archive with game type and level information, for now; ignore passed values.
     }
@@ -896,6 +899,9 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   // we don't want animation for the modal node; we want animation to transition to the
   // title scene.
   [_gameScene dismissModalNodeAnimation:HLScenePresentationAnimationNone];
+
+  _gameScene = nil;
+
   if (!_titleScene) {
     [self FL_titleSceneCreate];
   } else {
