@@ -890,7 +890,12 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
 
 - (void)FL_exitFromGameMenu
 {
-  [_gameScene dismissModalNodeAnimation:HLScenePresentationAnimationFade];
+  // noob: If this is animated, for example using fade, then we have problems.  I haven't
+  // investigated fully, but I suppose there might be a problem with running an action on
+  // a node which suddenly stops being part of the active scene.  Or something.  Anyway,
+  // we don't want animation for the modal node; we want animation to transition to the
+  // title scene.
+  [_gameScene dismissModalNodeAnimation:HLScenePresentationAnimationNone];
   if (!_titleScene) {
     [self FL_titleSceneCreate];
   } else {

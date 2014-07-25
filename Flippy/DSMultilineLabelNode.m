@@ -155,10 +155,12 @@
     
     //Calculate the size that the text will take up, given our options.  We use the full screen size for the bounds
 	if (_paragraphWidth == 0) {
-		_paragraphWidth = self.scene.size.width;
+    // note karl: Original code used self.scene.size.width.  But cannot assume we are added to a scene.
+		_paragraphWidth = [UIScreen mainScreen].bounds.size.width;
 	}
 #if TARGET_OS_IPHONE
-    CGRect textRect = [text boundingRectWithSize:CGSizeMake(_paragraphWidth, self.scene.size.height)
+    // note karl: Original code used self.scene.size.height.  But cannot assume we are added to a scene.
+    CGRect textRect = [text boundingRectWithSize:CGSizeMake(_paragraphWidth, [UIScreen mainScreen].bounds.size.height)
                                          options:NSStringDrawingUsesLineFragmentOrigin|NSStringDrawingTruncatesLastVisibleLine
                                       attributes:textAttributes
                                          context:nil];
