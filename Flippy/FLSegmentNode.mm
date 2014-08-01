@@ -537,7 +537,7 @@ using namespace std;
 
 - (BOOL)getConnectingPath:(int *)pathId progress:(CGFloat *)progress forEndPoint:(CGPoint)endPoint scale:(CGFloat)scale
 {
-  return [self FL_getConnectingPath:pathId progress:progress forEndPoint:endPoint doRotationCheck:NO rotation:0.0f progress:0.0f scale:scale];
+  return [self FL_getConnectingPath:pathId progress:progress forEndPoint:endPoint doRotationCheck:NO rotation:0.0f progress:0.0f scale:scale switchPathId:_switchPathId];
 }
 
 - (BOOL)getConnectingPath:(int *)pathId
@@ -547,7 +547,18 @@ using namespace std;
                  progress:(CGFloat)forProgress
                     scale:(CGFloat)scale
 {
-  return [self FL_getConnectingPath:pathId progress:progress forEndPoint:endPoint doRotationCheck:YES rotation:forRotationRadians progress:forProgress scale:scale];
+  return [self FL_getConnectingPath:pathId progress:progress forEndPoint:endPoint doRotationCheck:YES rotation:forRotationRadians progress:forProgress scale:scale switchPathId:_switchPathId];
+}
+
+- (BOOL)getConnectingPath:(int *)pathId
+                 progress:(CGFloat *)progress
+              forEndPoint:(CGPoint)endPoint
+                 rotation:(CGFloat)forRotationRadians
+                 progress:(CGFloat)forProgress
+                    scale:(CGFloat)scale
+             switchPathId:(int)switchPathId
+{
+  return [self FL_getConnectingPath:pathId progress:progress forEndPoint:endPoint doRotationCheck:YES rotation:forRotationRadians progress:forProgress scale:scale switchPathId:switchPathId];
 }
 
 - (BOOL)FL_getConnectingPath:(int *)pathId
@@ -557,6 +568,7 @@ using namespace std;
                     rotation:(CGFloat)forRotationRadians
                     progress:(CGFloat)forProgress
                        scale:(CGFloat)scale
+                switchPathId:(int)switchPathId
 {
   CGPoint pathEndPoint = CGPointMake((endPoint.x - self.position.x) / scale, (endPoint.y - self.position.y) / scale);
 
@@ -610,7 +622,7 @@ using namespace std;
         }
       }
       if (isConnectingRotation || !doRotationCheck) {
-        if (_switchPathId == FLSegmentSwitchPathIdNone || _switchPathId == p) {
+        if (switchPathId == FLSegmentSwitchPathIdNone || switchPathId == p) {
           // note: The switch might not be relevant, even if set to this path;
           // it might only be for travel in the other direction.  But at least
           // we know there is no other better alternative to consider.
@@ -655,7 +667,7 @@ using namespace std;
         }
       }
       if (isConnectingRotation || !doRotationCheck) {
-        if (_switchPathId == FLSegmentSwitchPathIdNone || _switchPathId == p) {
+        if (switchPathId == FLSegmentSwitchPathIdNone || switchPathId == p) {
           *pathId = p;
           *progress = 1.0f;
           return YES;
@@ -681,6 +693,30 @@ using namespace std;
 - (int)pathCount
 {
   return [self FL_allPathsCount];
+}
+
+- (int)pathDirectionGoingWithSwitchForPath:(int)pathId
+{
+  switch (_segmentType) {
+    case FLSegmentTypeJoinLeft:
+      if (pathId == 0) {
+        return FLPathDirectionDecreasing;
+      } else if (pathId == 1) {
+        return FLPathDirectionIncreasing;
+      }
+      break;
+    case FLSegmentTypeJoinRight:
+      if (pathId == 0) {
+        return FLPathDirectionIncreasing;
+      } else if (pathId == 1) {
+        return FLPathDirectionDecreasing;
+      }
+      break;
+    default:
+      break;
+  }
+  [NSException raise:@"FLSegmentNodePathNotSwitched" format:@"Cannot determine the path direction that 'goes with the switch' for a path that is not switched."];
+  return 0;
 }
 
 - (void)FL_createContent

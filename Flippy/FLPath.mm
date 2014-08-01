@@ -10,6 +10,9 @@
 
 #include <tgmath.h>
 
+const int FLPathDirectionIncreasing = 1;
+const int FLPathDirectionDecreasing = -1;
+
 using namespace std;
 
 void

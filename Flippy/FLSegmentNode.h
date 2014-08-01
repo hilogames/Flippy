@@ -130,8 +130,31 @@ convertRotationQuartersToRadians(int quarters)
  */
 - (BOOL)getConnectingPath:(int *)pathId progress:(CGFloat *)progress forEndPoint:(CGPoint)endPoint rotation:(CGFloat)rotationRadians progress:(CGFloat)forProgress scale:(CGFloat)scale;
 
+/**
+ * Same as getConnectingPath:progress:forEndPoint:rotation:rotationRadians:progress:scale:,
+ * but allowing the caller to pass in a hypothetical value for the switchPathId used in
+ * the computation.
+ */
+- (BOOL)getConnectingPath:(int *)pathId progress:(CGFloat *)progress forEndPoint:(CGPoint)endPoint rotation:(CGFloat)rotationRadians progress:(CGFloat)forProgress scale:(CGFloat)scale switchPathId:(int)switchPathId;
+
 - (int)pathCount;
 
 - (CGFloat)pathLengthForPath:(int)pathId;
+
+/**
+ * Returns the path direction for a given path that represents "going with" the segment's
+ * switch.
+ *
+ * Here's the deal: Some segments have multiple paths.  When the multiple paths
+ * share an connection point, then the segment has a switch to choose between them.
+ * But in that case the switch has a direction: Traveling, say, "with" the switch,
+ * the switch determines your path; traveling "against" the switch, all paths end up
+ * end up in the same place regardless of the switch setting.
+ *
+ * So this method answers the question: If I'm traveling along a path that is switched,
+ * which direction is the "going with" way?  The answer is provided by a return value
+ * of either FLPathDirectionIncreasing or FLPathDirectionDecreasing.
+ */
+- (int)pathDirectionGoingWithSwitchForPath:(int)pathId;
 
 @end

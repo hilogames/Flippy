@@ -58,4 +58,35 @@ private:
   std::unordered_map<std::pair<void *, void *>, SKShapeNode *, FLLinksPointerPairHash> links_;
 };
 
+/**
+ * A standard and convenient method for setting the switch path id of a segment
+ * and propagating that value according to links.
+ *
+ * The code is trivial, and yet there are a couple important standards enforced
+ * here (which are good to reuse among all callers):
+ *
+ *   1. It is assumed that it is possible for segments to be linked and yet have
+ *      different switch path ids.  Therefore, linked sgements will have their
+ *      path ids set to the passed value even if the path id of the main segment
+ *      is already set to the passed value.
+ *
+ *   2. Propagation is not recursive; that is, switch path ids are set for the
+ *      main segment and any linked segments, but not for segments linked to the
+ *      linked segments.
+ *
+ * The second version of the function takes a map of segment switch values: It does
+ * not get or set switch values on the actual segment nodes, but instead reads and/or
+ * changes them in the map.
+ */
+void linksSetSwitchPathId(const FLLinks& links, FLSegmentNode *segmentNode, int pathId, BOOL animated);
+void linksSetSwitchPathId(const FLLinks& links, FLSegmentNode *segmentNode, int pathId, std::unordered_map<void *, int> *switchPathIds);
+
+/**
+ * A standard and convenient way to toggle the switch path id of a segment and
+ * propagate the new value according to links.
+ *
+ * Behaves according to the same standards as linksSetSwitchPathId.
+ */
+void linksToggleSwitchPathId(const FLLinks& links, FLSegmentNode *segmentNode, BOOL animated);
+
 #endif /* defined(__Flippy__FLLinks__) */

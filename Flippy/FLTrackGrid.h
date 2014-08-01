@@ -15,6 +15,8 @@
 #import "FLSegmentNode.h"
 #include "QuadTree.h"
 
+class FLLinks;
+
 /**
  * Represents square segments that occupy a two-dimensional world.
  * The track grid deals in integer grid coordinates, and, given a
@@ -121,13 +123,13 @@ public:
 
   void erase(int gridX, int gridY) { grid_.erase(gridX, gridY); }
 
-  CGFloat segmentSize() { return segmentSize_; }
+  CGFloat segmentSize() const { return segmentSize_; }
 
-  void convert(CGPoint worldLocation, int *gridX, int *gridY) {
+  void convert(CGPoint worldLocation, int *gridX, int *gridY) const {
     return FLTrackGrid::convert(worldLocation, segmentSize_, gridX, gridY);
   }
 
-  CGPoint convert(int gridX, int gridY) {
+  CGPoint convert(int gridX, int gridY) const {
     return FLTrackGrid::convert(gridX, gridY, segmentSize_);
   }
 
@@ -138,6 +140,57 @@ private:
   HLCommon::QuadTree<FLSegmentNode *> grid_;
   CGFloat segmentSize_;
 };
+
+class FLTruthTable
+{
+public:
+  static int getRowCount(int inputSize, int valueCardinality = 2);
+  FLTruthTable(int inputSize, int outputSize, int valueCardinality = 2);
+  int *outputValues(const std::vector<int>& inputValues);
+  const int *outputValues(const std::vector<int>& inputValues) const;
+private:
+  const int inputSize_;
+  const int outputSize_;
+  const int valueCardinality_;
+  std::vector<int> results_;
+};
+
+/**
+ * State information for an FLTrackTruthTable.
+ *
+ *   FLTrackTruthTableStateInitialized: The track truth table has been successfully initialized
+ *                                      and can be populated with results.
+ *
+ *   FLTrackTruthTabelStateMissingSegments: The track truth table does not have enough start
+ *                                          platform or input or output segments; it will not
+ *                                          contain meaningful results.
+ *
+ *   FLTrackTruthTableStateInfiniteLoopDetected: The track truth table was initialized, but
+ *                                               during generation of results at least one start
+ *                                               and one set of input values led to an infinite
+ *                                               loop.  (It is not noted which one.)
+ */
+enum FLTrackTruthTableState {
+  FLTrackTruthTableStateInitialized,
+  FLTrackTruthTableStateMissingSegments,
+  FLTrackTruthTableStateInfiniteLoopDetected
+};
+
+/**
+ * Stores truth table information for an entire track.  The vector of FLTruthTables
+ * returned by the truthTables method correspond to the platformStartSegmentNodes
+ * array.  Input and output values in each truth table correspond in order to the
+ * segment nodes in inputSegmentNodes and outputSegmentNodes.
+ */
+@interface FLTrackTruthTable : NSObject
+@property (nonatomic, assign) FLTrackTruthTableState state;
+@property (nonatomic, strong) NSArray *platformStartSegmentNodes;
+@property (nonatomic, strong) NSArray *inputSegmentNodes;
+@property (nonatomic, strong) NSArray *outputSegmentNodes;
+- (id)initWithCardinality:(int)valueCardinality;
+- (std::vector<FLTruthTable>&)truthTables;
+- (FLTruthTable *)firstTruthTable;
+@end
 
 /**
  * Convenience method for converting a world location to grid coordinates and then
@@ -196,7 +249,7 @@ trackGridConvertErase(FLTrackGrid& trackGrid, CGPoint worldLocation)
  */
 FOUNDATION_EXPORT const size_t FLTrackGridAdjacentMax;
 size_t
-trackGridFindAdjacent(FLTrackGrid& trackGrid, CGPoint worldLocation, __strong FLSegmentNode *adjacent[]);
+trackGridFindAdjacent(const FLTrackGrid& trackGrid, CGPoint worldLocation, __strong FLSegmentNode *adjacent[]);
 
 /**
  * Convenience method for finding the closest on-track point from among segments
@@ -210,7 +263,7 @@ trackGridFindAdjacent(FLTrackGrid& trackGrid, CGPoint worldLocation, __strong FL
  * distance rather than a gridSearchDistance defining a square.
  */
 bool
-trackGridFindClosestOnTrackPoint(FLTrackGrid& trackGrid,
+trackGridFindClosestOnTrackPoint(const FLTrackGrid& trackGrid,
                                  CGPoint worldLocation,
                                  int gridSearchDistance, CGFloat progressPrecision,
                                  CGFloat *onTrackDistance, CGPoint *onTrackPoint, CGFloat *onTrackRotation,
@@ -226,15 +279,52 @@ trackGridFindClosestOnTrackPoint(FLTrackGrid& trackGrid,
  * in such a way that there won't be more than one connecting path, but if there
  * is, then only the first one found will be returned.)
  *
+ * If switchPathIds is passed, then switch values for the segments with switches
+ * (e.g. join segments) will be read from the passed map rather than from the
+ * segments themselves.  This is useful for callers who are calculating hypothetical
+ * situations based on the passed track (but who don't want to modify or copy the
+ * track itself).
+ *
  * note: Currently hardcoded to assume that paths only connect at endpoints
  * of the path (i.e. where progress is either 0.0 or 1.0), and also that all
  * path endpoints occur at segment corners.  (In other words: Don't bother
  * to call this function unless you pass startProgress as either 0.0 or 1.0.)
  */
 bool
-trackGridFindConnecting(FLTrackGrid& trackGrid,
+trackGridFindConnecting(const FLTrackGrid& trackGrid,
                         FLSegmentNode *startSegmentNode, int startPathId, CGFloat startProgress,
-                        FLSegmentNode **connectingSegmentNode, int *connectingPathId, CGFloat *connectingProgress);
+                        FLSegmentNode **connectingSegmentNode, int *connectingPathId, CGFloat *connectingProgress,
+                        const std::unordered_map<void *, int> *switchPathIds);
+
+/**
+ * Generates a truth table of the current track as follows:
+ *
+ *   . Find all platform start segments.  Each start is considered separately, and
+ *     corresponds to separate result in the returned vector of FLTruthTables.
+ *
+ *   . Find all the input segments and calculate all permutations of switch values,
+ *     starting with switch value 0 and ending with switch value 1.  Each permutation
+ *     will be the basis of a row in each truth table.
+ *
+ *   . Run a simulation of the train along the track starting from the start
+ *     platform and continuing until it stops or until an infinite loop is
+ *     detected.  Find all the output segments and copy their values into
+ *     the truth table that correponds to the start platform and permutation
+ *     of inputs.
+ *
+ * Information on the start platform, input, and output segments is returned along
+ * with the set of truth tables (correponding to the start platforms).  The caller
+ * should probably inspect the FLTrackTruthTable's state variable for relevant state
+ * information before using the results.
+ *
+ * If sortByLabel is passed true, the input and output segment nodes found in the
+ * track (and their corresponding values in the truth tables) will be sorted by
+ * the segmentNodes' labels.
+ */
+FLTrackTruthTable *
+trackGridGenerateTruthTable(const FLTrackGrid& trackGrid,
+                            const FLLinks& links,
+                            bool sortByLabel);
 
 /**
  * An Objective_C wrapper for an FLTrackGrid.

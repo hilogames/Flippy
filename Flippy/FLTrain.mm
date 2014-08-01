@@ -11,12 +11,10 @@
 #import <HLSpriteKit/HLTextureStore.h>
 #import <HLSpriteKit/HLError.h>
 
+#import "FLPath.h"
 #include "FLTrackGrid.h"
 
 using namespace std;
-
-const int FLTrainDirectionForward = 1;
-const int FLTrainDirectionReverse = -1;
 
 @implementation FLTrain
 {
@@ -29,6 +27,7 @@ const int FLTrainDirectionReverse = -1;
   CGFloat _lastPathLength;
   CGFloat _lastProgress;
   int _lastDirection;
+  BOOL _lastSegmentNodeAlreadySwitched;
 }
 
 - (id)initWithTrackGrid:(shared_ptr<FLTrackGrid>&)trackGrid
@@ -53,6 +52,7 @@ const int FLTrainDirectionReverse = -1;
     _lastPathLength = [_lastSegmentNode pathLengthForPath:_lastPathId];
     _lastProgress = [aDecoder decodeFloatForKey:@"lastProgress"];
     _lastDirection = [aDecoder decodeIntForKey:@"lastDirection"];
+    _lastSegmentNodeAlreadySwitched = [aDecoder decodeBoolForKey:@"lastSegmentNodeAlreadySwitched"];
   }
   return self;
 }
@@ -66,6 +66,7 @@ const int FLTrainDirectionReverse = -1;
   [aCoder encodeInt:_lastPathId forKey:@"lastPathId"];
   [aCoder encodeDouble:_lastProgress forKey:@"lastProgress"];
   [aCoder encodeInt:_lastDirection forKey:@"lastDirection"];
+  [aCoder encodeBool:_lastSegmentNodeAlreadySwitched forKey:@"lastSegmentNodeAlreadySwitched"];
 }
 
 - (void)resetTrackGrid:(std::shared_ptr<FLTrackGrid> &)trackGrid
@@ -129,18 +130,11 @@ const int FLTrainDirectionReverse = -1;
   CGFloat deltaProgress = (speedPathLengthPerSecond / _lastPathLength) * (CGFloat)elapsedTime * _lastDirection;
   _lastProgress += deltaProgress;
 
-  // If this segment has a switch, then set the switch according to the traveled path
-  // as we are leaving.
-  //
-  // note: Once would be enough.  Could set when entering, or when leaving, or at
-  // every point in between.  Currently, we set it repeatedly during a range while
-  // close to leaving.
-  //
-  // note: This only applies, of course, if we're traveling "backwards" against the
-  // switch; otherwise, the switch already would have chosen our direction for us.
+  // If this segment has a switch, then detect if we are leaving our path in such a
+  // way that we should trigger the switch.
   //
   // note: This operation is extremely important to the basic concept of the
-  // game, and so it seems a little funny that the segment doesn't know anything
+  // game, and so it seems a little funny that the segment doesn't know much
   // about it.  And yet, the real-life train set (this game is modeled on) behaved
   // that way too: the segment determined the train's direction if it went one way,
   // but the train determined the segment's direction if it went the other way.
@@ -148,28 +142,33 @@ const int FLTrainDirectionReverse = -1;
   // are on it; in order for the segment to effect a change based on the train
   // position, we'd have to have the train give it some kind of callback anyway.
   if (_lastSegmentNode.switchPathId != FLSegmentSwitchPathIdNone
-      && _lastSegmentNode.switchPathId != _lastPathId) {
-    if (_lastDirection == FLTrainDirectionForward) {
-      if (_lastProgress > 0.7f) {
-        [_lastSegmentNode setSwitchPathId:_lastPathId animated:YES];
+      && !_lastSegmentNodeAlreadySwitched) {
+    // note: This only applies, of course, if we're traveling "against" the switch,
+    // not "with" the switch; otherwise, the switch chose our path, not vice versa.
+    if (_lastDirection == FLPathDirectionIncreasing) {
+      if (_lastProgress > 0.7f
+          && [_lastSegmentNode pathDirectionGoingWithSwitchForPath:_lastPathId] == FLPathDirectionDecreasing) {
         id<FLTrainDelegate> delegate = _delegate;
         if (delegate) {
-          [delegate train:self didSwitchSegment:_lastSegmentNode toPathId:_lastPathId];
+          [delegate train:self triggeredSwitchAtSegment:_lastSegmentNode pathId:_lastPathId];
         }
+        _lastSegmentNodeAlreadySwitched = YES;
       }
     } else {
-      if (_lastProgress < 0.3f) {
+      if (_lastProgress < 0.3f
+          && [_lastSegmentNode pathDirectionGoingWithSwitchForPath:_lastPathId] == FLPathDirectionIncreasing) {
         [_lastSegmentNode setSwitchPathId:_lastPathId animated:YES];
         id<FLTrainDelegate> delegate = _delegate;
         if (delegate) {
-          [delegate train:self didSwitchSegment:_lastSegmentNode toPathId:_lastPathId];
+          [delegate train:self triggeredSwitchAtSegment:_lastSegmentNode pathId:_lastPathId];
         }
+        _lastSegmentNodeAlreadySwitched = YES;
       }
     }
   }
   
   // If train arrived at a platform, then stop it gracefully.
-  if (_lastSegmentNode.segmentType == FLSegmentTypePlatform && _lastDirection == FLTrainDirectionReverse && _lastProgress < 0.0f) {
+  if (_lastSegmentNode.segmentType == FLSegmentTypePlatform && _lastDirection == FLPathDirectionDecreasing && _lastProgress < 0.0f) {
     _lastProgress = 0.0f;
     [self FL_moveToCurrent];
     [self FL_stop];
@@ -211,6 +210,7 @@ const int FLTrainDirectionReverse = -1;
   _lastPathLength = [segmentNode pathLengthForPath:pathId];
   _lastProgress = progress;
   _lastDirection = direction;
+  _lastSegmentNodeAlreadySwitched = NO;
 
   [self FL_moveToCurrent];
 
@@ -270,10 +270,10 @@ const int FLTrainDirectionReverse = -1;
   // note: Easy way to do this: Currently, all paths are closest to the center of the segment at their
   // halfway point.  Slightly more sophisticated way to do this: Calculate atan2f(location.y - segmentPosition.y,
   // location.x - segmentPosition.x) and choose either rotationRadians or rotationRadians+M_PI as closer.
-  int direction = (progress < 0.5f ? FLTrainDirectionForward : FLTrainDirectionReverse);
+  int direction = (progress < 0.5f ? FLPathDirectionIncreasing : FLPathDirectionDecreasing);
 
   self.position = location;
-  self.zRotation = (direction == FLTrainDirectionForward ? rotationRadians : rotationRadians + (CGFloat)M_PI);
+  self.zRotation = (direction == FLPathDirectionIncreasing ? rotationRadians : rotationRadians + (CGFloat)M_PI);
   //NSLog(@"path %d progress %3.2f zRotation %.3f", pathId, progress, rotationRadians / M_PI * 180.0f);
 
   _lastSegmentNode = segmentNode;
@@ -281,7 +281,8 @@ const int FLTrainDirectionReverse = -1;
   _lastPathLength = [segmentNode pathLengthForPath:pathId];
   _lastProgress = progress;
   _lastDirection = direction;
-
+  _lastSegmentNodeAlreadySwitched = NO;
+  
   return YES;
 }
 
@@ -291,7 +292,7 @@ const int FLTrainDirectionReverse = -1;
   CGFloat rotationRadians;
   [_lastSegmentNode getPoint:&location rotation:&rotationRadians forPath:_lastPathId progress:_lastProgress scale:_trackGrid->segmentSize()];
   self.position = location;
-  self.zRotation = (_lastDirection == FLTrainDirectionForward ? rotationRadians : rotationRadians + (CGFloat)M_PI);
+  self.zRotation = (_lastDirection == FLPathDirectionIncreasing ? rotationRadians : rotationRadians + (CGFloat)M_PI);
 }
 
 - (void)FL_stop
@@ -314,28 +315,29 @@ const int FLTrainDirectionReverse = -1;
 
 - (BOOL)FL_switchToConnectingSegment
 {
-  CGFloat endPointProgress = (_lastDirection == FLTrainDirectionForward ? 1.0f : 0.0f);
+  CGFloat endPointProgress = (_lastDirection == FLPathDirectionIncreasing ? 1.0f : 0.0f);
   FLSegmentNode *nextSegmentNode;
   int nextPathId;
   CGFloat nextEndpointProgress;
   if (!trackGridFindConnecting(*_trackGrid,
                                _lastSegmentNode, _lastPathId, endPointProgress,
-                               &nextSegmentNode, &nextPathId, &nextEndpointProgress)) {
+                               &nextSegmentNode, &nextPathId, &nextEndpointProgress,
+                               nullptr)) {
     return NO;
   }
 
   CGFloat nextPathLength = [nextSegmentNode pathLengthForPath:nextPathId];
-  int nextDirection = (nextEndpointProgress < 0.5f ? FLTrainDirectionForward : FLTrainDirectionReverse);
+  int nextDirection = (nextEndpointProgress < 0.5f ? FLPathDirectionIncreasing : FLPathDirectionDecreasing);
 
   // note: lastExcessProgress is magnitude only, and not signed according to direction.
   CGFloat lastExcessProgress;
-  if (_lastDirection == FLTrainDirectionForward) {
+  if (_lastDirection == FLPathDirectionIncreasing) {
     lastExcessProgress = _lastProgress - 1.0f;
   } else {
     lastExcessProgress = -_lastProgress;
   }
   CGFloat nextProgress;
-  if (nextDirection == FLTrainDirectionForward) {
+  if (nextDirection == FLPathDirectionIncreasing) {
     nextProgress = lastExcessProgress * _lastPathLength / nextPathLength;
   } else {
     nextProgress = 1.0f - lastExcessProgress * _lastPathLength / nextPathLength;
@@ -354,7 +356,8 @@ const int FLTrainDirectionReverse = -1;
   _lastPathLength = nextPathLength;
   _lastProgress = nextProgress;
   _lastDirection = nextDirection;
-
+  _lastSegmentNodeAlreadySwitched = NO;
+  
   return YES;
 }
 

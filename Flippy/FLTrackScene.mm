@@ -691,7 +691,7 @@ struct PointerPairHash
 
   FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY);
   if (segmentNode && segmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
-    [self FL_linkSwitchToggleAnimated:YES forSegment:segmentNode];
+    linksToggleSwitchPathId(_links, segmentNode, YES);
   }
 
   // note: Our current gesture single- and double- tap recognizers (created
@@ -1255,7 +1255,7 @@ struct PointerPairHash
     [self FL_trackRotateSegments:_trackSelectState.selectedSegments rotateBy:1 animated:YES];
   } else if ([button isEqualToString:@"toggle-switch"]) {
     for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
-      [self FL_linkSwitchToggleAnimated:YES forSegment:segmentNode];
+      linksToggleSwitchPathId(_links, segmentNode, YES);
     }
   } else if ([button isEqualToString:@"set-label"]) {
     [self FL_labelPickForSegments:_trackSelectState.selectedSegments];
@@ -1483,9 +1483,9 @@ struct PointerPairHash
 #pragma mark -
 #pragma mark FLTrainDelegate
 
-- (void)train:(FLTrain *)train didSwitchSegment:(FLSegmentNode *)segmentNode toPathId:(int)pathId
+- (void)train:(FLTrain *)train triggeredSwitchAtSegment:(FLSegmentNode *)segmentNode pathId:(int)pathId
 {
-  [self FL_linkSwitchSetPathId:pathId animated:YES forSegment:segmentNode];
+  linksSetSwitchPathId(_links, segmentNode, pathId, YES);
 }
 
 - (void)train:(FLTrain *)train stoppedAtSegment:(FLSegmentNode *)segmentNode
@@ -1494,12 +1494,29 @@ struct PointerPairHash
   _simulationRunning = NO;
   [self FL_simulationToolbarUpdateTools];
 
-  if (segmentNode.segmentType == FLSegmentTypePlatform || segmentNode.segmentType == FLSegmentTypePlatformStart) {
+  if (_gameType == FLGameTypeChallenge) {
+    if (segmentNode.segmentType == FLSegmentTypePlatform) {
+      FLSegmentNode *platformStartSegmentNode = nil;
+      for (auto s : *_trackGrid) {
+        if (s.second.segmentType == FLSegmentTypePlatformStart) {
+          platformStartSegmentNode = s.second;
+          break;
+        }
+      }
+      if (platformStartSegmentNode) {
+        const NSTimeInterval FLTrainFadeDuration = 0.1;
+        [train runAction:[SKAction fadeOutWithDuration:FLTrainFadeDuration] completion:^{
+          [train moveToSegment:platformStartSegmentNode pathId:0 progress:0.0f direction:FLPathDirectionIncreasing];
+          [train runAction:[SKAction fadeInWithDuration:FLTrainFadeDuration]];
+        }];
+      }
+    }
+  } else if (segmentNode.segmentType == FLSegmentTypePlatform || segmentNode.segmentType == FLSegmentTypePlatformStart) {
     // note: Strictly speaking, we aren't allowed to mess with the train's zRotation.  But
     // we know the train is stopped, and we know we'll put it back on track in a second.
     const NSTimeInterval FLTrainRotateDuration = 0.4;
     [train runAction:[SKAction rotateByAngle:(CGFloat)M_PI duration:FLTrainRotateDuration] completion:^{
-      [train moveToSegment:segmentNode pathId:0 progress:0.0f direction:FLTrainDirectionForward];
+      [train moveToSegment:segmentNode pathId:0 progress:0.0f direction:FLPathDirectionIncreasing];
     }];
   }
 }
@@ -2369,6 +2386,8 @@ struct PointerPairHash
   [self registerDescendant:dismissNode withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
   [goalsOverlay addChild:dismissNode];
 
+  trackGridGenerateTruthTable(*_trackGrid, _links, true);
+
   [self presentModalNode:goalsOverlay animation:HLScenePresentationAnimationFade];
 }
 
@@ -2984,26 +3003,6 @@ struct PointerPairHash
     [_linkEditState.endHighlightNode removeFromParent];
     _linkEditState.endNode = nil;
     _linkEditState.endHighlightNode = nil;
-  }
-}
-
-- (void)FL_linkSwitchSetPathId:(int)pathId animated:(BOOL)animated forSegment:(FLSegmentNode *)segmentNode
-{
-  [segmentNode setSwitchPathId:pathId animated:animated];
-  vector<FLSegmentNode *> links;
-  _links.get(segmentNode, &links);
-  for (auto link : links) {
-    [link setSwitchPathId:pathId animated:animated];
-  }
-}
-
-- (void)FL_linkSwitchToggleAnimated:(BOOL)animated forSegment:(FLSegmentNode *)segmentNode
-{
-  int pathId = [segmentNode toggleSwitchPathIdAnimated:animated];
-  vector<FLSegmentNode *> links;
-  _links.get(segmentNode, &links);
-  for (auto link : links) {
-    [link setSwitchPathId:pathId animated:animated];
   }
 }
 

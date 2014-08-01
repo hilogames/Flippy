@@ -18,6 +18,13 @@ enum FLPathType {
 };
 
 /**
+ * Progress along a path ranges between 0 to 1; direction can be represented
+ * by going in the direction of increasing progress or decreasing progress.
+ */
+FOUNDATION_EXPORT const int FLPathDirectionIncreasing;
+FOUNDATION_EXPORT const int FLPathDirectionDecreasing;
+
+/**
  * Rotates points clockwise in "quarters" (increments of 90 degrees).
  *
  * @param Array of points.

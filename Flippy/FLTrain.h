@@ -17,7 +17,7 @@ class FLTrackGrid;
  * A train running on a track grid.
  *
  * noob: I could either subclass SKSpriteNode, and then have a documented relationship with
- * the owner, or else subclass NSObject and have an explicit interface with the owner.
+ * the owner, or else subclass NSObject/SKNode and have an explicit interface with the owner.
  * Though the latter seems like better design, for now I'm going with the former; it seems
  * to me that it's a common pattern, and even comes with a basic convention already in place
  * (e.g. the owner doesn't mess with this node's children).  That said, for my other subclassed
@@ -29,9 +29,6 @@ class FLTrackGrid;
  *    . scale
  *    . zPosition
  */
-
-FOUNDATION_EXPORT const int FLTrainDirectionForward;
-FOUNDATION_EXPORT const int FLTrainDirectionReverse;
 
 @interface FLTrain : SKSpriteNode <NSCoding>
 
@@ -68,7 +65,7 @@ FOUNDATION_EXPORT const int FLTrainDirectionReverse;
 
 @protocol FLTrainDelegate
 
-- (void)train:(FLTrain *)train didSwitchSegment:(FLSegmentNode *)segmentNode toPathId:(int)pathId;
+- (void)train:(FLTrain *)train triggeredSwitchAtSegment:(FLSegmentNode *)segmentNode pathId:(int)pathId;
 
 - (void)train:(FLTrain *)train stoppedAtSegment:(FLSegmentNode *)segmentNode;
 

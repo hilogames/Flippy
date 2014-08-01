@@ -110,3 +110,37 @@ FLLinks::erase(FLSegmentNode *a)
     }
   }
 }
+
+void
+linksSetSwitchPathId(const FLLinks& links, FLSegmentNode *segmentNode, int pathId, BOOL animated)
+{
+  [segmentNode setSwitchPathId:pathId animated:animated];
+  vector<FLSegmentNode *> linkedSegmentNodes;
+  links.get(segmentNode, &linkedSegmentNodes);
+  for (auto linkedSegmentNode : linkedSegmentNodes) {
+    [linkedSegmentNode setSwitchPathId:pathId animated:animated];
+  }
+}
+
+
+void
+linksSetSwitchPathId(const FLLinks& links, FLSegmentNode *segmentNode, int pathId, unordered_map<void *, int> *switchPathIds)
+{
+  (*switchPathIds)[(__bridge void *)segmentNode] = pathId;
+  vector<FLSegmentNode *> linkedSegmentNodes;
+  links.get(segmentNode, &linkedSegmentNodes);
+  for (auto linkedSegmentNode : linkedSegmentNodes) {
+    (*switchPathIds)[(__bridge void *)linkedSegmentNode] = pathId;
+  }
+}
+
+void
+linksToggleSwitchPathId(const FLLinks& links, FLSegmentNode *segmentNode, BOOL animated)
+{
+  int pathId = [segmentNode toggleSwitchPathIdAnimated:animated];
+  vector<FLSegmentNode *> linkedSegmentNodes;
+  links.get(segmentNode, &linkedSegmentNodes);
+  for (auto linkedSegmentNode : linkedSegmentNodes) {
+    [linkedSegmentNode setSwitchPathId:pathId animated:animated];
+  }
+}

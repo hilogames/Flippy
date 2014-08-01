@@ -102,6 +102,7 @@
 		CB05B3B4196B358800FF58A5 /* levels */ = {isa = PBXFileReference; lastKnownFileType = folder; path = levels; sourceTree = "<group>"; };
 		CB0DA5A418B7D8CE00E43D34 /* FLPath.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLPath.mm; sourceTree = "<group>"; };
 		CB0DA5A518B7D8CE00E43D34 /* FLPath.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLPath.h; sourceTree = "<group>"; };
+		CB2E3250198BF31000720EAA /* fnv.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fnv.h; sourceTree = "<group>"; };
 		CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = QuadTree.cpp; sourceTree = "<group>"; };
 		CB3FBDCC1889860A00CE5BBD /* QuadTree.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = QuadTree.h; sourceTree = "<group>"; };
 		CB485D87196ECE2B00E8646B /* ChallengeLevels.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = ChallengeLevels.plist; sourceTree = "<group>"; };
@@ -320,6 +321,7 @@
 				CBD707C318AD0EE00041B170 /* FLTrain.mm */,
 				CBB4B812183C00E1003C3444 /* FLViewController.h */,
 				CBB4B813183C00E1003C3444 /* FLViewController.mm */,
+				CB2E3250198BF31000720EAA /* fnv.h */,
 				CB9602E9196B86B000569870 /* Images */,
 				CBB4B81A183C00E1003C3444 /* Images.xcassets */,
 				CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */,
