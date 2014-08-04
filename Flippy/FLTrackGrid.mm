@@ -34,6 +34,29 @@ FLTrackGrid::import(SKNode *parentNode)
   }
 }
 
+vector<int>
+FLTruthTable::inputValuesFirst(int inputSize)
+{
+  vector<int> inputValues(static_cast<size_t>(inputSize), 0);
+  return std::move(inputValues);
+}
+
+bool
+FLTruthTable::inputValuesSuccessor(vector<int>& inputValues, int valueCardinality)
+{
+  int carryIndex = static_cast<int>(inputValues.size()) - 1;
+  while (carryIndex >= 0) {
+    if (inputValues[static_cast<size_t>(carryIndex)] == valueCardinality - 1) {
+      inputValues[static_cast<size_t>(carryIndex)] = 0;
+    } else {
+      ++inputValues[static_cast<size_t>(carryIndex)];
+      break;
+    }
+    --carryIndex;
+  }
+  return (carryIndex >= 0);
+}
+
 FLTruthTable::FLTruthTable(int inputSize, int outputSize, int valueCardinality)
   : inputSize_(inputSize), outputSize_(outputSize), valueCardinality_(valueCardinality)
 {
@@ -311,22 +334,6 @@ trackGridFindConnecting(const FLTrackGrid& trackGrid,
   return false;
 }
 
-static bool
-FL_calculateSuccessor(vector<int>& values, int base)
-{
-  int carryIndex = static_cast<int>(values.size()) - 1;
-  while (carryIndex >= 0) {
-    if (values[static_cast<size_t>(carryIndex)] == base - 1) {
-      values[static_cast<size_t>(carryIndex)] = 0;
-    } else {
-      ++values[static_cast<size_t>(carryIndex)];
-      break;
-    }
-    --carryIndex;
-  }
-  return (carryIndex >= 0);
-}
-
 struct FLRunState
 {
   FLRunState(void *currentSegmentNode_, int currentPathId_, int currentDirection_) : currentSegmentNode(currentSegmentNode_), currentPathId(currentPathId_), currentDirection(currentDirection_) {}
@@ -465,9 +472,11 @@ trackGridGenerateTruthTable(const FLTrackGrid& trackGrid, const FLLinks& links, 
   int outputCount = static_cast<int>([outputSegmentNodes count]);
   
   if (sortByLabel) {
-    // TODO: order inputs and outputs by label
+    NSSortDescriptor *sortDescriptor = [NSSortDescriptor sortDescriptorWithKey:@"label" ascending:YES];
+    [inputSegmentNodes sortUsingDescriptors:@[ sortDescriptor ]];
+    [outputSegmentNodes sortUsingDescriptors:@[ sortDescriptor ]];
   }
-
+  
   FLTrackTruthTable *trackTruthTable = [[FLTrackTruthTable alloc] initWithCardinality:FLValueCardinality];
   trackTruthTable.platformStartSegmentNodes = platformStartSegmentNodes;
   trackTruthTable.inputSegmentNodes = inputSegmentNodes;
@@ -477,8 +486,7 @@ trackGridGenerateTruthTable(const FLTrackGrid& trackGrid, const FLLinks& links, 
     return trackTruthTable;
   }
 
-  vector<int> inputValues;
-  inputValues.assign(static_cast<size_t>(inputCount), 0);
+  vector<int> inputValues = FLTruthTable::inputValuesFirst(inputCount);
   int row = 0;
   do {
     for (int platformStart = 0; platformStart < platformStartCount; ++platformStart) {
@@ -502,7 +510,7 @@ trackGridGenerateTruthTable(const FLTrackGrid& trackGrid, const FLLinks& links, 
       }
     }
     ++row;
-  } while (FL_calculateSuccessor(inputValues, FLValueCardinality));
+  } while (FLTruthTable::inputValuesSuccessor(inputValues, FLValueCardinality));
 
   return trackTruthTable;
 }

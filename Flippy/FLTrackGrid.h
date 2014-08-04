@@ -144,10 +144,21 @@ private:
 class FLTruthTable
 {
 public:
-  static int getRowCount(int inputSize, int valueCardinality = 2);
+  static int getRowCount(int inputSize, int valueCardinality);
+  static std::vector<int> inputValuesFirst(int inputSize);
+  static bool inputValuesSuccessor(std::vector<int>& inputValues, int valueCardinality);
   FLTruthTable(int inputSize, int outputSize, int valueCardinality = 2);
   int *outputValues(const std::vector<int>& inputValues);
   const int *outputValues(const std::vector<int>& inputValues) const;
+  int getRowCount() const {
+    return FLTruthTable::getRowCount(inputSize_, valueCardinality_);
+  }
+  std::vector<int> inputValuesFirst() const {
+    return std::move(FLTruthTable::inputValuesFirst(inputSize_));
+  }
+  bool inputValuesSuccessor(std::vector<int>& inputValues) const {
+    return FLTruthTable::inputValuesSuccessor(inputValues, valueCardinality_);
+  }
 private:
   const int inputSize_;
   const int outputSize_;

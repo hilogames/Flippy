@@ -10,10 +10,11 @@
 
 static NSArray *_challengeLevels = nil;
 
-static NSString * const FLChallengeLevelsInfoKeyString[3] = {
+static NSString * const FLChallengeLevelsInfoKeyString[4] = {
   @"title",
   @"goal-short",
   @"goal-long",
+  @"goal-values",
 };
 
 static void
@@ -36,9 +37,14 @@ FLChallengeLevelsCount()
   return (int)[_challengeLevels count];
 }
 
-NSString *
+id
 FLChallengeLevelsInfo(int gameLevel, FLChallengeLevelsInfoKey infoKey)
 {
+  // note: Right now the info is a pretty flat dictionary of key-value pairs.
+  // If it gets more complex, though -- in particular, with the need for more constants
+  // than just top-level keys -- then probably should view the level info as an object
+  // with a defined interface (e.g. separate methods to get each property, or perhaps
+  // even some kind of class wrapper).
   if (!_challengeLevels) {
     FLChallangeLevelsInit();
   }

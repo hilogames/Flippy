@@ -72,6 +72,14 @@ static NSString *FLGatesDirectoryPath;
 static NSString *FLCircuitsDirectoryPath;
 static NSString *FLExportsDirectoryPath;
 
+static SKColor *FLInterfaceDarkColor = [SKColor colorWithRed:0.2f green:0.25f blue:0.4f alpha:1.0f];
+static SKColor *FLInterfaceMediumColor = [SKColor colorWithRed:0.4f green:0.5f blue:0.8f alpha:1.0f];
+static SKColor *FLInterfaceLightColor = [SKColor colorWithRed:0.6f green:0.75f blue:1.0f alpha:1.0f];
+static SKColor *FLInterfaceGoodColor = [SKColor colorWithRed:0.3f green:1.0f blue:0.3f alpha:1.0f];
+static SKColor *FLInterfaceBadColor = [SKColor colorWithRed:1.0f green:0.3f blue:0.3f alpha:1.0f];
+
+static SKColor *FLSceneBackgroundColor = [SKColor colorWithRed:0.4f green:0.6f blue:0.0f alpha:1.0f];
+
 static const CGFloat FLLinkLineWidth = 2.0f;
 static SKColor *FLLinkLineColor = [SKColor colorWithRed:0.2f green:0.6f blue:0.9f alpha:1.0f];
 static const CGFloat FLLinkGlowWidth = 2.0f;
@@ -492,7 +500,7 @@ struct PointerPairHash
 
 - (void)FL_createSceneContents
 {
-  self.backgroundColor = [SKColor colorWithRed:0.4f green:0.6f blue:0.0f alpha:1.0f];
+  self.backgroundColor = FLSceneBackgroundColor;
   self.anchorPoint = CGPointMake(0.5f, 0.5f);
 
   // note: There is no lazy-load option for textures (and perhaps other scene
@@ -2361,16 +2369,26 @@ struct PointerPairHash
   DSMultilineLabelNode *labelNode = [DSMultilineLabelNode labelNodeWithFontNamed:@"Courier"];
   labelNode.fontSize = 18.0f;
   labelNode.fontColor = [SKColor whiteColor];
-  labelNode.text = [NSString stringWithFormat:@"%@ %d:\n“%@”\n\n%@:\n%@\n\n%@",
+  labelNode.text = [NSString stringWithFormat:@"%@ %d:\n“%@”\n\n%@:\n%@\n\n%@\n\n%@:",
                     NSLocalizedString(@"Level", @"Game information: followed by a level number."),
                     _gameLevel,
                     FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsTitle),
                     NSLocalizedString(@"Goals", @"Game information: the header over the description of goals for the current level."),
                     FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsGoalShort),
-                    FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsGoalLong)];
+                    FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsGoalLong),
+                    NSLocalizedString(@"Current", @"Game information: the header over the truth table representing the current state of the level solution."0)];
   labelNode.paragraphWidth = edgeSizeMax;
   [goalsOverlay addChild:labelNode];
+  
+  BOOL correct;
+  HLButtonGridNode *truthTable = [self FL_truthTableCreate:&correct];
+  [goalsOverlay addChild:truthTable];
 
+  labelNode.position = CGPointMake(0.0f,
+                                   truthTable.size.height / 2.0f + 3.0f);
+  truthTable.position = CGPointMake(0.0f,
+                                    -labelNode.size.height / 2.0f - 3.0f);
+  
   HLGestureTargetSpriteNode *dismissNode = [HLGestureTargetSpriteNode spriteNodeWithColor:[SKColor clearColor] size:self.scene.size];
   // noob: Some confusion around zPositions here.  I know that HLScene's presentModalNode
   // will put the goalsOverlay somewhere between our passed min and max (FLZPositionModalMin
@@ -2386,9 +2404,110 @@ struct PointerPairHash
   [self registerDescendant:dismissNode withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
   [goalsOverlay addChild:dismissNode];
 
-  trackGridGenerateTruthTable(*_trackGrid, _links, true);
-
   [self presentModalNode:goalsOverlay animation:HLScenePresentationAnimationFade];
+}
+
+- (HLButtonGridNode *)FL_truthTableCreate:(BOOL *)correct
+{
+  FLTrackTruthTable *trackTruthTable = trackGridGenerateTruthTable(*_trackGrid, _links, true);
+  if (trackTruthTable.state == FLTrackTruthTableStateMissingSegments) {
+    NSLog(@"Missing segments.");
+  }
+  // note: Assume only a single starting platform.
+  FLTruthTable& firstTruthTable = trackTruthTable.truthTables[0];
+
+  NSArray *goalValues = FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsGoalValues);
+  
+  NSUInteger inputValueCount = [trackTruthTable.inputSegmentNodes count];
+  NSUInteger outputValueCount = [trackTruthTable.outputSegmentNodes count];
+  NSMutableArray *contentTexts = [NSMutableArray array];
+  NSMutableArray *contentColors = [NSMutableArray array];
+  int gridWidth = static_cast<int>(inputValueCount + outputValueCount + 1);
+
+  // Specify content for header row.
+  for (FLSegmentNode *inputSegmentNode in trackTruthTable.inputSegmentNodes) {
+    [contentTexts addObject:[NSString stringWithFormat:@"%c", inputSegmentNode.label]];
+    [contentColors addObject:[SKColor blackColor]];
+  }
+  for (FLSegmentNode *outputSegmentNode in trackTruthTable.outputSegmentNodes) {
+    [contentTexts addObject:[NSString stringWithFormat:@"%c", outputSegmentNode.label]];
+    [contentColors addObject:[SKColor blackColor]];
+  }
+  [contentTexts addObject:@""];
+  [contentColors addObject:[SKColor blackColor]];
+  
+  // Specify content for value rows.
+  *correct = YES;
+  vector<int> inputValues = firstTruthTable.inputValuesFirst();
+  NSUInteger gv = 0;
+  do {
+    BOOL rowCorrect = YES;
+    for (auto iv : inputValues) {
+      [contentTexts addObject:[NSString stringWithFormat:@"%d", iv]];
+      [contentColors addObject:[SKColor whiteColor]];
+    }
+    int *outputValues = firstTruthTable.outputValues(inputValues);
+    for (int ov = 0; ov < static_cast<int>([trackTruthTable.outputSegmentNodes count]); ++ov) {
+      int goalValue = [[goalValues objectAtIndex:gv++] intValue];
+      [contentTexts addObject:[NSString stringWithFormat:@"%d", outputValues[ov]]];
+      if (outputValues[ov] == goalValue) {
+        [contentColors addObject:FLInterfaceGoodColor];
+      } else {
+        [contentColors addObject:FLInterfaceBadColor];
+        rowCorrect = NO;
+        *correct = NO;
+      }
+    }
+    if (rowCorrect) {
+      [contentTexts addObject:@"✓"];
+      [contentColors addObject:FLInterfaceGoodColor];
+    } else {
+      [contentTexts addObject:@"✗"];
+      [contentColors addObject:FLInterfaceBadColor];
+    }
+  } while (firstTruthTable.inputValuesSuccessor(inputValues));
+
+  CGFloat labelWidthMax = 0.0f;
+  CGFloat labelHeightMax = 0.0f;
+  NSMutableArray *contentNodes = [NSMutableArray array];
+  for (NSUInteger c = 0; c < [contentTexts count]; ++c) {
+    SKLabelNode *labelNode = [SKLabelNode labelNodeWithFontNamed:@"Courier"];
+    labelNode.fontColor = [contentColors objectAtIndex:c];
+    labelNode.fontSize = 24.0f;
+    labelNode.text = [contentTexts objectAtIndex:c];
+    if (labelNode.frame.size.width > labelWidthMax) {
+      labelWidthMax = labelNode.frame.size.width;
+    }
+    if (labelNode.frame.size.height > labelHeightMax) {
+      labelHeightMax = labelNode.frame.size.height;
+    }
+    labelNode.horizontalAlignmentMode = SKLabelHorizontalAlignmentModeCenter;
+    labelNode.verticalAlignmentMode = SKLabelVerticalAlignmentModeCenter;
+    [contentNodes addObject:labelNode];
+  }
+
+  int squareCount = gridWidth * (firstTruthTable.getRowCount() + 1);
+  HLButtonGridNode *gridNode = [[HLButtonGridNode alloc] initWithGridWidth:gridWidth
+                                                               squareCount:squareCount
+                                                                layoutMode:HLButtonGridNodeLayoutModeAlignLeft
+                                                                squareSize:CGSizeMake(labelWidthMax + 6.0f, labelHeightMax + 6.0f)
+                                                      backgroundBorderSize:1.0f
+                                                       squareSeparatorSize:0.0f];
+  gridNode.backgroundColor = [SKColor blackColor];
+  gridNode.squareColor = [SKColor colorWithWhite:0.2f alpha:1.0f];
+  gridNode.highlightColor = [SKColor colorWithWhite:0.8f alpha:1.0f];
+  gridNode.buttons = contentNodes;
+  for (int s = 0; s < gridWidth; ++s) {
+    [gridNode setHighlight:YES forSquare:s];
+  }
+  // note: For bigger tables, try highlighting every other row:
+//  for (int s = 0; s < squareCount; ++s) {
+//    if (s / gridWidth % 2 == 0) {
+//      [gridNode setHighlight:YES forSquare:s];
+//    }
+//  }
+  
+  return gridNode;
 }
 
 - (void)FL_trackSelect:(NSSet *)segmentNodes
@@ -2497,7 +2616,7 @@ struct PointerPairHash
 
 - (void)FL_trackConflictShow:(FLSegmentNode *)segmentNode
 {
-  SKSpriteNode *conflictNode = [SKSpriteNode spriteNodeWithColor:[SKColor colorWithRed:1.0f green:0.0f blue:0.0f alpha:1.0f]
+  SKSpriteNode *conflictNode = [SKSpriteNode spriteNodeWithColor:FLInterfaceBadColor
                                                             size:CGSizeMake(FLSegmentArtSizeBasic * FLTrackArtScale,
                                                                             FLSegmentArtSizeBasic * FLTrackArtScale)];
   conflictNode.zPosition = FLZPositionWorldSelect;
@@ -3091,9 +3210,9 @@ struct PointerPairHash
                                                                squareSize:CGSizeMake(squareEdgeSize, squareEdgeSize)
                                                      backgroundBorderSize:5.0f
                                                       squareSeparatorSize:1.0f];
-    _labelState.labelPicker.backgroundColor = [SKColor colorWithRed:0.2f green:0.25f blue:0.4f alpha:1.0f];
-    _labelState.labelPicker.squareColor = [SKColor colorWithRed:0.4f green:0.5f blue:0.8f alpha:1.0f];
-    _labelState.labelPicker.highlightColor = [SKColor colorWithRed:0.6f green:0.75f blue:1.0f alpha:1.0f];
+    _labelState.labelPicker.backgroundColor = FLInterfaceDarkColor;
+    _labelState.labelPicker.squareColor = FLInterfaceMediumColor;
+    _labelState.labelPicker.highlightColor = FLInterfaceLightColor;
     _labelState.labelPicker.buttons = letterNodes;
     // note: Could easily store referenes to segmentNodes in the block for each invocation,
     // and do all the work there, too, but I felt slightly anxious that then the block
@@ -3399,9 +3518,13 @@ typedef enum FLUnlockItem {
     switch (item) {
       case FLUnlockGates:
       case FLUnlockGateNot:
-        return [[NSUserDefaults standardUserDefaults] boolForKey:@"FLUnlockGateNot"];
+        // note: Until something unlocks this, hardcode to true.
+        return YES;
+        //return [[NSUserDefaults standardUserDefaults] boolForKey:@"FLUnlockGateNot"];
       case FLUnlockCircuits:
-        return [[NSUserDefaults standardUserDefaults] boolForKey:@"FLUnlockCircuits"];
+        // note: Until something unlocks this, hardcode to true.
+        return YES;
+        //return [[NSUserDefaults standardUserDefaults] boolForKey:@"FLUnlockCircuits"];
       default:
         [NSException raise:@"FLUnlockItemUnknown" format:@"Unknown unlock item %d.", item];
     }

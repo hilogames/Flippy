@@ -12,11 +12,12 @@ typedef enum FLChallengeLevelsInfoKey {
   FLChallengeLevelsTitle = 0,
   FLChallengeLevelsGoalShort,
   FLChallengeLevelsGoalLong,
+  FLChallengeLevelsGoalValues
 } FLChallengeLevelsInfoKey;
 
 int
 FLChallengeLevelsCount();
 
 FOUNDATION_EXPORT
-NSString *
+id
 FLChallengeLevelsInfo(int gameLevel, FLChallengeLevelsInfoKey infoKey);

@@ -9,6 +9,11 @@
 		<string>X = ¬A (X is not A)</string>
 		<key>goal-long</key>
 		<string>After the train has stopped, output X should show the opposite value as input A.</string>
+		<key>goal-values</key>
+		<array>
+			<integer>1</integer>
+			<integer>0</integer>
+		</array>
 	</dict>
 </array>
 </plist>
