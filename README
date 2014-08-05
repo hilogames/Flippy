@@ -7,10 +7,6 @@ circuits.
 
 Current
 
-  . Regenerate circuits save files: They have wrong segment type ids
-    right now I think.  (Gates not affected because I messed with
-    readouts and platforms, nothing earlier.)
-
   . Challenge mode gets a button for "check solution".  Same as goals
     button for now.  (Sandbox mode can get this button too, which
     lists all known inputs and outputs, but without a "goal" column in
