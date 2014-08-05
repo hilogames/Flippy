@@ -8,9 +8,9 @@
 
 #import "FLTrackScene.h"
 
-#import <HLSpriteKit/HLButtonGridNode.h>
 #import <HLSpriteKit/HLEmitterStore.h>
 #import <HLSpriteKit/HLGestureTarget.h>
+#import <HLSpriteKit/HLGridNode.h>
 #import <HLSpriteKit/HLMessageNode.h>
 #import <HLSpriteKit/HLTextureStore.h>
 #import <HLSpriteKit/HLToolbarNode.h>
@@ -199,7 +199,7 @@ struct FLLinkEditState
 struct FLLabelState
 {
   FLLabelState() : labelPicker(nil), segmentNodesToBeLabeled(nil) {}
-  HLButtonGridNode *labelPicker;
+  HLGridNode *labelPicker;
   NSSet *segmentNodesToBeLabeled;
 };
 
@@ -2381,7 +2381,7 @@ struct PointerPairHash
   [goalsOverlay addChild:labelNode];
   
   BOOL correct;
-  HLButtonGridNode *truthTable = [self FL_truthTableCreate:&correct];
+  HLGridNode *truthTable = [self FL_truthTableCreate:&correct];
   [goalsOverlay addChild:truthTable];
 
   labelNode.position = CGPointMake(0.0f,
@@ -2407,7 +2407,7 @@ struct PointerPairHash
   [self presentModalNode:goalsOverlay animation:HLScenePresentationAnimationFade];
 }
 
-- (HLButtonGridNode *)FL_truthTableCreate:(BOOL *)correct
+- (HLGridNode *)FL_truthTableCreate:(BOOL *)correct
 {
   FLTrackTruthTable *trackTruthTable = trackGridGenerateTruthTable(*_trackGrid, _links, true);
   if (trackTruthTable.state == FLTrackTruthTableStateMissingSegments) {
@@ -2487,16 +2487,16 @@ struct PointerPairHash
   }
 
   int squareCount = gridWidth * (firstTruthTable.getRowCount() + 1);
-  HLButtonGridNode *gridNode = [[HLButtonGridNode alloc] initWithGridWidth:gridWidth
-                                                               squareCount:squareCount
-                                                                layoutMode:HLButtonGridNodeLayoutModeAlignLeft
-                                                                squareSize:CGSizeMake(labelWidthMax + 6.0f, labelHeightMax + 6.0f)
-                                                      backgroundBorderSize:1.0f
-                                                       squareSeparatorSize:0.0f];
+  HLGridNode *gridNode = [[HLGridNode alloc] initWithGridWidth:gridWidth
+                                                   squareCount:squareCount
+                                                    layoutMode:HLGridNodeLayoutModeAlignLeft
+                                                    squareSize:CGSizeMake(labelWidthMax + 6.0f, labelHeightMax + 6.0f)
+                                          backgroundBorderSize:1.0f
+                                           squareSeparatorSize:0.0f];
   gridNode.backgroundColor = [SKColor blackColor];
   gridNode.squareColor = [SKColor colorWithWhite:0.2f alpha:1.0f];
   gridNode.highlightColor = [SKColor colorWithWhite:0.8f alpha:1.0f];
-  gridNode.buttons = contentNodes;
+  gridNode.content = contentNodes;
   for (int s = 0; s < gridWidth; ++s) {
     [gridNode setHighlight:YES forSquare:s];
   }
@@ -3204,16 +3204,16 @@ struct PointerPairHash
     }
 
     CGFloat squareEdgeSize = MAX(letterWidthMax, letterHeightMax) + 2.0f;
-    _labelState.labelPicker = [[HLButtonGridNode alloc] initWithGridWidth:FLLabelPickerWidth
-                                                              squareCount:FLLabelPickerSize
-                                                               layoutMode:HLButtonGridNodeLayoutModeFill
-                                                               squareSize:CGSizeMake(squareEdgeSize, squareEdgeSize)
-                                                     backgroundBorderSize:5.0f
-                                                      squareSeparatorSize:1.0f];
+    _labelState.labelPicker = [[HLGridNode alloc] initWithGridWidth:FLLabelPickerWidth
+                                                        squareCount:FLLabelPickerSize
+                                                         layoutMode:HLGridNodeLayoutModeFill
+                                                         squareSize:CGSizeMake(squareEdgeSize, squareEdgeSize)
+                                               backgroundBorderSize:5.0f
+                                                squareSeparatorSize:1.0f];
     _labelState.labelPicker.backgroundColor = FLInterfaceDarkColor;
     _labelState.labelPicker.squareColor = FLInterfaceMediumColor;
     _labelState.labelPicker.highlightColor = FLInterfaceLightColor;
-    _labelState.labelPicker.buttons = letterNodes;
+    _labelState.labelPicker.content = letterNodes;
     // note: Could easily store referenes to segmentNodes in the block for each invocation,
     // and do all the work there, too, but I felt slightly anxious that then the block
     // would retain references to objects that might not be needed otherwise.  So,
