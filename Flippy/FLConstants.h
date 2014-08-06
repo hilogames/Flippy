@@ -8,6 +8,8 @@
 
 #import <Foundation/Foundation.h>
 
+@class HLLabelButtonNode;
+
 typedef enum FLChallengeLevelsInfoKey {
   FLChallengeLevelsTitle = 0,
   FLChallengeLevelsGoalShort,
@@ -15,9 +17,21 @@ typedef enum FLChallengeLevelsInfoKey {
   FLChallengeLevelsGoalValues
 } FLChallengeLevelsInfoKey;
 
-int
-FLChallengeLevelsCount();
+int FLChallengeLevelsCount();
 
-FOUNDATION_EXPORT
-id
-FLChallengeLevelsInfo(int gameLevel, FLChallengeLevelsInfoKey infoKey);
+/**
+ * Returns information about a level in a challenge game.  See
+ * FLChallengeLevelsInfoKey for information available.
+ */
+FOUNDATION_EXPORT id FLChallengeLevelsInfo(int gameLevel, FLChallengeLevelsInfoKey infoKey);
+
+/**
+ * The standard application font.
+ */
+FOUNDATION_EXPORT NSString *FLInterfaceFontName;
+
+/**
+ * Creates and returns an HLLabelButtonNode with a background used by
+ * standard buttons in the application.
+ */
+FOUNDATION_EXPORT HLLabelButtonNode *FLInterfaceLabelButton();

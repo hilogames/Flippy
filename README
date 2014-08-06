@@ -7,23 +7,14 @@ circuits.
 
 Current
 
-  . Challenge mode gets a button for "check solution".  Same as goals
-    button for now.  (Sandbox mode can get this button too, which
-    lists all known inputs and outputs, but without a "goal" column in
-    the truth table.)
+  . check out how koboldkit does its button behavior
 
-      . Show "infinite loop detected" result.  Also "win!" result.
-        Also "not enough segments" result.
-
-      . Don't show on initial goals overlay?  Not sure how to detect,
-        though.
-
-      . Show goals button in sandbox mode, with less stuff.
+  . add paging to segments toolbar esp. in sandbox mode
 
   . In challenge mode, you can't link to or from anything that is
     linked to an input -- the train makes the connection.
 
-  . Make second challenge level.
+  . Make second challenge level, and connect to "next level" button.
 
   . Prettier highlight of join segment when linking.
 

@@ -426,7 +426,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   messageNode.verticalAlignmentMode = HLLabelNodeVerticalAlignFontAscenderBias;
   messageNode.messageAnimationDuration = FLOffscreenSlideDuration;
   messageNode.messageLingerDuration = 2.0;
-  messageNode.fontName = @"Courier";
+  messageNode.fontName = FLInterfaceFontName;
   messageNode.fontSize = 20.0f;
   messageNode.fontColor = [UIColor blackColor];
   return messageNode;
@@ -439,7 +439,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   _loadingScene.anchorPoint = CGPointMake(0.5f, 0.5f);
   
   const NSTimeInterval FLLoadingPulseDuration = 0.5;
-  SKLabelNode *loadingLabelNode = [SKLabelNode labelNodeWithFontNamed:@"Courier"];
+  SKLabelNode *loadingLabelNode = [SKLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
   loadingLabelNode.fontSize = 18.0f;
   loadingLabelNode.text = @"Loading...";
   loadingLabelNode.alpha = 0.0f;
@@ -526,7 +526,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
 
   SKSpriteNode *statusBackgroundNode = [SKSpriteNode spriteNodeWithColor:[SKColor colorWithRed:0.4f green:0.5f blue:0.8f alpha:0.9f] size:CGSizeZero];
   [_gameOverlay addChild:statusBackgroundNode];
-  _gameStatusNode = [DSMultilineLabelNode labelNodeWithFontNamed:@"Courier"];
+  _gameStatusNode = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
   _gameStatusNode.fontSize = 18.0f;
   _gameStatusNode.fontColor = [SKColor whiteColor];
   [statusBackgroundNode addChild:_gameStatusNode];
@@ -602,9 +602,8 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
 {
   static HLLabelButtonNode *buttonPrototype = nil;
   if (!buttonPrototype) {
-    buttonPrototype = [[HLLabelButtonNode alloc] initWithImageNamed:@"menu-button"];
-    buttonPrototype.centerRect = CGRectMake(0.3333333f, 0.3333333f, 0.3333333f, 0.3333333f);
-    buttonPrototype.fontName = @"Courier";
+    buttonPrototype = FLInterfaceLabelButton();
+    buttonPrototype.fontName = FLInterfaceFontName;
     buttonPrototype.fontSize = 20.0f;
     buttonPrototype.fontColor = [UIColor whiteColor];
     buttonPrototype.size = CGSizeMake(240.0f, 36.0f);

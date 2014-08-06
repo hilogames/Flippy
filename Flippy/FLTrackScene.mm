@@ -8,12 +8,7 @@
 
 #import "FLTrackScene.h"
 
-#import <HLSpriteKit/HLEmitterStore.h>
-#import <HLSpriteKit/HLGestureTarget.h>
-#import <HLSpriteKit/HLGridNode.h>
-#import <HLSpriteKit/HLMessageNode.h>
-#import <HLSpriteKit/HLTextureStore.h>
-#import <HLSpriteKit/HLToolbarNode.h>
+#import <HLSpriteKit/HLSpriteKit.h>
 #include <memory>
 #include <tgmath.h>
 
@@ -72,13 +67,13 @@ static NSString *FLGatesDirectoryPath;
 static NSString *FLCircuitsDirectoryPath;
 static NSString *FLExportsDirectoryPath;
 
-static SKColor *FLInterfaceDarkColor = [SKColor colorWithRed:0.2f green:0.25f blue:0.4f alpha:1.0f];
-static SKColor *FLInterfaceMediumColor = [SKColor colorWithRed:0.4f green:0.5f blue:0.8f alpha:1.0f];
-static SKColor *FLInterfaceLightColor = [SKColor colorWithRed:0.6f green:0.75f blue:1.0f alpha:1.0f];
-static SKColor *FLInterfaceGoodColor = [SKColor colorWithRed:0.3f green:1.0f blue:0.3f alpha:1.0f];
-static SKColor *FLInterfaceBadColor = [SKColor colorWithRed:1.0f green:0.3f blue:0.3f alpha:1.0f];
+static SKColor *FLColorInterfaceDark = [SKColor colorWithRed:0.2f green:0.25f blue:0.4f alpha:1.0f];
+static SKColor *FLColorInterfaceMedium = [SKColor colorWithRed:0.4f green:0.5f blue:0.8f alpha:1.0f];
+static SKColor *FLColorInterfaceLight = [SKColor colorWithRed:0.6f green:0.75f blue:1.0f alpha:1.0f];
+static SKColor *FLColorInterfaceGood = [SKColor colorWithRed:0.3f green:1.0f blue:0.3f alpha:1.0f];
+static SKColor *FLColorInterfaceBad = [SKColor colorWithRed:1.0f green:0.3f blue:0.3f alpha:1.0f];
 
-static SKColor *FLSceneBackgroundColor = [SKColor colorWithRed:0.4f green:0.6f blue:0.0f alpha:1.0f];
+static SKColor *FLColorSceneBackground = [SKColor colorWithRed:0.4f green:0.6f blue:0.0f alpha:1.0f];
 
 static const CGFloat FLLinkLineWidth = 2.0f;
 static SKColor *FLLinkLineColor = [SKColor colorWithRed:0.2f green:0.6f blue:0.9f alpha:1.0f];
@@ -486,7 +481,7 @@ struct PointerPairHash
   [self needSharedPinchGestureRecognizer];
 
   if (_gameType == FLGameTypeChallenge) {
-    [self FL_goalsShow];
+    [self FL_goalsShowWithResults:YES];
   }
 }
 
@@ -500,7 +495,7 @@ struct PointerPairHash
 
 - (void)FL_createSceneContents
 {
-  self.backgroundColor = FLSceneBackgroundColor;
+  self.backgroundColor = FLColorSceneBackground;
   self.anchorPoint = CGPointMake(0.5f, 0.5f);
 
   // note: There is no lazy-load option for textures (and perhaps other scene
@@ -1219,7 +1214,7 @@ struct PointerPairHash
       self->_cameraMode = FLCameraModeFollowTrain;
     }];
   } else if ([tool isEqualToString:@"goals"]) {
-    [self FL_goalsShow];
+    [self FL_goalsShowWithResults:YES];
   }
 }
 
@@ -2003,6 +1998,7 @@ struct PointerPairHash
 
 - (void)FL_constructionToolbarShowSegments:(int)page animation:(HLToolbarNodeAnimation)animation
 {
+  // TODO: Page with page size 9 (so seven basic segments can fit on first page).
   NSMutableArray *toolNodes = [NSMutableArray array];
   NSMutableArray *toolTags = [NSMutableArray array];
   NSString *textureKey;
@@ -2302,11 +2298,9 @@ struct PointerPairHash
   [toolTags addObject:textureKey];
   [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
 
-  if (_gameType == FLGameTypeChallenge) {
-    textureKey = @"goals";
-    [toolTags addObject:textureKey];
-    [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-  }
+  textureKey = @"goals";
+  [toolTags addObject:textureKey];
+  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
 
   [_simulationToolbarState.toolbarNode setTools:toolNodes tags:toolTags animation:HLToolbarNodeAnimationNone];
 
@@ -2342,7 +2336,7 @@ struct PointerPairHash
     _messageNode = [[HLMessageNode alloc] initWithColor:[SKColor colorWithWhite:0.0f alpha:0.5f] size:CGSizeZero];
     _messageNode.verticalAlignmentMode = HLLabelNodeVerticalAlignFontAscenderBias;
     _messageNode.messageLingerDuration = 2.0;
-    _messageNode.fontName = @"Courier";
+    _messageNode.fontName = FLInterfaceFontName;
     _messageNode.fontSize = 14.0f;
     _messageNode.fontColor = [SKColor whiteColor];
     [self FL_messageUpdateGeometry];
@@ -2360,41 +2354,122 @@ struct PointerPairHash
   _messageNode.size = CGSizeMake(self.size.width, FLMessageHeight);
 }
 
-- (void)FL_goalsShow
+- (void)FL_goalsShowWithResults:(BOOL)showResults
 {
+  const CGFloat FLZPositionGoalsOverlayDismissNode = 0.1f;
+  const CGFloat FLZPositionGoalsOverlayVictoryButton = 0.2f;
+
   SKNode *goalsOverlay = [SKNode node];
+  NSMutableArray *layoutNodes = [NSMutableArray array];
 
   // note: Show in a square that won't have to change size if the interface rotates.
   CGFloat edgeSizeMax = MIN(self.scene.size.width, self.scene.size.height);
-  DSMultilineLabelNode *labelNode = [DSMultilineLabelNode labelNodeWithFontNamed:@"Courier"];
-  labelNode.fontSize = 18.0f;
-  labelNode.fontColor = [SKColor whiteColor];
-  labelNode.text = [NSString stringWithFormat:@"%@ %d:\n“%@”\n\n%@:\n%@\n\n%@\n\n%@:",
-                    NSLocalizedString(@"Level", @"Game information: followed by a level number."),
-                    _gameLevel,
-                    FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsTitle),
-                    NSLocalizedString(@"Goals", @"Game information: the header over the description of goals for the current level."),
-                    FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsGoalShort),
-                    FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsGoalLong),
-                    NSLocalizedString(@"Current", @"Game information: the header over the truth table representing the current state of the level solution."0)];
-  labelNode.paragraphWidth = edgeSizeMax;
-  [goalsOverlay addChild:labelNode];
-  
-  BOOL correct;
-  HLGridNode *truthTable = [self FL_truthTableCreate:&correct];
-  [goalsOverlay addChild:truthTable];
+  DSMultilineLabelNode *introNode = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
+  introNode.fontSize = 18.0f;
+  introNode.fontColor = [SKColor whiteColor];
+  if (_gameType == FLGameTypeChallenge) {
+    introNode.text = [NSString stringWithFormat:@"%@ %d:\n“%@”\n\n%@:\n%@\n\n%@",
+                      NSLocalizedString(@"Level", @"Game information: followed by a level number."),
+                      _gameLevel,
+                      FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsTitle),
+                      NSLocalizedString(@"Goals", @"Game information: the header over the description of goals for the current level."),
+                      FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsGoalShort),
+                      FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsGoalLong)];
+  } else {
+    introNode.text = FLGameTypeSandboxTitle;
+  }
+  if (showResults) {
+    introNode.text = [NSString stringWithFormat:@"%@\n\n%@:",
+                      introNode.text,
+                      NSLocalizedString(@"Results", @"Game information: on the goals screen, the header over the displayed results of the current level solution."0)];
+  }
+  introNode.paragraphWidth = edgeSizeMax;
+  [layoutNodes addObject:introNode];
 
-  labelNode.position = CGPointMake(0.0f,
-                                   truthTable.size.height / 2.0f + 3.0f);
-  truthTable.position = CGPointMake(0.0f,
-                                    -labelNode.size.height / 2.0f - 3.0f);
-  
+  if (showResults) {
+    BOOL victory = NO;
+    NSString *resultText = nil;
+    SKColor *resultColor = nil;
+    // note: Would be cool to animate truth table results as they are calculated.  If in the
+    // future the truth table is generated synchronously with this display, that might be a
+    // good time to implement some nice animation as the results arrive.
+    FLTrackTruthTable *trackTruthTable = trackGridGenerateTruthTable(*_trackGrid, _links, true);
+    if ([trackTruthTable.platformStartSegmentNodes count] != 1) {
+      resultText = NSLocalizedString(@"(Results can only be shown when track contains exactly one Starting Platform.)",
+                                     @"Game information: note explaining that results (including truth table) can't be shown until the track meets certain conditions.");
+      resultColor = FLColorInterfaceBad;
+    } else if (trackTruthTable.state == FLTrackTruthTableStateMissingSegments) {
+      resultText = NSLocalizedString(@"(Results can only be shown when track contains at least one Input Value and one Output Value.)",
+                                     @"Game information: note explaining that results (including truth table) can't be shown until the track meets certain conditions.");
+      resultColor = FLColorInterfaceBad;
+    } else {
+      NSArray *goalValues = nil;
+      if (_gameType == FLGameTypeChallenge) {
+        goalValues = FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsGoalValues);
+      }
+      HLGridNode *truthTable = [self FL_truthTableCreate:trackTruthTable index:0 correctValues:goalValues correct:&victory];
+      [layoutNodes addObject:truthTable];
+      if (_gameType == FLGameTypeChallenge && victory) {
+        resultText = NSLocalizedString(@"Level Complete!",
+                                       @"Game information: displayed when current level solution is correct according to goals.");
+        resultColor = FLColorInterfaceGood;
+      } else if (trackTruthTable.state == FLTrackTruthTableStateInfiniteLoopDetected) {
+        resultText = NSLocalizedString(@"Loop detected: The results simulation halted after finding a loop in the track.",
+                                       @"Game information: displayed on the goals screen when a loop in the track is detected.");
+        resultColor = FLColorInterfaceBad;
+      }
+    }
+    if (resultText) {
+      DSMultilineLabelNode *resultNode = [[DSMultilineLabelNode alloc] initWithFontNamed:FLInterfaceFontName];
+      resultNode.fontSize = 18.0f;
+      resultNode.fontColor = resultColor;
+      resultNode.text = resultText;
+      resultNode.paragraphWidth = edgeSizeMax;
+      [layoutNodes addObject:resultNode];
+    }
+    if (_gameType == FLGameTypeChallenge && victory) {
+      HLLabelButtonNode *victoryButton = FLInterfaceLabelButton();
+      victoryButton.zPosition = FLZPositionGoalsOverlayVictoryButton;
+      victoryButton.automaticHeight = YES;
+      victoryButton.automaticWidth = YES;
+      victoryButton.labelPadX = 42.0f;
+      victoryButton.labelPadY = 8.0f;
+      victoryButton.fontName = FLInterfaceFontName;
+      victoryButton.fontSize = 16.0f;
+      victoryButton.text = NSLocalizedString(@"Next Level",
+                                             @"Displayed on a button that takes you to the next level of a challenge game.");
+      victoryButton.addsToTapGestureRecognizer = YES;
+      __weak HLLabelButtonNode *victoryButtonWeak = victoryButton;
+      victoryButton.handleGestureBlock = ^(UIGestureRecognizer *gestureRecognizer){
+        [self unregisterDescendant:victoryButtonWeak];
+        [self dismissModalNodeAnimation:HLScenePresentationAnimationNone];
+        NSLog(@"next level!");
+      };
+      [self registerDescendant:victoryButton withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
+      [layoutNodes addObject:victoryButton];
+    }
+  }
+
+  CGFloat totalHeight = 0.0f;
+  for (id layoutNode in layoutNodes) {
+    totalHeight += [layoutNode size].height;
+  }
+  const CGFloat FLLayoutNodePad = 10.0f;
+  totalHeight += ([layoutNodes count] - 1) * FLLayoutNodePad;
+  CGFloat layoutNodeY = totalHeight / 2.0f;
+  for (id layoutNode in layoutNodes) {
+    CGFloat layoutNodeHeight = [layoutNode size].height;
+    [layoutNode setPosition:CGPointMake(0.0f, layoutNodeY - layoutNodeHeight / 2.0f)];
+    layoutNodeY -= (layoutNodeHeight + FLLayoutNodePad);
+    [goalsOverlay addChild:layoutNode];
+  }
+
   HLGestureTargetSpriteNode *dismissNode = [HLGestureTargetSpriteNode spriteNodeWithColor:[SKColor clearColor] size:self.scene.size];
   // noob: Some confusion around zPositions here.  I know that HLScene's presentModalNode
   // will put the goalsOverlay somewhere between our passed min and max (FLZPositionModalMin
   // and FLZPositionModalMax), but I don't know then exactly where dismissNode will end up.
   // It doesn't matter, though, as long as it's at the top of the goalsOverlay.
-  dismissNode.zPosition = 0.1f;
+  dismissNode.zPosition = FLZPositionGoalsOverlayDismissNode;
   dismissNode.addsToTapGestureRecognizer = YES;
   __weak HLGestureTargetSpriteNode *dismissNodeWeak = dismissNode;
   dismissNode.handleGestureBlock = ^(UIGestureRecognizer *gestureRecognizer){
@@ -2407,22 +2482,21 @@ struct PointerPairHash
   [self presentModalNode:goalsOverlay animation:HLScenePresentationAnimationFade];
 }
 
-- (HLGridNode *)FL_truthTableCreate:(BOOL *)correct
+- (HLGridNode *)FL_truthTableCreate:(FLTrackTruthTable *)trackTruthTable
+                              index:(int)truthTableIndex
+                      correctValues:(NSArray *)correctValues
+                            correct:(BOOL *)correct
 {
-  FLTrackTruthTable *trackTruthTable = trackGridGenerateTruthTable(*_trackGrid, _links, true);
-  if (trackTruthTable.state == FLTrackTruthTableStateMissingSegments) {
-    NSLog(@"Missing segments.");
-  }
-  // note: Assume only a single starting platform.
-  FLTruthTable& firstTruthTable = trackTruthTable.truthTables[0];
+  FLTruthTable& truthTable = trackTruthTable.truthTables[static_cast<NSUInteger>(truthTableIndex)];
 
-  NSArray *goalValues = FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsGoalValues);
-  
-  NSUInteger inputValueCount = [trackTruthTable.inputSegmentNodes count];
-  NSUInteger outputValueCount = [trackTruthTable.outputSegmentNodes count];
+  int inputSize = truthTable.getInputSize();
+  int outputSize = truthTable.getOutputSize();
   NSMutableArray *contentTexts = [NSMutableArray array];
   NSMutableArray *contentColors = [NSMutableArray array];
-  int gridWidth = static_cast<int>(inputValueCount + outputValueCount + 1);
+  int gridWidth = inputSize + outputSize;
+  if (correctValues) {
+    ++gridWidth;
+  }
 
   // Specify content for header row.
   for (FLSegmentNode *inputSegmentNode in trackTruthTable.inputSegmentNodes) {
@@ -2433,45 +2507,54 @@ struct PointerPairHash
     [contentTexts addObject:[NSString stringWithFormat:@"%c", outputSegmentNode.label]];
     [contentColors addObject:[SKColor blackColor]];
   }
-  [contentTexts addObject:@""];
-  [contentColors addObject:[SKColor blackColor]];
-  
+  if (correctValues) {
+    [contentTexts addObject:@""];
+    [contentColors addObject:[SKColor blackColor]];
+  }
+
   // Specify content for value rows.
   *correct = YES;
-  vector<int> inputValues = firstTruthTable.inputValuesFirst();
-  NSUInteger gv = 0;
+  vector<int> inputValues = truthTable.inputValuesFirst();
+  NSUInteger cv = 0;
   do {
     BOOL rowCorrect = YES;
     for (auto iv : inputValues) {
       [contentTexts addObject:[NSString stringWithFormat:@"%d", iv]];
       [contentColors addObject:[SKColor whiteColor]];
     }
-    int *outputValues = firstTruthTable.outputValues(inputValues);
-    for (int ov = 0; ov < static_cast<int>([trackTruthTable.outputSegmentNodes count]); ++ov) {
-      int goalValue = [[goalValues objectAtIndex:gv++] intValue];
+    int *outputValues = truthTable.outputValues(inputValues);
+    for (int ov = 0; ov < outputSize; ++ov) {
       [contentTexts addObject:[NSString stringWithFormat:@"%d", outputValues[ov]]];
-      if (outputValues[ov] == goalValue) {
-        [contentColors addObject:FLInterfaceGoodColor];
+      if (!correctValues) {
+        [contentColors addObject:FLColorInterfaceLight];
       } else {
-        [contentColors addObject:FLInterfaceBadColor];
-        rowCorrect = NO;
-        *correct = NO;
+        int correctValue = [[correctValues objectAtIndex:cv++] intValue];
+        if (outputValues[ov] == correctValue) {
+          [contentColors addObject:FLColorInterfaceGood];
+        } else {
+          [contentColors addObject:FLColorInterfaceBad];
+          rowCorrect = NO;
+          *correct = NO;
+        }
       }
     }
-    if (rowCorrect) {
-      [contentTexts addObject:@"✓"];
-      [contentColors addObject:FLInterfaceGoodColor];
-    } else {
-      [contentTexts addObject:@"✗"];
-      [contentColors addObject:FLInterfaceBadColor];
+    if (correctValues) {
+      if (rowCorrect) {
+        [contentTexts addObject:@"✓"];
+        [contentColors addObject:FLColorInterfaceGood];
+      } else {
+        [contentTexts addObject:@"✗"];
+        [contentColors addObject:FLColorInterfaceBad];
+      }
     }
-  } while (firstTruthTable.inputValuesSuccessor(inputValues));
+  } while (truthTable.inputValuesSuccessor(inputValues));
 
+  // Create all content nodes for the grid.
   CGFloat labelWidthMax = 0.0f;
   CGFloat labelHeightMax = 0.0f;
   NSMutableArray *contentNodes = [NSMutableArray array];
   for (NSUInteger c = 0; c < [contentTexts count]; ++c) {
-    SKLabelNode *labelNode = [SKLabelNode labelNodeWithFontNamed:@"Courier"];
+    SKLabelNode *labelNode = [SKLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
     labelNode.fontColor = [contentColors objectAtIndex:c];
     labelNode.fontSize = 24.0f;
     labelNode.text = [contentTexts objectAtIndex:c];
@@ -2486,7 +2569,8 @@ struct PointerPairHash
     [contentNodes addObject:labelNode];
   }
 
-  int squareCount = gridWidth * (firstTruthTable.getRowCount() + 1);
+  // Create grid.
+  int squareCount = gridWidth * (truthTable.getRowCount() + 1);
   HLGridNode *gridNode = [[HLGridNode alloc] initWithGridWidth:gridWidth
                                                    squareCount:squareCount
                                                     layoutMode:HLGridNodeLayoutModeAlignLeft
@@ -2506,7 +2590,7 @@ struct PointerPairHash
 //      [gridNode setHighlight:YES forSquare:s];
 //    }
 //  }
-  
+
   return gridNode;
 }
 
@@ -2616,7 +2700,7 @@ struct PointerPairHash
 
 - (void)FL_trackConflictShow:(FLSegmentNode *)segmentNode
 {
-  SKSpriteNode *conflictNode = [SKSpriteNode spriteNodeWithColor:FLInterfaceBadColor
+  SKSpriteNode *conflictNode = [SKSpriteNode spriteNodeWithColor:FLColorInterfaceBad
                                                             size:CGSizeMake(FLSegmentArtSizeBasic * FLTrackArtScale,
                                                                             FLSegmentArtSizeBasic * FLTrackArtScale)];
   conflictNode.zPosition = FLZPositionWorldSelect;
@@ -3210,9 +3294,9 @@ struct PointerPairHash
                                                          squareSize:CGSizeMake(squareEdgeSize, squareEdgeSize)
                                                backgroundBorderSize:5.0f
                                                 squareSeparatorSize:1.0f];
-    _labelState.labelPicker.backgroundColor = FLInterfaceDarkColor;
-    _labelState.labelPicker.squareColor = FLInterfaceMediumColor;
-    _labelState.labelPicker.highlightColor = FLInterfaceLightColor;
+    _labelState.labelPicker.backgroundColor = FLColorInterfaceDark;
+    _labelState.labelPicker.squareColor = FLColorInterfaceMedium;
+    _labelState.labelPicker.highlightColor = FLColorInterfaceLight;
     _labelState.labelPicker.content = letterNodes;
     // note: Could easily store referenes to segmentNodes in the block for each invocation,
     // and do all the work there, too, but I felt slightly anxious that then the block

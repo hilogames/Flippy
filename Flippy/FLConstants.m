@@ -8,6 +8,8 @@
 
 #import "FLConstants.h"
 
+#import <HLSpriteKit/HLLabelButtonNode.h>
+
 static NSArray *_challengeLevels = nil;
 
 static NSString * const FLChallengeLevelsInfoKeyString[4] = {
@@ -54,4 +56,14 @@ FLChallengeLevelsInfo(int gameLevel, FLChallengeLevelsInfoKey infoKey)
   NSDictionary *challengeLevel = (NSDictionary *)[_challengeLevels objectAtIndex:(NSUInteger)gameLevel];
   NSString *infoKeyString = FLChallengeLevelsInfoKeyString[(int)infoKey];
   return [challengeLevel objectForKey:infoKeyString];
+}
+
+NSString *FLInterfaceFontName = @"Courier";
+
+HLLabelButtonNode *
+FLInterfaceLabelButton()
+{
+  HLLabelButtonNode *labelButton = [[HLLabelButtonNode alloc] initWithImageNamed:@"menu-button"];
+  labelButton.centerRect = CGRectMake(0.3333333f, 0.3333333f, 0.3333333f, 0.3333333f);
+  return labelButton;
 }
