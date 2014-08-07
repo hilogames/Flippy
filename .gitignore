@@ -1,10 +1,14 @@
 # code
 *.o
 
+# git
+.gitattributes
+
 # xcode
 UserInterfaceState.xcuserstate
 WorkspaceSettings.xcsettings
 xcdebugger
+xcuserdata
 
 # other editors and tools
 TAGS
