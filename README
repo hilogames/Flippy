@@ -9,9 +9,6 @@ Current
 
   . check out how koboldkit does its button behavior
 
-  . BUG: importing a sandbox save in challenge game doesn't get
-    permissions right.  see TODO.
-
   . In challenge mode, you can't link to or from anything that is
     linked to an input -- the train makes the connection.
 

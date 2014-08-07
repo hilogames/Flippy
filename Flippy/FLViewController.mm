@@ -792,11 +792,9 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
     if (isNew) {
       switch (gameType) {
         case FLGameTypeSandbox:
-          self->_gameScene = [FLTrackScene sceneWithSize:self.view.bounds.size];
+          self->_gameScene = [[FLTrackScene alloc] initWithSize:self.view.bounds.size gameType:gameType gameLevel:gameLevel];
           self->_gameScene.delegate = self;
           self->_gameScene.scaleMode = SKSceneScaleModeResizeFill;
-          self->_gameScene.gameType = gameType;
-          self->_gameScene.gameLevel = gameLevel;
           break;
         case FLGameTypeChallenge: {
           NSString *levelPath = [self FL_levelPathForGameType:gameType gameLevel:gameLevel];
@@ -811,14 +809,14 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
           // (at least with current SDK) it does not.
           self->_gameScene.size = self.view.bounds.size;
           self->_gameScene.delegate = self;
-          // note: These archives weren't necessarily created with the correct level or game type information.
-          // TODO: But changing game type doesn't change e.g. the tools in the toolbar, which might differ
-          // based on game type.  Maybe add a special long-press action for export which exports as challenge
-          // game type?  Or no, just hardcode game type for export when doing my level exports from sandbox.
-          // Or: Start a challenge game, but set a "power user" permission which allows everything, and so
-          // allows me to export a challenge game as a level.
-          self->_gameScene.gameType = gameType;
-          self->_gameScene.gameLevel = gameLevel;
+          // note: Check that the archive has the correct level and game type in the archive.  We'd like
+          // to be able to change it at will, but the track scene doesn't currently support changing it
+          // (because of the maintenance headache of trying to figure out what interface elements depend
+          // on game type and level).  Instead, we insist that the archive be what we expected.
+          if (self->_gameScene.gameType != gameType || self->_gameScene.gameLevel != gameLevel) {
+            [NSException raise:@"FLGameLoadFailure" format:@"Archive '%@' has game type %d and game %d but expected game type %d and level %d.",
+             levelPath, self->_gameScene.gameType, self->_gameScene.gameLevel, gameType, gameLevel];
+          }
           break;
         }
         default:

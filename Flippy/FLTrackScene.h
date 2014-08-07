@@ -28,8 +28,10 @@ FOUNDATION_EXPORT NSString * const FLGameTypeSandboxTitle;
 
 @property (nonatomic, weak) id<FLTrackSceneDelegate> delegate;
 
-@property (nonatomic, assign) FLGameType gameType;
-@property (nonatomic, assign) int gameLevel;
+@property (nonatomic, readonly) FLGameType gameType;
+@property (nonatomic, readonly) int gameLevel;
+
+- (id)initWithSize:(CGSize)size gameType:(FLGameType)gameType gameLevel:(int)gameLevel;
 
 - (size_t)segmentCount;
 

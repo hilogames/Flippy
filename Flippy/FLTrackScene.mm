@@ -290,16 +290,23 @@ struct PointerPairHash
   // no good way, for now, to release them, and no real need to do so.
 }
 
-- (id)initWithSize:(CGSize)size
+- (id)initWithSize:(CGSize)size gameType:(FLGameType)gameType gameLevel:(int)gameLevel
 {
   self = [super initWithSize:size];
   if (self) {
+    _gameType = gameType;
+    _gameLevel = gameLevel;
     _cameraMode = FLCameraModeManual;
     _simulationRunning = NO;
     _simulationSpeed = 0;
     _trackGrid.reset(new FLTrackGrid(FLSegmentArtSizeBasic * FLTrackArtScale));
   }
   return self;
+}
+
+- (id)initWithSize:(CGSize)size
+{
+  return [self initWithSize:size gameType:FLGameTypeSandbox gameLevel:0];
 }
 
 - (id)initWithCoder:(NSCoder *)aDecoder
