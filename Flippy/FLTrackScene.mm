@@ -1998,15 +1998,9 @@ struct PointerPairHash
 
 - (void)FL_constructionToolbarShowSegments:(int)page animation:(HLToolbarNodeAnimation)animation
 {
-  // TODO: Page with page size 9 (so seven basic segments can fit on first page).
   NSMutableArray *toolNodes = [NSMutableArray array];
   NSMutableArray *toolTags = [NSMutableArray array];
   NSString *textureKey;
-
-  textureKey = @"main";
-  [toolTags addObject:textureKey];
-  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-  [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeNavigation] forKey:textureKey];
 
   textureKey = @"straight";
   [toolTags addObject:textureKey];
@@ -2105,7 +2099,22 @@ struct PointerPairHash
     [_constructionToolbarState.toolSegmentTypes setObject:[NSNumber numberWithInt:FLSegmentTypePlatformStart] forKey:textureKey];
   }
 
-  [_constructionToolbarState.toolbarNode setTools:toolNodes tags:toolTags animation:animation];
+  // note: Currently we create all tools and then discard those that aren't on the current page.
+  // Obviously that could be tweaked for performance.
+  NSMutableArray *pageToolNodes;
+  NSMutableArray *pageToolTags;
+  // note: There are currently seven basic segments, and it makes sense to put them all on the
+  // first page together, even if that means scaling.  In the future that might change, and
+  // we might instead use FL_constructionToolbarPageSize.
+  const int pageSize = 9;
+  [self FL_constructionToolbarSelectPageContentForNodes:toolNodes
+                                                   tags:toolTags
+                                                   page:page
+                                               pageSize:pageSize
+                                          pageToolNodes:&pageToolNodes
+                                           pageToolTags:&pageToolTags];
+  
+  [_constructionToolbarState.toolbarNode setTools:pageToolNodes tags:pageToolTags animation:animation];
 }
 
 - (void)FL_constructionToolbarShowImports:(NSString *)importDirectory page:(int)page animation:(HLToolbarNodeAnimation)animation
@@ -2162,37 +2171,29 @@ struct PointerPairHash
     [importTextureKeys addObject:importName];
   }
 
-  // Calculate page size.
+  // Calculate indexes that will be included in page.
+  //
+  // note: [begin,end)
+  NSUInteger importTextureKeysCount = [importTextureKeys count];
   NSUInteger pageSize = [self FL_constructionToolbarPageSize];
+  NSUInteger beginIndex;
+  NSUInteger endIndex;
+  [self FL_toolbarGetPageContentBeginIndex:&beginIndex endIndex:&endIndex forPage:page contentCount:importTextureKeysCount pageSize:pageSize];
 
   // Select tools for specified page.
-  NSUInteger importTextureKeysCount = [importTextureKeys count];
   NSMutableArray *toolNodes = [NSMutableArray array];
   NSMutableArray *toolTags = [NSMutableArray array];
-  // note: First main.
+  // note: First "main".
   NSString *textureKey = @"main";
   [toolTags addObject:textureKey];
   [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
   [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeNavigation] forKey:textureKey];
-  // note: [begin,end)
-  const NSUInteger importsPerMiddlePage = pageSize - 3;
-  // note: First page has room for an extra import, so add one to index.
-  // (Subtract it out below if we're on the first page.)
-  NSUInteger beginIndex = importsPerMiddlePage * (NSUInteger)page + 1;
-  NSUInteger endIndex = beginIndex + importsPerMiddlePage;
-  if (page == 0) {
-    --beginIndex;
-  } else {
+  // note: Next "previous".
+  if (page != 0) {
     textureKey = @"previous";
     [toolTags addObject:textureKey];
     [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
     [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeNavigation] forKey:textureKey];
-  }
-  // note: Last page has room for an extra import, so add one if we're
-  // indexed at the next-to-last; also, stay in bounds for partial last
-  // page.
-  if (endIndex + 1 >= importTextureKeysCount) {
-    endIndex = importTextureKeysCount;
   }
   // note: The page might end up with no imports if the requested page is too
   // large.  Caller beware.
@@ -2236,6 +2237,79 @@ struct PointerPairHash
     pageSize = 5;
   }
   return pageSize;
+}
+
+- (void)FL_constructionToolbarSelectPageContentForNodes:(NSArray *)toolNodes
+                                                   tags:(NSArray *)toolTags
+                                                   page:(int)page
+                                               pageSize:(NSUInteger)pageSize
+                                          pageToolNodes:(NSArray * __autoreleasing *)pageToolNodes
+                                           pageToolTags:(NSArray * __autoreleasing *)pageToolTags
+{
+  // Calculate indexes that will be included in page.
+  //
+  // note: [begin,end)
+  NSUInteger allNodesCount = [toolNodes count];
+  NSUInteger beginIndex;
+  NSUInteger endIndex;
+  [self FL_toolbarGetPageContentBeginIndex:&beginIndex endIndex:&endIndex forPage:page contentCount:allNodesCount pageSize:pageSize];
+  
+  NSMutableArray *selectedToolNodes = [NSMutableArray array];
+  NSMutableArray *selectedToolTags = [NSMutableArray array];
+
+  // First tool is always "main".
+  NSString *textureKey = @"main";
+  [selectedToolTags addObject:textureKey];
+  [selectedToolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+  [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeNavigation] forKey:textureKey];
+
+  // Next tool is "previous" if not on first page.
+  if (page != 0) {
+    textureKey = @"previous";
+    [selectedToolTags addObject:textureKey];
+    [selectedToolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+    [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeNavigation] forKey:textureKey];
+  }
+
+  // Then include the content tools.
+  for (NSUInteger i = beginIndex; i < endIndex; ++i) {
+    [selectedToolTags addObject:[toolTags objectAtIndex:i]];
+    [selectedToolNodes addObject:[toolNodes objectAtIndex:i]];
+  }
+
+  // And last a "next" button if not on last page.
+  if (endIndex < allNodesCount) {
+    textureKey = @"next";
+    [selectedToolTags addObject:textureKey];
+    [selectedToolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+    [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeNavigation] forKey:textureKey];
+  }
+  
+  *pageToolNodes = selectedToolNodes;
+  *pageToolTags = selectedToolTags;
+}
+
+- (void)FL_toolbarGetPageContentBeginIndex:(NSUInteger *)beginIndex
+                                  endIndex:(NSUInteger *)endIndex
+                                   forPage:(int)page
+                              contentCount:(NSUInteger)contentCount
+                                  pageSize:(NSUInteger)pageSize
+{
+  // note: [begin,end)
+  const NSUInteger contentPerMiddlePage = pageSize - 3;
+  // note: First page has room for an extra import, so add one to index.
+  // (Subtract it out below if we're on the first page.)
+  *beginIndex = contentPerMiddlePage * (NSUInteger)page + 1;
+  *endIndex = *beginIndex + contentPerMiddlePage;
+  if (page == 0) {
+    --(*beginIndex);
+  }
+  // note: Last page has room for an extra import, so add one if we're
+  // indexed at the next-to-last; also, stay in bounds for partial last
+  // page.
+  if (*endIndex + 1 >= contentCount) {
+    *endIndex = contentCount;
+  }
 }
 
 - (void)FL_simulationToolbarSetVisible:(BOOL)visible

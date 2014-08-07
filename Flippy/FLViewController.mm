@@ -812,6 +812,11 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
           self->_gameScene.size = self.view.bounds.size;
           self->_gameScene.delegate = self;
           // note: These archives weren't necessarily created with the correct level or game type information.
+          // TODO: But changing game type doesn't change e.g. the tools in the toolbar, which might differ
+          // based on game type.  Maybe add a special long-press action for export which exports as challenge
+          // game type?  Or no, just hardcode game type for export when doing my level exports from sandbox.
+          // Or: Start a challenge game, but set a "power user" permission which allows everything, and so
+          // allows me to export a challenge game as a level.
           self->_gameScene.gameType = gameType;
           self->_gameScene.gameLevel = gameLevel;
           break;
