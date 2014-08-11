@@ -198,6 +198,12 @@ struct FLLabelState
   NSSet *segmentNodesToBeLabeled;
 };
 
+struct FLGoalsState
+{
+  FLGoalsState() : goalsNotYetShown(NO) {}
+  BOOL goalsNotYetShown;
+};
+
 enum FLWorldPanType { FLWorldPanTypeNone, FLWorldPanTypeScroll, FLWorldPanTypeTrackMove, FLWorldPanTypeLink };
 
 enum FLWorldLongPressMode { FLWorldLongPressModeNone, FLWorldLongPressModeAdd, FLWorldLongPressModeErase };
@@ -262,6 +268,7 @@ struct PointerPairHash
   FLTrackMoveState _trackMoveState;
   FLLinkEditState _linkEditState;
   FLLabelState _labelState;
+  FLGoalsState _goalsState;
 
   HLMessageNode *_messageNode;
   FLTrain *_train;
@@ -463,6 +470,11 @@ struct PointerPairHash
   [aCoder encodeInt:_constructionToolbarState.currentPage forKey:@"constructionToolbarStateCurrentPage"];
 }
 
+- (void)notifyGameIsNew
+{
+  _goalsState.goalsNotYetShown = YES;
+}
+
 - (void)didMoveToView:(SKView *)view
 {
   [super didMoveToView:view];
@@ -488,7 +500,7 @@ struct PointerPairHash
   [self needSharedPinchGestureRecognizer];
 
   if (_gameType == FLGameTypeChallenge) {
-    [self FL_goalsShowWithResults:YES];
+    [self FL_goalsShowWithAutomatic:YES];
   }
 }
 
@@ -1221,7 +1233,7 @@ struct PointerPairHash
       self->_cameraMode = FLCameraModeFollowTrain;
     }];
   } else if ([tool isEqualToString:@"goals"]) {
-    [self FL_goalsShowWithResults:YES];
+    [self FL_goalsShowWithAutomatic:NO];
   }
 }
 
@@ -2435,10 +2447,16 @@ struct PointerPairHash
   _messageNode.size = CGSizeMake(self.size.width, FLMessageHeight);
 }
 
-- (void)FL_goalsShowWithResults:(BOOL)showResults
+- (void)FL_goalsShowWithAutomatic:(BOOL)automatic
 {
   const CGFloat FLZPositionGoalsOverlayDismissNode = 0.1f;
   const CGFloat FLZPositionGoalsOverlayVictoryButton = 0.2f;
+
+  // Hide results if this is a new game (either init'd or else loaded from an
+  // level archive) and if this goals screen is being shown "automatically" as
+  // part of the loading process (as opposed to commanded by the user).
+  BOOL showResults = !automatic || !_goalsState.goalsNotYetShown;
+  _goalsState.goalsNotYetShown = NO;
 
   SKNode *goalsOverlay = [SKNode node];
   NSMutableArray *layoutNodes = [NSMutableArray array];
@@ -2467,6 +2485,7 @@ struct PointerPairHash
   introNode.paragraphWidth = edgeSizeMax;
   [layoutNodes addObject:introNode];
 
+  HLLabelButtonNode *victoryButton = nil;
   if (showResults) {
     BOOL victory = NO;
     NSString *resultText = nil;
@@ -2509,7 +2528,7 @@ struct PointerPairHash
       [layoutNodes addObject:resultNode];
     }
     if (_gameType == FLGameTypeChallenge && victory) {
-      HLLabelButtonNode *victoryButton = FLInterfaceLabelButton();
+      victoryButton = FLInterfaceLabelButton();
       victoryButton.zPosition = FLZPositionGoalsOverlayVictoryButton;
       victoryButton.automaticHeight = YES;
       victoryButton.automaticWidth = YES;
@@ -2519,18 +2538,11 @@ struct PointerPairHash
       victoryButton.fontSize = 16.0f;
       victoryButton.text = NSLocalizedString(@"Next Level",
                                              @"Displayed on a button that takes you to the next level of a challenge game.");
-      victoryButton.addsToTapGestureRecognizer = YES;
-      __weak HLLabelButtonNode *victoryButtonWeak = victoryButton;
-      victoryButton.handleGestureBlock = ^(UIGestureRecognizer *gestureRecognizer){
-        [self unregisterDescendant:victoryButtonWeak];
-        [self dismissModalNodeAnimation:HLScenePresentationAnimationNone];
-        NSLog(@"next level!");
-      };
-      [self registerDescendant:victoryButton withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
       [layoutNodes addObject:victoryButton];
     }
   }
 
+  // Layout main components (not counting dismissNode).
   CGFloat totalHeight = 0.0f;
   for (id layoutNode in layoutNodes) {
     totalHeight += [layoutNode size].height;
@@ -2546,19 +2558,95 @@ struct PointerPairHash
   }
 
   HLGestureTargetSpriteNode *dismissNode = [HLGestureTargetSpriteNode spriteNodeWithColor:[SKColor clearColor] size:self.scene.size];
-  // noob: Some confusion around zPositions here.  I know that HLScene's presentModalNode
-  // will put the goalsOverlay somewhere between our passed min and max (FLZPositionModalMin
-  // and FLZPositionModalMax), but I don't know then exactly where dismissNode will end up.
-  // It doesn't matter, though, as long as it's at the top of the goalsOverlay.
+  // noob: Some confusion around zPositions here.  We don't need to know absolute zPosition of
+  // the dismissNode, which is a good thing, because it would be hard to figure out.  (I know that
+  // HLScene's presentModalNode will put the goalsOverlay somewhere between our passed min
+  // and max (FLZPositionModalMin and FLZPositionModalMax), but I don't know where.)
   dismissNode.zPosition = FLZPositionGoalsOverlayDismissNode;
-  dismissNode.addsToTapGestureRecognizer = YES;
+  [goalsOverlay addChild:dismissNode];
+
+  // Set up interactive elements.
+  //
+  // note: Okay, lots of thoughts here with putting two HLGestureTarget buttons on the same display
+  // without doing any subclassing.
+  //
+  //  1) The buttons need to be aware of each other.  Perhaps like the "Okay" and "Cancel" buttons
+  //     of an alert, all actions should pass through the same callback.  In that case, I'd maybe
+  //     have an FL_goalsDismissWithButtonIndex method, with stored goalsOverlay state from this
+  //     method, and set each of their handleGestureBlocks to call it.  But that seems to be getting
+  //     closer and closer to subclassing: The buttons are acting together, with shared state, and
+  //     so should be entirely encapsulated together.
+  //
+  //  2) But really, the only reason the buttons need to be aware of each other is (currently)
+  //     because of unregistering: they both need to unregister both (when dismissing the overlay).
+  //     Which reminds me that unregistering HLGestureTargets is a pain in the ass, and it would
+  //     (currently) not be hard to get rid of the NSSets in HLScene so that gesture targets kinda
+  //     didn't need to be unregistered (since all state would be stored in the node's userData,
+  //     and not in the HLScene).  BUT.  Unregistering still makes sense for other kinds of
+  //     HLScene behaviors, and NSSets in HLScene for gesture targets MIGHT prove required in the
+  //     future, and no matter what, unregistering is a nice option to have (even just to clear
+  //     userData) and so it philosophically makes sense to always do it.
+  //
+  //  3) Unregistering is especially a pain in the ass when an HLGestureTarget*Node wants to
+  //     unregister itself: The node contains a reference to the handleGesture block, but then
+  //     we try to make the block contain a reference to the node.  To break the retain cycle,
+  //     we can make the node reference weak, but that's just one more line of code in something
+  //     that already feels unnecessary.  Can there be a property in HLGestureTarget*Node for
+  //     (__weak HLScene *)autoUnregisterScene, which automatically unregisters itself when the node
+  //     is deallocated?
+  //
+  //  4) And in fact the real problem is HLGestureTarget*Nodes that don't just want to unregister
+  //     but in fact want to delete themselves.  Very common: Create some kind of dialog box, and
+  //     add a single button which dismisses it.  So then the button removes the dialog box from the
+  //     node hierarchy, no other references exist, the parent is deleted which deletes the children,
+  //     the button is deleted, so the callback block (being run) is deleted.  So (see notes in
+  //     notes/objective-c.txt) we have add TWO lines of code, making a strong reference (at block execution
+  //     time) of a weak reference (at block copy time) of the dialog box.  What a pain.  HLGestureTarget*Node
+  //     should make this easier for us somehow.  Could it retain a strong reference for us right before
+  //     invoking the block?
+  //
+  // For now: Consider it normal that, when building a node with multiple out-of-the-box HLGestureTargets,
+  // you have to set their handleGesture callbacks together, in a block of code like this one down at
+  // the bottom of the setup.
+  __weak HLLabelButtonNode *victoryButtonWeak = victoryButton;
   __weak HLGestureTargetSpriteNode *dismissNodeWeak = dismissNode;
+  if (victoryButton) {
+    victoryButton.addsToTapGestureRecognizer = YES;
+    victoryButton.handleGestureBlock = ^(UIGestureRecognizer *gestureRecognizer){
+      [self unregisterDescendant:victoryButtonWeak];
+      [self unregisterDescendant:dismissNodeWeak];
+      // noob: Retain a strong reference to block owner when dismissing the modal node; nobody else
+      // is retaining the victoryButton, but we'd like to finish running this block before getting
+      // deallocated.  The weak reference is copied with the block at copy time; now this strong
+      // reference (though theoretically possibly nil) will exist until we're done the block.  It's
+      // not actually clear how necessary this is, because I don't usually see problems unless this
+      // block starts deleting a whole bunch of stuff (like if the didTapNext delegate method deletes
+      // the scene right away, as it is prone to do if it is not careful).
+      __unused HLLabelButtonNode *victoryButtonStrongAgain = victoryButtonWeak;
+      [self dismissModalNodeAnimation:HLScenePresentationAnimationNone];
+      id<FLTrackSceneDelegate> delegate = self.delegate;
+      if (delegate) {
+        // noob: So this is dangerous.  The delegate is probably going to delete this scene.
+        // We've got strong references to the scene copied with the block, so let's make sure
+        // the block is gone before we try to deallocate the scene.  Okay so wait that's a problem
+        // with all existing blocks that reference self, right?  Like, they should all have __weak
+        // references?  Unless SKNode explicitly releases children during its deallocation.
+        // Sooooo . . . that's something to test.  For now, there aren't crashes, and if there's
+        // a retain cycle I haven't noticed it yet.
+        [delegate performSelector:@selector(trackSceneDidTapNextLevelButton:) withObject:self];
+      }
+    };
+    [self registerDescendant:victoryButton withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
+  }
+
+  dismissNode.addsToTapGestureRecognizer = YES;
   dismissNode.handleGestureBlock = ^(UIGestureRecognizer *gestureRecognizer){
+    [self unregisterDescendant:victoryButtonWeak];
     [self unregisterDescendant:dismissNodeWeak];
+    __unused HLGestureTargetSpriteNode *dismissNodeStrongAgain = dismissNodeWeak;
     [self dismissModalNodeAnimation:HLScenePresentationAnimationFade];
   };
   [self registerDescendant:dismissNode withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
-  [goalsOverlay addChild:dismissNode];
 
   [self presentModalNode:goalsOverlay animation:HLScenePresentationAnimationFade];
 }

@@ -33,6 +33,8 @@ FOUNDATION_EXPORT NSString * const FLGameTypeSandboxTitle;
 
 - (id)initWithSize:(CGSize)size gameType:(FLGameType)gameType gameLevel:(int)gameLevel;
 
+- (void)notifyGameIsNew;
+
 - (size_t)segmentCount;
 
 @end
@@ -40,5 +42,7 @@ FOUNDATION_EXPORT NSString * const FLGameTypeSandboxTitle;
 @protocol FLTrackSceneDelegate <NSObject>
 
 - (void)trackSceneDidTapMenuButton:(FLTrackScene *)trackScene;
+
+- (void)trackSceneDidTapNextLevelButton:(FLTrackScene *)trackScene;
 
 @end

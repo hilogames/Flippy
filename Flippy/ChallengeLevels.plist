@@ -15,5 +15,20 @@
 			<integer>0</integer>
 		</array>
 	</dict>
+	<dict>
+		<key>title</key>
+		<string>And Another</string>
+		<key>goal-short</key>
+		<string>X = A ∧ B (X is A and B)</string>
+		<key>goal-long</key>
+		<string>After the train has stopped, output X should be 1 if (and only if) both A and B are 1.</string>
+		<key>goal-values</key>
+		<array>
+			<integer>0</integer>
+			<integer>0</integer>
+			<integer>0</integer>
+			<integer>1</integer>
+		</array>
+	</dict>
 </array>
 </plist>

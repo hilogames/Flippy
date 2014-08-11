@@ -425,10 +425,6 @@ FL_runInputsToOutputs(const FLTrackGrid& trackGrid,
     currentProgress = (connectingProgress < 0.01f ? 1.0f : 0.0f);
   }
 
-  for (size_t b = 0; b < previousRunStates.bucket_count(); ++b) {
-    cout << previousRunStates.bucket_size(b) << " elements in bucket " << b << endl;
-  }
-
   // Copy output values.
   size_t o = 0;
   for (FLSegmentNode *outputSegmentNode in outputSegmentNodes) {

@@ -384,6 +384,19 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   _savedInGameOverlay = NO;
 }
 
+- (void)trackSceneDidTapNextLevelButton:(FLTrackScene *)trackScene
+{
+  // TODO: Test for completing last level.
+  FLGameType gameType = _gameScene.gameType;
+  int nextLevel = _gameScene.gameLevel + 1;
+  // noob: So this method is called by a block (in the scene) which may or may
+  // not contain the correct kind of references to the objects it needs to finish.
+  // But it seems to be working for now, even though I delete its scene out from
+  // under it.  More noobish notes are in FLTrackScene at the block invocation
+  // site.
+  [self FL_load:gameType gameLevel:nextLevel isNew:YES otherwiseSaveNumber:0];
+}
+
 #pragma mark -
 #pragma mark UIAlertViewDelegate
 
@@ -795,6 +808,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
           self->_gameScene = [[FLTrackScene alloc] initWithSize:self.view.bounds.size gameType:gameType gameLevel:gameLevel];
           self->_gameScene.delegate = self;
           self->_gameScene.scaleMode = SKSceneScaleModeResizeFill;
+          [self->_gameScene notifyGameIsNew];
           break;
         case FLGameTypeChallenge: {
           NSString *levelPath = [self FL_levelPathForGameType:gameType gameLevel:gameLevel];
@@ -817,6 +831,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
             [NSException raise:@"FLGameLoadFailure" format:@"Archive '%@' has game type %d and game %d but expected game type %d and level %d.",
              levelPath, self->_gameScene.gameType, self->_gameScene.gameLevel, gameType, gameLevel];
           }
+          [self->_gameScene notifyGameIsNew];
           break;
         }
         default:

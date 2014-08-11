@@ -9,10 +9,9 @@ Current
 
   . check out how koboldkit does its button behavior
 
-  . In challenge mode, you can't link to or from anything that is
-    linked to an input -- the train makes the connection.
-
-  . Make second challenge level, and connect to "next level" button.
+  . Challenge mode levels unlock gates and circuits in sandbox mode.
+    Completion of levels unlocks ability to start new challenge game
+    at (solved) levels.
 
   . Prettier highlight of join segment when linking.
 
@@ -21,14 +20,16 @@ Current
     - Show non-modal box highlighting an element.  Pan to element when
       tutorial message appears.  Tap message box for hints?
 
-  . Challenge levels: not, or, and, xor (no cross), xor (with cross).
-    Each one can be skipped?  Each one has hints?  If you can do it
-    under the piece count, then you unlock the corresponding gate in
-    sandbox mode.
+  . Challenge levels: not, and, or, xor (no cross), xor (with cross).
+    Each one can be skipped?  Each one has hints?
 
-  . Challenge mode levels unlock gates and circuits in sandbox mode.
-    Completion of levels unlocks ability to start new challenge game
-    at (solved) levels.
+  . Sound effects for challenge mode!  Also note any other sound
+    effects needed and do them at the same time.
+
+  . Track piece count for solved levels; have achievements.  Would be
+    cool if there were two achievements: the fewest piece award, but
+    also the rube goldberg award for more-than-X switched joins, and
+    "the long ride" for most traveled pieces, etc.
 
   . Pan world when track move (or multi-selection, or any pan gesture)
     goes to edge of scene.
