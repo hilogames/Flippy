@@ -4,7 +4,7 @@
 <array>
 	<dict>
 		<key>title</key>
-		<string>To Be Or Not To Be</string>
+		<string>Not a Problem</string>
 		<key>goal-short</key>
 		<string>X = ¬A (X is not A)</string>
 		<key>goal-long</key>
@@ -14,20 +14,30 @@
 			<integer>1</integer>
 			<integer>0</integer>
 		</array>
+		<key>victory-user-unlocks</key>
+		<array>
+			<string>FLUserUnlockLevel1</string>
+			<string>FLUserUnlockGateNot</string>
+		</array>
 	</dict>
 	<dict>
 		<key>title</key>
-		<string>And Another</string>
+		<string>This And That</string>
 		<key>goal-short</key>
 		<string>X = A ∧ B (X is A and B)</string>
 		<key>goal-long</key>
-		<string>After the train has stopped, output X should be 1 if (and only if) both A and B are 1.</string>
+		<string>After the train has stopped, output X should be 1 if (and only if) A and B are 1.</string>
 		<key>goal-values</key>
 		<array>
 			<integer>0</integer>
 			<integer>0</integer>
 			<integer>0</integer>
 			<integer>1</integer>
+		</array>
+		<key>victory-user-unlocks</key>
+		<array>
+			<string>FLUserUnlockLevel2</string>
+			<string>FLUserUnlockGateAnd</string>
 		</array>
 	</dict>
 </array>

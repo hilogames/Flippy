@@ -106,6 +106,18 @@ static int FLSquareIndexForLabelPickerLabel(char label) {
   return -1;
 }
 
+typedef enum FLUnlockItem {
+  FLUnlockGates,
+  FLUnlockGateNot1,
+  FLUnlockGateNot2,
+  FLUnlockGateAnd1,
+  FLUnlockGateOr1,
+  FLUnlockGateOr2,
+  FLUnlockGateXor1,
+  FLUnlockGateXor2,
+  FLUnlockCircuits,
+} FLUnlockItem;
+
 #pragma mark -
 #pragma mark States
 
@@ -500,7 +512,7 @@ struct PointerPairHash
   [self needSharedPinchGestureRecognizer];
 
   if (_gameType == FLGameTypeChallenge) {
-    [self FL_goalsShowWithAutomatic:YES];
+    [self FL_goalsShowWithSplash:YES];
   }
 }
 
@@ -1233,7 +1245,7 @@ struct PointerPairHash
       self->_cameraMode = FLCameraModeFollowTrain;
     }];
   } else if ([tool isEqualToString:@"goals"]) {
-    [self FL_goalsShowWithAutomatic:NO];
+    [self FL_goalsShowWithSplash:NO];
   }
 }
 
@@ -1741,7 +1753,7 @@ struct PointerPairHash
     if (_constructionToolbarState.currentPage > pageMax) {
       _constructionToolbarState.currentPage = pageMax;
     }
-    [self FL_constructionToolbarShowImports:FLExportsDirectoryPath page:_constructionToolbarState.currentPage animation:HLToolbarNodeAnimationNone];
+    [self FL_constructionToolbarShowExports:_constructionToolbarState.currentPage animation:HLToolbarNodeAnimationNone];
   }
 }
 
@@ -1948,11 +1960,11 @@ struct PointerPairHash
   } else if ([_constructionToolbarState.currentNavigation isEqualToString:@"segments"]) {
     [self FL_constructionToolbarShowSegments:_constructionToolbarState.currentPage animation:animation];
   } else if ([_constructionToolbarState.currentNavigation isEqualToString:@"gates"]) {
-    [self FL_constructionToolbarShowImports:FLGatesDirectoryPath page:_constructionToolbarState.currentPage animation:animation];
+    [self FL_constructionToolbarShowGates:_constructionToolbarState.currentPage animation:animation];
   } else if ([_constructionToolbarState.currentNavigation isEqualToString:@"circuits"]) {
-    [self FL_constructionToolbarShowImports:FLCircuitsDirectoryPath page:_constructionToolbarState.currentPage animation:animation];
+    [self FL_constructionToolbarShowCircuits:_constructionToolbarState.currentPage animation:animation];
   } else if ([_constructionToolbarState.currentNavigation isEqualToString:@"exports"]) {
-    [self FL_constructionToolbarShowImports:FLExportsDirectoryPath page:_constructionToolbarState.currentPage animation:animation];
+    [self FL_constructionToolbarShowExports:_constructionToolbarState.currentPage animation:animation];
   } else {
     [NSException raise:@"FLConstructionToolbarInvalidNavigation" format:@"Unrecognized navigation '%@'.", _constructionToolbarState.currentNavigation];
   }
@@ -2136,7 +2148,34 @@ struct PointerPairHash
   [_constructionToolbarState.toolbarNode setTools:pageToolNodes tags:pageToolTags animation:animation];
 }
 
-- (void)FL_constructionToolbarShowImports:(NSString *)importDirectory page:(int)page animation:(HLToolbarNodeAnimation)animation
+- (void)FL_constructionToolbarShowGates:(int)page animation:(HLToolbarNodeAnimation)animation
+{
+  vector<FLUnlockItem> unlockItems = {
+    FLUnlockGateNot1,
+    FLUnlockGateNot2,
+    FLUnlockGateAnd1,
+    FLUnlockGateOr1,
+    FLUnlockGateOr2,
+    FLUnlockGateXor1,
+    FLUnlockGateXor2,
+  };
+  [self FL_constructionToolbarShowImports:FLGatesDirectoryPath unlockItems:&unlockItems page:page animation:animation];
+}
+
+- (void)FL_constructionToolbarShowCircuits:(int)page animation:(HLToolbarNodeAnimation)animation
+{
+  [self FL_constructionToolbarShowImports:FLCircuitsDirectoryPath unlockItems:nullptr page:page animation:animation];
+}
+
+- (void)FL_constructionToolbarShowExports:(int)page animation:(HLToolbarNodeAnimation)animation
+{
+  [self FL_constructionToolbarShowImports:FLExportsDirectoryPath unlockItems:nullptr page:page animation:animation];
+}
+
+- (void)FL_constructionToolbarShowImports:(NSString *)importDirectory
+                              unlockItems:(vector<FLUnlockItem> *)unlockItems
+                                     page:(int)page
+                                animation:(HLToolbarNodeAnimation)animation
 {
   // Get a list of all imports (sorted appropriately).
   NSFileManager *fileManager = [NSFileManager defaultManager];
@@ -2174,6 +2213,7 @@ struct PointerPairHash
   }
 
   // Create textures for each import (if they don't already exist in shared store).
+  size_t unlockItemIndex = 0;
   NSMutableArray *importTextureKeys = [NSMutableArray array];
   for (NSString *importFile in importFiles) {
     NSString *importName = [importFile stringByDeletingPathExtension];
@@ -2187,7 +2227,10 @@ struct PointerPairHash
       [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeActionPan] forKey:importName];
       [_constructionToolbarState.toolDescriptions setObject:importDescription forKey:importName];
     }
-    [importTextureKeys addObject:importName];
+    if (!unlockItems || unlockItemIndex >= unlockItems->size() || [self FL_unlocked:(*unlockItems)[unlockItemIndex]]) {
+      [importTextureKeys addObject:importName];
+    }
+    ++unlockItemIndex;
   }
 
   // Calculate indexes that will be included in page.
@@ -2447,15 +2490,15 @@ struct PointerPairHash
   _messageNode.size = CGSizeMake(self.size.width, FLMessageHeight);
 }
 
-- (void)FL_goalsShowWithAutomatic:(BOOL)automatic
+- (void)FL_goalsShowWithSplash:(BOOL)splash
 {
   const CGFloat FLZPositionGoalsOverlayDismissNode = 0.1f;
   const CGFloat FLZPositionGoalsOverlayVictoryButton = 0.2f;
 
   // Hide results if this is a new game (either init'd or else loaded from an
-  // level archive) and if this goals screen is being shown "automatically" as
-  // part of the loading process (as opposed to commanded by the user).
-  BOOL showResults = !automatic || !_goalsState.goalsNotYetShown;
+  // level archive) and if this goals screen is being shown as a splash screen;
+  // that is, as part of the loading process (as opposed to commanded by the user).
+  BOOL showResults = !splash || !_goalsState.goalsNotYetShown;
   _goalsState.goalsNotYetShown = NO;
 
   SKNode *goalsOverlay = [SKNode node];
@@ -2528,6 +2571,8 @@ struct PointerPairHash
       [layoutNodes addObject:resultNode];
     }
     if (_gameType == FLGameTypeChallenge && victory) {
+      NSArray *victoryUserUnlocks = FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsVictoryUserUnlocks);
+      FLUserUnlocksUnlock(victoryUserUnlocks);
       victoryButton = FLInterfaceLabelButton();
       victoryButton.zPosition = FLZPositionGoalsOverlayVictoryButton;
       victoryButton.automaticHeight = YES;
@@ -3749,19 +3794,23 @@ struct PointerPairHash
   }
 }
 
-typedef enum FLUnlockItem {
-  FLUnlockGates,
-  FLUnlockGateNot,
-  FLUnlockCircuits,
-} FLUnlockItem;
-
 - (BOOL)FL_unlocked:(FLUnlockItem)item
 {
   if (_gameType == FLGameTypeChallenge) {
     switch (item) {
       case FLUnlockGates:
-      case FLUnlockGateNot:
         return _gameLevel >= 1;
+      case FLUnlockGateNot1:
+      case FLUnlockGateNot2:
+        return _gameLevel >= 1;
+      case FLUnlockGateAnd1:
+        return _gameLevel >= 2;
+      case FLUnlockGateOr1:
+      case FLUnlockGateOr2:
+        return _gameLevel >= 3;
+      case FLUnlockGateXor1:
+      case FLUnlockGateXor2:
+        return _gameLevel >= 4;
       case FLUnlockCircuits:
         return NO;
       default:
@@ -3770,14 +3819,24 @@ typedef enum FLUnlockItem {
   } else if (_gameType == FLGameTypeSandbox) {
     switch (item) {
       case FLUnlockGates:
-      case FLUnlockGateNot:
-        // note: Until something unlocks this, hardcode to true.
-        return YES;
-        //return [[NSUserDefaults standardUserDefaults] boolForKey:@"FLUnlockGateNot"];
+        return FLUserUnlocksUnlocked(@"FLUserUnlockGateNot")
+          || FLUserUnlocksUnlocked(@"FLUserUnlockGateAnd")
+          || FLUserUnlocksUnlocked(@"FLUserUnlockGateOr")
+          || FLUserUnlocksUnlocked(@"FLUserUnlockGateXor");
+      case FLUnlockGateNot1:
+      case FLUnlockGateNot2:
+        return FLUserUnlocksUnlocked(@"FLUserUnlockGateNot");
+      case FLUnlockGateAnd1:
+        return FLUserUnlocksUnlocked(@"FLUserUnlockGateAnd");
+      case FLUnlockGateOr1:
+      case FLUnlockGateOr2:
+        return FLUserUnlocksUnlocked(@"FLUserUnlockGateOr");
+      case FLUnlockGateXor1:
+      case FLUnlockGateXor2:
+        return FLUserUnlocksUnlocked(@"FLUserUnlockGateXor");
       case FLUnlockCircuits:
         // note: Until something unlocks this, hardcode to true.
         return YES;
-        //return [[NSUserDefaults standardUserDefaults] boolForKey:@"FLUnlockCircuits"];
       default:
         [NSException raise:@"FLUnlockItemUnknown" format:@"Unknown unlock item %d.", item];
     }

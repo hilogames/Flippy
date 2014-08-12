@@ -14,16 +14,23 @@ typedef enum FLChallengeLevelsInfoKey {
   FLChallengeLevelsTitle = 0,
   FLChallengeLevelsGoalShort,
   FLChallengeLevelsGoalLong,
-  FLChallengeLevelsGoalValues
+  FLChallengeLevelsGoalValues,
+  FLChallengeLevelsVictoryUserUnlocks,
 } FLChallengeLevelsInfoKey;
 
-int FLChallengeLevelsCount();
+FOUNDATION_EXPORT int FLChallengeLevelsCount();
 
 /**
  * Returns information about a level in a challenge game.  See
  * FLChallengeLevelsInfoKey for information available.
  */
 FOUNDATION_EXPORT id FLChallengeLevelsInfo(int gameLevel, FLChallengeLevelsInfoKey infoKey);
+
+FOUNDATION_EXPORT BOOL FLUserUnlocksUnlocked(NSString *unlockKey);
+
+FOUNDATION_EXPORT void FLUserUnlocksUnlock(NSArray *unlockKeys);
+
+FOUNDATION_EXPORT void FLUserUnlocksReset();
 
 /**
  * The standard application font.

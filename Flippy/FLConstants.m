@@ -12,11 +12,12 @@
 
 static NSArray *_challengeLevels = nil;
 
-static NSString * const FLChallengeLevelsInfoKeyString[4] = {
+static NSString * const FLChallengeLevelsInfoKeyString[5] = {
   @"title",
   @"goal-short",
   @"goal-long",
   @"goal-values",
+  @"victory-user-unlocks",
 };
 
 static void
@@ -56,6 +57,48 @@ FLChallengeLevelsInfo(int gameLevel, FLChallengeLevelsInfoKey infoKey)
   NSDictionary *challengeLevel = (NSDictionary *)[_challengeLevels objectAtIndex:(NSUInteger)gameLevel];
   NSString *infoKeyString = FLChallengeLevelsInfoKeyString[(int)infoKey];
   return [challengeLevel objectForKey:infoKeyString];
+}
+
+static NSMutableDictionary *_userUnlocks = nil;
+
+static void
+FLUserUnlocksInit()
+{
+  NSDictionary *userKeysUnlocked = [[NSUserDefaults standardUserDefaults] dictionaryForKey:@"FLUserUnlocks"];
+  if (userKeysUnlocked) {
+    _userUnlocks = [NSMutableDictionary dictionaryWithDictionary:userKeysUnlocked];
+  } else {
+    _userUnlocks = [NSMutableDictionary dictionary];
+  }
+}
+
+BOOL
+FLUserUnlocksUnlocked(NSString *unlockKey)
+{
+  if (!_userUnlocks) {
+    FLUserUnlocksInit();
+  }
+  NSNumber *value = [_userUnlocks objectForKey:unlockKey];
+  return (value && [value boolValue]);
+}
+
+void
+FLUserUnlocksUnlock(NSArray *unlockKeys)
+{
+  if (!_userUnlocks) {
+    FLUserUnlocksInit();
+  }
+  for (NSString *unlockKey in unlockKeys) {
+    [_userUnlocks setValue:[NSNumber numberWithBool:YES] forKey:unlockKey];
+  }
+  [[NSUserDefaults standardUserDefaults] setObject:_userUnlocks forKey:@"FLUserUnlocks"];
+}
+
+void
+FLUserUnlocksReset()
+{
+  _userUnlocks = [NSMutableDictionary dictionary];
+  [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"FLUserUnlocks"];
 }
 
 NSString *FLInterfaceFontName = @"Courier";

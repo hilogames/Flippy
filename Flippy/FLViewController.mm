@@ -282,6 +282,8 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
 
 - (BOOL)menuNode:(HLMenuNode *)menuNode shouldTapMenuItem:(HLMenuItem *)menuItem itemIndex:(NSUInteger)itemIndex
 {
+  HLMenu *menuItemParent = menuItem.parent;
+
   if (menuNode == _titleMenuNode) {
 
     if ([menuItem.text isEqualToString:FLTitleMenuSandbox]) {
@@ -295,9 +297,26 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
     } else if ([menuItem.text isEqualToString:FLTitleMenuChallenge]) {
       NSUInteger saveCount = [self FL_commonMenuUpdateSaves:(HLMenu *)menuItem forGameType:FLGameTypeChallenge includeNewButton:YES];
       // note: The important thing is the update of the menu, above.  But as a bonus, go straight
-      // to new game if there are no saves.
+      // to new menu if there are no saves, and to a new game if there are no special new-game options.
       if (saveCount == 0) {
-        [self FL_load:FLGameTypeChallenge gameLevel:0 isNew:YES otherwiseSaveNumber:0];
+        HLMenu *newMenu = (HLMenu *)[(HLMenu *)menuItem itemAtIndex:0];
+        NSUInteger newCount = [self FL_titleMenuUpdateNew:newMenu];
+        if (newCount == 1) {
+          [self FL_load:FLGameTypeChallenge gameLevel:0 isNew:YES otherwiseSaveNumber:0];
+        } else {
+          [self FL_titleSceneShowMessage:NSLocalizedString(@"Choose starting level.",
+                                                           @"Menu prompt: displayed when starting a new game over a list of challenge levels previously unlocked.")];
+          [menuNode navigateToSubmenuWithPathComponents:@[ FLTitleMenuChallenge, FLCommonMenuNew ]
+                                              animation:HLMenuNodeAnimationSlideLeft];
+        }
+        return NO;
+      }
+    } else if ([menuItem.text isEqualToString:FLCommonMenuNew]) {
+      // note: If this is a challenge game and there are special new-game options, then show the
+      // submenu.  Otherwise, go straight to a basic new game.
+      FLGameType gameType = ([menuItemParent.text isEqualToString:FLTitleMenuChallenge] ? FLGameTypeChallenge : FLGameTypeSandbox);
+      if (gameType == FLGameTypeSandbox || [self FL_titleMenuUpdateNew:(HLMenu *)menuItem] == 1) {
+        [self FL_load:gameType gameLevel:0 isNew:YES otherwiseSaveNumber:0];
         return NO;
       }
     }
@@ -309,7 +328,8 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
 
     if ([menuItem.text isEqualToString:FLGameMenuSave]) {
       [self FL_commonMenuUpdateSaves:(HLMenu *)menuItem forGameType:_gameScene.gameType includeNewButton:NO];
-      [self FL_gameOverlayShowMessage:@"Choose save slot."];
+      [self FL_gameOverlayShowMessage:NSLocalizedString(@"Choose save slot.",
+                                                        @"Menu prompt: displayed over a list of game slots for saving.")];
     }
 
     return YES;
@@ -321,16 +341,28 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
 - (void)menuNode:(HLMenuNode *)menuNode didTapMenuItem:(HLMenuItem *)menuItem itemIndex:(NSUInteger)itemIndex
 {
   NSLog(@"did tap menu item %@", [[menuItem pathComponents] componentsJoinedByString:@"/"]);
-  HLMenuItem *menuItemParent = menuItem.parent;
+  HLMenu *menuItemParent = menuItem.parent;
 
   if (menuNode == _titleMenuNode) {
 
-    if ([menuItem.text isEqualToString:FLTitleMenuChallenge]) {
-      [self FL_titleSceneShowMessage:@"Choose game to load."];
-    } else if ([menuItem.text isEqualToString:FLTitleMenuSandbox]) {
-      [self FL_titleSceneShowMessage:@"Choose game to load."];
+    if ([menuItem.text isEqualToString:FLCommonMenuNew]) {
+      [self FL_titleSceneShowMessage:NSLocalizedString(@"Choose starting level.",
+                                                       @"Menu prompt: displayed when starting a new game over a list of challenge levels previously unlocked.")];
+    } else if ([menuItemParent.text isEqualToString:FLCommonMenuNew]) {
+      // note: Assume this is a challenge game; sandbox games don't use a "New" submenu.
+      // note: Last item in parent menu is a "Back" button.
+      if (itemIndex + 1 < menuItemParent.itemCount) {
+        int gameLevel = (int)itemIndex;
+        [self FL_load:FLGameTypeChallenge gameLevel:gameLevel isNew:YES otherwiseSaveNumber:0];
+      }
+    } else if ([menuItem.text isEqualToString:FLTitleMenuChallenge]) {
+      [self FL_titleSceneShowMessage:NSLocalizedString(@"Choose game to load.",
+                                                       @"Menu prompt: displayed over a list of saved game slots.")];
     } else if ([menuItemParent.text isEqualToString:FLTitleMenuChallenge]) {
       [self FL_loadFromTitleMenu:FLGameTypeChallenge menuItem:menuItem itemIndex:itemIndex];
+    } else if ([menuItem.text isEqualToString:FLTitleMenuSandbox]) {
+      [self FL_titleSceneShowMessage:NSLocalizedString(@"Choose game to load.",
+                                                       @"Menu prompt: displayed over a list of saved game slots.")];
     } else if ([menuItemParent.text isEqualToString:FLTitleMenuSandbox]) {
       [self FL_loadFromTitleMenu:FLGameTypeSandbox menuItem:menuItem itemIndex:itemIndex];
     }
@@ -386,15 +418,33 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
 
 - (void)trackSceneDidTapNextLevelButton:(FLTrackScene *)trackScene
 {
-  // TODO: Test for completing last level.
+  int levelCount = FLChallengeLevelsCount();
   FLGameType gameType = _gameScene.gameType;
   int nextLevel = _gameScene.gameLevel + 1;
-  // noob: So this method is called by a block (in the scene) which may or may
-  // not contain the correct kind of references to the objects it needs to finish.
-  // But it seems to be working for now, even though I delete its scene out from
-  // under it.  More noobish notes are in FLTrackScene at the block invocation
-  // site.
-  [self FL_load:gameType gameLevel:nextLevel isNew:YES otherwiseSaveNumber:0];
+  if (nextLevel < levelCount) {
+    // noob: So this method is called by a block (in the scene) which may or may
+    // not contain the correct kind of references to the objects it needs to finish.
+    // But it seems to be working for now, even though I delete its scene out from
+    // under it.  More noobish notes are in FLTrackScene at the block invocation
+    // site.
+    [self FL_load:gameType gameLevel:nextLevel isNew:YES otherwiseSaveNumber:0];
+  } else {
+    // TODO: Nope, a victory screen will be triggered from inside the game, which
+    // will then better allow the user to continue playing after victory.  For now
+    // just hack in the code from FL_exit, but this is just temporary.
+    _gameScene = nil;
+    if (!_titleScene) {
+      [self FL_titleSceneCreate];
+    } else {
+      [self FL_titleSceneHideMessage];
+      HLMenuNode *titleMenuNode = _titleMenuNode;
+      [titleMenuNode navigateToTopMenuAnimation:HLMenuNodeAnimationNone];
+    }
+    [self.skView presentScene:_titleScene transition:[SKTransition fadeWithDuration:FLSceneTransitionDuration]];
+    _currentScene = _titleScene;
+    [self FL_titleSceneShowMessage:NSLocalizedString(@"Challenge completed!",
+                                                     @"Menu prompt: displayed when returning to main menu after completing all challenge levels.")];
+  }
 }
 
 #pragma mark -
@@ -521,16 +571,33 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   HLMenu *menu = [[HLMenu alloc] init];
 
   // note: Create empty loading menus for now; update later with FL_commonMenuUpdateSaves.
-  [menu addItem:[HLMenu menuWithText:FLTitleMenuChallenge
-                               items:@[ [HLMenuItem menuItemWithText:FLCommonMenuNew],
-                                        [HLMenuBackItem menuItemWithText:FLCommonMenuBack] ]]];
-  [menu addItem:[HLMenu menuWithText:FLTitleMenuSandbox
-                               items:@[ [HLMenuItem menuItemWithText:FLCommonMenuNew],
-                                        [HLMenuBackItem menuItemWithText:FLCommonMenuBack] ]]];
+  [menu addItem:[HLMenu menuWithText:FLTitleMenuChallenge items:@[] ]];
+  [menu addItem:[HLMenu menuWithText:FLTitleMenuSandbox items:@[] ]];
   [menu addItem:[HLMenuItem menuItemWithText:FLTitleMenuAbout]];
 
   HLMenuNode *titleMenuNode = _titleMenuNode;
   [titleMenuNode setMenu:menu animation:HLMenuNodeAnimationNone];
+}
+
+- (NSUInteger)FL_titleMenuUpdateNew:(HLMenu *)newMenu
+{
+  NSUInteger newCount = 0;
+  
+  // note: Precondition: This is a challenge game.
+  [newMenu removeAllItems];
+
+  int levelCount = FLChallengeLevelsCount();
+  for (int gameLevel = 0; gameLevel < levelCount; ++gameLevel) {
+    if (gameLevel == 0 || FLUserUnlocksUnlocked([NSString stringWithFormat:@"FLUserUnlockLevel%d", gameLevel])) {
+      NSString *levelTitle = FLChallengeLevelsInfo(gameLevel, FLChallengeLevelsTitle);
+      [newMenu addItem:[HLMenuItem menuItemWithText:[NSString stringWithFormat:@"%d: %@", gameLevel, levelTitle]]];
+      ++newCount;
+    }
+  }
+
+  [newMenu addItem:[HLMenuBackItem menuItemWithText:FLCommonMenuBack]];
+
+  return newCount;
 }
 
 - (void)FL_gameOverlayCreate
@@ -652,7 +719,8 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   [saveMenu removeAllItems];
 
   if (includeNewButton) {
-    [saveMenu addItem:[HLMenuItem menuItemWithText:FLCommonMenuNew]];
+    // note: Create empty "new" menu for now; update later with FL_titleMenuUpdateNew.
+    [saveMenu addItem:[HLMenu menuWithText:FLCommonMenuNew items:@[] ]];
   }
   
   NSUInteger saveCount = 0;
@@ -775,12 +843,17 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   // note: Item index: First "New" button, then saves (including empties), then "Back" button.
   // We handle it all (for now).
 
+  if (itemIndex == 0 && gameType == FLGameTypeChallenge) {
+    return;
+  }
+  
   if (itemIndex > FLSaveGameSlotCount) {
     return;
   }
 
   if ([menuItem.text isEqualToString:FLCommonMenuEmptySlot]) {
-    [self FL_titleSceneShowMessage:@"No game in slot."];
+    [self FL_titleSceneShowMessage:NSLocalizedString(@"No game in slot.",
+                                                     @"Menu prompt: displayed when user selects an empty game slot for loading.")];
     return;
   }
 

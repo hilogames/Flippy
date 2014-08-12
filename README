@@ -9,9 +9,10 @@ Current
 
   . check out how koboldkit does its button behavior
 
-  . Challenge mode levels unlock gates and circuits in sandbox mode.
-    Completion of levels unlocks ability to start new challenge game
-    at (solved) levels.
+  . Provide a settings submenu with reset button for resetting (or
+    setting all) global unlocks.
+
+  . Victory screen from inside game; see TODO in FLViewController.
 
   . Prettier highlight of join segment when linking.
 
