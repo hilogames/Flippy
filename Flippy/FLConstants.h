@@ -7,6 +7,7 @@
 //
 
 #import <Foundation/Foundation.h>
+#import <SpriteKit/SpriteKit.h>
 
 @class HLLabelButtonNode;
 
@@ -36,6 +37,16 @@ FOUNDATION_EXPORT void FLUserUnlocksReset();
  * The standard application font.
  */
 FOUNDATION_EXPORT NSString *FLInterfaceFontName;
+
+/**
+ * Standard application colors.
+ */
+FOUNDATION_EXPORT SKColor *FLInterfaceColorDark();
+FOUNDATION_EXPORT SKColor *FLInterfaceColorMedium();
+FOUNDATION_EXPORT SKColor *FLInterfaceColorLight();
+FOUNDATION_EXPORT SKColor *FLInterfaceColorGood();
+FOUNDATION_EXPORT SKColor *FLInterfaceColorMaybe();
+FOUNDATION_EXPORT SKColor *FLInterfaceColorBad();
 
 /**
  * Creates and returns an HLLabelButtonNode with a background used by

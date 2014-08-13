@@ -7,11 +7,6 @@ circuits.
 
 Current
 
-  . check out how koboldkit does its button behavior
-
-  . Provide a settings submenu with reset button for resetting (or
-    setting all) global unlocks.
-
   . Victory screen from inside game; see TODO in FLViewController.
 
   . Prettier highlight of join segment when linking.

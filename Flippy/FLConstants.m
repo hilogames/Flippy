@@ -103,6 +103,66 @@ FLUserUnlocksReset()
 
 NSString *FLInterfaceFontName = @"Courier";
 
+SKColor *
+FLInterfaceColorDark()
+{
+  static SKColor *color = nil;
+  if (!color) {
+    color = [SKColor colorWithRed:0.2f green:0.25f blue:0.4f alpha:1.0f];
+  }
+  return color;
+}
+
+SKColor *
+FLInterfaceColorMedium()
+{
+  static SKColor *color = nil;
+  if (!color) {
+    color = [SKColor colorWithRed:0.4f green:0.5f blue:0.8f alpha:1.0f];
+  }
+  return color;
+}
+
+SKColor *
+FLInterfaceColorLight()
+{
+  static SKColor *color = nil;
+  if (!color) {
+    color = [SKColor colorWithRed:0.6f green:0.75f blue:1.0f alpha:1.0f];
+  }
+  return color;
+}
+
+SKColor *
+FLInterfaceColorGood()
+{
+  static SKColor *color = nil;
+  if (!color) {
+    color = [SKColor colorWithRed:0.3f green:1.0f blue:0.3f alpha:1.0f];
+  }
+  return color;
+}
+
+SKColor *
+FLInterfaceColorMaybe()
+{
+  static SKColor *color = nil;
+  if (!color) {
+    color = [SKColor colorWithRed:1.0f green:0.7f blue:0.3f alpha:1.0f];
+  }
+  return color;
+}
+
+SKColor *
+FLInterfaceColorBad()
+{
+  static SKColor *color = nil;
+  if (!color) {
+    color = [SKColor colorWithRed:1.0f green:0.3f blue:0.3f alpha:1.0f];
+  }
+  return color;
+}
+
 HLLabelButtonNode *
 FLInterfaceLabelButton()
 {

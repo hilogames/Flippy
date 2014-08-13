@@ -67,13 +67,7 @@ static NSString *FLGatesDirectoryPath;
 static NSString *FLCircuitsDirectoryPath;
 static NSString *FLExportsDirectoryPath;
 
-static SKColor *FLColorInterfaceDark = [SKColor colorWithRed:0.2f green:0.25f blue:0.4f alpha:1.0f];
-static SKColor *FLColorInterfaceMedium = [SKColor colorWithRed:0.4f green:0.5f blue:0.8f alpha:1.0f];
-static SKColor *FLColorInterfaceLight = [SKColor colorWithRed:0.6f green:0.75f blue:1.0f alpha:1.0f];
-static SKColor *FLColorInterfaceGood = [SKColor colorWithRed:0.3f green:1.0f blue:0.3f alpha:1.0f];
-static SKColor *FLColorInterfaceBad = [SKColor colorWithRed:1.0f green:0.3f blue:0.3f alpha:1.0f];
-
-static SKColor *FLColorSceneBackground = [SKColor colorWithRed:0.4f green:0.6f blue:0.0f alpha:1.0f];
+static SKColor *FLSceneBackgroundColor = [SKColor colorWithRed:0.4f green:0.6f blue:0.0f alpha:1.0f];
 
 static const CGFloat FLLinkLineWidth = 2.0f;
 static SKColor *FLLinkLineColor = [SKColor colorWithRed:0.2f green:0.6f blue:0.9f alpha:1.0f];
@@ -526,7 +520,7 @@ struct PointerPairHash
 
 - (void)FL_createSceneContents
 {
-  self.backgroundColor = FLColorSceneBackground;
+  self.backgroundColor = FLSceneBackgroundColor;
   self.anchorPoint = CGPointMake(0.5f, 0.5f);
 
   // note: There is no lazy-load option for textures (and perhaps other scene
@@ -2540,11 +2534,11 @@ struct PointerPairHash
     if ([trackTruthTable.platformStartSegmentNodes count] != 1) {
       resultText = NSLocalizedString(@"(Results can only be shown when track contains exactly one Starting Platform.)",
                                      @"Game information: note explaining that results (including truth table) can't be shown until the track meets certain conditions.");
-      resultColor = FLColorInterfaceBad;
+      resultColor = FLInterfaceColorBad();
     } else if (trackTruthTable.state == FLTrackTruthTableStateMissingSegments) {
       resultText = NSLocalizedString(@"(Results can only be shown when track contains at least one Input Value and one Output Value.)",
                                      @"Game information: note explaining that results (including truth table) can't be shown until the track meets certain conditions.");
-      resultColor = FLColorInterfaceBad;
+      resultColor = FLInterfaceColorBad();
     } else {
       NSArray *goalValues = nil;
       if (_gameType == FLGameTypeChallenge) {
@@ -2555,11 +2549,11 @@ struct PointerPairHash
       if (_gameType == FLGameTypeChallenge && victory) {
         resultText = NSLocalizedString(@"Level Complete!",
                                        @"Game information: displayed when current level solution is correct according to goals.");
-        resultColor = FLColorInterfaceGood;
+        resultColor = FLInterfaceColorGood();
       } else if (trackTruthTable.state == FLTrackTruthTableStateInfiniteLoopDetected) {
         resultText = NSLocalizedString(@"Loop detected: The results simulation halted after finding a loop in the track.",
                                        @"Game information: displayed on the goals screen when a loop in the track is detected.");
-        resultColor = FLColorInterfaceBad;
+        resultColor = FLInterfaceColorBad();
       }
     }
     if (resultText) {
@@ -2740,13 +2734,13 @@ struct PointerPairHash
     for (int ov = 0; ov < outputSize; ++ov) {
       [contentTexts addObject:[NSString stringWithFormat:@"%d", outputValues[ov]]];
       if (!correctValues) {
-        [contentColors addObject:FLColorInterfaceLight];
+        [contentColors addObject:FLInterfaceColorLight()];
       } else {
         int correctValue = [[correctValues objectAtIndex:cv++] intValue];
         if (outputValues[ov] == correctValue) {
-          [contentColors addObject:FLColorInterfaceGood];
+          [contentColors addObject:FLInterfaceColorGood()];
         } else {
-          [contentColors addObject:FLColorInterfaceBad];
+          [contentColors addObject:FLInterfaceColorBad()];
           rowCorrect = NO;
           *correct = NO;
         }
@@ -2755,10 +2749,10 @@ struct PointerPairHash
     if (correctValues) {
       if (rowCorrect) {
         [contentTexts addObject:@"✓"];
-        [contentColors addObject:FLColorInterfaceGood];
+        [contentColors addObject:FLInterfaceColorGood()];
       } else {
         [contentTexts addObject:@"✗"];
-        [contentColors addObject:FLColorInterfaceBad];
+        [contentColors addObject:FLInterfaceColorBad()];
       }
     }
   } while (truthTable.inputValuesSuccessor(inputValues));
@@ -2914,7 +2908,7 @@ struct PointerPairHash
 
 - (void)FL_trackConflictShow:(FLSegmentNode *)segmentNode
 {
-  SKSpriteNode *conflictNode = [SKSpriteNode spriteNodeWithColor:FLColorInterfaceBad
+  SKSpriteNode *conflictNode = [SKSpriteNode spriteNodeWithColor:FLInterfaceColorBad()
                                                             size:CGSizeMake(FLSegmentArtSizeBasic * FLTrackArtScale,
                                                                             FLSegmentArtSizeBasic * FLTrackArtScale)];
   conflictNode.zPosition = FLZPositionWorldSelect;
@@ -3508,9 +3502,9 @@ struct PointerPairHash
                                                          squareSize:CGSizeMake(squareEdgeSize, squareEdgeSize)
                                                backgroundBorderSize:5.0f
                                                 squareSeparatorSize:1.0f];
-    _labelState.labelPicker.backgroundColor = FLColorInterfaceDark;
-    _labelState.labelPicker.squareColor = FLColorInterfaceMedium;
-    _labelState.labelPicker.highlightColor = FLColorInterfaceLight;
+    _labelState.labelPicker.backgroundColor = FLInterfaceColorDark();
+    _labelState.labelPicker.squareColor = FLInterfaceColorMedium();
+    _labelState.labelPicker.highlightColor = FLInterfaceColorLight();
     _labelState.labelPicker.content = letterNodes;
     // note: Could easily store referenes to segmentNodes in the block for each invocation,
     // and do all the work there, too, but I felt slightly anxious that then the block
