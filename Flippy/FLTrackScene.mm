@@ -2547,8 +2547,13 @@ struct PointerPairHash
       HLGridNode *truthTable = [self FL_truthTableCreate:trackTruthTable index:0 correctValues:goalValues correct:&victory];
       [layoutNodes addObject:truthTable];
       if (_gameType == FLGameTypeChallenge && victory) {
-        resultText = NSLocalizedString(@"Level Complete!",
-                                       @"Game information: displayed when current level solution is correct according to goals.");
+        if (_gameLevel + 1 >= FLChallengeLevelsCount()) {
+          resultText = NSLocalizedString(@"Last Level Complete!",
+                                         @"Game information: displayed when current level solution is correct according to goals and current level is the last level.");
+        } else {
+          resultText = NSLocalizedString(@"Level Complete!",
+                                         @"Game information: displayed when current level solution is correct according to goals.");
+        }
         resultColor = FLInterfaceColorGood();
       } else if (trackTruthTable.state == FLTrackTruthTableStateInfiniteLoopDetected) {
         resultText = NSLocalizedString(@"Loop detected: The results simulation halted after finding a loop in the track.",
@@ -2567,17 +2572,13 @@ struct PointerPairHash
     if (_gameType == FLGameTypeChallenge && victory) {
       NSArray *victoryUserUnlocks = FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsVictoryUserUnlocks);
       FLUserUnlocksUnlock(victoryUserUnlocks);
-      victoryButton = FLInterfaceLabelButton();
-      victoryButton.zPosition = FLZPositionGoalsOverlayVictoryButton;
-      victoryButton.automaticHeight = YES;
-      victoryButton.automaticWidth = YES;
-      victoryButton.labelPadX = 42.0f;
-      victoryButton.labelPadY = 8.0f;
-      victoryButton.fontName = FLInterfaceFontName;
-      victoryButton.fontSize = 16.0f;
-      victoryButton.text = NSLocalizedString(@"Next Level",
-                                             @"Displayed on a button that takes you to the next level of a challenge game.");
-      [layoutNodes addObject:victoryButton];
+      if (_gameLevel + 1 < FLChallengeLevelsCount()) {
+        victoryButton = FLInterfaceLabelButton();
+        victoryButton.zPosition = FLZPositionGoalsOverlayVictoryButton;
+        victoryButton.text = NSLocalizedString(@"Next Level",
+                                               @"Button: takes you to the next level of a challenge game.");
+        [layoutNodes addObject:victoryButton];
+      }
     }
   }
 

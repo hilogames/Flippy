@@ -432,22 +432,6 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
     // under it.  More noobish notes are in FLTrackScene at the block invocation
     // site.
     [self FL_load:gameType gameLevel:nextLevel isNew:YES otherwiseSaveNumber:0];
-  } else {
-    // TODO: Nope, a victory screen will be triggered from inside the game, which
-    // will then better allow the user to continue playing after victory.  For now
-    // just hack in the code from FL_exit, but this is just temporary.
-    _gameScene = nil;
-    if (!_titleScene) {
-      [self FL_titleSceneCreate];
-    } else {
-      [self FL_titleSceneHideMessage];
-      HLMenuNode *titleMenuNode = _titleMenuNode;
-      [titleMenuNode navigateToTopMenuAnimation:HLMenuNodeAnimationNone];
-    }
-    [self.skView presentScene:_titleScene transition:[SKTransition fadeWithDuration:FLSceneTransitionDuration]];
-    _currentScene = _titleScene;
-    [self FL_titleSceneShowMessage:NSLocalizedString(@"Challenge completed!",
-                                                     @"Menu prompt: displayed when returning to main menu after completing all challenge levels.")];
   }
 }
 
@@ -694,10 +678,6 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   static HLLabelButtonNode *buttonPrototype = nil;
   if (!buttonPrototype) {
     buttonPrototype = FLInterfaceLabelButton();
-    buttonPrototype.fontName = FLInterfaceFontName;
-    buttonPrototype.fontSize = 20.0f;
-    buttonPrototype.fontColor = [UIColor whiteColor];
-    buttonPrototype.size = CGSizeMake(240.0f, 36.0f);
     buttonPrototype.verticalAlignmentMode = HLLabelNodeVerticalAlignFontAscenderBias;
   }
   return buttonPrototype;

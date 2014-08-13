@@ -49,7 +49,12 @@ FOUNDATION_EXPORT SKColor *FLInterfaceColorMaybe();
 FOUNDATION_EXPORT SKColor *FLInterfaceColorBad();
 
 /**
- * Creates and returns an HLLabelButtonNode with a background used by
- * standard buttons in the application.
+ * Creates and returns an HLLabelButtonNode with a background, size, font,
+ * font color, and font size used by standard buttons in the application.
+ *
+ * note: This should be split into more-specific methods if callers so
+ * desire, e.g. one for returning buttons of a standard background, and
+ * another for also configuring sizes and fonts.  For now, all callers
+ * want the full package.
  */
 FOUNDATION_EXPORT HLLabelButtonNode *FLInterfaceLabelButton();

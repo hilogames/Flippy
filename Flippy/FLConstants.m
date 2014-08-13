@@ -168,5 +168,9 @@ FLInterfaceLabelButton()
 {
   HLLabelButtonNode *labelButton = [[HLLabelButtonNode alloc] initWithImageNamed:@"menu-button"];
   labelButton.centerRect = CGRectMake(0.3333333f, 0.3333333f, 0.3333333f, 0.3333333f);
+  labelButton.size = CGSizeMake(240.0f, 36.0f);
+  labelButton.fontName = FLInterfaceFontName;
+  labelButton.fontSize = 20.0f;
+  labelButton.fontColor = [UIColor whiteColor];
   return labelButton;
 }

@@ -7,10 +7,6 @@ circuits.
 
 Current
 
-  . Victory screen from inside game; see TODO in FLViewController.
-
-  . Prettier highlight of join segment when linking.
-
   . Tutorial mechanism for first challenge levels.
 
     - Show non-modal box highlighting an element.  Pan to element when
@@ -21,6 +17,9 @@ Current
 
   . Sound effects for challenge mode!  Also note any other sound
     effects needed and do them at the same time.
+
+  . Prettier highlight of join segment when linking.  Better detection
+    of "closest segment" when tapping.
 
   . Track piece count for solved levels; have achievements.  Would be
     cool if there were two achievements: the fewest piece award, but
