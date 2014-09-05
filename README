@@ -9,14 +9,14 @@ Current
 
   . Tutorial mechanism for first challenge levels.
 
-    - Show non-modal box highlighting an element.  Pan to element when
-      tutorial message appears.  Tap message box for hints?
+    - Resetting app resets tutorial.  Also, a special button for
+      resetting just the tutorial.
 
   . Challenge levels: not, and, or, xor (no cross), xor (with cross).
     Each one can be skipped?  Each one has hints?
 
   . Sound effects for challenge mode!  Also note any other sound
-    effects needed and do them at the same time.
+    effects needed and do them at the same time.  Victory, for instance.
 
   . Prettier highlight of join segment when linking.  Better detection
     of "closest segment" when tapping.

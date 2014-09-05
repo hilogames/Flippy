@@ -34,13 +34,19 @@ class FLTrackGrid;
 
 @property (nonatomic, weak) id<FLTrainDelegate> delegate;
 
-@property (nonatomic) BOOL running;
+@property (nonatomic, assign) BOOL running;
 
-- (id)initWithTrackGrid:(std::shared_ptr<FLTrackGrid>&)trackGrid;
+/**
+ * Speed in "path length per second", where a straight track segment has a standard path length
+ * of one.
+ */
+@property (nonatomic, assign) CGFloat trainSpeed;
+
+- (id)initWithTexture:(SKTexture *)texture trackGrid:(std::shared_ptr<FLTrackGrid>&)trackGrid;
 
 - (void)resetTrackGrid:(std::shared_ptr<FLTrackGrid>&)trackGrid;
 
-- (void)update:(CFTimeInterval)elapsedTime simulationSpeed:(int)simulationSpeed;
+- (void)update:(CFTimeInterval)elapsedTime;
 
 - (BOOL)moveToSegment:(FLSegmentNode *)segmentNode pathId:(int)pathId progress:(CGFloat)progress direction:(int)direction;
 

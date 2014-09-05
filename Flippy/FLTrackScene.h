@@ -30,10 +30,9 @@ FOUNDATION_EXPORT NSString * const FLGameTypeSandboxTitle;
 
 @property (nonatomic, readonly) FLGameType gameType;
 @property (nonatomic, readonly) int gameLevel;
+@property (nonatomic, assign) BOOL gameIsNew;
 
 - (id)initWithSize:(CGSize)size gameType:(FLGameType)gameType gameLevel:(int)gameLevel;
-
-- (void)notifyGameIsNew;
 
 - (size_t)segmentCount;
 

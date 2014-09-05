@@ -41,6 +41,7 @@ static const CGFloat FLTrackArtScale = 2.0f;
 static const CGFloat FLZPositionWorld = 0.0f;
 static const CGFloat FLZPositionHud = 10.0f;
 static const CGFloat FLZPositionModal = 20.0f;
+static const CGFloat FLZPositionTutorial = 30.0f;
 // World sublayers.
 static const CGFloat FLZPositionWorldTerrain = 0.0f;
 static const CGFloat FLZPositionWorldSelect = 1.0f;
@@ -53,8 +54,10 @@ static const CGFloat FLZPositionModalMin = FLZPositionModal;
 static const CGFloat FLZPositionModalMax = FLZPositionModal + 1.0f;
 
 static const NSTimeInterval FLWorldAdjustDuration = 0.5;
+static const NSTimeInterval FLWorldAdjustDurationSlow = 1.0;
 static const NSTimeInterval FLTrackRotateDuration = 0.1;
 static const NSTimeInterval FLBlinkHalfCycleDuration = 0.1;
+static const NSTimeInterval FLTutorialStepFadeDuration = 0.4;
 
 // noob: The tool art uses a somewhat arbitrary size.  The display height is
 // chosen based on the screen layout.  Perhaps scaling like that is a bad idea.
@@ -100,7 +103,7 @@ static int FLSquareIndexForLabelPickerLabel(char label) {
   return -1;
 }
 
-typedef enum FLUnlockItem {
+enum FLUnlockItem {
   FLUnlockGates,
   FLUnlockGateNot1,
   FLUnlockGateNot2,
@@ -110,7 +113,8 @@ typedef enum FLUnlockItem {
   FLUnlockGateXor1,
   FLUnlockGateXor2,
   FLUnlockCircuits,
-} FLUnlockItem;
+  FLUnlockTutorialCompleted,
+};
 
 #pragma mark -
 #pragma mark States
@@ -204,12 +208,6 @@ struct FLLabelState
   NSSet *segmentNodesToBeLabeled;
 };
 
-struct FLGoalsState
-{
-  FLGoalsState() : goalsNotYetShown(NO) {}
-  BOOL goalsNotYetShown;
-};
-
 enum FLWorldPanType { FLWorldPanTypeNone, FLWorldPanTypeScroll, FLWorldPanTypeTrackMove, FLWorldPanTypeLink };
 
 enum FLWorldLongPressMode { FLWorldLongPressModeNone, FLWorldLongPressModeAdd, FLWorldLongPressModeErase };
@@ -228,6 +226,76 @@ struct FLWorldGestureState
 };
 
 enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
+
+enum FLTutorialAction {
+  FLTutorialActionNone,
+  FLTutorialActionBackdropTap,
+  FLTutorialActionBackdropLongPress,
+  FLTutorialActionConstructionToolbarTap,
+  FLTutorialActionConstructionToolbarPanBegan,
+  FLTutorialActionConstructionToolbarPanEnded,
+  FLTutorialActionSimulationToolbarTap,
+  FLTutorialActionSimulationStarted,
+  FLTutorialActionSimulationStopped,
+  FLTutorialActionGoalsDismissed,
+  FLTutorialActionLinkEditBegan,
+  FLTutorialActionLinkCreated,
+};
+
+static const NSUInteger FLTutorialResultNone = 0;
+static const NSUInteger FLTutorialResultContinue = (1 << 0);
+static const NSUInteger FLTutorialResultRepeat = (1 << 1);
+static const NSUInteger FLTutorialResultPrevious = (1 << 2);
+static const NSUInteger FLTutorialResultHideBackdropAllowInteraction = (1 << 3);
+static const NSUInteger FLTutorialResultHideBackdropDisallowInteraction = (1 << 4);
+
+struct FLTutorialCutout {
+  FLTutorialCutout() {}
+  FLTutorialCutout(SKSpriteNode *spriteNode_, UIImage *image_, BOOL allowsGestures_)
+    : spriteNode(spriteNode_), image(image_), allowsGestures(allowsGestures_) {}
+  FLTutorialCutout(SKSpriteNode *spriteNode_, BOOL allowsGestures_)
+    : spriteNode(spriteNode_), image(nil), allowsGestures(allowsGestures_) {}
+  FLTutorialCutout(const CGRect& rect_, BOOL allowsGestures_)
+    : rect(rect_), allowsGestures(allowsGestures_) {}
+  SKSpriteNode *spriteNode;
+  UIImage *image;
+  CGRect rect;
+  BOOL allowsGestures;
+};
+
+// note: Takes an array of arguments (those passed at runtime to FL_tutorialRecognizedAction)
+// and returns a bitmask of results.
+typedef NSUInteger(^FLTutorialConditionBlock)(NSArray *);
+
+struct FLTutorialCondition {
+  FLTutorialCondition(FLTutorialAction action_, NSUInteger simpleResults_) : action(action_), simpleResults(simpleResults_), dynamicResults(nil) {}
+  FLTutorialCondition(FLTutorialAction action_, FLTutorialConditionBlock dynamicResults_) : action(action_), simpleResults(FLTutorialResultNone), dynamicResults(dynamicResults_) {}
+  FLTutorialAction action;
+  NSUInteger simpleResults;
+  FLTutorialConditionBlock dynamicResults;
+};
+
+enum FLTutorialLabelPosition {
+  FLTutorialLabelCenterScene,
+  FLTutorialLabelUpperScene,
+  FLTutorialLabelLowerScene,
+  FLTutorialLabelAboveFirstCutout,
+  FLTutorialLabelAboveCutouts,
+  FLTutorialLabelBelowFirstCutout,
+  FLTutorialLabelBelowCutouts,
+};
+
+struct FLTutorialState
+{
+  FLTutorialState() : step(0), tutorialActive(NO), backdropNode(nil), disallowOtherGestures(YES), labelPosition(FLTutorialLabelCenterScene) {}
+  int step;
+  BOOL tutorialActive;
+  SKSpriteNode *backdropNode;
+  BOOL disallowOtherGestures;
+  FLTutorialLabelPosition labelPosition;
+  vector<FLTutorialCutout> cutouts;
+  vector<FLTutorialCondition> conditions;
+};
 
 #pragma mark -
 #pragma mark Scene
@@ -264,6 +332,7 @@ struct PointerPairHash
   shared_ptr<FLTrackGrid> _trackGrid;
   FLLinks _links;
 
+  FLTutorialState _tutorialState;
   FLExportState _exportState;
   FLWorldGestureState _worldGestureState;
   FLConstructionToolbarState _constructionToolbarState;
@@ -274,7 +343,6 @@ struct PointerPairHash
   FLTrackMoveState _trackMoveState;
   FLLinkEditState _linkEditState;
   FLLabelState _labelState;
-  FLGoalsState _goalsState;
 
   HLMessageNode *_messageNode;
   FLTrain *_train;
@@ -309,6 +377,9 @@ struct PointerPairHash
   if (self) {
     _gameType = gameType;
     _gameLevel = gameLevel;
+    // note: Assume game is old unless explicitly told otherwise by the view controller.
+    // It's hard for us to know by ourselves.
+    _gameIsNew = NO;
     _cameraMode = FLCameraModeManual;
     _simulationRunning = NO;
     _simulationSpeed = 0;
@@ -335,6 +406,7 @@ struct PointerPairHash
 
     _gameType = (FLGameType)[aDecoder decodeIntForKey:@"gameType"];
     _gameLevel = [aDecoder decodeIntForKey:@"gameLevel"];
+    _tutorialState.step = [aDecoder decodeIntForKey:@"tutorialStateStep"];
     _cameraMode = (FLCameraMode)[aDecoder decodeIntForKey:@"cameraMode"];
     // note: These settings affect the state of the simulation toolbar at creation;
     // make sure they are decoded before the simulation toolbar is created.
@@ -382,6 +454,9 @@ struct PointerPairHash
     _train = [aDecoder decodeObjectForKey:@"train"];
     _train.delegate = self;
     [_train resetTrackGrid:_trackGrid];
+    // TODO: Some older archives were created with wrong train speeds.  Reset it here upon decoding; can
+    // delete this code once (if) all archives have been recreated recently.
+    [self FL_train:_train setSpeed:_simulationSpeed];
 
     // Decode current selection.
     NSMutableSet *selectedSegments = [aDecoder decodeObjectForKey:@"trackSelectStateSelectedSegments"];
@@ -425,6 +500,9 @@ struct PointerPairHash
   if (messageNodeAddedToParent) {
     [_messageNode removeFromParent];
   }
+  if (_tutorialState.backdropNode) {
+    [_tutorialState.backdropNode removeFromParent];
+  }
 
   // Persist SKScene (including current node hierarchy).
   [super encodeWithCoder:aCoder];
@@ -446,6 +524,9 @@ struct PointerPairHash
   if (messageNodeAddedToParent) {
     [_hudNode addChild:_messageNode];
   }
+  if (_tutorialState.backdropNode) {
+    [self addChild:_tutorialState.backdropNode];
+  }
 
   // Persist special node pointers (that should already been encoded
   // as part of hierarchy).
@@ -463,6 +544,7 @@ struct PointerPairHash
   // Encode other state.
   [aCoder encodeInt:(int)_gameType forKey:@"gameType"];
   [aCoder encodeInt:_gameLevel forKey:@"gameLevel"];
+  [aCoder encodeInt:_tutorialState.step forKey:@"tutorialStateStep"];
   [aCoder encodeInt:(int)_cameraMode forKey:@"cameraMode"];
   [aCoder encodeBool:_simulationRunning forKey:@"simulationRunning"];
   [aCoder encodeInt:_simulationSpeed forKey:@"simulationSpeed"];
@@ -474,11 +556,6 @@ struct PointerPairHash
   [aCoder encodeBool:_valuesVisible forKey:@"valuesVisible"];
   [aCoder encodeObject:_constructionToolbarState.currentNavigation forKey:@"constructionToolbarStateCurrentNavigation"];
   [aCoder encodeInt:_constructionToolbarState.currentPage forKey:@"constructionToolbarStateCurrentPage"];
-}
-
-- (void)notifyGameIsNew
-{
-  _goalsState.goalsNotYetShown = YES;
 }
 
 - (void)didMoveToView:(SKView *)view
@@ -506,13 +583,16 @@ struct PointerPairHash
   [self needSharedPinchGestureRecognizer];
 
   if (_gameType == FLGameTypeChallenge) {
-    [self FL_goalsShowWithSplash:YES];
+    if ([self FL_unlocked:FLUnlockTutorialCompleted] || ![self FL_tutorialStepAnimated:_gameIsNew]) {
+      [self FL_goalsShowWithSplash:YES];
+    }
   }
 }
 
 - (void)didChangeSize:(CGSize)oldSize
 {
   [super didChangeSize:oldSize];
+  [self FL_tutorialUpdateGeometry];
   [self FL_constructionToolbarUpdateGeometry];
   [self FL_simulationToolbarUpdateGeometry];
   [self FL_messageUpdateGeometry];
@@ -566,10 +646,7 @@ struct PointerPairHash
 
   // Create other content.
 
-  _train = [[FLTrain alloc] initWithTrackGrid:_trackGrid];
-  _train.delegate = self;
-  _train.scale = FLTrackArtScale;
-  _train.zPosition = FLZPositionWorldTrain;
+  _train = [self FL_trainCreate];
   [_worldNode addChild:_train];
 
   [self FL_constructionToolbarSetVisible:YES];
@@ -649,7 +726,7 @@ struct PointerPairHash
   }
 
   if (_simulationRunning) {
-    [_train update:elapsedTime simulationSpeed:_simulationSpeed];
+    [_train update:elapsedTime];
   }
 }
 
@@ -964,6 +1041,10 @@ struct PointerPairHash
     return;
   }
 
+  if (_tutorialState.tutorialActive) {
+    [self FL_tutorialRecognizedAction:FLTutorialActionConstructionToolbarTap withArguments:@[ toolTag ]];
+  }
+
   FLToolbarToolType toolType = (FLToolbarToolType)[[_constructionToolbarState.toolTypes objectForKey:toolTag] intValue];
 
   // If navigating, reset state on mode buttons.
@@ -1096,6 +1177,10 @@ struct PointerPairHash
     [self FL_trackSelectClear];
     _worldGestureState.panType = FLWorldPanTypeTrackMove;
 
+    if (_tutorialState.tutorialActive) {
+      [self FL_tutorialRecognizedAction:FLTutorialActionConstructionToolbarPanBegan withArguments:@[ toolTag ]];
+    }
+
     if ([_constructionToolbarState.currentNavigation isEqualToString:@"segments"]) {
 
       FLSegmentType segmentType = (FLSegmentType)[[_constructionToolbarState.toolSegmentTypes objectForKey:toolTag] intValue];
@@ -1200,6 +1285,9 @@ struct PointerPairHash
   if (gestureRecognizer.state == UIGestureRecognizerStateChanged) {
     [self FL_trackMoveChangedWithLocation:worldLocation];
   } else if (gestureRecognizer.state == UIGestureRecognizerStateEnded) {
+    if (_tutorialState.tutorialActive) {
+      [self FL_tutorialRecognizedAction:FLTutorialActionConstructionToolbarPanEnded withArguments:nil];
+    }
     [self FL_trackMoveEndedWithLocation:worldLocation];
   } else if (gestureRecognizer.state == UIGestureRecognizerStateCancelled) {
     [self FL_trackMoveCancelledWithLocation:worldLocation];
@@ -1211,25 +1299,30 @@ struct PointerPairHash
   CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
   CGPoint sceneLocation = [self convertPointFromView:viewLocation];
   CGPoint toolbarLocation = [_simulationToolbarState.toolbarNode convertPoint:sceneLocation fromNode:self];
-  NSString *tool = [_simulationToolbarState.toolbarNode toolAtLocation:toolbarLocation];
-  if (!tool) {
+  NSString *toolTag = [_simulationToolbarState.toolbarNode toolAtLocation:toolbarLocation];
+  if (!toolTag) {
     return;
   }
 
-  if ([tool isEqualToString:@"menu"]) {
+  if (_tutorialState.tutorialActive) {
+    [self FL_tutorialRecognizedAction:FLTutorialActionSimulationToolbarTap withArguments:@[ toolTag ]];
+  }
+
+  if ([toolTag isEqualToString:@"menu"]) {
     id<FLTrackSceneDelegate> delegate = self.delegate;
     if (delegate) {
       [delegate trackSceneDidTapMenuButton:self];
     }
-  } else if ([tool isEqualToString:@"play"]) {
+  } else if ([toolTag isEqualToString:@"play"]) {
+    [self FL_trackEditMenuHideAnimated:YES];
     [self FL_simulationStart];
-  } else if ([tool isEqualToString:@"pause"]) {
+  } else if ([toolTag isEqualToString:@"pause"]) {
     [self FL_simulationStop];
-  } else if ([tool isEqualToString:@"ff"]) {
+  } else if ([toolTag isEqualToString:@"ff"]) {
     [self FL_simulationCycleSpeed];
-  } else if ([tool isEqualToString:@"fff"]) {
+  } else if ([toolTag isEqualToString:@"fff"]) {
     [self FL_simulationCycleSpeed];
-  } else if ([tool isEqualToString:@"center"]) {
+  } else if ([toolTag isEqualToString:@"center"]) {
     CGPoint trainSceneLocation = [self convertPoint:_train.position fromNode:_worldNode];
     CGPoint worldPosition = CGPointMake(_worldNode.position.x - trainSceneLocation.x,
                                         _worldNode.position.y - trainSceneLocation.y);
@@ -1238,7 +1331,7 @@ struct PointerPairHash
     [_worldNode runAction:move completion:^{
       self->_cameraMode = FLCameraModeFollowTrain;
     }];
-  } else if ([tool isEqualToString:@"goals"]) {
+  } else if ([toolTag isEqualToString:@"goals"]) {
     [self FL_goalsShowWithSplash:NO];
   }
 }
@@ -1252,12 +1345,12 @@ struct PointerPairHash
   CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
   CGPoint sceneLocation = [self convertPointFromView:viewLocation];
   CGPoint toolbarLocation = [_simulationToolbarState.toolbarNode convertPoint:sceneLocation fromNode:self];
-  NSString *tool = [_simulationToolbarState.toolbarNode toolAtLocation:toolbarLocation];
-  if (!tool) {
+  NSString *toolTag = [_simulationToolbarState.toolbarNode toolAtLocation:toolbarLocation];
+  if (!toolTag) {
     return;
   }
 
-  if ([tool isEqualToString:@"center"]) {
+  if ([toolTag isEqualToString:@"center"]) {
     CGFloat startScale = _worldNode.xScale;
     SKAction *scaleWorld = [SKAction customActionWithDuration:FLWorldAdjustDuration actionBlock:^(SKNode *node, CGFloat elapsedTime){
       CGFloat currentScale = startScale + (1.0f - startScale) * (CGFloat)(elapsedTime / FLWorldAdjustDuration);
@@ -1275,19 +1368,19 @@ struct PointerPairHash
   CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
   CGPoint sceneLocation = [self convertPointFromView:viewLocation];
   CGPoint toolbarLocation = [_trackEditMenuState.editMenuNode convertPoint:sceneLocation fromNode:self];
-  NSString *button = [_trackEditMenuState.editMenuNode toolAtLocation:toolbarLocation];
+  NSString *buttonTag = [_trackEditMenuState.editMenuNode toolAtLocation:toolbarLocation];
 
-  if ([button isEqualToString:@"rotate-cw"]) {
+  if ([buttonTag isEqualToString:@"rotate-cw"]) {
     [self FL_trackRotateSegments:_trackSelectState.selectedSegments rotateBy:-1 animated:YES];
-  } else if ([button isEqualToString:@"rotate-ccw"]) {
+  } else if ([buttonTag isEqualToString:@"rotate-ccw"]) {
     [self FL_trackRotateSegments:_trackSelectState.selectedSegments rotateBy:1 animated:YES];
-  } else if ([button isEqualToString:@"toggle-switch"]) {
+  } else if ([buttonTag isEqualToString:@"toggle-switch"]) {
     for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
       linksToggleSwitchPathId(_links, segmentNode, YES);
     }
-  } else if ([button isEqualToString:@"set-label"]) {
+  } else if ([buttonTag isEqualToString:@"set-label"]) {
     [self FL_labelPickForSegments:_trackSelectState.selectedSegments];
-  } else if ([button isEqualToString:@"delete"]) {
+  } else if ([buttonTag isEqualToString:@"delete"]) {
     if (_gameType == FLGameTypeSandbox) {
       [self FL_trackEraseSegments:_trackSelectState.selectedSegments animated:YES];
       [self FL_trackSelectClear];
@@ -1320,10 +1413,10 @@ struct PointerPairHash
   CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
   CGPoint sceneLocation = [self convertPointFromView:viewLocation];
   CGPoint toolbarLocation = [_trackEditMenuState.editMenuNode convertPoint:sceneLocation fromNode:self];
-  NSString *button = [_trackEditMenuState.editMenuNode toolAtLocation:toolbarLocation];
+  NSString *buttonTag = [_trackEditMenuState.editMenuNode toolAtLocation:toolbarLocation];
 
-  if ([button isEqualToString:@"toggle-switch"]) {
-    BOOL setEnabled = ![_trackEditMenuState.editMenuNode enabledForTool:button];
+  if ([buttonTag isEqualToString:@"toggle-switch"]) {
+    BOOL setEnabled = ![_trackEditMenuState.editMenuNode enabledForTool:buttonTag];
     for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
       [self FL_linkSwitchSetEnabled:setEnabled forSegment:segmentNode];
     }
@@ -1355,6 +1448,16 @@ struct PointerPairHash
     CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
     [_train moveToClosestOnTrackLocationForLocation:worldLocation gridSearchDistance:FLGridSearchDistance progressPrecision:progressPrecision];
   }
+}
+
+- (void)handleTutorialTap:(UIGestureRecognizer *)gestureRecognizer
+{
+  [self FL_tutorialRecognizedAction:FLTutorialActionBackdropTap withArguments:nil];
+}
+
+- (void)handleTutorialLongPress:(UIGestureRecognizer *)gestureRecognizer
+{
+  [self FL_tutorialRecognizedAction:FLTutorialActionBackdropLongPress withArguments:nil];
 }
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer
@@ -1401,6 +1504,39 @@ struct PointerPairHash
   // fine-grained, would be that touches might need to fall through from one handler to another.  For
   // instance, maybe it takes a sophisticated check to determine if a tap within the bounds of a toolbar
   // should count as a tap on the toolbar or a tap on the world behind it.
+
+  // Tutorial.
+  if (_tutorialState.tutorialActive) {
+    if (_tutorialState.backdropNode) {
+      BOOL passGestureToOtherHandlers = NO;
+      for (const FLTutorialCutout& cutout : _tutorialState.cutouts) {
+        if (cutout.allowsGestures && CGRectContainsPoint(cutout.rect, sceneLocation)) {
+          passGestureToOtherHandlers = YES;
+          break;
+        }
+      }
+      if (!passGestureToOtherHandlers) {
+        if (gestureRecognizer == _tapRecognizer) {
+          [gestureRecognizer removeTarget:nil action:nil];
+          [gestureRecognizer addTarget:self action:@selector(handleTutorialTap:)];
+          return YES;
+        }
+        if (gestureRecognizer == _longPressRecognizer) {
+          [gestureRecognizer removeTarget:nil action:nil];
+          [gestureRecognizer addTarget:self action:@selector(handleTutorialLongPress:)];
+          return YES;
+        }
+        // note: Gesture is on backdrop for a gesture that the backdrop doesn't care about.
+        // No gesture target added, and don't allow any other adds below.
+        return NO;
+      }
+    } else if (_tutorialState.disallowOtherGestures) {
+      // note: The backdrop always disallows other gestures.  But if the backdrop is hidden during an active
+      // tutorial, the step setup will tell us whether we should disallow other gestures (e.g. to show a
+      // "cutscene") or allow them (so the user can interact fully with the scene).
+      return NO;
+    }
+  }
 
   // Modal overlay layer (handled by HLScene).
   if ([self modalNodePresented]) {
@@ -1519,8 +1655,7 @@ struct PointerPairHash
 - (void)train:(FLTrain *)train stoppedAtSegment:(FLSegmentNode *)segmentNode
 {
   // note: Currently only one train, so if train stops then stop the whole simulation.
-  _simulationRunning = NO;
-  [self FL_simulationToolbarUpdateTools];
+  [self FL_simulationStop];
 
   if (_gameType == FLGameTypeChallenge) {
     if (segmentNode.segmentType == FLSegmentTypePlatform) {
@@ -1552,8 +1687,7 @@ struct PointerPairHash
 - (void)train:(FLTrain *)train crashedAtSegment:(FLSegmentNode *)segmentNode
 {
   // note: Currently only one train, so if train stops then stop the whole simulation.
-  _simulationRunning = NO;
-  [self FL_simulationToolbarUpdateTools];
+  [self FL_simulationStop];
 }
 
 #pragma mark -
@@ -1587,7 +1721,7 @@ struct PointerPairHash
   HLTextureStore *textureStore = [HLTextureStore sharedStore];
 
   // Train.
-  [textureStore setTextureWithImageNamed:@"engine" forKey:@"engine" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"engine" andUIImageWithImageNamed:@"engine" forKey:@"engine" filteringMode:SKTextureFilteringNearest];
 
   // Tools.
   [textureStore setTextureWithImageNamed:@"menu" forKey:@"menu" filteringMode:SKTextureFilteringLinear];
@@ -2051,7 +2185,7 @@ struct PointerPairHash
   toolNode.position = CGPointMake(FLSegmentArtCurveShift, -FLSegmentArtCurveShift);
   [toolNodes addObject:toolNode];
   [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeActionPan] forKey:textureKey];
-  [_constructionToolbarState.toolDescriptions setObject:@"Join Left Track" forKey:textureKey];
+  [_constructionToolbarState.toolDescriptions setObject:@"Fork Right Track" forKey:textureKey];
   [_constructionToolbarState.toolSegmentTypes setObject:[NSNumber numberWithInt:FLSegmentTypeJoinLeft] forKey:textureKey];
 
   textureKey = @"join-right";
@@ -2060,7 +2194,7 @@ struct PointerPairHash
   toolNode.position = CGPointMake(FLSegmentArtCurveShift, FLSegmentArtCurveShift);
   [toolNodes addObject:toolNode];
   [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeActionPan] forKey:textureKey];
-  [_constructionToolbarState.toolDescriptions setObject:@"Join Right Track" forKey:textureKey];
+  [_constructionToolbarState.toolDescriptions setObject:@"Fork Left Track" forKey:textureKey];
   [_constructionToolbarState.toolSegmentTypes setObject:[NSNumber numberWithInt:FLSegmentTypeJoinRight] forKey:textureKey];
 
   textureKey = @"jog-left";
@@ -2138,7 +2272,7 @@ struct PointerPairHash
                                                pageSize:pageSize
                                           pageToolNodes:&pageToolNodes
                                            pageToolTags:&pageToolTags];
-  
+
   [_constructionToolbarState.toolbarNode setTools:pageToolNodes tags:pageToolTags animation:animation];
 }
 
@@ -2309,7 +2443,7 @@ struct PointerPairHash
   NSUInteger beginIndex;
   NSUInteger endIndex;
   [self FL_toolbarGetPageContentBeginIndex:&beginIndex endIndex:&endIndex forPage:page contentCount:allNodesCount pageSize:pageSize];
-  
+
   NSMutableArray *selectedToolNodes = [NSMutableArray array];
   NSMutableArray *selectedToolTags = [NSMutableArray array];
 
@@ -2340,7 +2474,7 @@ struct PointerPairHash
     [selectedToolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
     [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeNavigation] forKey:textureKey];
   }
-  
+
   *pageToolNodes = selectedToolNodes;
   *pageToolTags = selectedToolTags;
 }
@@ -2442,6 +2576,10 @@ struct PointerPairHash
   _simulationRunning = YES;
   _train.running = YES;
   [self FL_simulationToolbarUpdateTools];
+
+  if (_tutorialState.tutorialActive) {
+    [self FL_tutorialRecognizedAction:FLTutorialActionSimulationStarted withArguments:nil];
+  }
 }
 
 - (void)FL_simulationStop
@@ -2449,15 +2587,44 @@ struct PointerPairHash
   _simulationRunning = NO;
   _train.running = NO;
   [self FL_simulationToolbarUpdateTools];
+
+  if (_tutorialState.tutorialActive) {
+    [self FL_tutorialRecognizedAction:FLTutorialActionSimulationStopped withArguments:nil];
+  }
 }
 
 - (void)FL_simulationCycleSpeed
 {
-  ++_simulationSpeed;
-  if (_simulationSpeed > 2) {
-    _simulationSpeed = 0;
+  int simulationSpeed = _simulationSpeed + 1;
+  if (simulationSpeed > 2) {
+    simulationSpeed = 0;
   }
+  [self FL_simulationSetSpeed:simulationSpeed];
+}
+
+- (void)FL_simulationSetSpeed:(int)simulationSpeed
+{
+  _simulationSpeed = simulationSpeed;
+  [self FL_train:_train setSpeed:simulationSpeed];
   [self FL_simulationToolbarUpdateTools];
+}
+
+- (FLTrain *)FL_trainCreate
+{
+  SKTexture *trainTexture = [[HLTextureStore sharedStore] textureForKey:@"engine"];
+  FLTrain *train = [[FLTrain alloc] initWithTexture:trainTexture trackGrid:_trackGrid];
+  train.delegate = self;
+  train.scale = FLTrackArtScale;
+  train.zPosition = FLZPositionWorldTrain;
+  [self FL_train:train setSpeed:_simulationSpeed];
+  return train;
+}
+
+- (void)FL_train:(FLTrain *)train setSpeed:(int)simulationSpeed
+{
+  const CGFloat FLTrainNormalSpeedPathLengthPerSecond = 1.8f;
+  CGFloat speedPathLengthPerSecond = FLTrainNormalSpeedPathLengthPerSecond * (1.0f + simulationSpeed * simulationSpeed);
+  train.trainSpeed = speedPathLengthPerSecond;
 }
 
 - (void)FL_messageShow:(NSString *)message
@@ -2489,17 +2656,16 @@ struct PointerPairHash
   const CGFloat FLZPositionGoalsOverlayDismissNode = 0.1f;
   const CGFloat FLZPositionGoalsOverlayVictoryButton = 0.2f;
 
-  // Hide results if this is a new game (either init'd or else loaded from an
-  // level archive) and if this goals screen is being shown as a splash screen;
-  // that is, as part of the loading process (as opposed to commanded by the user).
-  BOOL showResults = !splash || !_goalsState.goalsNotYetShown;
-  _goalsState.goalsNotYetShown = NO;
+  // Always show results if this goals screen is being shown by a command from the
+  // user.  Otherwise, only show results if this is an old (loaded or application
+  // restored) game.
+  BOOL showResults = !splash || !_gameIsNew;
 
   SKNode *goalsOverlay = [SKNode node];
   NSMutableArray *layoutNodes = [NSMutableArray array];
 
   // note: Show in a square that won't have to change size if the interface rotates.
-  CGFloat edgeSizeMax = MIN(self.scene.size.width, self.scene.size.height);
+  CGFloat edgeSizeMax = MIN(self.size.width, self.size.height);
   DSMultilineLabelNode *introNode = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
   introNode.fontSize = 18.0f;
   introNode.fontColor = [SKColor whiteColor];
@@ -2517,7 +2683,7 @@ struct PointerPairHash
   if (showResults) {
     introNode.text = [NSString stringWithFormat:@"%@\n\n%@:",
                       introNode.text,
-                      NSLocalizedString(@"Results", @"Game information: on the goals screen, the header over the displayed results of the current level solution."0)];
+                      NSLocalizedString(@"Current Results", @"Game information: on the goals screen, the header over the displayed results of the current level solution."0)];
   }
   introNode.paragraphWidth = edgeSizeMax;
   [layoutNodes addObject:introNode];
@@ -2597,7 +2763,7 @@ struct PointerPairHash
     [goalsOverlay addChild:layoutNode];
   }
 
-  HLGestureTargetSpriteNode *dismissNode = [HLGestureTargetSpriteNode spriteNodeWithColor:[SKColor clearColor] size:self.scene.size];
+  HLGestureTargetSpriteNode *dismissNode = [HLGestureTargetSpriteNode spriteNodeWithColor:[SKColor clearColor] size:self.size];
   // noob: Some confusion around zPositions here.  We don't need to know absolute zPosition of
   // the dismissNode, which is a good thing, because it would be hard to figure out.  (I know that
   // HLScene's presentModalNode will put the goalsOverlay somewhere between our passed min
@@ -2653,6 +2819,9 @@ struct PointerPairHash
   if (victoryButton) {
     victoryButton.addsToTapGestureRecognizer = YES;
     victoryButton.handleGestureBlock = ^(UIGestureRecognizer *gestureRecognizer){
+      if (self->_tutorialState.tutorialActive) {
+        [self FL_tutorialRecognizedAction:FLTutorialActionGoalsDismissed withArguments:nil];
+      }
       [self unregisterDescendant:victoryButtonWeak];
       [self unregisterDescendant:dismissNodeWeak];
       // noob: Retain a strong reference to block owner when dismissing the modal node; nobody else
@@ -2681,6 +2850,9 @@ struct PointerPairHash
 
   dismissNode.addsToTapGestureRecognizer = YES;
   dismissNode.handleGestureBlock = ^(UIGestureRecognizer *gestureRecognizer){
+    if (self->_tutorialState.tutorialActive) {
+      [self FL_tutorialRecognizedAction:FLTutorialActionGoalsDismissed withArguments:nil];
+    }
     [self unregisterDescendant:victoryButtonWeak];
     [self unregisterDescendant:dismissNodeWeak];
     __unused HLGestureTargetSpriteNode *dismissNodeStrongAgain = dismissNodeWeak;
@@ -3298,6 +3470,10 @@ struct PointerPairHash
   // note: Precondition is that the passed node has a switch.
   _linkEditState.beginNode = segmentNode;
 
+  if (_tutorialState.tutorialActive) {
+    [self FL_tutorialRecognizedAction:FLTutorialActionLinkEditBegan withArguments:nil];
+  }
+
   // Display a begin-segment highlight.
   SKShapeNode *highlightNode = [[SKShapeNode alloc] init];
   highlightNode.position = segmentNode.position;
@@ -3383,6 +3559,9 @@ struct PointerPairHash
       _links.insert(_linkEditState.beginNode, _linkEditState.endNode, _linkEditState.connectorNode);
       [_linkEditState.endNode setSwitchPathId:[_linkEditState.beginNode switchPathId] animated:YES];
       preserveConnectorNode = YES;
+      if (_tutorialState.tutorialActive) {
+        [self FL_tutorialRecognizedAction:FLTutorialActionLinkCreated withArguments:nil];
+      }
     }
   }
 
@@ -3447,15 +3626,35 @@ struct PointerPairHash
 
 - (void)FL_linksToggle
 {
-  _linksVisible = !_linksVisible;
-  // note: Assuming that the toolbar with the "link" tool is showing.  No need to
-  // check until that assumption is proven wrong, I think.
-  [_constructionToolbarState.toolbarNode setHighlight:_linksVisible forTool:@"link"];
   if (_linksVisible) {
-    [_worldNode addChild:_linksNode];
+    [self FL_linksHide];
   } else {
-    [_linksNode removeFromParent];
+    [self FL_linksShow];
   }
+}
+
+- (void)FL_linksShow
+{
+  if (_linksVisible) {
+    return;
+  }
+  _linksVisible = YES;
+  if ([_constructionToolbarState.currentNavigation isEqualToString:@"main"]) {
+    [_constructionToolbarState.toolbarNode setHighlight:YES forTool:@"link"];
+  }
+  [_worldNode addChild:_linksNode];
+}
+
+- (void)FL_linksHide
+{
+  if (!_linksVisible) {
+    return;
+  }
+  _linksVisible = NO;
+  if ([_constructionToolbarState.currentNavigation isEqualToString:@"main"]) {
+    [_constructionToolbarState.toolbarNode setHighlight:NO forTool:@"link"];
+  }
+  [_linksNode removeFromParent];
 }
 
 - (void)FL_labelsToggle
@@ -3808,6 +4007,8 @@ struct PointerPairHash
         return _gameLevel >= 4;
       case FLUnlockCircuits:
         return NO;
+      case FLUnlockTutorialCompleted:
+        return FLUserUnlocksUnlocked(@"FLUserUnlockTutorialCompleted");
       default:
         [NSException raise:@"FLUnlockItemUnknown" format:@"Unknown unlock item %d.", item];
     }
@@ -3832,6 +4033,8 @@ struct PointerPairHash
       case FLUnlockCircuits:
         // note: Until something unlocks this, hardcode to true.
         return YES;
+      case FLUnlockTutorialCompleted:
+        return FLUserUnlocksUnlocked(@"FLUserUnlockTutorialCompleted");
       default:
         [NSException raise:@"FLUnlockItemUnknown" format:@"Unknown unlock item %d.", item];
     }
@@ -3849,6 +4052,616 @@ struct PointerPairHash
   return (segmentNode.segmentType != FLSegmentTypeReadoutInput
           && segmentNode.segmentType != FLSegmentTypeReadoutOutput
           && segmentNode.segmentType != FLSegmentTypePlatformStart);
+}
+
+void
+FL_tutorialContextCutoutRect(CGContextRef context, CGRect rect)
+{
+  // note: Could draw the background and the cutout rect in a single pass using winding
+  // count or even/odd paths (see http://www.cocoawithlove.com/2010/05/5-ways-to-draw-2d-shape-with-hole-in.html).
+  CGContextSetBlendMode(context, kCGBlendModeDestinationOut);
+  CGContextSetFillColorWithColor(context, [[SKColor whiteColor] CGColor]);
+  CGContextFillRect(context, rect);
+}
+
+void
+FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cutoutCenter, CGSize cutoutSize, CGFloat rotation)
+{
+  // note: Cut out a piece of the context in the shape of the passed image (or in a simple rectangle if the
+  // passed image is nil).  The shape is cutout centered around the passed cutoutCenter (in context coordinates,
+  // i.e. with origin of the context in the lower left); first it is rotated according to the passed rotation
+  // parameter.  The cutoutSize then determines the size of the cutout after such rotation.  In other words, the
+  // passed image and size are both considered to be in a normal rotation; they will be rotated before being cut
+  // out of the context.
+  CGContextSaveGState(context);
+  CGContextTranslateCTM(context, cutoutCenter.x, cutoutCenter.y);
+  CGContextRotateCTM(context, rotation);
+  CGRect cutoutRect = CGRectMake(-cutoutSize.width / 2.0f, -cutoutSize.height / 2.0f, cutoutSize.width, cutoutSize.height);
+  if (image) {
+    CGContextSetBlendMode(context, kCGBlendModeDestinationOut);
+    CGContextDrawImage(context, cutoutRect, [image CGImage]);
+  } else {
+    FL_tutorialContextCutoutRect(context, cutoutRect);
+  }
+  CGContextRestoreGState(context);
+}
+
+- (void)FL_tutorialCreateStepWithLabel:(NSString *)label
+{
+  CGSize sceneSize = self.size;
+
+  UIGraphicsBeginImageContext(sceneSize);
+  CGContextRef context = UIGraphicsGetCurrentContext();
+  CGContextTranslateCTM(context, 0.0f, sceneSize.height);
+  CGContextScaleCTM(context, 1.0f, -1.0f);
+
+  SKColor *FLTutorialBackdropColor = [SKColor colorWithWhite:0.0f alpha:0.7f];
+  CGContextSetFillColorWithColor(context, [FLTutorialBackdropColor CGColor]);
+  CGContextFillRect(context, CGRectMake(0.0f, 0.0f, sceneSize.width, sceneSize.height));
+
+  // Cutouts are handled as follows:
+  //
+  //   . If a sprite is provided, it is used to calculate the position and size of the cutout.
+  //     The assumption is that the sprite represents something *in the scene* which we intend
+  //     to "show through" the backdrop.
+  //
+  //   . Since CoreGraphics routines are used to make the cutout, we need a UIImage which corresponds
+  //     to the texture of the cutout sprite.  If no image is provided, the sprite's rectangle (based
+  //     on the sprite's size, not its frame) is rotated to the sprite's current rotation and cut out
+  //     of the backdrop.
+  //
+  //   . Because we care about the appearance of the sprite *as in the scene*, all sprite geometry
+  //     (importantly, position, rotation, and scale) must be translated into scene coordinates.
+  //     For simplicity's sake (and because this is currently true for all callers), we assume that
+  //     no parent of the sprite is rotated or scaled with respect to the scene.  This allows us
+  //     to calculate geometry using only the sprite's rotation and scale (and/or using the
+  //     sprite's frame property to get the bounding box).
+  //
+  //   . A cutout may alternately be specified by a simple rect (rather than a sprite).  The rect
+  //     is assumed to be in scene coordinates.
+
+  for (FLTutorialCutout& cutout : _tutorialState.cutouts) {
+    if (cutout.spriteNode) {
+      // note: The cutout method wants a description of the rectangle of the sprite/image when it is
+      // in a normal rotation; then we pass the rotation to the cutout method, and it rotates the
+      // rectangle for us.  Note also that sprite.size already accounts for sprite.scale; good.
+      CGPoint cutoutCenterSceneLocation = [self convertPoint:cutout.spriteNode.position fromNode:cutout.spriteNode.parent];
+      CGPoint cutoutCenterContextLocation = CGPointMake(cutoutCenterSceneLocation.x + sceneSize.width / 2.0f,
+                                                        cutoutCenterSceneLocation.y + sceneSize.height / 2.0f);
+      FL_tutorialContextCutoutImage(context, cutout.image, cutoutCenterContextLocation, cutout.spriteNode.size, cutout.spriteNode.zRotation);
+      // note: We remember the rect of the cutout for later hit-testing.  But it is remembered as a simple
+      // non-rotated rectangle in scene coordinates.  So rather than using the size of the cutout sprite
+      // as the "cutout rect", we must make a bounding box for the rotated sprite.
+      CGSize rotatedCutoutSceneBounds = HLGetBoundsForTransformation(cutout.spriteNode.size, cutout.spriteNode.zRotation);
+      cutout.rect = CGRectMake(cutoutCenterSceneLocation.x - rotatedCutoutSceneBounds.width / 2.0f,
+                               cutoutCenterSceneLocation.y - rotatedCutoutSceneBounds.height / 2.0f,
+                               rotatedCutoutSceneBounds.width,
+                               rotatedCutoutSceneBounds.height);
+    } else {
+      FL_tutorialContextCutoutRect(context, cutout.rect);
+    }
+  }
+
+  UIImage *backdropImage = UIGraphicsGetImageFromCurrentImageContext();
+  UIGraphicsEndImageContext();
+
+  SKSpriteNode *backdropNode = [SKSpriteNode spriteNodeWithTexture:[SKTexture textureWithImage:backdropImage]];
+  _tutorialState.backdropNode = backdropNode;
+  backdropNode.zPosition = FLZPositionTutorial;
+
+  const CGFloat FLTutorialLabelPad = 10.0f;
+  DSMultilineLabelNode *labelNode = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
+  labelNode.zPosition = 0.1f;
+  labelNode.fontSize = 20.0f;
+  labelNode.fontColor = [SKColor whiteColor];
+  labelNode.text = label;
+  labelNode.paragraphWidth = MIN(sceneSize.width, sceneSize.height) - FLTutorialLabelPad * 2.0f;
+  [backdropNode addChild:labelNode];
+
+  // Layout label relative to cutouts (if appropriate).
+  switch (_tutorialState.labelPosition) {
+    case FLTutorialLabelCenterScene:
+      labelNode.position = CGPointZero;
+      break;
+    case FLTutorialLabelUpperScene:
+      labelNode.position = CGPointMake(0.0f, self.size.height / 5.0f);
+      break;
+    case FLTutorialLabelLowerScene:
+      labelNode.position = CGPointMake(0.0f, -self.size.height / 5.0f);
+      break;
+    case FLTutorialLabelAboveFirstCutout:
+      if (!_tutorialState.cutouts.empty()) {
+        FLTutorialCutout& firstCutout = _tutorialState.cutouts.front();
+        labelNode.position = CGPointMake(0.0f, CGRectGetMaxY(firstCutout.rect) + labelNode.size.height / 2.0f + FLTutorialLabelPad);
+      }
+      break;
+    case FLTutorialLabelAboveCutouts:
+      if (!_tutorialState.cutouts.empty()) {
+        CGFloat cutoutsTop = -std::numeric_limits<CGFloat>::infinity();
+        for (FLTutorialCutout& cutout : _tutorialState.cutouts) {
+          CGFloat cutoutTop = CGRectGetMaxY(cutout.rect);
+          if (cutoutTop > cutoutsTop) {
+            cutoutsTop = cutoutTop;
+          }
+        }
+        labelNode.position = CGPointMake(0.0f, cutoutsTop + labelNode.size.height / 2.0f + FLTutorialLabelPad);
+      }
+      break;
+    case FLTutorialLabelBelowFirstCutout:
+      if (!_tutorialState.cutouts.empty()) {
+        FLTutorialCutout& firstCutout = _tutorialState.cutouts.front();
+        labelNode.position = CGPointMake(0.0f, CGRectGetMinY(firstCutout.rect) - labelNode.size.height / 2.0f - FLTutorialLabelPad);
+      }
+      break;
+    case FLTutorialLabelBelowCutouts:
+      if (!_tutorialState.cutouts.empty()) {
+        CGFloat cutoutsBottom = std::numeric_limits<CGFloat>::infinity();
+        for (FLTutorialCutout& cutout : _tutorialState.cutouts) {
+          CGFloat cutoutBottom = CGRectGetMinY(cutout.rect);
+          if (cutoutBottom < cutoutsBottom) {
+            cutoutsBottom = cutoutBottom;
+          }
+        }
+        labelNode.position = CGPointMake(0.0f, cutoutsBottom - labelNode.size.height / 2.0f - FLTutorialLabelPad);
+      }
+      break;
+    default:
+      break;
+  }
+}
+
+- (void)FL_tutorialShowWithLabel:(NSString *)label
+                   firstPanWorld:(BOOL)firstPanWorld
+                     panLocation:(CGPoint)panSceneLocation
+                        animated:(BOOL)animated
+{
+  void (^showBackdrop)(void) = ^{
+    // note: Put the creation step in this block so that it happens after the optional firstPanWorld;
+    // that ensures the scene locations of the cutouts are converted properly.
+    [self FL_tutorialCreateStepWithLabel:label];
+    SKSpriteNode *backdropNode = self->_tutorialState.backdropNode;
+    [self addChild:backdropNode];
+    if (animated) {
+      SKNode *labelNode = [backdropNode.children objectAtIndex:0];
+      backdropNode.alpha = 0.0f;
+      labelNode.alpha = 0.0f;
+      [backdropNode runAction:[SKAction fadeInWithDuration:FLTutorialStepFadeDuration] completion:^{
+        [labelNode runAction:[SKAction fadeInWithDuration:FLTutorialStepFadeDuration]];
+      }];
+    }
+  };
+
+  if (firstPanWorld) {
+    const CGFloat FLTutorialPanWorldDistancePerSecond = 150.0f;
+    CGFloat distance = sqrt(panSceneLocation.x * panSceneLocation.x + panSceneLocation.y * panSceneLocation.y);
+    NSTimeInterval duration = distance / FLTutorialPanWorldDistancePerSecond;
+    if (duration > 0.1) {
+      if (duration > FLWorldAdjustDurationSlow) {
+        duration = FLWorldAdjustDurationSlow;
+      }
+      CGPoint worldPosition = CGPointMake(_worldNode.position.x - panSceneLocation.x,
+                                          _worldNode.position.y - panSceneLocation.y);
+      SKAction *move = [SKAction moveTo:worldPosition duration:duration];
+      move.timingMode = SKActionTimingEaseInEaseOut;
+      [_worldNode runAction:move completion:showBackdrop];
+      return;
+    }
+  }
+
+  showBackdrop();
+}
+
+- (void)FL_tutorialShowWithLabel:(NSString *)label
+                        animated:(BOOL)animated
+{
+  [self FL_tutorialShowWithLabel:label
+                   firstPanWorld:NO
+                     panLocation:CGPointZero  // ignored
+                        animated:animated];
+}
+
+- (BOOL)FL_tutorialStepAnimated:(BOOL)animated
+{
+  // Clean up previous step, if any.
+  [self FL_tutorialHideAnimated:animated];
+  _tutorialState.cutouts.clear();
+  _tutorialState.conditions.clear();
+
+  // Show current step.
+  BOOL stepExists = NO;
+  switch (_gameLevel) {
+    case 0:
+      stepExists = [self FL_tutorialStepLevel0Animated:animated];
+      break;
+    case 1:
+      stepExists = [self FL_tutorialStepLevel1Animated:animated];
+      break;
+    default:
+      stepExists = NO;
+      break;
+  }
+
+  // note: "Tutorial active" is an interface primarily intended for the various tutorial hooks scattered
+  // throughout the scene's code: It's a quick way to shortcircuit any setup/computation that only needs
+  // to be done if the tutorial is in progress in some way (and in particular, regardless of whether the
+  // tutorial backdrop is currently showing).
+  _tutorialState.tutorialActive = stepExists;
+
+  return stepExists;
+}
+
+- (void)FL_tutorialHideAnimated:(BOOL)animated
+{
+  // note: Currently, if backdrop is set, that means it exists and is added to parent.
+  // And the backdrop is the only thing to hide, currently.
+  if (!_tutorialState.backdropNode) {
+    return;
+  }
+  SKSpriteNode *backdropNode = _tutorialState.backdropNode;
+  _tutorialState.backdropNode = nil;
+  if (animated) {
+    [backdropNode runAction:[SKAction sequence:@[ [SKAction fadeOutWithDuration:FLTutorialStepFadeDuration],
+                                                  [SKAction removeFromParent] ]]];
+  } else {
+    [backdropNode removeFromParent];
+  }
+  // note: See note in [FL_tutorialStep] regarding "tutorialActive": Just because the
+  // step is hidden doesn't mean it's not active, so we don't mess with that here.
+}
+
+- (void)FL_tutorialUpdateGeometry
+{
+  // note: Easiest: If the backdrop exists, restart/recreate the tutorial step.
+  // This might miss some subtleties in case a particular step only creates the
+  // drop after waiting for some action to take place, but currently, no such
+  // step exists.
+  if (_tutorialState.backdropNode) {
+    [self FL_tutorialStepAnimated:NO];
+  }
+}
+
+- (BOOL)FL_tutorialStepLevel0Animated:(BOOL)animated
+{
+  switch (_tutorialState.step) {
+    case 0: {
+      NSString *label = NSLocalizedString(@"This is\nFlippy the Train.",
+                                          @"Tutorial message.");
+      _tutorialState.cutouts.emplace_back(_train, [[HLTextureStore sharedStore] imageForKey:@"engine"], NO);
+      _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
+      CGPoint panSceneLocation = [self convertPoint:_train.position fromNode:_worldNode];
+      [self FL_tutorialShowWithLabel:label firstPanWorld:YES panLocation:panSceneLocation animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
+      return YES;
+    }
+    case 1: {
+      NSString *label = NSLocalizedString(@"Tap here to build more track for Flippy.",
+                                          @"Tutorial message.");
+      SKSpriteNode *squareNode = [_constructionToolbarState.toolbarNode squareNodeForTool:@"segments"];
+      _tutorialState.cutouts.emplace_back(squareNode, YES);
+      _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
+      [self FL_tutorialShowWithLabel:label animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionConstructionToolbarTap, FLTutorialResultContinue);
+      return YES;
+    }
+    case 2: {
+      NSString *label = NSLocalizedString(@"Drag a ‘Straight Track’ segment from the toolbar to an open spot.",
+                                          @"Tutorial message.");
+      SKSpriteNode *squareNode = [_constructionToolbarState.toolbarNode squareNodeForTool:@"straight"];
+      _tutorialState.cutouts.emplace_back(squareNode, YES);
+      _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
+      CGPoint panSceneLocation = [self convertPoint:_train.position fromNode:_worldNode];
+      // note: Pan so that the grid location two spots up from the train is centered,
+      // hopefully suggesting a good place to put the straight segment (to wit, extending
+      // the track up from the existing join segment).
+      panSceneLocation.y += _trackGrid->segmentSize() * 2.0f;
+      [self FL_tutorialShowWithLabel:label firstPanWorld:YES panLocation:panSceneLocation animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionConstructionToolbarPanBegan, FLTutorialResultHideBackdropDisallowInteraction);
+      _tutorialState.conditions.emplace_back(FLTutorialActionConstructionToolbarPanEnded, ^NSUInteger(NSArray *arguments){
+        // note: Hacky: Peek into _trackMoveState, hopefully before it clears state.
+        // I'm preferring this over scanning _trackGrid for new segments just because
+        // that seems so verbose and perhaps brittle (if the level ever changes).
+        if (self->_trackMoveState.placed) {
+          return FLTutorialResultContinue;
+        } else {
+          return FLTutorialResultRepeat;
+        }
+      });
+      return YES;
+    }
+    case 3: {
+      [self FL_trackEditMenuHideAnimated:YES];
+      [self FL_trackSelectClear];
+      NSString *label = NSLocalizedString(@"Now tap the green arrow button to start Flippy.",
+                                          @"Tutorial message.");
+      SKSpriteNode *squareNode = [_simulationToolbarState.toolbarNode squareNodeForTool:@"play"];
+      _tutorialState.cutouts.emplace_back(squareNode, YES);
+      _tutorialState.labelPosition = FLTutorialLabelBelowCutouts;
+      CGPoint panSceneLocation = [self convertPoint:_train.position fromNode:_worldNode];
+      [self FL_tutorialShowWithLabel:label firstPanWorld:YES panLocation:panSceneLocation animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionSimulationStarted, FLTutorialResultHideBackdropDisallowInteraction);
+      _tutorialState.conditions.emplace_back(FLTutorialActionSimulationStopped, FLTutorialResultContinue);
+      return YES;
+    }
+    case 4: {
+      NSString *label = NSLocalizedString(@"Good job, Flippy!\n\nSo what is Flippy trying to do?",
+                                          @"Tutorial message.");
+      [self FL_tutorialShowWithLabel:label animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
+      return YES;
+    }
+    case 5: {
+      NSString *label = NSLocalizedString(@"Flippy starts out on a green platform. Each level has only one.",
+                                          @"Tutorial message.");
+      FLSegmentNode *segmentNode = _trackGrid->get(0, 0);
+      _tutorialState.cutouts.emplace_back(segmentNode, [[HLTextureStore sharedStore] imageForKey:@"platform-start"], NO);
+      _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
+      CGPoint panSceneLocation = [self convertPoint:segmentNode.position fromNode:_trackNode];
+      [self FL_tutorialShowWithLabel:label firstPanWorld:YES panLocation:panSceneLocation animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
+      return YES;
+    }
+    case 6: {
+      FLSegmentNode *platformSegmentNode = _trackGrid->get(0, 0);
+      [_train moveToSegment:platformSegmentNode pathId:0 progress:0.0f direction:FLPathDirectionIncreasing];
+      NSString *label = NSLocalizedString(@"Here the track forks. Flippy curves or goes straight depending on the blue switch.",
+                                          @"Tutorial message.");
+      FLSegmentNode *segmentNode = _trackGrid->get(0, 1);
+      _tutorialState.cutouts.emplace_back(segmentNode, NO);
+      _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
+      CGPoint panSceneLocation = [self convertPoint:segmentNode.position fromNode:_trackNode];
+      [self FL_tutorialShowWithLabel:label firstPanWorld:YES panLocation:panSceneLocation animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
+      return YES;
+    }
+    case 7: {
+      [self FL_linksShow];
+      NSString *label = NSLocalizedString(@"That blue switch is linked to this “input.” Therefore, the input determines which way Flippy goes.",
+                                          @"Tutorial message.");
+      _tutorialState.cutouts.emplace_back(_trackGrid->get(1, 0), NO);
+      _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
+      [self FL_tutorialShowWithLabel:label animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
+      return YES;
+    }
+    case 8: {
+      NSString *label = NSLocalizedString(@"Flippy eventually arrives at this junction.\n\nTap to watch what happens.",
+                                          @"Tutorial message.");
+      FLSegmentNode *segmentNode = _trackGrid->get(1, 4);
+      _tutorialState.cutouts.emplace_back(segmentNode, NO);
+      _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
+      CGPoint panSceneLocation = [self convertPoint:segmentNode.position fromNode:_trackNode];
+      [self FL_tutorialShowWithLabel:label firstPanWorld:YES panLocation:panSceneLocation animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
+      return YES;
+    }
+    case 9: {
+      FLSegmentNode *segmentNode = _trackGrid->get(1, 4);
+      linksSetSwitchPathId(_links, segmentNode, 1, NO);
+      [_train moveToSegment:segmentNode pathId:0 progress:0.0f direction:FLPathDirectionIncreasing];
+      // note: Set train speed a bit slower than normal.
+      _train.trainSpeed = 1.0f;
+      [self FL_simulationStart];
+      _tutorialState.conditions.emplace_back(FLTutorialActionSimulationStopped, FLTutorialResultContinue);
+      return YES;
+    }
+    case 10: {
+      [self FL_train:_train setSpeed:_simulationSpeed];
+      NSString *label = NSLocalizedString(@"The switch flips as Flippy travels over it. (Tap to continue, or press-and-hold to watch again.)",
+                                          @"Tutorial message.");
+      _tutorialState.labelPosition = FLTutorialLabelLowerScene;
+      [self FL_tutorialShowWithLabel:label animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropLongPress, FLTutorialResultPrevious);
+      return YES;
+    }
+    case 11: {
+      NSString *label = NSLocalizedString(@"The switch value is linked to this “output.” Therefore, Flippy determines the output value.",
+                                          @"Tutorial message.");
+      _tutorialState.cutouts.emplace_back(_trackGrid->get(0, 5), NO);
+      _tutorialState.labelPosition = FLTutorialLabelBelowCutouts;
+      [self FL_tutorialShowWithLabel:label animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
+      return YES;
+    }
+    case 12: {
+      [self FL_linksHide];
+      NSString *label = NSLocalizedString(@"The goal of each level is to build a track so that Flippy sets the output correctly.",
+                                          @"Tutorial message.");
+      _tutorialState.labelPosition = FLTutorialLabelLowerScene;
+      [self FL_tutorialShowWithLabel:label animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
+      return YES;
+    }
+    case 13: {
+      NSString *label = NSLocalizedString(@"Tap this button to see the goals for this level.",
+                                          @"Tutorial message.");
+      SKSpriteNode *squareNode = [_simulationToolbarState.toolbarNode squareNodeForTool:@"goals"];
+      _tutorialState.cutouts.emplace_back(squareNode, YES);
+      _tutorialState.labelPosition = FLTutorialLabelBelowCutouts;
+      [self FL_tutorialShowWithLabel:label animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionSimulationToolbarTap, FLTutorialResultHideBackdropAllowInteraction);
+      _tutorialState.conditions.emplace_back(FLTutorialActionGoalsDismissed, FLTutorialResultContinue);
+      return YES;
+    }
+    case 14: {
+      NSString *label = NSLocalizedString(@"Tap the goals button again when you want to check your solution.\n\nNow go forth, Flippy, and solve the level!",
+                                          @"Tutorial message.");
+      [self FL_tutorialShowWithLabel:label animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
+      return YES;
+    }
+    default:
+      return NO;
+  }
+}
+
+- (BOOL)FL_tutorialStepLevel1Animated:(BOOL)animated
+{
+  switch (_tutorialState.step) {
+    case 0: {
+      NSString *label = NSLocalizedString(@"This level starts with no existing track.",
+                                          @"Tutorial message.");
+      [self FL_tutorialShowWithLabel:label animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
+      return YES;
+    }
+    case 1: {
+      NSString *label = NSLocalizedString(@"Also, it has two inputs rather than one.",
+                                          @"Tutorial message.");
+      FLSegmentNode *input1SegmentNode = _trackGrid->get(1, 0);
+      FLSegmentNode *input2SegmentNode = _trackGrid->get(2, 0);
+      _tutorialState.cutouts.emplace_back(input1SegmentNode, NO);
+      _tutorialState.cutouts.emplace_back(input2SegmentNode, NO);
+      _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
+      CGPoint input1SceneLocation = [self convertPoint:input1SegmentNode.position fromNode:input1SegmentNode.parent];
+      CGPoint input2SceneLocation = [self convertPoint:input2SegmentNode.position fromNode:input2SegmentNode.parent];
+      CGPoint panSceneLocation = CGPointMake((input1SceneLocation.x + input2SceneLocation.x) / 2.0f,
+                                             (input1SceneLocation.y + input2SceneLocation.y) / 2.0f);
+      [self FL_tutorialShowWithLabel:label firstPanWorld:YES panLocation:panSceneLocation animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
+      return YES;
+    }
+    case 2: {
+      NSString *label = NSLocalizedString(@"Tap this button to show identifying labels on the inputs.",
+                                          @"Tutorial message.");
+      SKSpriteNode *squareNode = [_constructionToolbarState.toolbarNode squareNodeForTool:@"show-labels"];
+      _tutorialState.cutouts.emplace_back(squareNode, YES);
+      _tutorialState.cutouts.emplace_back(_trackGrid->get(1, 0), NO);
+      _tutorialState.cutouts.emplace_back(_trackGrid->get(2, 0), NO);
+      _tutorialState.labelPosition = FLTutorialLabelAboveFirstCutout;
+      [self FL_tutorialShowWithLabel:label animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionConstructionToolbarTap, FLTutorialResultContinue);
+      return YES;
+    }
+    case 3: {
+      NSString *label = NSLocalizedString(@"Wow, that’s ugly. Let’s look at the goals.",
+                                          @"Tutorial message.");
+      SKSpriteNode *squareNode = [_simulationToolbarState.toolbarNode squareNodeForTool:@"goals"];
+      _tutorialState.cutouts.emplace_back(squareNode, YES);
+      _tutorialState.cutouts.emplace_back(_trackGrid->get(1, 0), NO);
+      _tutorialState.cutouts.emplace_back(_trackGrid->get(2, 0), NO);
+      _tutorialState.labelPosition = FLTutorialLabelBelowFirstCutout;
+      [self FL_tutorialShowWithLabel:label animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionSimulationToolbarTap, FLTutorialResultHideBackdropAllowInteraction);
+      _tutorialState.conditions.emplace_back(FLTutorialActionGoalsDismissed, FLTutorialResultContinue);
+      return YES;
+    }
+    case 4: {
+      FLSegmentNode *segmentNode = [self FL_createSegmentWithSegmentType:FLSegmentTypeJoinLeft];
+      segmentNode.position = _trackGrid->convert(0, 1);
+      segmentNode.zRotationQuarters = 1;
+      [_trackNode addChild:segmentNode];
+      _trackGrid->set(0, 1, segmentNode);
+      segmentNode.alpha = 0.0f;
+      [segmentNode runAction:[SKAction sequence:@[ [SKAction waitForDuration:FLTutorialStepFadeDuration * 3.0],
+                                                   [SKAction fadeInWithDuration:(FLTutorialStepFadeDuration * 2.0)] ]]];
+      NSString *label = NSLocalizedString(@"Suppose you’ve added a switched segment to the track. How can it be linked to an input?",
+                                          @"Tutorial message.");
+      _tutorialState.cutouts.emplace_back(segmentNode, NO);
+      _tutorialState.cutouts.emplace_back(_trackGrid->get(1, 0), NO);
+      _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
+      CGPoint panSceneLocation = [self convertPoint:segmentNode.position fromNode:_trackNode];
+      panSceneLocation.x += _trackGrid->segmentSize();
+      [self FL_tutorialShowWithLabel:label firstPanWorld:YES panLocation:panSceneLocation animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
+      return YES;
+    }
+    case 5: {
+      NSString *label = NSLocalizedString(@"First, tap this button.",
+                                          @"Tutorial message.");
+      SKSpriteNode *squareNode = [_constructionToolbarState.toolbarNode squareNodeForTool:@"link"];
+      _tutorialState.cutouts.emplace_back(squareNode, YES);
+      _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
+     [self FL_tutorialShowWithLabel:label animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionConstructionToolbarTap, FLTutorialResultContinue);
+      return YES;
+    }
+    case 6: {
+      NSString *label = NSLocalizedString(@"Now drag from one switch to the other until a blue line connects them.",
+                                          @"Tutorial message.");
+      _tutorialState.cutouts.emplace_back(_trackGrid->get(0, 1), YES);
+      _tutorialState.cutouts.emplace_back(_trackGrid->get(1, 0), YES);
+      _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
+      [self FL_tutorialShowWithLabel:label animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultHideBackdropAllowInteraction);
+      _tutorialState.conditions.emplace_back(FLTutorialActionLinkEditBegan, FLTutorialResultHideBackdropAllowInteraction);
+      _tutorialState.conditions.emplace_back(FLTutorialActionLinkCreated, FLTutorialResultContinue);
+      return YES;
+    }
+    case 7: {
+      NSString *label = NSLocalizedString(@"The link button is still highlighted, so we’re still in linking mode. Tap it again to exit linking mode.",
+                                          @"Tutorial message.");
+      SKSpriteNode *squareNode = [_constructionToolbarState.toolbarNode squareNodeForTool:@"link"];
+      _tutorialState.cutouts.emplace_back(squareNode, YES);
+      _tutorialState.labelPosition = FLTutorialLabelUpperScene;
+      [self FL_tutorialShowWithLabel:label animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionConstructionToolbarTap, FLTutorialResultContinue);
+      return YES;
+    }
+    case 8: {
+      FLUserUnlocksUnlock(@[ @"FLUserUnlockTutorialCompleted" ]);
+      NSString *label = NSLocalizedString(@"That’s all for this tutorial; it won’t show again unless you reset it from the main menu. Have fun!",
+                                          @"Tutorial message.");
+      [self FL_tutorialShowWithLabel:label animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
+      return YES;
+    }
+    default:
+      return NO;
+  }
+}
+
+- (void)FL_tutorialRecognizedAction:(FLTutorialAction)action withArguments:(NSArray *)arguments
+{
+  // note: Assume caller already checked _tutorialState.tutorialActive.
+  NSUInteger results = FLTutorialResultNone;
+  for (FLTutorialCondition& condition : _tutorialState.conditions) {
+    if (condition.action == action) {
+      if (condition.dynamicResults) {
+        results |= condition.dynamicResults(arguments);
+      } else {
+        results |= condition.simpleResults;
+      }
+    }
+  }
+
+  // noob: Seems better to me to let the interface actions complete on the main thread
+  // before triggering a complete new tutorial step.  But I'm not sure if this is necessary
+  // or desirable.
+
+  if ((results & FLTutorialResultPrevious) != 0) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+      --(self->_tutorialState.step);
+      [self FL_tutorialStepAnimated:YES];
+    });
+    // note: Would seem to exclude other results, so return.
+    return;
+  }
+
+  if ((results & FLTutorialResultRepeat) != 0) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+      [self FL_tutorialStepAnimated:YES];
+    });
+    // note: Would seem to exclude other results, so return.
+    return;
+  }
+
+  if ((results & FLTutorialResultContinue) != 0) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+      ++(self->_tutorialState.step);
+      [self FL_tutorialStepAnimated:YES];
+    });
+    // note: Would seem to exclude other results, so return.
+    return;
+  }
+
+  if ((results & FLTutorialResultHideBackdropAllowInteraction) != 0) {
+    _tutorialState.disallowOtherGestures = NO;
+    [self FL_tutorialHideAnimated:YES];
+  } else if ((results & FLTutorialResultHideBackdropDisallowInteraction) != 0) {
+    _tutorialState.disallowOtherGestures = YES;
+    [self FL_tutorialHideAnimated:YES];
+  }
 }
 
 @end

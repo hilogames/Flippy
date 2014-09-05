@@ -8,7 +8,6 @@
 
 #import "FLTrain.h"
 
-#import <HLSpriteKit/HLTextureStore.h>
 #import <HLSpriteKit/HLError.h>
 
 #import "FLPath.h"
@@ -20,8 +19,6 @@ using namespace std;
 {
   shared_ptr<FLTrackGrid> _trackGrid;
 
-  BOOL _running;
-
   FLSegmentNode *_lastSegmentNode;
   int _lastPathId;
   CGFloat _lastPathLength;
@@ -30,14 +27,14 @@ using namespace std;
   BOOL _lastSegmentNodeAlreadySwitched;
 }
 
-- (id)initWithTrackGrid:(shared_ptr<FLTrackGrid>&)trackGrid
+- (id)initWithTexture:(SKTexture *)texture trackGrid:(shared_ptr<FLTrackGrid>&)trackGrid
 {
-  SKTexture *texture = [[HLTextureStore sharedStore] textureForKey:@"engine"];
   self = [super initWithTexture:texture];
   if (self) {
     self.zRotation = (CGFloat)M_PI_2;
     _trackGrid = trackGrid;
     _running = NO;
+    _trainSpeed = 1.0f;
   }
   return self;
 }
@@ -47,10 +44,11 @@ using namespace std;
   self = [super initWithCoder:aDecoder];
   if (self) {
     _running = [aDecoder decodeBoolForKey:@"running"];
+    _trainSpeed = (CGFloat)[aDecoder decodeDoubleForKey:@"trainSpeed"];
     _lastSegmentNode = [aDecoder decodeObjectForKey:@"lastSegmentNode"];
     _lastPathId = [aDecoder decodeIntForKey:@"lastPathId"];
     _lastPathLength = [_lastSegmentNode pathLengthForPath:_lastPathId];
-    _lastProgress = [aDecoder decodeFloatForKey:@"lastProgress"];
+    _lastProgress = (CGFloat)[aDecoder decodeDoubleForKey:@"lastProgress"];
     _lastDirection = [aDecoder decodeIntForKey:@"lastDirection"];
     _lastSegmentNodeAlreadySwitched = [aDecoder decodeBoolForKey:@"lastSegmentNodeAlreadySwitched"];
   }
@@ -62,6 +60,7 @@ using namespace std;
   [super encodeWithCoder:aCoder];
   
   [aCoder encodeBool:_running forKey:@"running"];
+  [aCoder encodeDouble:_trainSpeed forKey:@"trainSpeed"];
   [aCoder encodeObject:_lastSegmentNode forKey:@"lastSegmentNode"];
   [aCoder encodeInt:_lastPathId forKey:@"lastPathId"];
   [aCoder encodeDouble:_lastProgress forKey:@"lastProgress"];
@@ -74,12 +73,7 @@ using namespace std;
   _trackGrid = trackGrid;
 }
 
-- (void)setRunning:(BOOL)running
-{
-  _running = running;
-}
-
-- (void)update:(CFTimeInterval)elapsedTime simulationSpeed:(int)simulationSpeed
+- (void)update:(CFTimeInterval)elapsedTime
 {
   if (!_running) {
     return;
@@ -121,13 +115,7 @@ using namespace std;
   }
 
   // Calculate train's new progress along current segment.
-  //
-  // note: Current speed is constant in terms of progress.  This will be modified in
-  // the future to account for path length, and probably also to allow acceleration
-  // for fun.
-  const CGFloat FLTrainNormalSpeedPathLengthPerSecond = 1.8f;
-  CGFloat speedPathLengthPerSecond = FLTrainNormalSpeedPathLengthPerSecond * (1.0f + simulationSpeed * simulationSpeed);
-  CGFloat deltaProgress = (speedPathLengthPerSecond / _lastPathLength) * (CGFloat)elapsedTime * _lastDirection;
+  CGFloat deltaProgress = (_trainSpeed / _lastPathLength) * (CGFloat)elapsedTime * _lastDirection;
   _lastProgress += deltaProgress;
 
   // If this segment has a switch, then detect if we are leaving our path in such a

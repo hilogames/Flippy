@@ -883,7 +883,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
           self->_gameScene = [[FLTrackScene alloc] initWithSize:self.view.bounds.size gameType:gameType gameLevel:gameLevel];
           self->_gameScene.delegate = self;
           self->_gameScene.scaleMode = SKSceneScaleModeResizeFill;
-          [self->_gameScene notifyGameIsNew];
+          self->_gameScene.gameIsNew = YES;
           break;
         case FLGameTypeChallenge: {
           NSString *levelPath = [self FL_levelPathForGameType:gameType gameLevel:gameLevel];
@@ -906,7 +906,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
             [NSException raise:@"FLGameLoadFailure" format:@"Archive '%@' has game type %d and game %d but expected game type %d and level %d.",
              levelPath, self->_gameScene.gameType, self->_gameScene.gameLevel, gameType, gameLevel];
           }
-          [self->_gameScene notifyGameIsNew];
+          self->_gameScene.gameIsNew = YES;
           break;
         }
         default:

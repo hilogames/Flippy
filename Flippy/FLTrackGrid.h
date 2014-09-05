@@ -119,7 +119,7 @@ public:
 
   size_t size() const { return grid_.size(); }
 
-  void set(int gridX, int gridY, FLSegmentNode *value) { grid_[{ gridX, gridY }] = value; }
+  void set(int gridX, int gridY, FLSegmentNode *segmentNode) { grid_[{ gridX, gridY }] = segmentNode; }
 
   void erase(int gridX, int gridY) { grid_.erase(gridX, gridY); }
 
