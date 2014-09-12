@@ -40,5 +40,25 @@
 			<string>FLUserUnlockGateAnd</string>
 		</array>
 	</dict>
+	<dict>
+		<key>title</key>
+		<string>Or Or Or</string>
+		<key>goal-short</key>
+		<string>X = A ∨ B (X is A or B)</string>
+		<key>goal-long</key>
+		<string>After the train has stopped, output X should be 1 if one or both of A and B are 1, and 0 otherwise.</string>
+		<key>goal-values</key>
+		<array>
+			<integer>0</integer>
+			<integer>1</integer>
+			<integer>1</integer>
+			<integer>1</integer>
+		</array>
+		<key>victory-user-unlocks</key>
+		<array>
+			<string>FLUserUnlockLevel3</string>
+			<string>FLUserUnlockGateOr</string>
+		</array>
+	</dict>
 </array>
 </plist>

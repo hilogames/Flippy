@@ -38,6 +38,9 @@ Current
     appropriate; font size or side-by-side display or a button for
     details or something.
 
+  . Interface help screen (explain holding down for multi-select,
+    double-click switches, hold down switch to delete it, etc).
+
 If It Ships
 
   . Low memory warning.  (Test in debugger.)

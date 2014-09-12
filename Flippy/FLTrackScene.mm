@@ -66,6 +66,10 @@ static const CGFloat FLMainToolbarToolHeight = 48.0f;
 static const CGFloat FLMessageSpacer = 1.0f;
 static const CGFloat FLMessageHeight = 20.0f;
 
+// note: I've seen strings display wider than the paragraph width specified;
+// so pad it a little.
+static const CGFloat FLDSMultilineLabelParagraphWidthPad = 10.0f;
+
 static NSString *FLGatesDirectoryPath;
 static NSString *FLCircuitsDirectoryPath;
 static NSString *FLExportsDirectoryPath;
@@ -2685,7 +2689,7 @@ struct PointerPairHash
                       introNode.text,
                       NSLocalizedString(@"Current Results", @"Game information: on the goals screen, the header over the displayed results of the current level solution."0)];
   }
-  introNode.paragraphWidth = edgeSizeMax;
+  introNode.paragraphWidth = edgeSizeMax - FLDSMultilineLabelParagraphWidthPad;
   [layoutNodes addObject:introNode];
 
   HLLabelButtonNode *victoryButton = nil;
@@ -2732,7 +2736,7 @@ struct PointerPairHash
       resultNode.fontSize = 18.0f;
       resultNode.fontColor = resultColor;
       resultNode.text = resultText;
-      resultNode.paragraphWidth = edgeSizeMax;
+      resultNode.paragraphWidth = edgeSizeMax - FLDSMultilineLabelParagraphWidthPad;
       [layoutNodes addObject:resultNode];
     }
     if (_gameType == FLGameTypeChallenge && victory) {
@@ -4149,13 +4153,13 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
   _tutorialState.backdropNode = backdropNode;
   backdropNode.zPosition = FLZPositionTutorial;
 
-  const CGFloat FLTutorialLabelPad = 10.0f;
+  const CGFloat FLTutorialLabelPad = 5.0f;
   DSMultilineLabelNode *labelNode = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
   labelNode.zPosition = 0.1f;
   labelNode.fontSize = 20.0f;
   labelNode.fontColor = [SKColor whiteColor];
   labelNode.text = label;
-  labelNode.paragraphWidth = MIN(sceneSize.width, sceneSize.height) - FLTutorialLabelPad * 2.0f;
+  labelNode.paragraphWidth = MIN(sceneSize.width, sceneSize.height) - FLDSMultilineLabelParagraphWidthPad - FLTutorialLabelPad * 2.0f;
   [backdropNode addChild:labelNode];
 
   // Layout label relative to cutouts (if appropriate).
@@ -4599,7 +4603,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
       return YES;
     }
     case 8: {
-      // note: Unlock here, on not on step>8, so that if the tutorial is reset it won't immediately get
+      // note: Unlock here, on not on next step, so that if the tutorial is reset it won't immediately get
       // completed again.  (On reset, a tutorial should be shown on a new game, and not on this one,
       // so don't set step to 0.)
       FLUserUnlocksUnlock(@[ @"FLUserUnlockTutorialCompleted" ]);
