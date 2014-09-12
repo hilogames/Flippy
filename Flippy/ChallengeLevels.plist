@@ -46,7 +46,7 @@
 		<key>goal-short</key>
 		<string>X = A ∨ B (X is A or B)</string>
 		<key>goal-long</key>
-		<string>After the train has stopped, output X should be 1 if one or both of A and B are 1, and 0 otherwise.</string>
+		<string>After the train has stopped, output X should be 1 if (and only if) one or both of A and B are 1.</string>
 		<key>goal-values</key>
 		<array>
 			<integer>0</integer>
@@ -58,6 +58,26 @@
 		<array>
 			<string>FLUserUnlockLevel3</string>
 			<string>FLUserUnlockGateOr</string>
+		</array>
+	</dict>
+	<dict>
+		<key>title</key>
+		<string>Yeah: XOR</string>
+		<key>goal-short</key>
+		<string>X = A ⊻ B (X is A xor B)</string>
+		<key>goal-long</key>
+		<string>After the train has stopped, output X should be 1 if (and only if) A and B are different.</string>
+		<key>goal-values</key>
+		<array>
+			<integer>0</integer>
+			<integer>1</integer>
+			<integer>1</integer>
+			<integer>0</integer>
+		</array>
+		<key>victory-user-unlocks</key>
+		<array>
+			<string>FLUserUnlockLevel4</string>
+			<string>FLUserUnlockGateXor</string>
 		</array>
 	</dict>
 </array>

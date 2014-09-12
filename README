@@ -7,9 +7,6 @@ circuits.
 
 Current
 
-  . Challenge levels: not, and, or, xor (no cross), xor (with cross).
-    Each one can be skipped?  Each one has hints?
-
   . Sound effects for challenge mode!  Also note any other sound
     effects needed and do them at the same time.  Victory, for instance.
 
@@ -20,6 +17,13 @@ Current
     cool if there were two achievements: the fewest piece award, but
     also the rube goldberg award for more-than-X switched joins, and
     "the long ride" for most traveled pieces, etc.
+
+  . At same time as above: victory message should say what is unlocked
+    as well as what achievments were earned.  Little checklist with
+    sparkler bursts: kachung! kachung! kachung!
+
+  . Also maybe prompt user to save (and/or autosave) on victory rather
+    than going straight to next level.
 
   . Pan world when track move (or multi-selection, or any pan gesture)
     goes to edge of scene.
@@ -36,10 +40,13 @@ Current
     showing results and with victory button and in landscape on 3.5
     inch iPhone.  Maybe some screen-specific code would be
     appropriate; font size or side-by-side display or a button for
-    details or something.
+    details or something.  Maybe toggle goals-long display with
+    results display?  Or even both goals-short+goals-long.
 
   . Interface help screen (explain holding down for multi-select,
-    double-click switches, hold down switch to delete it, etc).
+    double-click switches, hold down switch to delete it, center
+    button to find and follow train, hold center button to reset
+    zoom).
 
 If It Ships
 
