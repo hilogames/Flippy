@@ -38,7 +38,8 @@ static NSString * const FLTitleMenuChallenge = NSLocalizedString(@"Play", @"Menu
 static NSString * const FLTitleMenuSandbox = NSLocalizedString(@"Sandbox", @"Menu item: start a new or load an old sandbox game.");
 static NSString * const FLTitleMenuSettings = NSLocalizedString(@"Settings", @"Menu item: modify game global settings.");
 static NSString * const FLTitleMenuAbout = NSLocalizedString(@"About", @"Menu item: show game production information.");
-static NSString * const FLTitleMenuAppReset = NSLocalizedString(@"Reset App", @"Menu item: reset application to original state (in terms of achievements, unlocks, etc).");
+static NSString * const FLTitleMenuResetApp = NSLocalizedString(@"Reset App", @"Menu item: reset application to original state (in terms of achievements, unlocks, etc).");
+static NSString * const FLTitleMenuResetTutorial = NSLocalizedString(@"Reset Tutorial", @"Menu item: reset tutorial so that it will display on the next new game.");
 
 static NSString * const FLGameMenuResume = NSLocalizedString(@"Resume", @"Menu item: continue the current game.");
 static NSString * const FLGameMenuSave = NSLocalizedString(@"Save", @"Menu item: save the current game.");
@@ -65,7 +66,8 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   NSString *_saveConfirmPath;
   UIAlertView *_restartConfirmAlert;
   UIAlertView *_exitConfirmAlert;
-  UIAlertView *_appResetConfirmAlert;
+  UIAlertView *_resetAppConfirmAlert;
+  UIAlertView *_resetTutorialConfirmAlert;
 }
 
 + (void)initialize
@@ -224,7 +226,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   //   3) View is brand new and bare from loadView.  In that case -- or in case
   //      the restorable state from (2) wasn't sufficient for a presentation --
   //      create a default starting scene (that is, a menu).
-  
+
   if (!_currentScene) {
     if (!_titleScene) {
       [self FL_titleSceneCreate];
@@ -235,7 +237,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   // note: No loading of track assets, or showing loading screens.  If the track was
   // decoded from application state, then the assets were already loaded.  If not,
   // then we don't expect _currentScene to be _gameScene.
-  
+
   // noob: This logic for loading track scene assets seems messy and distributed.
   // Check it with an assertion, but think about ways to improve it.  (For one thing,
   // maybe we should have a notification for applicationDidFinishLoading, so that
@@ -326,7 +328,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
 
     return YES;
   }
-  
+
   if (menuNode == _gameMenuNode) {
 
     if ([menuItem.text isEqualToString:FLGameMenuSave]) {
@@ -367,10 +369,12 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
                                                        @"Menu prompt: displayed over a list of saved game slots.")];
     } else if ([menuItemParent.text isEqualToString:FLTitleMenuSandbox]) {
       [self FL_loadFromTitleMenu:FLGameTypeSandbox menuItem:menuItem itemIndex:itemIndex];
-    } else if ([menuItem.text isEqualToString:FLTitleMenuAppReset]) {
-      [self FL_appResetFromTitleMenuConfirm];
+    } else if ([menuItem.text isEqualToString:FLTitleMenuResetApp]) {
+      [self FL_resetAppFromTitleMenuConfirm];
+    } else if ([menuItem.text isEqualToString:FLTitleMenuResetTutorial]) {
+      [self FL_resetTutorialFromTitleMenuConfirm];
     }
-    
+
     return;
   }
 
@@ -402,7 +406,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   if (!_gameOverlay) {
     [self FL_gameOverlayCreate];
   }
-  
+
   [self FL_gameStatusUpdateText];
   [self FL_gameOverlayUpdateGeometry];
 
@@ -452,9 +456,13 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
     if (buttonIndex == 1) {
       [self FL_exitFromGameMenu];
     }
-  } else if (alertView == _appResetConfirmAlert) {
+  } else if (alertView == _resetAppConfirmAlert) {
     if (buttonIndex == 1) {
-      [self FL_appResetFromTitleMenu];
+      [self FL_resetAppFromTitleMenu];
+    }
+  } else if (alertView == _resetTutorialConfirmAlert) {
+    if (buttonIndex == 1) {
+      [self FL_resetTutorialFromTitleMenu];
     }
   }
 }
@@ -493,7 +501,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   _loadingScene = [SKScene sceneWithSize:self.view.bounds.size];
   _loadingScene.scaleMode = SKSceneScaleModeResizeFill;
   _loadingScene.anchorPoint = CGPointMake(0.5f, 0.5f);
-  
+
   const NSTimeInterval FLLoadingPulseDuration = 0.5;
   SKLabelNode *loadingLabelNode = [SKLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
   loadingLabelNode.fontSize = 18.0f;
@@ -519,7 +527,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   _titleScene = [HLScene sceneWithSize:self.view.bounds.size];
   _titleScene.scaleMode = SKSceneScaleModeResizeFill;
   _titleScene.anchorPoint = CGPointMake(0.5f, 0.5f);
-  
+
   SKSpriteNode *backgroundNode = [SKSpriteNode spriteNodeWithImageNamed:@"grass"];
   backgroundNode.zPosition = FLZPositionTitleBackground;
   [_titleScene addChild:backgroundNode withOptions:[NSSet setWithObject:HLSceneChildResizeWithScene]];
@@ -547,7 +555,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   HLMenuNode *titleMenuNode = _titleMenuNode;
   messageNode.position = CGPointMake(0.0f, titleMenuNode.position.y + titleMenuNode.itemSpacing);
   messageNode.size = CGSizeMake(_titleScene.size.width, FLMessageNodeHeight);
-  
+
   [messageNode showMessage:message parent:_titleScene];
 }
 
@@ -566,7 +574,8 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   // note: Create empty loading menus for now; update later with FL_commonMenuUpdateSaves.
   [menu addItem:[HLMenu menuWithText:FLTitleMenuChallenge items:@[] ]];
   [menu addItem:[HLMenu menuWithText:FLTitleMenuSandbox items:@[] ]];
-  [menu addItem:[HLMenu menuWithText:FLTitleMenuSettings items:@[ [HLMenuItem menuItemWithText:FLTitleMenuAppReset],
+  [menu addItem:[HLMenu menuWithText:FLTitleMenuSettings items:@[ [HLMenuItem menuItemWithText:FLTitleMenuResetApp],
+                                                                  [HLMenuItem menuItemWithText:FLTitleMenuResetTutorial],
                                                                   [HLMenuBackItem menuItemWithText:FLCommonMenuBack] ] ]];
   [menu addItem:[HLMenuItem menuItemWithText:FLTitleMenuAbout]];
 
@@ -577,7 +586,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
 - (NSUInteger)FL_titleMenuUpdateNew:(HLMenu *)newMenu
 {
   NSUInteger newCount = 0;
-  
+
   // note: Precondition: This is a challenge game.
   [newMenu removeAllItems];
 
@@ -619,7 +628,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   const CGFloat FLMessageSeparator = _gameMenuNode.itemSpacing;
   _gameMessageNode.position = CGPointMake(0.0f, _gameMenuNode.position.y + FLMessageSeparator);
   _gameMessageNode.size = CGSizeMake(_gameScene.size.width, FLMessageNodeHeight);
-  
+
   const CGFloat FLStatusSeperator = _gameMenuNode.itemSpacing - FLMessageNodeHeight;
   const CGFloat FLStatusLabelPad = 5.0f;
   SKSpriteNode *statusBackgroundNode = (SKSpriteNode *)_gameStatusNode.parent;
@@ -724,7 +733,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
     // note: Create empty "new" menu for now; update later with FL_titleMenuUpdateNew.
     [saveMenu addItem:[HLMenu menuWithText:FLCommonMenuNew items:@[] ]];
   }
-  
+
   NSUInteger saveCount = 0;
   for (NSUInteger saveNumber = 0; saveNumber < FLSaveGameSlotCount; ++saveNumber) {
     HLMenuItem *saveGameMenuItem = [[HLMenuItem alloc] init];
@@ -739,7 +748,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
     }
     [saveMenu addItem:saveGameMenuItem];
   }
-  
+
   [saveMenu addItem:[HLMenuBackItem menuItemWithText:FLCommonMenuBack]];
   return saveCount;
 }
@@ -789,7 +798,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
     default:
       [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %d.", gameType];
   }
-  
+
   return [NSString stringWithFormat:@"%@ %lu (%@)",
           gameTypeSaveTitle,
           (unsigned long)saveNumber + 1,
@@ -848,7 +857,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   if (itemIndex == 0 && gameType == FLGameTypeChallenge) {
     return;
   }
-  
+
   if (itemIndex > FLSaveGameSlotCount) {
     return;
   }
@@ -935,7 +944,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
     [self FL_restartFromGameMenu];
     return;
   }
-  
+
   NSString *title;
   switch (_gameScene.gameType) {
     case FLGameTypeChallenge:
@@ -1005,22 +1014,40 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   _currentScene = _titleScene;
 }
 
-- (void)FL_appResetFromTitleMenuConfirm
+- (void)FL_resetAppFromTitleMenuConfirm
 {
   UIAlertView *confirmAlert = [[UIAlertView alloc] initWithTitle:NSLocalizedString(@"Saved games will be preserved, but all achievements and unlocked features will be lost. Reset app anyway?",
                                                                                    @"Alert prompt: confirmation of intention to reset app.")
                                                          message:nil
                                                         delegate:self
                                                cancelButtonTitle:NSLocalizedString(@"Cancel", @"Alert button: cancel exit.")
-                                               otherButtonTitles:FLTitleMenuAppReset, nil];
+                                               otherButtonTitles:FLTitleMenuResetApp, nil];
   confirmAlert.alertViewStyle = UIAlertViewStyleDefault;
   [confirmAlert show];
-  _appResetConfirmAlert = confirmAlert;
+  _resetAppConfirmAlert = confirmAlert;
 }
 
-- (void)FL_appResetFromTitleMenu
+- (void)FL_resetAppFromTitleMenu
 {
-  FLUserUnlocksReset();
+  FLUserUnlocksResetAll();
+}
+
+- (void)FL_resetTutorialFromTitleMenuConfirm
+{
+  UIAlertView *confirmAlert = [[UIAlertView alloc] initWithTitle:NSLocalizedString(@"The tutorial will start over on the next new game. Reset tutorial?",
+                                                                                   @"Alert prompt: confirmation of intention to reset tutorial.")
+                                                         message:nil
+                                                        delegate:self
+                                               cancelButtonTitle:NSLocalizedString(@"Cancel", @"Alert button: cancel exit.")
+                                               otherButtonTitles:FLTitleMenuResetTutorial, nil];
+  confirmAlert.alertViewStyle = UIAlertViewStyleDefault;
+  [confirmAlert show];
+  _resetTutorialConfirmAlert = confirmAlert;
+}
+
+- (void)FL_resetTutorialFromTitleMenu
+{
+  FLUserUnlocksReset(@"FLUserUnlockTutorialCompleted");
 }
 
 @end

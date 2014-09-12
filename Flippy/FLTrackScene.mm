@@ -4424,11 +4424,11 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
       return YES;
     }
     case 8: {
-      NSString *label = NSLocalizedString(@"Flippy eventually arrives at this junction.\n\nTap to watch what happens.",
+      NSString *label = NSLocalizedString(@"Flippy eventually arrives at this junction. Tap to watch what happens.",
                                           @"Tutorial message.");
       FLSegmentNode *segmentNode = _trackGrid->get(1, 4);
       _tutorialState.cutouts.emplace_back(segmentNode, NO);
-      _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
+      _tutorialState.labelPosition = FLTutorialLabelBelowCutouts;
       CGPoint panSceneLocation = [self convertPoint:segmentNode.position fromNode:_trackNode];
       [self FL_tutorialShowWithLabel:label firstPanWorld:YES panLocation:panSceneLocation animated:animated];
       _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
@@ -4522,7 +4522,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
       return YES;
     }
     case 2: {
-      NSString *label = NSLocalizedString(@"Tap this button to show identifying labels on the inputs.",
+      NSString *label = NSLocalizedString(@"Tap this button to show labels on the inputs.",
                                           @"Tutorial message.");
       SKSpriteNode *squareNode = [_constructionToolbarState.toolbarNode squareNodeForTool:@"show-labels"];
       _tutorialState.cutouts.emplace_back(squareNode, YES);
@@ -4534,7 +4534,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
       return YES;
     }
     case 3: {
-      NSString *label = NSLocalizedString(@"Wow, that’s ugly. Let’s look at the goals.",
+      NSString *label = NSLocalizedString(@"Okay. Now let’s look at the goals.",
                                           @"Tutorial message.");
       SKSpriteNode *squareNode = [_simulationToolbarState.toolbarNode squareNodeForTool:@"goals"];
       _tutorialState.cutouts.emplace_back(squareNode, YES);
@@ -4553,8 +4553,8 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
       [_trackNode addChild:segmentNode];
       _trackGrid->set(0, 1, segmentNode);
       segmentNode.alpha = 0.0f;
-      [segmentNode runAction:[SKAction sequence:@[ [SKAction waitForDuration:FLTutorialStepFadeDuration * 3.0],
-                                                   [SKAction fadeInWithDuration:(FLTutorialStepFadeDuration * 2.0)] ]]];
+      [segmentNode runAction:[SKAction sequence:@[ [SKAction waitForDuration:1.2],
+                                                   [SKAction fadeInWithDuration:0.7] ]]];
       NSString *label = NSLocalizedString(@"Suppose you’ve added a switched segment to the track. How can it be linked to an input?",
                                           @"Tutorial message.");
       _tutorialState.cutouts.emplace_back(segmentNode, NO);
@@ -4589,7 +4589,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
       return YES;
     }
     case 7: {
-      NSString *label = NSLocalizedString(@"The link button is still highlighted, so we’re still in linking mode. Tap it again to exit linking mode.",
+      NSString *label = NSLocalizedString(@"The link button is highlighted, so we’re still in linking mode. Tap it again to exit linking mode.",
                                           @"Tutorial message.");
       SKSpriteNode *squareNode = [_constructionToolbarState.toolbarNode squareNodeForTool:@"link"];
       _tutorialState.cutouts.emplace_back(squareNode, YES);
@@ -4599,8 +4599,11 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
       return YES;
     }
     case 8: {
+      // note: Unlock here, on not on step>8, so that if the tutorial is reset it won't immediately get
+      // completed again.  (On reset, a tutorial should be shown on a new game, and not on this one,
+      // so don't set step to 0.)
       FLUserUnlocksUnlock(@[ @"FLUserUnlockTutorialCompleted" ]);
-      NSString *label = NSLocalizedString(@"That’s all for this tutorial; it won’t show again unless you reset it from the main menu. Have fun!",
+      NSString *label = NSLocalizedString(@"That’s all for this tutorial. Have fun!",
                                           @"Tutorial message.");
       [self FL_tutorialShowWithLabel:label animated:animated];
       _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);

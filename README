@@ -7,11 +7,6 @@ circuits.
 
 Current
 
-  . Tutorial mechanism for first challenge levels.
-
-    - Resetting app resets tutorial.  Also, a special button for
-      resetting just the tutorial.
-
   . Challenge levels: not, and, or, xor (no cross), xor (with cross).
     Each one can be skipped?  Each one has hints?
 
@@ -36,6 +31,12 @@ Current
 
   . Make a copy/duplicate of current selection.  Insert the same way
     as an import, so factor out that code.
+
+  . Goals screen (esp with results) doesn't fit, especially when
+    showing results and with victory button and in landscape on 3.5
+    inch iPhone.  Maybe some screen-specific code would be
+    appropriate; font size or side-by-side display or a button for
+    details or something.
 
 If It Ships
 

@@ -31,7 +31,8 @@ FOUNDATION_EXPORT BOOL FLUserUnlocksUnlocked(NSString *unlockKey);
 
 FOUNDATION_EXPORT void FLUserUnlocksUnlock(NSArray *unlockKeys);
 
-FOUNDATION_EXPORT void FLUserUnlocksReset();
+FOUNDATION_EXPORT void FLUserUnlocksResetAll();
+FOUNDATION_EXPORT void FLUserUnlocksReset(NSString *unlockKey);
 
 /**
  * The standard application font.

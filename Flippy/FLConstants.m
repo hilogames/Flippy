@@ -95,10 +95,17 @@ FLUserUnlocksUnlock(NSArray *unlockKeys)
 }
 
 void
-FLUserUnlocksReset()
+FLUserUnlocksResetAll()
 {
   _userUnlocks = [NSMutableDictionary dictionary];
   [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"FLUserUnlocks"];
+}
+
+void
+FLUserUnlocksReset(NSString *unlockKey)
+{
+  [_userUnlocks removeObjectForKey:unlockKey];
+  [[NSUserDefaults standardUserDefaults] setObject:_userUnlocks forKey:@"FLUserUnlocks"];
 }
 
 NSString *FLInterfaceFontName = @"Courier";
