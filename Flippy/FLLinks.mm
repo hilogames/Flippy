@@ -134,7 +134,7 @@ linksSetSwitchPathId(const FLLinks& links, FLSegmentNode *segmentNode, int pathI
   }
 }
 
-void
+int
 linksToggleSwitchPathId(const FLLinks& links, FLSegmentNode *segmentNode, BOOL animated)
 {
   int pathId = [segmentNode toggleSwitchPathIdAnimated:animated];
@@ -143,4 +143,5 @@ linksToggleSwitchPathId(const FLLinks& links, FLSegmentNode *segmentNode, BOOL a
   for (auto linkedSegmentNode : linkedSegmentNodes) {
     [linkedSegmentNode setSwitchPathId:pathId animated:animated];
   }
+  return pathId;
 }

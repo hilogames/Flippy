@@ -796,11 +796,10 @@ struct PointerPairHash
   int gridX;
   int gridY;
   _trackGrid->convert(worldLocation, &gridX, &gridY);
-  NSLog(@"double tapped %d,%d", gridX, gridY);
 
   FLSegmentNode *segmentNode = _trackGrid->get(gridX, gridY);
   if (segmentNode && segmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
-    linksToggleSwitchPathId(_links, segmentNode, YES);
+    [self FL_linkSwitchTogglePathIdForSegment:segmentNode animated:YES];
   }
 
   // note: Our current gesture single- and double- tap recognizers (created
@@ -1320,8 +1319,10 @@ struct PointerPairHash
   } else if ([toolTag isEqualToString:@"play"]) {
     [self FL_trackEditMenuHideAnimated:YES];
     [self FL_simulationStart];
+    [_trackNode runAction:[SKAction playSoundFileNamed:@"train-whistle-2.caf" waitForCompletion:NO]];
   } else if ([toolTag isEqualToString:@"pause"]) {
     [self FL_simulationStop];
+    [_trackNode runAction:[SKAction playSoundFileNamed:@"train-stop-hiss.caf" waitForCompletion:NO]];
   } else if ([toolTag isEqualToString:@"ff"]) {
     [self FL_simulationCycleSpeed];
   } else if ([toolTag isEqualToString:@"fff"]) {
@@ -1379,9 +1380,7 @@ struct PointerPairHash
   } else if ([buttonTag isEqualToString:@"rotate-ccw"]) {
     [self FL_trackRotateSegments:_trackSelectState.selectedSegments rotateBy:1 animated:YES];
   } else if ([buttonTag isEqualToString:@"toggle-switch"]) {
-    for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
-      linksToggleSwitchPathId(_links, segmentNode, YES);
-    }
+    [self FL_linkSwitchTogglePathIdForSegments:_trackSelectState.selectedSegments animated:YES];
   } else if ([buttonTag isEqualToString:@"set-label"]) {
     [self FL_labelPickForSegments:_trackSelectState.selectedSegments];
   } else if ([buttonTag isEqualToString:@"delete"]) {
@@ -1653,13 +1652,14 @@ struct PointerPairHash
 
 - (void)train:(FLTrain *)train triggeredSwitchAtSegment:(FLSegmentNode *)segmentNode pathId:(int)pathId
 {
-  linksSetSwitchPathId(_links, segmentNode, pathId, YES);
+  [self FL_linkSwitchSetPathId:pathId forSegment:segmentNode animated:YES];
 }
 
 - (void)train:(FLTrain *)train stoppedAtSegment:(FLSegmentNode *)segmentNode
 {
   // note: Currently only one train, so if train stops then stop the whole simulation.
   [self FL_simulationStop];
+  [_trackNode runAction:[SKAction playSoundFileNamed:@"train-stop-hiss.caf" waitForCompletion:NO]];
 
   if (_gameType == FLGameTypeChallenge) {
     if (segmentNode.segmentType == FLSegmentTypePlatform) {
@@ -1692,6 +1692,7 @@ struct PointerPairHash
 {
   // note: Currently only one train, so if train stops then stop the whole simulation.
   [self FL_simulationStop];
+  [_trackNode runAction:[SKAction playSoundFileNamed:@"train-stop-hiss.caf" waitForCompletion:NO]];
 }
 
 #pragma mark -
@@ -1805,6 +1806,11 @@ struct PointerPairHash
   [SKAction playSoundFileNamed:@"wooden-click-2.caf" waitForCompletion:NO];
   [SKAction playSoundFileNamed:@"wooden-clickity-2.caf" waitForCompletion:NO];
   [SKAction playSoundFileNamed:@"wooden-clatter-1.caf" waitForCompletion:NO];
+  [SKAction playSoundFileNamed:@"train-whistle-2.caf" waitForCompletion:NO];
+  [SKAction playSoundFileNamed:@"train-stop-hiss.caf" waitForCompletion:NO];
+  [SKAction playSoundFileNamed:@"ka-chick.caf" waitForCompletion:NO];
+  [SKAction playSoundFileNamed:@"train-whistle-tune-1.caf" waitForCompletion:NO];
+  [SKAction playSoundFileNamed:@"pop-2.caf" waitForCompletion:NO];
 
   NSLog(@"FLTrackScene loadSound: loaded in %0.2f seconds", [[NSDate date] timeIntervalSinceDate:startDate]);
 }
@@ -2637,6 +2643,7 @@ struct PointerPairHash
     _messageNode = [[HLMessageNode alloc] initWithColor:[SKColor colorWithWhite:0.0f alpha:0.5f] size:CGSizeZero];
     _messageNode.verticalAlignmentMode = HLLabelNodeVerticalAlignFontAscenderBias;
     _messageNode.messageLingerDuration = 2.0;
+    _messageNode.messageSoundFile = @"pop-2.caf";
     _messageNode.fontName = FLInterfaceFontName;
     _messageNode.fontSize = 14.0f;
     _messageNode.fontColor = [SKColor whiteColor];
@@ -2741,6 +2748,7 @@ struct PointerPairHash
     }
     if (_gameType == FLGameTypeChallenge && victory) {
       NSArray *victoryUserUnlocks = FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsVictoryUserUnlocks);
+      [self runAction:[SKAction playSoundFileNamed:@"train-whistle-tune-1.caf" waitForCompletion:NO]];
       FLUserUnlocksUnlock(victoryUserUnlocks);
       if (_gameLevel + 1 < FLChallengeLevelsCount()) {
         victoryButton = FLInterfaceLabelButton();
@@ -3601,6 +3609,35 @@ struct PointerPairHash
   }
 }
 
+- (void)FL_linkSwitchSetPathId:(int)pathId forSegment:(FLSegmentNode *)segmentNode animated:(BOOL)animated
+{
+  if (segmentNode.switchPathId == pathId) {
+    return;
+  }
+  linksSetSwitchPathId(_links, segmentNode, pathId, animated);
+  if (animated) {
+    [_trackNode runAction:[SKAction playSoundFileNamed:@"ka-chick.caf" waitForCompletion:NO]];
+  }
+}
+
+- (void)FL_linkSwitchTogglePathIdForSegment:(FLSegmentNode *)segmentNode animated:(BOOL)animated
+{
+  linksToggleSwitchPathId(_links, segmentNode, animated);
+  if (animated) {
+    [_trackNode runAction:[SKAction playSoundFileNamed:@"ka-chick.caf" waitForCompletion:NO]];
+  }
+}
+
+- (void)FL_linkSwitchTogglePathIdForSegments:(NSSet *)segmentNodes animated:(BOOL)animated
+{
+  for (FLSegmentNode *segmentNode in segmentNodes) {
+    linksToggleSwitchPathId(_links, segmentNode, animated);
+  }
+  if (animated) {
+    [_trackNode runAction:[SKAction playSoundFileNamed:@"ka-chick.caf" waitForCompletion:NO]];
+  }
+}
+
 - (BOOL)FL_linkSwitchSetEnabled:(BOOL)enabled forSegment:(FLSegmentNode *)segmentNode
 {
   // note: Returns the enabled state of the switch (resulting from this call).  Note
@@ -4440,7 +4477,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
     }
     case 9: {
       FLSegmentNode *segmentNode = _trackGrid->get(1, 4);
-      linksSetSwitchPathId(_links, segmentNode, 1, NO);
+      [self FL_linkSwitchSetPathId:1 forSegment:segmentNode animated:NO];
       [_train moveToSegment:segmentNode pathId:0 progress:0.0f direction:FLPathDirectionIncreasing];
       // note: Set train speed a bit slower than normal.
       _train.trainSpeed = 1.0f;

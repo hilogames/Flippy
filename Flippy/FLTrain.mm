@@ -145,7 +145,6 @@ using namespace std;
     } else {
       if (_lastProgress < 0.3f
           && [_lastSegmentNode pathDirectionGoingWithSwitchForPath:_lastPathId] == FLPathDirectionIncreasing) {
-        [_lastSegmentNode setSwitchPathId:_lastPathId animated:YES];
         id<FLTrainDelegate> delegate = _delegate;
         if (delegate) {
           [delegate train:self triggeredSwitchAtSegment:_lastSegmentNode pathId:_lastPathId];

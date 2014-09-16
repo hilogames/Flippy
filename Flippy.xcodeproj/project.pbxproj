@@ -11,6 +11,9 @@
 		CB05B3B1196B353A00FF58A5 /* sleeperDestruction.sks in Resources */ = {isa = PBXBuildFile; fileRef = CB05B3AF196B353A00FF58A5 /* sleeperDestruction.sks */; };
 		CB05B3B5196B358800FF58A5 /* levels in Resources */ = {isa = PBXBuildFile; fileRef = CB05B3B4196B358800FF58A5 /* levels */; };
 		CB0DA5A618B7D8CE00E43D34 /* FLPath.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB0DA5A418B7D8CE00E43D34 /* FLPath.mm */; };
+		CB17FD7819C8A69000DECE5E /* train-whistle-tune-1.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB17FD7719C8A69000DECE5E /* train-whistle-tune-1.caf */; };
+		CB17FD7A19C8A7B800DECE5E /* ka-chick.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB17FD7919C8A7B800DECE5E /* ka-chick.caf */; };
+		CB17FD7C19C8AAD100DECE5E /* pop-2.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB17FD7B19C8AAD100DECE5E /* pop-2.caf */; };
 		CB3FBDCD1889860A00CE5BBD /* QuadTree.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */; };
 		CB485D88196ECE2B00E8646B /* ChallengeLevels.plist in Resources */ = {isa = PBXBuildFile; fileRef = CB485D87196ECE2B00E8646B /* ChallengeLevels.plist */; };
 		CB485D92196ED4D900E8646B /* FLConstants.m in Sources */ = {isa = PBXBuildFile; fileRef = CB485D91196ED4D900E8646B /* FLConstants.m */; };
@@ -59,6 +62,8 @@
 		CBB4B824183C00E1003C3444 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B7FC183C00E1003C3444 /* UIKit.framework */; };
 		CBB4B82C183C00E1003C3444 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = CBB4B82A183C00E1003C3444 /* InfoPlist.strings */; };
 		CBB4B82E183C00E1003C3444 /* FlippyTests.m in Sources */ = {isa = PBXBuildFile; fileRef = CBB4B82D183C00E1003C3444 /* FlippyTests.m */; };
+		CBBB184B19C736F30088D345 /* train-whistle-2.caf in Resources */ = {isa = PBXBuildFile; fileRef = CBBB184A19C736F30088D345 /* train-whistle-2.caf */; };
+		CBBB185219C739EF0088D345 /* train-stop-hiss.caf in Resources */ = {isa = PBXBuildFile; fileRef = CBBB184F19C739EF0088D345 /* train-stop-hiss.caf */; };
 		CBD707C418AD0EE00041B170 /* FLTrain.mm in Sources */ = {isa = PBXBuildFile; fileRef = CBD707C318AD0EE00041B170 /* FLTrain.mm */; };
 		CBD9E93B19142C29002533DF /* libHLSpriteKit.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CBD9E93619142B03002533DF /* libHLSpriteKit.a */; };
 		CBEE13F018C4DBA400D1D42B /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CB0464A318AA6F7F00ABCA03 /* AVFoundation.framework */; };
@@ -102,6 +107,9 @@
 		CB05B3B4196B358800FF58A5 /* levels */ = {isa = PBXFileReference; lastKnownFileType = folder; path = levels; sourceTree = "<group>"; };
 		CB0DA5A418B7D8CE00E43D34 /* FLPath.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLPath.mm; sourceTree = "<group>"; };
 		CB0DA5A518B7D8CE00E43D34 /* FLPath.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLPath.h; sourceTree = "<group>"; };
+		CB17FD7719C8A69000DECE5E /* train-whistle-tune-1.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "train-whistle-tune-1.caf"; sourceTree = "<group>"; };
+		CB17FD7919C8A7B800DECE5E /* ka-chick.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ka-chick.caf"; sourceTree = "<group>"; };
+		CB17FD7B19C8AAD100DECE5E /* pop-2.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "pop-2.caf"; sourceTree = "<group>"; };
 		CB2E3250198BF31000720EAA /* fnv.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fnv.h; sourceTree = "<group>"; };
 		CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = QuadTree.cpp; sourceTree = "<group>"; };
 		CB3FBDCC1889860A00CE5BBD /* QuadTree.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = QuadTree.h; sourceTree = "<group>"; };
@@ -164,6 +172,8 @@
 		CBB4B829183C00E1003C3444 /* FlippyTests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "FlippyTests-Info.plist"; sourceTree = "<group>"; };
 		CBB4B82B183C00E1003C3444 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		CBB4B82D183C00E1003C3444 /* FlippyTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FlippyTests.m; sourceTree = "<group>"; };
+		CBBB184A19C736F30088D345 /* train-whistle-2.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "train-whistle-2.caf"; sourceTree = "<group>"; };
+		CBBB184F19C739EF0088D345 /* train-stop-hiss.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "train-stop-hiss.caf"; sourceTree = "<group>"; };
 		CBD707C218AD0EE00041B170 /* FLTrain.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTrain.h; sourceTree = "<group>"; };
 		CBD707C318AD0EE00041B170 /* FLTrain.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLTrain.mm; sourceTree = "<group>"; };
 		CBD9E93019142B03002533DF /* HLSpriteKit.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = HLSpriteKit.xcodeproj; path = ../common/HLSpriteKit/HLSpriteKit.xcodeproj; sourceTree = "<group>"; };
@@ -234,6 +244,11 @@
 		CB960312196B878F00569870 /* Audio */ = {
 			isa = PBXGroup;
 			children = (
+				CB17FD7B19C8AAD100DECE5E /* pop-2.caf */,
+				CB17FD7919C8A7B800DECE5E /* ka-chick.caf */,
+				CB17FD7719C8A69000DECE5E /* train-whistle-tune-1.caf */,
+				CBBB184F19C739EF0088D345 /* train-stop-hiss.caf */,
+				CBBB184A19C736F30088D345 /* train-whistle-2.caf */,
 				CB9602FA196B86FF00569870 /* wooden-clatter-1.caf */,
 				CB9602FB196B86FF00569870 /* wooden-click-1.caf */,
 				CB9602FC196B86FF00569870 /* wooden-click-2.caf */,
@@ -482,10 +497,12 @@
 				CB960343196B892E00569870 /* tools.atlas in Resources */,
 				CB96030E196B86FF00569870 /* wooden-clatter-1.caf in Resources */,
 				CB960339196B88AD00569870 /* join-left-nonatlas.png in Resources */,
+				CB17FD7819C8A69000DECE5E /* train-whistle-tune-1.caf in Resources */,
 				CB960311196B86FF00569870 /* wooden-clickity-2.caf in Resources */,
 				CB960300196B86FF00569870 /* engine.png in Resources */,
 				CB96033A196B88AD00569870 /* join-right-nonatlas.png in Resources */,
 				CB96033D196B88AD00569870 /* switch-nonatlas.png in Resources */,
+				CB17FD7C19C8AAD100DECE5E /* pop-2.caf in Resources */,
 				CBB4B81B183C00E1003C3444 /* Images.xcassets in Resources */,
 				CB960337196B88AD00569870 /* jog-left-nonatlas.png in Resources */,
 				CB05B3B5196B358800FF58A5 /* levels in Resources */,
@@ -496,13 +513,16 @@
 				CB960308196B86FF00569870 /* rail.png in Resources */,
 				CB96033B196B88AD00569870 /* platform-nonatlas.png in Resources */,
 				CB960301196B86FF00569870 /* grass.png in Resources */,
+				CBBB184B19C736F30088D345 /* train-whistle-2.caf in Resources */,
 				CB960310196B86FF00569870 /* wooden-click-2.caf in Resources */,
 				CB960335196B88AD00569870 /* cross-nonatlas.png in Resources */,
 				CB960344196B892E00569870 /* track.atlas in Resources */,
 				CB960336196B88AD00569870 /* curve-nonatlas.png in Resources */,
 				CB96033F196B88AD00569870 /* value-1-nonatlas.png in Resources */,
 				CB960309196B86FF00569870 /* sleeper.png in Resources */,
+				CBBB185219C739EF0088D345 /* train-stop-hiss.caf in Resources */,
 				CB485D88196ECE2B00E8646B /* ChallengeLevels.plist in Resources */,
+				CB17FD7A19C8A7B800DECE5E /* ka-chick.caf in Resources */,
 				CBA38EEA19707080004B5334 /* platform-start-nonatlas.png in Resources */,
 				CBB4B805183C00E1003C3444 /* InfoPlist.strings in Resources */,
 				CB960338196B88AD00569870 /* jog-right-nonatlas.png in Resources */,

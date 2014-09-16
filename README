@@ -7,9 +7,6 @@ circuits.
 
 Current
 
-  . Sound effects for challenge mode!  Also note any other sound
-    effects needed and do them at the same time.  Victory, for instance.
-
   . Prettier highlight of join segment when linking.  Better detection
     of "closest segment" when tapping.
 
@@ -17,10 +14,11 @@ Current
     cool if there were two achievements: the fewest piece award, but
     also the rube goldberg award for more-than-X switched joins, and
     "the long ride" for most traveled pieces, etc.
-
   . At same time as above: victory message should say what is unlocked
     as well as what achievments were earned.  Little checklist with
     sparkler bursts: kachung! kachung! kachung!
+      . goal accomplished: ka-chick?
+      . achievement: brr-bring
 
   . Also maybe prompt user to save (and/or autosave) on victory rather
     than going straight to next level.
@@ -81,9 +79,6 @@ Lower Priority
   . For import thumbnails: Trace out CG lines for track segment paths
     rather than shrinking down images.  The result might be better.
     (And wouldn't need UIImages anymore in HLTextureStore.)
-
-  . Sound effects for train start, train stop, switch switching,
-    message appear, toolbar navigation, ...
 
   . For multisegment rotation: In case of conflict, search for nearby
     pivot that would work without conflicts.  Shouldn't be hard to

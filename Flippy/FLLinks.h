@@ -87,6 +87,6 @@ void linksSetSwitchPathId(const FLLinks& links, FLSegmentNode *segmentNode, int 
  *
  * Behaves according to the same standards as linksSetSwitchPathId.
  */
-void linksToggleSwitchPathId(const FLLinks& links, FLSegmentNode *segmentNode, BOOL animated);
+int linksToggleSwitchPathId(const FLLinks& links, FLSegmentNode *segmentNode, BOOL animated);
 
 #endif /* defined(__Flippy__FLLinks__) */
