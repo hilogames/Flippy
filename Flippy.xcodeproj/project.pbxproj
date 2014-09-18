@@ -64,6 +64,8 @@
 		CBB4B82E183C00E1003C3444 /* FlippyTests.m in Sources */ = {isa = PBXBuildFile; fileRef = CBB4B82D183C00E1003C3444 /* FlippyTests.m */; };
 		CBBB184B19C736F30088D345 /* train-whistle-2.caf in Resources */ = {isa = PBXBuildFile; fileRef = CBBB184A19C736F30088D345 /* train-whistle-2.caf */; };
 		CBBB185219C739EF0088D345 /* train-stop-hiss.caf in Resources */ = {isa = PBXBuildFile; fileRef = CBBB184F19C739EF0088D345 /* train-stop-hiss.caf */; };
+		CBD65A1319CB4FCF00F488B2 /* plink-1.caf in Resources */ = {isa = PBXBuildFile; fileRef = CBD65A1119CB4FCF00F488B2 /* plink-1.caf */; };
+		CBD65A1419CB4FCF00F488B2 /* plink-2.caf in Resources */ = {isa = PBXBuildFile; fileRef = CBD65A1219CB4FCF00F488B2 /* plink-2.caf */; };
 		CBD707C418AD0EE00041B170 /* FLTrain.mm in Sources */ = {isa = PBXBuildFile; fileRef = CBD707C318AD0EE00041B170 /* FLTrain.mm */; };
 		CBD9E93B19142C29002533DF /* libHLSpriteKit.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CBD9E93619142B03002533DF /* libHLSpriteKit.a */; };
 		CBEE13F018C4DBA400D1D42B /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CB0464A318AA6F7F00ABCA03 /* AVFoundation.framework */; };
@@ -174,6 +176,8 @@
 		CBB4B82D183C00E1003C3444 /* FlippyTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FlippyTests.m; sourceTree = "<group>"; };
 		CBBB184A19C736F30088D345 /* train-whistle-2.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "train-whistle-2.caf"; sourceTree = "<group>"; };
 		CBBB184F19C739EF0088D345 /* train-stop-hiss.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "train-stop-hiss.caf"; sourceTree = "<group>"; };
+		CBD65A1119CB4FCF00F488B2 /* plink-1.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "plink-1.caf"; sourceTree = "<group>"; };
+		CBD65A1219CB4FCF00F488B2 /* plink-2.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "plink-2.caf"; sourceTree = "<group>"; };
 		CBD707C218AD0EE00041B170 /* FLTrain.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTrain.h; sourceTree = "<group>"; };
 		CBD707C318AD0EE00041B170 /* FLTrain.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLTrain.mm; sourceTree = "<group>"; };
 		CBD9E93019142B03002533DF /* HLSpriteKit.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = HLSpriteKit.xcodeproj; path = ../common/HLSpriteKit/HLSpriteKit.xcodeproj; sourceTree = "<group>"; };
@@ -244,11 +248,13 @@
 		CB960312196B878F00569870 /* Audio */ = {
 			isa = PBXGroup;
 			children = (
-				CB17FD7B19C8AAD100DECE5E /* pop-2.caf */,
 				CB17FD7919C8A7B800DECE5E /* ka-chick.caf */,
-				CB17FD7719C8A69000DECE5E /* train-whistle-tune-1.caf */,
+				CBD65A1119CB4FCF00F488B2 /* plink-1.caf */,
+				CBD65A1219CB4FCF00F488B2 /* plink-2.caf */,
+				CB17FD7B19C8AAD100DECE5E /* pop-2.caf */,
 				CBBB184F19C739EF0088D345 /* train-stop-hiss.caf */,
 				CBBB184A19C736F30088D345 /* train-whistle-2.caf */,
+				CB17FD7719C8A69000DECE5E /* train-whistle-tune-1.caf */,
 				CB9602FA196B86FF00569870 /* wooden-clatter-1.caf */,
 				CB9602FB196B86FF00569870 /* wooden-click-1.caf */,
 				CB9602FC196B86FF00569870 /* wooden-click-2.caf */,
@@ -496,10 +502,12 @@
 				CB96033E196B88AD00569870 /* value-0-nonatlas.png in Resources */,
 				CB960343196B892E00569870 /* tools.atlas in Resources */,
 				CB96030E196B86FF00569870 /* wooden-clatter-1.caf in Resources */,
+				CBD65A1319CB4FCF00F488B2 /* plink-1.caf in Resources */,
 				CB960339196B88AD00569870 /* join-left-nonatlas.png in Resources */,
 				CB17FD7819C8A69000DECE5E /* train-whistle-tune-1.caf in Resources */,
 				CB960311196B86FF00569870 /* wooden-clickity-2.caf in Resources */,
 				CB960300196B86FF00569870 /* engine.png in Resources */,
+				CBD65A1419CB4FCF00F488B2 /* plink-2.caf in Resources */,
 				CB96033A196B88AD00569870 /* join-right-nonatlas.png in Resources */,
 				CB96033D196B88AD00569870 /* switch-nonatlas.png in Resources */,
 				CB17FD7C19C8AAD100DECE5E /* pop-2.caf in Resources */,

@@ -45,6 +45,7 @@ static const CGFloat FLZPositionTutorial = 30.0f;
 // World sublayers.
 static const CGFloat FLZPositionWorldTerrain = 0.0f;
 static const CGFloat FLZPositionWorldSelect = 1.0f;
+static const CGFloat FLZPositionWorldHighlight = 1.5f;
 static const CGFloat FLZPositionWorldTrack = 2.0f;
 static const CGFloat FLZPositionWorldTrain = 3.0f;
 static const CGFloat FLZPositionWorldLinks = 4.0f;
@@ -78,7 +79,8 @@ static SKColor *FLSceneBackgroundColor = [SKColor colorWithRed:0.4f green:0.6f b
 
 static const CGFloat FLLinkLineWidth = 2.0f;
 static SKColor *FLLinkLineColor = [SKColor colorWithRed:0.2f green:0.6f blue:0.9f alpha:1.0f];
-static const CGFloat FLLinkGlowWidth = 2.0f;
+static SKColor *FLLinkEraseLineColor = [SKColor whiteColor];
+static const CGFloat FLLinkGlowWidth = 1.0f;
 static SKColor *FLLinkHighlightColor = [SKColor colorWithRed:0.2f green:0.9f blue:0.6f alpha:1.0f];
 
 // Choose 36 letters: A-Z and 0-9
@@ -201,8 +203,8 @@ struct FLLinkEditState
   FLSegmentNode *beginNode;
   FLSegmentNode *endNode;
   SKShapeNode *connectorNode;
-  SKShapeNode *beginHighlightNode;
-  SKShapeNode *endHighlightNode;
+  SKNode *beginHighlightNode;
+  SKNode *endHighlightNode;
 };
 
 struct FLLabelState
@@ -447,7 +449,7 @@ struct PointerPairHash
       ++l;
       FLSegmentNode *b = [links objectAtIndex:l];
       ++l;
-      SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:a.switchPosition toLocation:b.switchPosition];
+      SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:a.switchPosition toLocation:b.switchPosition linkErase:NO];
       _links.insert(a, b, connectorNode);
     }
     if (_linksVisible) {
@@ -871,18 +873,19 @@ struct PointerPairHash
     CGPoint firstTouchViewLocation = _worldGestureState.gestureFirstTouchLocation;
     CGPoint firstTouchSceneLocation = [self convertPointFromView:firstTouchViewLocation];
     CGPoint firstTouchWorldLocation = [_worldNode convertPoint:firstTouchSceneLocation fromNode:self];
-    FLSegmentNode *segmentNode = trackGridConvertGet(*_trackGrid, firstTouchWorldLocation);
     if (_linksVisible) {
-      if (segmentNode && segmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
-        // Pan begins with link tool inside a segment that has a switch.
+      FLSegmentNode *segmentNode = [self FL_linkSwitchFindSegmentNearLocation:firstTouchWorldLocation];
+      if (segmentNode) {
+        // Pan begins with link tool near a segment with a switch.
         _worldGestureState.panType = FLWorldPanTypeLink;
         [self FL_linkEditBeganWithNode:segmentNode];
       } else {
-        // Pan begins with link tool in a segment without a switch.
+        // Pan begins with link tool not close to a segment with a switch.
         _worldGestureState.panType = FLWorldPanTypeScroll;
       }
     } else {
       // Pan is not using link tool.
+      FLSegmentNode *segmentNode = trackGridConvertGet(*_trackGrid, firstTouchWorldLocation);
       if ([self FL_trackSelected:segmentNode]) {
         // Pan begins inside a selected track segment.
         //
@@ -1270,7 +1273,7 @@ struct PointerPairHash
             ++l;
             FLSegmentNode *b = [links objectAtIndex:l];
             ++l;
-            SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:a.switchPosition toLocation:b.switchPosition];
+            SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:a.switchPosition toLocation:b.switchPosition linkErase:NO];
             // note: Explicit "self" to make it obvious we are retaining it.
             self->_links.insert(a, b, connectorNode);
           }
@@ -1811,6 +1814,8 @@ struct PointerPairHash
   [SKAction playSoundFileNamed:@"ka-chick.caf" waitForCompletion:NO];
   [SKAction playSoundFileNamed:@"train-whistle-tune-1.caf" waitForCompletion:NO];
   [SKAction playSoundFileNamed:@"pop-2.caf" waitForCompletion:NO];
+  [SKAction playSoundFileNamed:@"plink-1.caf" waitForCompletion:NO];
+  [SKAction playSoundFileNamed:@"plink-2.caf" waitForCompletion:NO];
 
   NSLog(@"FLTrackScene loadSound: loaded in %0.2f seconds", [[NSDate date] timeIntervalSinceDate:startDate]);
 }
@@ -3448,7 +3453,7 @@ struct PointerPairHash
   return 1.0f / pow(_worldNode.xScale, FLTrackEditMenuScaleFactor);
 }
 
-- (SKShapeNode *)FL_linkDrawFromLocation:(CGPoint)fromWorldLocation toLocation:(CGPoint)toWorldLocation
+- (SKShapeNode *)FL_linkDrawFromLocation:(CGPoint)fromWorldLocation toLocation:(CGPoint)toWorldLocation linkErase:(BOOL)linkErase
 {
   SKShapeNode *linkNode = [[SKShapeNode alloc] init];
   linkNode.position = CGPointZero;
@@ -3460,7 +3465,15 @@ struct PointerPairHash
   CGPathRelease(linkPath);
 
   linkNode.lineWidth = FLLinkLineWidth;
-  linkNode.strokeColor = FLLinkLineColor;
+  if (linkErase) {
+    linkNode.strokeColor = FLLinkEraseLineColor;
+    [linkNode runAction:[SKAction repeatActionForever:[SKAction sequence:@[ [SKAction fadeOutWithDuration:FLBlinkHalfCycleDuration],
+                                                                            [SKAction waitForDuration:FLBlinkHalfCycleDuration],
+                                                                            [SKAction fadeInWithDuration:FLBlinkHalfCycleDuration],
+                                                                            [SKAction waitForDuration:FLBlinkHalfCycleDuration] ]]]];
+  } else {
+    linkNode.strokeColor = FLLinkLineColor;
+  }
   linkNode.glowWidth = FLLinkGlowWidth;
   [_linksNode addChild:linkNode];
 
@@ -3472,7 +3485,7 @@ struct PointerPairHash
   vector<FLSegmentNode *> links;
   _links.get(segmentNode, &links);
   for (auto link : links) {
-    SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:segmentNode.switchPosition toLocation:link.switchPosition];
+    SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:segmentNode.switchPosition toLocation:link.switchPosition linkErase:NO];
     _links.set(segmentNode, link, connectorNode);
   }
 }
@@ -3487,21 +3500,10 @@ struct PointerPairHash
   }
 
   // Display a begin-segment highlight.
-  SKShapeNode *highlightNode = [[SKShapeNode alloc] init];
-  highlightNode.position = segmentNode.position;
-  CGFloat highlightSideSize = FLSegmentArtSizeFull * FLTrackArtScale;
-  CGPathRef highlightPath = CGPathCreateWithRect(CGRectMake(-highlightSideSize / 2.0f,
-                                                            -highlightSideSize / 2.0f,
-                                                            highlightSideSize,
-                                                            highlightSideSize),
-                                                 NULL);
-  highlightNode.lineWidth = FLLinkLineWidth;
-  highlightNode.strokeColor = FLLinkHighlightColor;
-  highlightNode.glowWidth = FLLinkGlowWidth;
-  highlightNode.path = highlightPath;
-  CGPathRelease(highlightPath);
-  [_linksNode addChild:highlightNode];
-  _linkEditState.beginHighlightNode = highlightNode;
+  _linkEditState.beginHighlightNode = [self FL_linkEditCreateHighlightForSegment:_linkEditState.beginNode];
+  [_worldNode addChild:_linkEditState.beginHighlightNode];
+
+  [_linksNode runAction:[SKAction playSoundFileNamed:@"plink-1.caf" waitForCompletion:NO]];
 
   // note: No connector yet, until we move a bit.
   _linkEditState.connectorNode = nil;
@@ -3514,27 +3516,14 @@ struct PointerPairHash
 {
   // note: Begin-segment highlight stays the same.
 
-  // Display an end-segment highlight if the current node has a switch.
-  FLSegmentNode *endNode = trackGridConvertGet(*_trackGrid, worldLocation);
-  if (endNode && endNode.switchPathId != FLSegmentSwitchPathIdNone) {
+  // Display an end-segment highlight if there is a nearby node with a switch.
+  FLSegmentNode *endNode = [self FL_linkSwitchFindSegmentNearLocation:worldLocation];
+  if (endNode && endNode != _linkEditState.beginNode && endNode.switchPathId != FLSegmentSwitchPathIdNone) {
     if (endNode != _linkEditState.endNode) {
       [_linkEditState.endHighlightNode removeFromParent];
-      SKShapeNode *highlightNode = [[SKShapeNode alloc] init];
-      highlightNode.position = endNode.position;
-      CGFloat highlightSideSize = FLSegmentArtSizeFull * FLTrackArtScale;
-      CGPathRef highlightPath = CGPathCreateWithRect(CGRectMake(-highlightSideSize / 2.0f,
-                                                                -highlightSideSize / 2.0f,
-                                                                highlightSideSize,
-                                                                highlightSideSize),
-                                                     NULL);
-      highlightNode.path = highlightPath;
-      highlightNode.lineWidth = FLLinkLineWidth;
-      highlightNode.strokeColor = FLLinkHighlightColor;
-      highlightNode.glowWidth = FLLinkGlowWidth;
-      CGPathRelease(highlightPath);
-      [_linksNode addChild:highlightNode];
-      _linkEditState.endHighlightNode = highlightNode;
       _linkEditState.endNode = endNode;
+      _linkEditState.endHighlightNode = [self FL_linkEditCreateHighlightForSegment:endNode];
+      [_worldNode addChild:_linkEditState.endHighlightNode];
     }
   } else {
     if (_linkEditState.endNode) {
@@ -3546,8 +3535,16 @@ struct PointerPairHash
 
   // Display a connector (a line segment).
   CGPoint beginSwitchPosition = _linkEditState.beginNode.switchPosition;
-  CGPoint endSwitchPosition = (_linkEditState.endNode ? _linkEditState.endNode.switchPosition : worldLocation);
-  SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:beginSwitchPosition toLocation:endSwitchPosition];
+  CGPoint endSwitchPosition;
+  BOOL linkErase;
+  if (_linkEditState.endNode) {
+    endSwitchPosition = _linkEditState.endNode.switchPosition;
+    linkErase = (_links.get(_linkEditState.beginNode, _linkEditState.endNode) != nil);
+  } else {
+    endSwitchPosition = worldLocation;
+    linkErase = NO;
+  }
+  SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:beginSwitchPosition toLocation:endSwitchPosition linkErase:linkErase];
   if (_linkEditState.connectorNode) {
     [_linkEditState.connectorNode removeFromParent];
   }
@@ -3562,6 +3559,7 @@ struct PointerPairHash
     SKShapeNode *oldConnectorNode = _links.get(_linkEditState.beginNode, _linkEditState.endNode);
     if (oldConnectorNode) {
       _links.erase(_linkEditState.beginNode, _linkEditState.endNode);
+      [_linksNode runAction:[SKAction playSoundFileNamed:@"plink-2.caf" waitForCompletion:NO]];
     } else {
       SKAction *blinkAction = [SKAction sequence:@[ [SKAction fadeOutWithDuration:FLBlinkHalfCycleDuration],
                                                     [SKAction fadeInWithDuration:FLBlinkHalfCycleDuration],
@@ -3574,6 +3572,7 @@ struct PointerPairHash
       if (_tutorialState.tutorialActive) {
         [self FL_tutorialRecognizedAction:FLTutorialActionLinkCreated withArguments:nil];
       }
+      [_linksNode runAction:[SKAction playSoundFileNamed:@"plink-1.caf" waitForCompletion:NO]];
     }
   }
 
@@ -3607,6 +3606,35 @@ struct PointerPairHash
     _linkEditState.endNode = nil;
     _linkEditState.endHighlightNode = nil;
   }
+}
+
+- (SKNode *)FL_linkEditCreateHighlightForSegment:(FLSegmentNode *)segmentNode
+{
+  // note: Arguably the segment should know how to highlight itself.  However: 1) The segment
+  // only knows its texture, not its image, and our current approach uses the CGImage;
+  // 2) The track scene might want to highlight other child nodes in the same way, and put
+  // all highlights together in the same layer and/or use the same parameters.  So for now:
+  // Put this highlight effect here in the track scene.
+  
+  const CGFloat FLLinkHighlightOffsetDistance = 4.0f;
+  const CGFloat FLLinkHighlightBlur = 12.0f;
+  const int FLLinkHighlightShadowCount = 4;
+  UIImage *segmentImage = [[HLTextureStore sharedStore] imageForKey:segmentNode.segmentKey];
+  UIImage *shadowedImage = [segmentImage multiShadowWithOffsetDistance:FLLinkHighlightOffsetDistance
+                                                           shadowCount:FLLinkHighlightShadowCount
+                                                                  blur:FLLinkHighlightBlur
+                                                                 color:FLLinkHighlightColor
+                                                                cutout:NO];
+
+  SKTexture *texture = [SKTexture textureWithImage:shadowedImage];
+  SKSpriteNode *highlightNode = [SKSpriteNode spriteNodeWithTexture:texture];
+  highlightNode.position = segmentNode.position;
+  highlightNode.zPosition = FLZPositionWorldHighlight;
+  highlightNode.zRotation = segmentNode.zRotation;
+  highlightNode.xScale = segmentNode.xScale;
+  highlightNode.yScale = segmentNode.yScale;
+
+  return highlightNode;
 }
 
 - (void)FL_linkSwitchSetPathId:(int)pathId forSegment:(FLSegmentNode *)segmentNode animated:(BOOL)animated
@@ -3662,6 +3690,47 @@ struct PointerPairHash
       return NO;
     }
     return YES;
+  }
+}
+
+- (FLSegmentNode *)FL_linkSwitchFindSegmentNearLocation:(CGPoint)worldLocation
+{
+  int gridX;
+  int gridY;
+  _trackGrid->convert(worldLocation, &gridX, &gridY);
+
+  FLSegmentNode *closestSegmentNode = nil;
+  CGFloat closestDistanceSquared;
+  for (int gx = gridX - 1; gx <= gridX + 1; ++gx) {
+    for (int gy = gridY - 1; gy <= gridY + 1; ++gy) {
+      FLSegmentNode *segmentNode = _trackGrid->get(gx, gy);
+      if (!segmentNode || segmentNode.switchPathId == FLSegmentSwitchPathIdNone) {
+        continue;
+      }
+      CGPoint switchLocation = [segmentNode switchPosition];
+      CGFloat deltaX = worldLocation.x - switchLocation.x;
+      CGFloat deltaY = worldLocation.y - switchLocation.y;
+      CGFloat distanceSquared = deltaX * deltaX + deltaY * deltaY;
+      if (!closestSegmentNode || distanceSquared < closestDistanceSquared) {
+        closestSegmentNode = segmentNode;
+        closestDistanceSquared = distanceSquared;
+      }
+    }
+  }
+
+  // note: The grid search limits the distance already, but it's good to bring it in
+  // a little more, to allow easier non-linking interaction with the world (to wit,
+  // panning) in linking mode.  This could be the caller's purview, but for now
+  // standardize it here.  Note that the visual dimensions of a track segment is
+  // _trackGrid->segmentSize() on each side, which is equal to
+  // FLSegmentArtSizeBasic * FLTrackArtScale, and which seems like a good standard
+  // unit of closeness; from there, the multiplying factor is just based on my
+  // experimentation and personal preference.
+  const CGFloat FLLinkSwitchFindDistanceMax = FLSegmentArtSizeBasic * FLTrackArtScale * 1.1f;
+  if (closestDistanceSquared > FLLinkSwitchFindDistanceMax * FLLinkSwitchFindDistanceMax) {
+    return nil;
+  } else {
+    return closestSegmentNode;
   }
 }
 

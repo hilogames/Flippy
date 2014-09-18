@@ -7,9 +7,6 @@ circuits.
 
 Current
 
-  . Prettier highlight of join segment when linking.  Better detection
-    of "closest segment" when tapping.
-
   . Track piece count for solved levels; have achievements.  Would be
     cool if there were two achievements: the fewest piece award, but
     also the rube goldberg award for more-than-X switched joins, and
