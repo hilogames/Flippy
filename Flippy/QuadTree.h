@@ -8,10 +8,9 @@
 
 // TODO: Make a real quadtree.  Hacked for now.
 
-// TODO: To cut down on the number of pointers in the
-// tree/table/whatever, should make the basic entry a block of Values,
-// not a single value.  Call it a block or sector or cell, and maybe
-// make it 4x4 or 8x8 or something.
+// TODO: An easy intermediate step would be to cut down on the number of pointers in the
+// tree/table/whatever by making a basic entry a block of values rather than a single
+// value.  Call it a block or sector or slab or cell; 4x4 or 8x8 or something.
 
 #ifndef __Flippy__QuadTree__
 #define __Flippy__QuadTree__

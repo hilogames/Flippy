@@ -110,10 +110,10 @@ public:
   FLTrackGrid(CGFloat segmentSize) : segmentSize_(segmentSize) {}
 
   FLSegmentNode *get(int gridX, int gridY) const { return grid_.get(gridX, gridY, nil); }
-  
+
   iterator begin() { return grid_.begin(); }
   const_iterator begin() const { return grid_.begin(); }
-  
+
   iterator end() { return grid_.end(); }
   const_iterator end() const { return grid_.end(); }
 

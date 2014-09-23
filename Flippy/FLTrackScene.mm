@@ -28,14 +28,32 @@ NSString * const FLGameTypeChallengeTitle = NSLocalizedString(@"Game", @"Game in
 NSString * const FLGameTypeSandboxTag = @"sandbox";
 NSString * const FLGameTypeSandboxTitle = NSLocalizedString(@"Sandbox", @"Game information: the label used for a sandbox game.");
 
-static const CGFloat FLWorldScaleMin = 0.125f;
-static const CGFloat FLWorldScaleMax = 2.0f;
-static const CGSize FLWorldSize = { 3000.0f, 3000.0f };
-
 // note: The art scale is used within the track layer to intentionally pixelate
 // the art for train and segments.  It should not be considered intrinsic to the
 // segment art, but only added privately here when part of the track scene.
 static const CGFloat FLTrackArtScale = 2.0f;
+static const CGFloat FLTrackSegmentSize = FLSegmentArtSizeBasic * FLTrackArtScale;
+
+static const int FLTrackGridWidth = 51;
+static const int FLTrackGridHeight = 51;
+// note: Track grid min and max are inclusive.
+static const int FLTrackGridXMin = -FLTrackGridWidth / 2;
+static const int FLTrackGridXMax = FLTrackGridXMin + FLTrackGridWidth - 1;
+static const int FLTrackGridYMin = -FLTrackGridHeight / 2;
+static const int FLTrackGridYMax = FLTrackGridYMin + FLTrackGridHeight - 1;
+
+static const CGSize FLWorldSize = {
+  // note: Extra half segment for visual border.
+  (FLTrackGridWidth + 1) * FLTrackSegmentSize,
+  (FLTrackGridHeight + 1) * FLTrackSegmentSize
+};
+static const CGFloat FLWorldXMin = -FLWorldSize.width / 2.0f;
+static const CGFloat FLWorldXMax = FLWorldXMin + FLWorldSize.width;
+static const CGFloat FLWorldYMin = -FLWorldSize.height / 2.0f;
+static const CGFloat FLWorldYMax = FLWorldYMin + FLWorldSize.height;
+
+static const CGFloat FLWorldScaleMin = 0.125f;
+static const CGFloat FLWorldScaleMax = 1.0f;
 
 // Main layers.
 static const CGFloat FLZPositionWorld = 0.0f;
@@ -75,12 +93,13 @@ static NSString *FLGatesDirectoryPath;
 static NSString *FLCircuitsDirectoryPath;
 static NSString *FLExportsDirectoryPath;
 
-static SKColor *FLSceneBackgroundColor = [SKColor colorWithRed:0.4f green:0.6f blue:0.0f alpha:1.0f];
+static SKColor *FLSceneBackgroundColor = [SKColor blackColor];
+//static SKColor *FLSceneBackgroundColor = [SKColor colorWithRed:0.4f green:0.6f blue:0.0f alpha:1.0f];
 
 static const CGFloat FLLinkLineWidth = 2.0f;
 static SKColor *FLLinkLineColor = [SKColor colorWithRed:0.2f green:0.6f blue:0.9f alpha:1.0f];
 static SKColor *FLLinkEraseLineColor = [SKColor whiteColor];
-static const CGFloat FLLinkGlowWidth = 1.0f;
+static const CGFloat FLLinkGlowWidth = 2.0f;
 static SKColor *FLLinkHighlightColor = [SKColor colorWithRed:0.2f green:0.9f blue:0.6f alpha:1.0f];
 
 // Choose 36 letters: A-Z and 0-9
@@ -231,6 +250,15 @@ struct FLWorldGestureState
   FLWorldLongPressMode longPressMode;
 };
 
+struct FLWorldAutoScrollState
+{
+  FLWorldAutoScrollState() : scrolling(NO), gestureUpdateBlock(nil) {}
+  BOOL scrolling;
+  CGFloat velocityX;
+  CGFloat velocityY;
+  void (^gestureUpdateBlock)(void);
+};
+
 enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
 
 enum FLTutorialAction {
@@ -341,6 +369,7 @@ struct PointerPairHash
   FLTutorialState _tutorialState;
   FLExportState _exportState;
   FLWorldGestureState _worldGestureState;
+  FLWorldAutoScrollState _worldAutoScrollState;
   FLConstructionToolbarState _constructionToolbarState;
   FLSimulationToolbarState _simulationToolbarState;
   FLTrackEditMenuState _trackEditMenuState;
@@ -389,7 +418,7 @@ struct PointerPairHash
     _cameraMode = FLCameraModeManual;
     _simulationRunning = NO;
     _simulationSpeed = 0;
-    _trackGrid.reset(new FLTrackGrid(FLSegmentArtSizeBasic * FLTrackArtScale));
+    _trackGrid.reset(new FLTrackGrid(FLTrackSegmentSize));
   }
   return self;
 }
@@ -409,6 +438,10 @@ struct PointerPairHash
     [HLScene assertSceneAssetsLoaded];
 
     _contentCreated = YES;
+
+    // TODO: Some older archives were created with different scene background color.  Reset it here upon
+    // decoding; can delete this code once (if) all archives have been recreated recently.
+    self.backgroundColor = FLSceneBackgroundColor;
 
     _gameType = (FLGameType)[aDecoder decodeIntForKey:@"gameType"];
     _gameLevel = [aDecoder decodeIntForKey:@"gameLevel"];
@@ -598,6 +631,7 @@ struct PointerPairHash
 - (void)didChangeSize:(CGSize)oldSize
 {
   [super didChangeSize:oldSize];
+  _worldNode.position = [self FL_worldConstrainedPositionX:_worldNode.position.x positionY:_worldNode.position.y];
   [self FL_tutorialUpdateGeometry];
   [self FL_constructionToolbarUpdateGeometry];
   [self FL_simulationToolbarUpdateGeometry];
@@ -613,32 +647,16 @@ struct PointerPairHash
   // resources); they must already be loaded.
   [HLScene assertSceneAssetsLoaded];
 
-  // Create basic layers.
-
   // The large world is moved around within the scene; the scene acts as a window
   // into the world.  The scene always fits the view/screen, and it is centered at
   // in the middle of the screen; the coordinate system goes positive up and to the
   // right.  So, for example, if we want to show the portion of the world around
   // the point (100,-50) in world coordinates, then we set the _worldNode.position
   // to (-100,50) in scene coordinates.
-  //
-  // noob: Consider using our QuadTree not just for the track but for the whole
-  // world, and remove from the game engine (node tree) any nodes which are far
-  // away.  Our QuadTree implementation should have an interface to easily identify
-  // the eight "tiles" or "cells" surrounding a given tile (given a certain tile
-  // size, which we can proscribe based on memory/performance).  This is marked
-  // "noob" because I'm not sure how effective this would be for different kinds
-  // of resources.  For instance, I'm pretty sure that removing lots of distant
-  // SKNodes from the tree would improve speed and memory usage.  I'm guessing that
-  // breaking up a single large SKSpriteNode with a big image would save on memory,
-  // but perhaps not make anything much faster.
   _worldNode = [SKNode node];
   _worldNode.zPosition = FLZPositionWorld;
   [self addChild:_worldNode];
 
-  // noob: See note near _worldNode above: We will probaly want to add/remove near/distant
-  // child nodes based on our current camera location in the world.  Use our QuadTree
-  // to implement, I expect.
   _trackNode = [SKNode node];
   _trackNode.zPosition = FLZPositionWorldTrack;
   [_worldNode addChild:_trackNode];
@@ -650,8 +668,6 @@ struct PointerPairHash
   // The HUD node contains everything pinned to the scene window, outside the world.
   [self FL_createHudNode];
 
-  // Create other content.
-
   _train = [self FL_trainCreate];
   [_worldNode addChild:_train];
 
@@ -661,18 +677,33 @@ struct PointerPairHash
 
 - (void)FL_createTerrainNode
 {
-  UIImage *terrainTileImage = [UIImage imageNamed:@"grass"];
-  CGRect terrainTileRect = CGRectMake(0.0f, 0.0f, terrainTileImage.size.width, terrainTileImage.size.height);
-  CGImageRef terrainTileRef = [terrainTileImage CGImage];
+  // TODO: But won't this use more memory?  Instead, clone a node repeatedly, and it can be drawn with less memory
+  // in a single pass?  Try SSKTileableNode from SuperSpriteKit.
 
   UIGraphicsBeginImageContext(FLWorldSize);
   CGContextRef context = UIGraphicsGetCurrentContext();
-  CGContextDrawTiledImage(context, terrainTileRect, terrainTileRef);
+  CGContextTranslateCTM(context, 0.0f, FLWorldSize.height);
+  CGContextScaleCTM(context, 1.0f, -1.0f);
+
+  UIImage *terrainTileImage = [UIImage imageNamed:@"grass.jpg"];
+  // note: Offset the tile origin by half the image size, so that (0,0) in world coordinates is in the
+  // middle of a tile rather than at the intersection of four tiles, in case there are flaws in the
+  // tile seams.
+  CGRect terrainTileRect = CGRectMake(terrainTileImage.size.width / 2.0f,
+                                      terrainTileImage.size.height / 2.0f,
+                                      terrainTileImage.size.width,
+                                      terrainTileImage.size.height);
+  CGContextDrawTiledImage(context, terrainTileRect, [terrainTileImage CGImage]);
+
+  // TODO: Put this border outside the world, not half in and half out.
+  CGContextSetLineWidth(context, 10.0f);
+  CGContextSetStrokeColorWithColor(context, [[SKColor whiteColor] CGColor]);
+  CGContextStrokeRect(context, CGRectMake(0.0f, 0.0f, FLWorldSize.width, FLWorldSize.height));
+
   UIImage *terrainImage = UIGraphicsGetImageFromCurrentImageContext();
   UIGraphicsEndImageContext();
 
   SKTexture *terrainTexture = [SKTexture textureWithCGImage:[terrainImage CGImage]];
-
   SKSpriteNode *terrainNode = [SKSpriteNode spriteNodeWithTexture:terrainTexture];
   terrainNode.name = @"terrain";
   terrainNode.zPosition = FLZPositionWorldTerrain;
@@ -704,8 +735,8 @@ struct PointerPairHash
       // note: Set world position based on train position.  Note that the
       // train is in the world, but the world is in the scene, so convert.
       CGPoint trainSceneLocation = [self convertPoint:_train.position fromNode:_worldNode];
-      _worldNode.position = CGPointMake(_worldNode.position.x - trainSceneLocation.x,
-                                        _worldNode.position.y - trainSceneLocation.y);
+      _worldNode.position = [self FL_worldConstrainedPositionX:_worldNode.position.x - trainSceneLocation.x
+                                                     positionY:_worldNode.position.y - trainSceneLocation.y];
       break;
     }
     case FLCameraModeManual:
@@ -733,6 +764,9 @@ struct PointerPairHash
 
   if (_simulationRunning) {
     [_train update:elapsedTime];
+  }
+  if (_worldAutoScrollState.scrolling) {
+    [self FL_worldAutoScrollUpdate:elapsedTime];
   }
 }
 
@@ -912,13 +946,16 @@ struct PointerPairHash
         CGPoint sceneLocation = [self convertPointFromView:viewLocation];
         CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
         [self FL_trackMoveChangedWithLocation:worldLocation];
+        [self FL_worldAutoScrollEnableForGestureWithLocation:sceneLocation gestureUpdateBlock:^{
+          CGPoint scrolledWorldLocation = [self->_worldNode convertPoint:sceneLocation fromNode:self];
+          [self FL_trackMoveChangedWithLocation:scrolledWorldLocation];
+        }];
         break;
       }
       case FLWorldPanTypeScroll: {
         CGPoint translation = [gestureRecognizer translationInView:self.view];
-        CGPoint worldPosition = CGPointMake(_worldNode.position.x + translation.x / self.xScale,
-                                            _worldNode.position.y - translation.y / self.yScale);
-        _worldNode.position = worldPosition;
+        _worldNode.position = [self FL_worldConstrainedPositionX:_worldNode.position.x + translation.x / self.xScale
+                                                       positionY:_worldNode.position.y - translation.y / self.yScale];
         [gestureRecognizer setTranslation:CGPointZero inView:self.view];
         break;
       }
@@ -927,6 +964,10 @@ struct PointerPairHash
         CGPoint sceneLocation = [self convertPointFromView:viewLocation];
         CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
         [self FL_linkEditChangedWithLocation:worldLocation];
+        [self FL_worldAutoScrollEnableForGestureWithLocation:sceneLocation gestureUpdateBlock:^{
+          CGPoint scrolledWorldLocation = [self->_worldNode convertPoint:sceneLocation fromNode:self];
+          [self FL_linkEditChangedWithLocation:scrolledWorldLocation];
+        }];
         break;
       }
       default:
@@ -943,6 +984,7 @@ struct PointerPairHash
         CGPoint sceneLocation = [self convertPointFromView:viewLocation];
         CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
         [self FL_trackMoveEndedWithLocation:worldLocation];
+        [self FL_worldAutoScrollDisable];
         break;
       }
       case FLWorldPanTypeScroll:
@@ -950,6 +992,7 @@ struct PointerPairHash
         break;
       case FLWorldPanTypeLink:
         [self FL_linkEditEnded];
+        [self FL_worldAutoScrollDisable];
         break;
       default:
         // note: This means the pan gesture was not actually doing anything,
@@ -965,6 +1008,7 @@ struct PointerPairHash
         CGPoint sceneLocation = [self convertPointFromView:viewLocation];
         CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
         [self FL_trackMoveCancelledWithLocation:worldLocation];
+        [self FL_worldAutoScrollDisable];
         break;
       }
       case FLWorldPanTypeScroll:
@@ -972,6 +1016,7 @@ struct PointerPairHash
         break;
       case FLWorldPanTypeLink:
         [self FL_linkEditCancelled];
+        [self FL_worldAutoScrollDisable];
         break;
       default:
         // note: This means the pan gesture was not actually doing anything,
@@ -1031,10 +1076,8 @@ struct PointerPairHash
   CGFloat scaleFactor = worldScaleCurrent / handlePinchWorldScaleBegin;
 
   // Zoom around previously-chosen center point.
-  CGPoint worldPosition;
-  worldPosition.x = (handlePinchWorldPositionBegin.x - _worldGestureState.pinchZoomCenter.x) * scaleFactor + _worldGestureState.pinchZoomCenter.x;
-  worldPosition.y = (handlePinchWorldPositionBegin.y - _worldGestureState.pinchZoomCenter.y) * scaleFactor + _worldGestureState.pinchZoomCenter.y;
-  _worldNode.position = worldPosition;
+  _worldNode.position = [self FL_worldConstrainedPositionX:(handlePinchWorldPositionBegin.x - _worldGestureState.pinchZoomCenter.x) * scaleFactor + _worldGestureState.pinchZoomCenter.x
+                                                 positionY:(handlePinchWorldPositionBegin.y - _worldGestureState.pinchZoomCenter.y) * scaleFactor + _worldGestureState.pinchZoomCenter.y];
 }
 
 - (void)handleConstructionToolbarTap:(UITapGestureRecognizer *)gestureRecognizer
@@ -1236,18 +1279,17 @@ struct PointerPairHash
       CGFloat segmentsPositionLeft;
       CGFloat segmentsPositionRight;
       [self FL_getSegmentsExtremes:newSegmentNodes left:&segmentsPositionLeft right:&segmentsPositionRight top:&segmentsPositionTop bottom:&segmentsPositionBottom];
-      CGFloat segmentSize = _trackGrid->segmentSize();
-      int widthUnits = int((segmentsPositionRight - segmentsPositionLeft + 0.00001f) / segmentSize);
-      int heightUnits = int((segmentsPositionTop - segmentsPositionBottom + 0.00001f) / segmentSize);
+      int widthUnits = int((segmentsPositionRight - segmentsPositionLeft + 0.00001f) / FLTrackSegmentSize);
+      int heightUnits = int((segmentsPositionTop - segmentsPositionBottom + 0.00001f) / FLTrackSegmentSize);
       // note: Width and height of position differences, so for instance a width of one means
       // the group is two segments wide.
       CGPoint segmentsAlignedCenter = CGPointMake((segmentsPositionLeft + segmentsPositionRight) / 2.0f,
                                                   (segmentsPositionBottom + segmentsPositionTop) / 2.0f);
       if (widthUnits % 2 == 1) {
-        segmentsAlignedCenter.x -= (segmentSize / 2.0f);
+        segmentsAlignedCenter.x -= (FLTrackSegmentSize / 2.0f);
       }
       if (heightUnits % 2 == 1) {
-        segmentsAlignedCenter.y -= (segmentSize / 2.0f);
+        segmentsAlignedCenter.y -= (FLTrackSegmentSize / 2.0f);
       }
 
       // Shift segments to the touch gesture (using calculated center).
@@ -1332,8 +1374,8 @@ struct PointerPairHash
     [self FL_simulationCycleSpeed];
   } else if ([toolTag isEqualToString:@"center"]) {
     CGPoint trainSceneLocation = [self convertPoint:_train.position fromNode:_worldNode];
-    CGPoint worldPosition = CGPointMake(_worldNode.position.x - trainSceneLocation.x,
-                                        _worldNode.position.y - trainSceneLocation.y);
+    CGPoint worldPosition = [self FL_worldConstrainedPositionX:_worldNode.position.x - trainSceneLocation.x
+                                                     positionY:_worldNode.position.y - trainSceneLocation.y];
     SKAction *move = [SKAction moveTo:worldPosition duration:FLWorldAdjustDuration];
     move.timingMode = SKActionTimingEaseInEaseOut;
     [_worldNode runAction:move completion:^{
@@ -1445,7 +1487,7 @@ struct PointerPairHash
     // end of a switched segment (like a join), this precision determines how close it has to be
     // to the end of the path so that the switch is considered relevant (and will determine which
     // path the train ends up on).
-    progressPrecision = FLPath::getLength(FLPathTypeStraight) / _trackGrid->segmentSize() / _worldNode.xScale;
+    progressPrecision = FLPath::getLength(FLPathTypeStraight) / FLTrackSegmentSize / _worldNode.xScale;
   }
   if (gestureRecognizer.state != UIGestureRecognizerStateCancelled) {
     const int FLGridSearchDistance = 1;
@@ -2027,6 +2069,128 @@ struct PointerPairHash
   return image;
 }
 
+- (CGPoint)FL_worldConstrainedPositionX:(CGFloat)x positionY:(CGFloat)y
+{
+  const CGFloat FLOffWorldScreenMargin = 30.0f;
+  CGFloat worldXScale = _worldNode.xScale;
+  CGFloat sceneHalfWidth = self.size.width / 2.0f;
+  if (x < FLWorldXMin * worldXScale + sceneHalfWidth - FLOffWorldScreenMargin) {
+    x = FLWorldXMin * worldXScale + sceneHalfWidth - FLOffWorldScreenMargin;
+  } else if (x > FLWorldXMax * worldXScale - sceneHalfWidth + FLOffWorldScreenMargin) {
+    x = FLWorldXMax * worldXScale - sceneHalfWidth + FLOffWorldScreenMargin;
+  }
+  CGFloat worldYScale = _worldNode.yScale;
+  CGFloat sceneHalfHeight = self.size.height / 2.0f;
+  if (y < FLWorldYMin * worldYScale + sceneHalfHeight - FLOffWorldScreenMargin) {
+    y = FLWorldYMin * worldYScale + sceneHalfHeight - FLOffWorldScreenMargin;
+  } else if (y > FLWorldYMax * worldYScale - sceneHalfHeight + FLOffWorldScreenMargin) {
+    y = FLWorldYMax * worldYScale - sceneHalfHeight + FLOffWorldScreenMargin;
+  }
+  return CGPointMake(x, y);
+}
+
+/**
+ * Update the auto scroll state based on the scene location of a relevant gesture (usually
+ * a pan): If the gesture is within a margin near the edge of the screen, then enable
+ * auto-scrolling and set the velocity of the auto-scroll (based on the proximity of the
+ * gesture to the edge).
+ *
+ * The actual scroll, at the calculated velocities, will be triggered through calls to
+ * update:.  The gestureUpdateBlock will be called immediately after the scroll in update:.
+ * The canonical use-case is like this: The user drags someting to the edge of the screen,
+ * which triggers an auto-scroll.  The user pauses the drag gesture (relative to the screen
+ * waiting while the world scrolls to the right place.  Meanwhile, since the drag gesture is
+ * paused, the pan gesture recognizer isn't getting any updates, and so the item being dragged
+ * is left behind.  The gestureUpdateBlock can fix this, because it can call into the gesture
+ * handling code for a drag (relative to the world) even though the gesture hasn't changed
+ * (relative to the screen).
+ */
+- (void)FL_worldAutoScrollEnableForGestureWithLocation:(CGPoint)sceneLocation gestureUpdateBlock:(void(^)(void))gestureUpdateBlock
+{
+  // note: Consider adding an auto-scroll delay: Only auto-scroll after a gesture
+  // has been inside the margin for a little while.
+
+  const CGFloat FLWorldAutoScrollMarginSizeMax = 96.0f;
+  CGFloat marginSize = MIN(self.size.width, self.size.height) / 10.0f;
+  if (marginSize > FLWorldAutoScrollMarginSizeMax) {
+    marginSize = FLWorldAutoScrollMarginSizeMax;
+  }
+
+  // note: Proximity measures linearly how close the gesture is to the edge of the screen,
+  // ranging from zero to one, where one is all the way on the screen's edge.  Velocity
+  // has a magnitude indicating the speed of the scrolling, in screen points, and a direction
+  // indicating the direction of the scroll along the X or Y axis.
+  //
+  // note: Current formula for velocity magnitude:
+  //
+  //   v_mag = base^p + linear*p + min
+  //
+  // It's mostly linear for the first half of proximity, and then the exponent term takes over.
+  const CGFloat FLAutoScrollVelocityMin = 4.0f;
+  const CGFloat FLAutoScrollVelocityLinear = 108.0f;
+  const CGFloat FLAutoScrollVelocityBase = 256.0f;
+
+  // TODO: Measure proximity using edge, but then calculate X and Y velocities with respect to
+  // radial direction from the center of the screen.
+
+  _worldAutoScrollState.scrolling = NO;
+
+  CGFloat sceneXMin = self.size.width * -1.0f * self.anchorPoint.x;
+  CGFloat sceneXMax = sceneXMin + self.size.width;
+  if (sceneLocation.x < sceneXMin + marginSize) {
+    CGFloat proximity = ((sceneXMin + marginSize) - sceneLocation.x) / marginSize;
+    CGFloat speed = pow(FLAutoScrollVelocityBase, proximity) + FLAutoScrollVelocityLinear * proximity + FLAutoScrollVelocityMin;
+    _worldAutoScrollState.scrolling = YES;
+    _worldAutoScrollState.velocityX = -1.0f * speed;
+  } else if (sceneLocation.x > sceneXMax - marginSize) {
+    CGFloat proximity = (sceneLocation.x - (sceneXMax - marginSize)) / marginSize;
+    CGFloat speed = pow(FLAutoScrollVelocityBase, proximity) + FLAutoScrollVelocityLinear * proximity + FLAutoScrollVelocityMin;
+    _worldAutoScrollState.scrolling = YES;
+    _worldAutoScrollState.velocityX = speed;
+  } else {
+    _worldAutoScrollState.velocityX = 0.0f;
+  }
+
+  CGFloat sceneYMin = self.size.height * -1.0f * self.anchorPoint.y;
+  CGFloat sceneYMax = sceneYMin + self.size.height;
+  if (sceneLocation.y < sceneYMin + marginSize) {
+    CGFloat proximity = ((sceneYMin + marginSize) - sceneLocation.y) / marginSize;
+    CGFloat speed = pow(FLAutoScrollVelocityBase, proximity) + FLAutoScrollVelocityLinear * proximity + FLAutoScrollVelocityMin;
+    _worldAutoScrollState.scrolling = YES;
+    _worldAutoScrollState.velocityY = -1.0f * speed;
+  } else if (sceneLocation.y > sceneYMax - marginSize) {
+    CGFloat proximity = (sceneLocation.y - (sceneYMax - marginSize)) / marginSize;
+    CGFloat speed = pow(FLAutoScrollVelocityBase, proximity) + FLAutoScrollVelocityLinear * proximity + FLAutoScrollVelocityMin;
+    _worldAutoScrollState.scrolling = YES;
+    _worldAutoScrollState.velocityY = speed;
+  } else {
+    _worldAutoScrollState.velocityY = 0.0f;
+  }
+
+  if (_worldAutoScrollState.scrolling) {
+    _worldAutoScrollState.gestureUpdateBlock = gestureUpdateBlock;
+  }
+}
+
+- (void)FL_worldAutoScrollDisable
+{
+  _worldAutoScrollState.scrolling = NO;
+  _worldAutoScrollState.gestureUpdateBlock = nil;
+}
+
+- (void)FL_worldAutoScrollUpdate:(CFTimeInterval)elapsedTime
+{
+  // note: Precondition: _worldAutoScrollState.scrolling == YES.
+  CGFloat scrollXDistance = _worldAutoScrollState.velocityX * (CGFloat)elapsedTime;
+  CGFloat scrollYDistance = _worldAutoScrollState.velocityY * (CGFloat)elapsedTime;
+  // note: Scrolling velocity is measured in scene units, not world units (i.e. regardless of world scale).
+  _worldNode.position = [self FL_worldConstrainedPositionX:_worldNode.position.x - scrollXDistance / _worldNode.xScale
+                                                 positionY:_worldNode.position.y - scrollYDistance / _worldNode.yScale];
+  if (_worldAutoScrollState.gestureUpdateBlock) {
+    _worldAutoScrollState.gestureUpdateBlock();
+  }
+}
+
 - (void)FL_getSegmentsExtremes:(NSSet *)segmentNodes left:(CGFloat *)left right:(CGFloat *)right top:(CGFloat *)top bottom:(CGFloat *)bottom
 {
   BOOL firstSegment = YES;
@@ -2326,7 +2490,7 @@ struct PointerPairHash
   if ([importDirectory isEqualToString:FLExportsDirectoryPath]) {
     // note: For user-exported files, sort by descending creation date.
     NSURL *importURL = [NSURL fileURLWithPath:importDirectory isDirectory:NO];
-    NSArray *importFileURLs = [fileManager contentsOfDirectoryAtURL:importURL includingPropertiesForKeys:@[ NSURLCreationDateKey ] options:nil error:nil];
+    NSArray *importFileURLs = [fileManager contentsOfDirectoryAtURL:importURL includingPropertiesForKeys:@[ NSURLCreationDateKey ] options:0 error:nil];
     NSArray *sortedImportFileURLs = [importFileURLs sortedArrayUsingComparator:^NSComparisonResult(id obj1, id obj2){
       NSDate *date1;
       [obj1 getResourceValue:&date1 forKey:NSURLCreationDateKey error:nil];
@@ -3227,13 +3391,11 @@ struct PointerPairHash
 
 - (void)FL_trackMoveUpdateWithLocation:(CGPoint)worldLocation
 {
-  CGFloat segmentSize = _trackGrid->segmentSize();
-
   // Update cursor.
   //
   // note: Consider having cursor snap to grid alignment.
-  _trackMoveState.cursorNode.position = CGPointMake(worldLocation.x - _trackMoveState.beganGridX * segmentSize,
-                                                    worldLocation.y - _trackMoveState.beganGridY * segmentSize);
+  _trackMoveState.cursorNode.position = CGPointMake(worldLocation.x - _trackMoveState.beganGridX * FLTrackSegmentSize,
+                                                    worldLocation.y - _trackMoveState.beganGridY * FLTrackSegmentSize);
 
   // Find translation.
   //
@@ -3283,6 +3445,9 @@ struct PointerPairHash
     if (occupyingSegmentNode && ![_trackMoveState.segmentNodes containsObject:occupyingSegmentNode]) {
       [self FL_trackConflictShow:occupyingSegmentNode];
       hasConflict = YES;
+    } else if (placementGridX < FLTrackGridXMin || placementGridX > FLTrackGridXMax
+               || placementGridY < FLTrackGridYMin || placementGridY > FLTrackGridYMax) {
+      hasConflict = YES;
     }
   }
   if (hasConflict) {
@@ -3298,8 +3463,8 @@ struct PointerPairHash
 
   // Place at new (or initial, if not placed) translation.
   for (FLSegmentNode *segmentNode : _trackMoveState.segmentNodes) {
-    segmentNode.position = CGPointMake(segmentNode.position.x + deltaTranslationGridX * segmentSize,
-                                       segmentNode.position.y + deltaTranslationGridY * segmentSize);
+    segmentNode.position = CGPointMake(segmentNode.position.x + deltaTranslationGridX * FLTrackSegmentSize,
+                                       segmentNode.position.y + deltaTranslationGridY * FLTrackSegmentSize);
     trackGridConvertSet(*_trackGrid, segmentNode.position, segmentNode);
     if (!_trackMoveState.placed) {
       [_trackNode addChild:segmentNode];
@@ -3418,7 +3583,7 @@ struct PointerPairHash
   }
   CGFloat segmentsPositionMidX = (segmentsPositionLeft + segmentsPositionRight) / 2.0f;
   CGFloat segmentsPositionMidY = (segmentsPositionBottom + segmentsPositionTop) / 2.0f;
-  CGPoint position = CGPointMake(segmentsPositionMidX, segmentsPositionTop + _trackGrid->segmentSize() / 2.0f + FLTrackEditMenuBottomPad);
+  CGPoint position = CGPointMake(segmentsPositionMidX, segmentsPositionTop + FLTrackSegmentSize / 2.0f + FLTrackEditMenuBottomPad);
   CGPoint origin = CGPointMake(segmentsPositionMidX, segmentsPositionMidY);
   CGFloat fullScale = [self FL_trackEditMenuScaleForWorld];
   [_trackEditMenuState.editMenuNode showWithOrigin:origin
@@ -3615,7 +3780,7 @@ struct PointerPairHash
   // 2) The track scene might want to highlight other child nodes in the same way, and put
   // all highlights together in the same layer and/or use the same parameters.  So for now:
   // Put this highlight effect here in the track scene.
-  
+
   const CGFloat FLLinkHighlightOffsetDistance = 4.0f;
   const CGFloat FLLinkHighlightBlur = 12.0f;
   const int FLLinkHighlightShadowCount = 4;
@@ -3718,15 +3883,13 @@ struct PointerPairHash
     }
   }
 
-  // note: The grid search limits the distance already, but it's good to bring it in
-  // a little more, to allow easier non-linking interaction with the world (to wit,
-  // panning) in linking mode.  This could be the caller's purview, but for now
-  // standardize it here.  Note that the visual dimensions of a track segment is
-  // _trackGrid->segmentSize() on each side, which is equal to
-  // FLSegmentArtSizeBasic * FLTrackArtScale, and which seems like a good standard
-  // unit of closeness; from there, the multiplying factor is just based on my
-  // experimentation and personal preference.
-  const CGFloat FLLinkSwitchFindDistanceMax = FLSegmentArtSizeBasic * FLTrackArtScale * 1.1f;
+  // note: The grid search limits the distance already, but it's good to bring it in a
+  // little more, to allow easier non-linking interaction with the world (to wit, panning)
+  // in linking mode.  This could be the caller's purview, but for now standardize it
+  // here.  Note that the visual dimensions of a track segment is FLTrackSegmentSize on
+  // each side, which seems like a good standard unit of closeness; from there, the
+  // multiplying factor is just based on my experimentation and personal preference.
+  const CGFloat FLLinkSwitchFindDistanceMax = FLTrackSegmentSize * 1.1f;
   if (closestDistanceSquared > FLLinkSwitchFindDistanceMax * FLLinkSwitchFindDistanceMax) {
     return nil;
   } else {
@@ -3918,9 +4081,8 @@ struct PointerPairHash
   CGPoint pivot = CGPointMake((segmentsPositionLeft + segmentsPositionRight) / 2.0f,
                               (segmentsPositionBottom + segmentsPositionTop) / 2.0f);
   if (!isSymmetricRotation) {
-    CGFloat segmentSize = _trackGrid->segmentSize();
-    int widthUnits = int((segmentsPositionRight - segmentsPositionLeft + 0.00001f) / segmentSize);
-    int heightUnits = int((segmentsPositionTop - segmentsPositionBottom + 0.00001f) / segmentSize);
+    int widthUnits = int((segmentsPositionRight - segmentsPositionLeft + 0.00001f) / FLTrackSegmentSize);
+    int heightUnits = int((segmentsPositionTop - segmentsPositionBottom + 0.00001f) / FLTrackSegmentSize);
     if (widthUnits % 2 != heightUnits % 2) {
       // note: Choose a good nearby pivot.  Later we'll check for conflict, where a good pivot will
       // mean a pivot that allows the rotation to occur.  But even if this selection is rotating
@@ -3928,7 +4090,7 @@ struct PointerPairHash
       // bring us back to the original position.  For that we need state, at least until the selection
       // changes.  Well, okay, let's steal some state that already exists: The zRotation of the
       // first segment in the set.
-      CGPoint offsetPivot = CGPointMake(segmentSize / 2.0f, 0.0f);
+      CGPoint offsetPivot = CGPointMake(FLTrackSegmentSize / 2.0f, 0.0f);
       int normalRotationQuarters = normalizeRotationQuarters([[segmentNodes anyObject] zRotationQuarters]);
       rotatePoints(&offsetPivot, 1, normalRotationQuarters);
       pivot.x += offsetPivot.x;
@@ -4349,8 +4511,8 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
       if (duration > FLWorldAdjustDurationSlow) {
         duration = FLWorldAdjustDurationSlow;
       }
-      CGPoint worldPosition = CGPointMake(_worldNode.position.x - panSceneLocation.x,
-                                          _worldNode.position.y - panSceneLocation.y);
+      CGPoint worldPosition = [self FL_worldConstrainedPositionX:_worldNode.position.x - panSceneLocation.x
+                                                       positionY:_worldNode.position.y - panSceneLocation.y];
       SKAction *move = [SKAction moveTo:worldPosition duration:duration];
       move.timingMode = SKActionTimingEaseInEaseOut;
       [_worldNode runAction:move completion:showBackdrop];
@@ -4463,7 +4625,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
       // note: Pan so that the grid location two spots up from the train is centered,
       // hopefully suggesting a good place to put the straight segment (to wit, extending
       // the track up from the existing join segment).
-      panSceneLocation.y += _trackGrid->segmentSize() * 2.0f;
+      panSceneLocation.y += FLTrackSegmentSize * 2.0f;
       [self FL_tutorialShowWithLabel:label firstPanWorld:YES panLocation:panSceneLocation animated:animated];
       _tutorialState.conditions.emplace_back(FLTutorialActionConstructionToolbarPanBegan, FLTutorialResultHideBackdropDisallowInteraction);
       _tutorialState.conditions.emplace_back(FLTutorialActionConstructionToolbarPanEnded, ^NSUInteger(NSArray *arguments){
@@ -4671,7 +4833,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
       _tutorialState.cutouts.emplace_back(_trackGrid->get(1, 0), NO);
       _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
       CGPoint panSceneLocation = [self convertPoint:segmentNode.position fromNode:_trackNode];
-      panSceneLocation.x += _trackGrid->segmentSize();
+      panSceneLocation.x += FLTrackSegmentSize;
       [self FL_tutorialShowWithLabel:label firstPanWorld:YES panLocation:panSceneLocation animated:animated];
       _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
       return YES;

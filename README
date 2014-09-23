@@ -4,24 +4,19 @@ Flippy the Train is a train simulation that can be used to model logic
 circuits.
 
 
-
 Current
 
-  . Track piece count for solved levels; have achievements.  Would be
-    cool if there were two achievements: the fewest piece award, but
-    also the rube goldberg award for more-than-X switched joins, and
-    "the long ride" for most traveled pieces, etc.
-  . At same time as above: victory message should say what is unlocked
-    as well as what achievments were earned.  Little checklist with
-    sparkler bursts: kachung! kachung! kachung!
-      . goal accomplished: ka-chick?
-      . achievement: brr-bring
+  . BUG: dragging train should set camera mode off train
 
-  . Also maybe prompt user to save (and/or autosave) on victory rather
-    than going straight to next level.
+  . BUG: Drag (create?) a track piece, then drop.  Then try to drag
+    again: won't pick up.
 
-  . Pan world when track move (or multi-selection, or any pan gesture)
-    goes to edge of scene.
+  . BUG: Placement problem in drag: Drag an import onto an empty bit
+    of land and it conflicts with itself.
+
+  . BUG: Circuits are unlocked in a new sandbox after clear.
+
+  . Tile terrain by making multiple SKNodes, not making one big one.
 
   . Consider recentering world as needed when construction tool is
     released, so that track edit popup menu can fit fully onscreen.
@@ -31,28 +26,68 @@ Current
   . Make a copy/duplicate of current selection.  Insert the same way
     as an import, so factor out that code.
 
-  . Goals screen (esp with results) doesn't fit, especially when
-    showing results and with victory button and in landscape on 3.5
-    inch iPhone.  Maybe some screen-specific code would be
-    appropriate; font size or side-by-side display or a button for
-    details or something.  Maybe toggle goals-long display with
-    results display?  Or even both goals-short+goals-long.
+  . Mirror tool especially for mirroring a large selection.  (And
+    maybe then remove mirror images from segment construction
+    toolbar, since it would work for single segments, too.)
+
+  . Rotation gesture recognizer for rotation; flick for deletion;
+    pinch or something for mirror.
+
+  . Victory Screen
+    . Track piece count for solved levels; have achievements.  Would be
+      cool if there were two achievements: the fewest piece award, but
+      also the rube goldberg award for more-than-X switched joins, and
+      "the long ride" for most traveled pieces, etc.
+    . At same time as above: victory message should say what is unlocked
+      as well as what achievments were earned.  Little checklist with
+      sparkler bursts: kachung! kachung! kachung!
+        . goal accomplished: ka-chick?
+        . achievement: brr-bring
+    . Goals screen (esp with results) doesn't fit, especially when
+      showing results and with victory button and in landscape on 3.5
+      inch iPhone.  Maybe some screen-specific code would be
+      appropriate; font size or side-by-side display or a button for
+      details or something.  Maybe toggle goals-long display with
+      results display?  Or even both goals-short+goals-long.
+    . Also maybe prompt user to save (and/or autosave) on victory rather
+      than going straight to next level.
 
   . Interface help screen (explain holding down for multi-select,
     double-click switches, hold down switch to delete it, center
     button to find and follow train, hold center button to reset
     zoom).
 
-If It Ships
+  . "About" screen with name.  Choose production company.  Reserve
+    website?  Include feedback email address?  Credits: grass texture
+    (goodtextures.com); DSMultilineButton.
+
+  . Split off HLSpriteKit as a CocoaPod; re-create project.  Upload to
+    github.  Put open source link into the About screen.
+
+  . Replace DSMultilineLabelNode with SuperSpriteKit / SSKMultiLineLabelNode.h?
+  . Use SSKTileableNode in SuperSpriteKit?
 
   . Low memory warning.  (Test in debugger.)
 
-  . Infinite grid, and/or real quadtree.
+  . Infinite grid and real quadtree.
+
+    - QuadTree and SKNode hierarchy should be coordinated, and load/unload
+      cells/areas/tiles at the same time.
+
+    - Maybe best to try and find implementations of this, and adapt
+      one for our use.
+
+    - Perhaps at the same time generate terrain in a way that is less
+      uniform than just a tiled image.  At one point I had an idea to
+      do random patches of squares in earth tones, procedurally
+      generated like Minecraft.
 
   . Localize the saved circuit/gate names, perhaps in a plist like the
     challenge level information.
 
 Lower Priority
+
+  . Dragging train needs a ghost to drag?  Plus auto scroll?
 
   . For challenge games, show the level title in the save game slots
     when loading and saving.  (Need to encode the level number
@@ -88,20 +123,10 @@ Lower Priority
     has the same X or Y coordinate, then bend it 45 degrees or
     something.
 
-  . Mirror tool especially for mirroring a large selection.  (And
-    maybe then remove mirror images from segment construction
-    toolbar, since it would work for single segments, too.)
-
   . A tool/gesture for selecting everything connected to the current
     segment.
 
   . Intertia for scrolling pan motion.
-
-  . Better interface fitting on iPhone, especially portrait: Expanding
-    toolbars?
-
-  . Rotation gesture recognizer for rotation; flick for deletion;
-    pinch or something for mirror.
 
   . If multiple trains, then train edit menu for play/pause controls
     (and an explicit way to turn train around, perhaps).

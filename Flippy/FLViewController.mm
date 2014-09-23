@@ -528,7 +528,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   _titleScene.scaleMode = SKSceneScaleModeResizeFill;
   _titleScene.anchorPoint = CGPointMake(0.5f, 0.5f);
 
-  SKSpriteNode *backgroundNode = [SKSpriteNode spriteNodeWithImageNamed:@"grass"];
+  SKSpriteNode *backgroundNode = [SKSpriteNode spriteNodeWithImageNamed:@"grass.jpg"];
   backgroundNode.zPosition = FLZPositionTitleBackground;
   [_titleScene addChild:backgroundNode withOptions:[NSSet setWithObject:HLSceneChildResizeWithScene]];
 

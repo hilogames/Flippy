@@ -14,6 +14,7 @@
 		CB17FD7819C8A69000DECE5E /* train-whistle-tune-1.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB17FD7719C8A69000DECE5E /* train-whistle-tune-1.caf */; };
 		CB17FD7A19C8A7B800DECE5E /* ka-chick.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB17FD7919C8A7B800DECE5E /* ka-chick.caf */; };
 		CB17FD7C19C8AAD100DECE5E /* pop-2.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB17FD7B19C8AAD100DECE5E /* pop-2.caf */; };
+		CB2ED87419D9AB8C0021CF86 /* grass.jpg in Resources */ = {isa = PBXBuildFile; fileRef = CB2ED87319D9AB8C0021CF86 /* grass.jpg */; };
 		CB3FBDCD1889860A00CE5BBD /* QuadTree.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */; };
 		CB485D88196ECE2B00E8646B /* ChallengeLevels.plist in Resources */ = {isa = PBXBuildFile; fileRef = CB485D87196ECE2B00E8646B /* ChallengeLevels.plist */; };
 		CB485D92196ED4D900E8646B /* FLConstants.m in Sources */ = {isa = PBXBuildFile; fileRef = CB485D91196ED4D900E8646B /* FLConstants.m */; };
@@ -23,7 +24,6 @@
 		CB7B494C18D39E1C00FACEF4 /* FLLinks.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB7B494A18D39E1C00FACEF4 /* FLLinks.mm */; };
 		CB929EAE18B93AE200543F25 /* FLSegmentNode.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB929EAD18B93AE200543F25 /* FLSegmentNode.mm */; };
 		CB960300196B86FF00569870 /* engine.png in Resources */ = {isa = PBXBuildFile; fileRef = CB9602EC196B86FF00569870 /* engine.png */; };
-		CB960301196B86FF00569870 /* grass.png in Resources */ = {isa = PBXBuildFile; fileRef = CB9602ED196B86FF00569870 /* grass.png */; };
 		CB960306196B86FF00569870 /* menu-button.png in Resources */ = {isa = PBXBuildFile; fileRef = CB9602F2196B86FF00569870 /* menu-button.png */; };
 		CB960308196B86FF00569870 /* rail.png in Resources */ = {isa = PBXBuildFile; fileRef = CB9602F4196B86FF00569870 /* rail.png */; };
 		CB960309196B86FF00569870 /* sleeper.png in Resources */ = {isa = PBXBuildFile; fileRef = CB9602F5196B86FF00569870 /* sleeper.png */; };
@@ -113,6 +113,7 @@
 		CB17FD7919C8A7B800DECE5E /* ka-chick.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ka-chick.caf"; sourceTree = "<group>"; };
 		CB17FD7B19C8AAD100DECE5E /* pop-2.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "pop-2.caf"; sourceTree = "<group>"; };
 		CB2E3250198BF31000720EAA /* fnv.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fnv.h; sourceTree = "<group>"; };
+		CB2ED87319D9AB8C0021CF86 /* grass.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = grass.jpg; sourceTree = "<group>"; };
 		CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = QuadTree.cpp; sourceTree = "<group>"; };
 		CB3FBDCC1889860A00CE5BBD /* QuadTree.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = QuadTree.h; sourceTree = "<group>"; };
 		CB485D87196ECE2B00E8646B /* ChallengeLevels.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = ChallengeLevels.plist; sourceTree = "<group>"; };
@@ -129,7 +130,6 @@
 		CB929EAC18B93AE200543F25 /* FLSegmentNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLSegmentNode.h; sourceTree = "<group>"; };
 		CB929EAD18B93AE200543F25 /* FLSegmentNode.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLSegmentNode.mm; sourceTree = "<group>"; };
 		CB9602EC196B86FF00569870 /* engine.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = engine.png; sourceTree = "<group>"; };
-		CB9602ED196B86FF00569870 /* grass.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = grass.png; sourceTree = "<group>"; };
 		CB9602F2196B86FF00569870 /* menu-button.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "menu-button.png"; sourceTree = "<group>"; };
 		CB9602F4196B86FF00569870 /* rail.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = rail.png; sourceTree = "<group>"; };
 		CB9602F5196B86FF00569870 /* sleeper.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = sleeper.png; sourceTree = "<group>"; };
@@ -227,7 +227,7 @@
 				CB96032A196B88AD00569870 /* cross-nonatlas.png */,
 				CB96032B196B88AD00569870 /* curve-nonatlas.png */,
 				CB9602EC196B86FF00569870 /* engine.png */,
-				CB9602ED196B86FF00569870 /* grass.png */,
+				CB2ED87319D9AB8C0021CF86 /* grass.jpg */,
 				CB96032C196B88AD00569870 /* jog-left-nonatlas.png */,
 				CB96032D196B88AD00569870 /* jog-right-nonatlas.png */,
 				CB96032E196B88AD00569870 /* join-left-nonatlas.png */,
@@ -509,6 +509,7 @@
 				CB960300196B86FF00569870 /* engine.png in Resources */,
 				CBD65A1419CB4FCF00F488B2 /* plink-2.caf in Resources */,
 				CB96033A196B88AD00569870 /* join-right-nonatlas.png in Resources */,
+				CB2ED87419D9AB8C0021CF86 /* grass.jpg in Resources */,
 				CB96033D196B88AD00569870 /* switch-nonatlas.png in Resources */,
 				CB17FD7C19C8AAD100DECE5E /* pop-2.caf in Resources */,
 				CBB4B81B183C00E1003C3444 /* Images.xcassets in Resources */,
@@ -520,7 +521,6 @@
 				CB485D95196EE0CC00E8646B /* Localizable.strings in Resources */,
 				CB960308196B86FF00569870 /* rail.png in Resources */,
 				CB96033B196B88AD00569870 /* platform-nonatlas.png in Resources */,
-				CB960301196B86FF00569870 /* grass.png in Resources */,
 				CBBB184B19C736F30088D345 /* train-whistle-2.caf in Resources */,
 				CB960310196B86FF00569870 /* wooden-click-2.caf in Resources */,
 				CB960335196B88AD00569870 /* cross-nonatlas.png in Resources */,
