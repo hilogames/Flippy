@@ -6,15 +6,22 @@ circuits.
 
 Current
 
+  . Add auto scroll behavior for constructiontoolbar pan.
+
+  . BUG: All NSSets shall not contain SKNodes that change.
+    - search containsObject
+    - HLScene, natch, and then maybe the comment about that in FLTrackScene
+      if we end up removing the nssets
+
   . BUG: dragging train should set camera mode off train
 
-  . BUG: Drag (create?) a track piece, then drop.  Then try to drag
-    again: won't pick up.
-
-  . BUG: Placement problem in drag: Drag an import onto an empty bit
-    of land and it conflicts with itself.
-
   . BUG: Circuits are unlocked in a new sandbox after clear.
+
+  . BUG: bad access after deleting a user export
+
+  . BUG: bad access on tutorial step 2
+
+  . Radial autoscroll; see TODO in autoScrollEnable.
 
   . Tile terrain by making multiple SKNodes, not making one big one.
 

@@ -182,8 +182,9 @@ struct FLSimulationToolbarState
 
 struct FLTrackSelectState
 {
-  FLTrackSelectState() : selectedSegments(nil), visualParentNode(nil) {}
-  NSMutableSet *selectedSegments;
+  FLTrackSelectState() : selectedSegments(nil), selectedSegmentPointers(nil), visualParentNode(nil) {}
+  NSMutableArray *selectedSegments;
+  NSMutableSet *selectedSegmentPointers;
   SKNode *visualParentNode;
   NSMutableDictionary *visualSquareNodes;
 };
@@ -198,7 +199,8 @@ struct FLTrackMoveState
 {
   FLTrackMoveState() : segmentNodes(nil), cursorNode(nil) {}
   SKNode *cursorNode;
-  NSSet *segmentNodes;
+  NSArray *segmentNodes;
+  NSSet *segmentNodePointers;
   int beganGridX;
   int beganGridY;
   BOOL attempted;
@@ -230,7 +232,7 @@ struct FLLabelState
 {
   FLLabelState() : labelPicker(nil), segmentNodesToBeLabeled(nil) {}
   HLGridNode *labelPicker;
-  NSSet *segmentNodesToBeLabeled;
+  NSArray *segmentNodesToBeLabeled;
 };
 
 enum FLWorldPanType { FLWorldPanTypeNone, FLWorldPanTypeScroll, FLWorldPanTypeTrackMove, FLWorldPanTypeLink };
@@ -498,7 +500,7 @@ struct PointerPairHash
     [self FL_train:_train setSpeed:_simulationSpeed];
 
     // Decode current selection.
-    NSMutableSet *selectedSegments = [aDecoder decodeObjectForKey:@"trackSelectStateSelectedSegments"];
+    NSArray *selectedSegments = [aDecoder decodeObjectForKey:@"trackSelectStateSelectedSegments"];
     if (selectedSegments && [selectedSegments count] > 0) {
       [self FL_trackSelect:selectedSegments];
     }
@@ -817,8 +819,7 @@ struct PointerPairHash
     [self FL_trackEditMenuHideAnimated:YES];
   } else {
     [self FL_trackSelectClear];
-    NSSet *segmentNodeSet = [NSSet setWithObject:segmentNode];
-    [self FL_trackSelect:segmentNodeSet];
+    [self FL_trackSelect:@[ segmentNode ]];
     [self FL_trackEditMenuShowAnimated:YES];
   }
 }
@@ -862,7 +863,7 @@ struct PointerPairHash
         [self FL_trackSelectEraseSegment:segmentNode];
       } else {
         _worldGestureState.longPressMode = FLWorldLongPressModeAdd;
-        [self FL_trackSelect:[NSSet setWithObject:segmentNode]];
+        [self FL_trackSelect:@[ segmentNode ]];
       }
       [self FL_trackEditMenuHideAnimated:YES];
     } else {
@@ -878,7 +879,7 @@ struct PointerPairHash
       FLSegmentNode *segmentNode = trackGridConvertGet(*_trackGrid, worldLocation);
       if (segmentNode) {
         if (_worldGestureState.longPressMode == FLWorldLongPressModeAdd) {
-          [self FL_trackSelect:[NSSet setWithObject:segmentNode]];
+          [self FL_trackSelect:@[ segmentNode ]];
         } else {
           [self FL_trackSelectEraseSegment:segmentNode];
         }
@@ -1244,7 +1245,7 @@ struct PointerPairHash
       int gridY;
       _trackGrid->convert(worldLocation, &gridX, &gridY);
       newSegmentNode.position = _trackGrid->convert(gridX, gridY);
-      [self FL_trackMoveBeganWithNodes:[NSSet setWithObject:newSegmentNode] location:worldLocation completion:nil];
+      [self FL_trackMoveBeganWithNodes:@[ newSegmentNode ] location:worldLocation completion:nil];
 
     } else {
 
@@ -1261,7 +1262,7 @@ struct PointerPairHash
       NSString *importPath = [importDirectory stringByAppendingPathComponent:[toolTag stringByAppendingPathExtension:@"archive"]];
       NSString *description;
       NSArray *links;
-      NSSet *newSegmentNodes = [self FL_importWithPath:importPath description:&description links:&links];
+      NSArray *newSegmentNodes = [self FL_importWithPath:importPath description:&description links:&links];
 
       // Configure imported segment set.
       for (FLSegmentNode *segmentNode in newSegmentNodes) {
@@ -1434,7 +1435,7 @@ struct PointerPairHash
       [self FL_trackSelectClear];
       [self FL_trackEditMenuHideAnimated:YES];
     } else {
-      NSMutableSet *eraseSegments = [NSMutableSet set];
+      NSMutableArray *eraseSegments = [NSMutableArray array];
       for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
         if ([self FL_gameTypeChallengeCanEraseSegment:segmentNode]) {
           [eraseSegments addObject:segmentNode];
@@ -1906,8 +1907,10 @@ struct PointerPairHash
   for (auto link : _links) {
     FLSegmentNode *fromSegmentNode = (__bridge FLSegmentNode *)link.first.first;
     FLSegmentNode *toSegmentNode = (__bridge FLSegmentNode *)link.first.second;
-    if ([_trackSelectState.selectedSegments containsObject:fromSegmentNode]
-        && [_trackSelectState.selectedSegments containsObject:toSegmentNode]) {
+    NSValue *fromSegmentNodePointer = [NSValue valueWithPointer:(void *)fromSegmentNode];
+    NSValue *toSegmentNodePointer = [NSValue valueWithPointer:(void *)toSegmentNode];
+    if ([_trackSelectState.selectedSegmentPointers containsObject:fromSegmentNodePointer]
+        && [_trackSelectState.selectedSegmentPointers containsObject:toSegmentNodePointer]) {
       [links addObject:fromSegmentNode];
       [links addObject:toSegmentNode];
     }
@@ -1942,7 +1945,7 @@ struct PointerPairHash
   }
 }
 
-- (NSSet *)FL_importWithPath:(NSString *)path description:(NSString * __autoreleasing *)trackDescription links:(NSArray * __autoreleasing *)links
+- (NSArray *)FL_importWithPath:(NSString *)path description:(NSString * __autoreleasing *)trackDescription links:(NSArray * __autoreleasing *)links
 {
   if (![[NSFileManager defaultManager] fileExistsAtPath:path]) {
     [NSException raise:@"FLImportPathInvalid" format:@"Invalid import path %@.", path];
@@ -1951,7 +1954,7 @@ struct PointerPairHash
   NSData *archiveData = [NSData dataWithContentsOfFile:path];
   NSKeyedUnarchiver *aDecoder = [[NSKeyedUnarchiver alloc] initForReadingWithData:archiveData];
 
-  NSMutableSet *segmentNodes = [aDecoder decodeObjectForKey:@"segmentNodes"];
+  NSArray *segmentNodes = [aDecoder decodeObjectForKey:@"segmentNodes"];
   if (trackDescription) {
     *trackDescription = [aDecoder decodeObjectForKey:@"trackDescription"];
     if (!*trackDescription) {
@@ -1982,7 +1985,7 @@ struct PointerPairHash
   return toolNode;
 }
 
-- (UIImage *)FL_createImageForSegments:(NSSet *)segmentNodes withSize:(CGFloat)imageSize
+- (UIImage *)FL_createImageForSegments:(NSArray *)segmentNodes withSize:(CGFloat)imageSize
 {
   // TODO: Can this same purpose (eventually, to create a sprite node with this image)
   // be accomplished by calling "textureFromNode" method?  But keep in mind my desire
@@ -2191,7 +2194,7 @@ struct PointerPairHash
   }
 }
 
-- (void)FL_getSegmentsExtremes:(NSSet *)segmentNodes left:(CGFloat *)left right:(CGFloat *)right top:(CGFloat *)top bottom:(CGFloat *)bottom
+- (void)FL_getSegmentsExtremes:(NSArray *)segmentNodes left:(CGFloat *)left right:(CGFloat *)right top:(CGFloat *)top bottom:(CGFloat *)bottom
 {
   BOOL firstSegment = YES;
   for (FLSegmentNode *segmentNode in segmentNodes) {
@@ -2528,7 +2531,7 @@ struct PointerPairHash
     if (!texture) {
       NSString *importPath = [importDirectory stringByAppendingPathComponent:importFile];
       NSString *importDescription = nil;
-      NSSet *segmentNodes = [self FL_importWithPath:importPath description:&importDescription links:NULL];
+      NSArray *segmentNodes = [self FL_importWithPath:importPath description:&importDescription links:NULL];
       UIImage *importImage = [self FL_createImageForSegments:segmentNodes withSize:FLMainToolbarToolArtSize];
       [[HLTextureStore sharedStore] setTextureWithImage:importImage forKey:importName filteringMode:SKTextureFilteringNearest];
       [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeActionPan] forKey:importName];
@@ -3156,7 +3159,7 @@ struct PointerPairHash
   return gridNode;
 }
 
-- (void)FL_trackSelect:(NSSet *)segmentNodes
+- (void)FL_trackSelect:(NSArray *)segmentNodes
 {
   if (!_trackSelectState.visualParentNode) {
     _trackSelectState.visualParentNode = [SKNode node];
@@ -3181,21 +3184,35 @@ struct PointerPairHash
     _trackSelectState.visualSquareNodes = [NSMutableDictionary dictionary];
   }
   for (FLSegmentNode *segmentNode in segmentNodes) {
-    SKSpriteNode *selectionSquare = [_trackSelectState.visualSquareNodes objectForKey:[NSValue valueWithPointer:(void *)segmentNode]];
+    NSValue *segmentNodePointer = [NSValue valueWithPointer:(void *)segmentNode];
+    SKSpriteNode *selectionSquare = [_trackSelectState.visualSquareNodes objectForKey:segmentNodePointer];
     if (!selectionSquare) {
       selectionSquare = [SKSpriteNode spriteNodeWithColor:[SKColor colorWithWhite:0.2f alpha:1.0f]
                                                      size:CGSizeMake(FLSegmentArtSizeBasic * FLTrackArtScale,
                                                                      FLSegmentArtSizeBasic * FLTrackArtScale)];
       selectionSquare.blendMode = SKBlendModeAdd;
-      [_trackSelectState.visualSquareNodes setObject:selectionSquare forKey:[NSValue valueWithPointer:(void *)segmentNode]];
+      [_trackSelectState.visualSquareNodes setObject:selectionSquare forKey:segmentNodePointer];
       [_trackSelectState.visualParentNode addChild:selectionSquare];
     }
     selectionSquare.position = segmentNode.position;
   }
+  // noob: Add pointers to a quick-lookup structure to avoid linear search in the array
+  // of objects.  (Not using a NSSet in place of the array because these nodes can change in
+  // significant ways while selected, which will affect their hash functions as of iOS8.)
   if (_trackSelectState.selectedSegments) {
-    [_trackSelectState.selectedSegments unionSet:segmentNodes];
+    for (FLSegmentNode *segmentNode in segmentNodes) {
+      NSValue *segmentNodePointer = [NSValue valueWithPointer:(void *)segmentNode];
+      if (![_trackSelectState.selectedSegmentPointers containsObject:segmentNodePointer]) {
+        [_trackSelectState.selectedSegments addObject:segmentNode];
+        [_trackSelectState.selectedSegmentPointers addObject:segmentNodePointer];
+      }
+    }
   } else {
-    _trackSelectState.selectedSegments = [NSMutableSet setWithSet:segmentNodes];
+    _trackSelectState.selectedSegments = [NSMutableArray arrayWithArray:segmentNodes];
+    _trackSelectState.selectedSegmentPointers = [NSMutableSet set];
+    for (FLSegmentNode *segmentNode in segmentNodes) {
+      [_trackSelectState.selectedSegmentPointers addObject:[NSValue valueWithPointer:(void *)segmentNode]];
+    }
   }
 }
 
@@ -3204,31 +3221,40 @@ struct PointerPairHash
   if (!_trackSelectState.selectedSegments) {
     return;
   }
-  [self FL_trackSelectEraseCommon:segmentNode];
+  [self FL_trackSelectEraseCommon:@[ segmentNode ]];
 }
 
-- (void)FL_trackSelectEraseSegments:(NSSet *)segmentNodes
+- (void)FL_trackSelectEraseSegments:(NSArray *)segmentNodes
 {
   if (!_trackSelectState.selectedSegments) {
     return;
   }
-  for (FLSegmentNode *segmentNode in segmentNodes) {
-    [self FL_trackSelectEraseCommon:segmentNode];
-  }
+  [self FL_trackSelectEraseCommon:segmentNodes];
 }
 
-- (void)FL_trackSelectEraseCommon:(FLSegmentNode *)segmentNode
+- (void)FL_trackSelectEraseCommon:(NSArray *)segmentNodes
 {
-  SKSpriteNode *selectionSquare = [_trackSelectState.visualSquareNodes objectForKey:[NSValue valueWithPointer:(void *)segmentNode]];
-  if (selectionSquare) {
-    if ([_trackSelectState.visualSquareNodes count] == 1) {
-      _trackSelectState.selectedSegments = nil;
-      _trackSelectState.visualSquareNodes = nil;
-    } else {
-      [_trackSelectState.selectedSegments removeObject:segmentNode];
-      [_trackSelectState.visualSquareNodes removeObjectForKey:[NSValue valueWithPointer:(void *)segmentNode]];
+  for (FLSegmentNode *segmentNode in segmentNodes) {
+    NSValue *segmentNodePointer = [NSValue valueWithPointer:(void *)segmentNode];
+    [_trackSelectState.selectedSegmentPointers removeObject:segmentNodePointer];
+  }
+
+  if ([_trackSelectState.selectedSegmentPointers count] == 0) {
+    _trackSelectState.selectedSegments = nil;
+    _trackSelectState.selectedSegmentPointers = nil;
+    _trackSelectState.visualSquareNodes = nil;
+  } else {
+    // note: This might get nasty for large selections.  But the selected segments are mutable, which makes
+    // storing them in NSSet or NSOrderedSet problematic.
+    [_trackSelectState.selectedSegments removeObjectsInArray:segmentNodes];
+    for (FLSegmentNode *segmentNode in segmentNodes) {
+      NSValue *segmentNodePointer = [NSValue valueWithPointer:(void *)segmentNode];
+      SKSpriteNode *selectionSquare = [_trackSelectState.visualSquareNodes objectForKey:segmentNodePointer];
+      if (selectionSquare) {
+        [selectionSquare removeFromParent];
+        [_trackSelectState.visualSquareNodes removeObjectForKey:segmentNodePointer];
+      }
     }
-    [selectionSquare removeFromParent];
   }
 }
 
@@ -3241,30 +3267,30 @@ struct PointerPairHash
 
 - (BOOL)FL_trackSelected:(FLSegmentNode *)segmentNode
 {
-  if (!_trackSelectState.selectedSegments) {
+  if (!_trackSelectState.selectedSegmentPointers) {
     return NO;
   }
-  return [_trackSelectState.selectedSegments containsObject:segmentNode];
+  NSValue *segmentNodePointer = [NSValue valueWithPointer:(void *)segmentNode];
+  return [_trackSelectState.selectedSegmentPointers containsObject:segmentNodePointer];
 }
 
 - (BOOL)FL_trackSelectedNone
 {
-  return (_trackSelectState.selectedSegments == nil);
+  return (_trackSelectState.selectedSegmentPointers == nil);
 }
 
 - (NSUInteger)FL_trackSelectedCount
 {
-  if (!_trackSelectState.selectedSegments) {
+  if (!_trackSelectState.selectedSegmentPointers) {
     return 0;
   }
-  return [_trackSelectState.selectedSegments count];
+  return [_trackSelectState.selectedSegmentPointers count];
 }
 
 - (void)FL_trackConflictShow:(FLSegmentNode *)segmentNode
 {
   SKSpriteNode *conflictNode = [SKSpriteNode spriteNodeWithColor:FLInterfaceColorBad()
-                                                            size:CGSizeMake(FLSegmentArtSizeBasic * FLTrackArtScale,
-                                                                            FLSegmentArtSizeBasic * FLTrackArtScale)];
+                                                            size:CGSizeMake(FLTrackSegmentSize, FLTrackSegmentSize)];
   conflictNode.zPosition = FLZPositionWorldSelect;
   conflictNode.position = segmentNode.position;
   conflictNode.alpha = 0.4f;
@@ -3286,7 +3312,7 @@ struct PointerPairHash
  *
  * @param The location of the gesture which started the move.
  */
-- (void)FL_trackMoveBeganWithNodes:(NSSet *)segmentNodes location:(CGPoint)worldLocation completion:(void (^)(BOOL placed))completion
+- (void)FL_trackMoveBeganWithNodes:(NSArray *)segmentNodes location:(CGPoint)worldLocation completion:(void (^)(BOOL placed))completion
 {
   if (!segmentNodes || [segmentNodes count] == 0) {
     [NSException raise:@"FLTrackMoveInvalidArgument"
@@ -3298,13 +3324,19 @@ struct PointerPairHash
   }
 
   _trackMoveState.segmentNodes = segmentNodes;
+  NSMutableSet *segmentNodePointers = [NSMutableSet set];
+  for (FLSegmentNode *segmentNode in segmentNodes) {
+    NSValue *segmentNodePointer = [NSValue valueWithPointer:(void *)segmentNode];
+    [segmentNodePointers addObject:segmentNodePointer];
+  }
+  _trackMoveState.segmentNodePointers = segmentNodePointers;
   _trackMoveState.completion = completion;
 
   _trackGrid->convert(worldLocation, &_trackMoveState.beganGridX, &_trackMoveState.beganGridY);
   _trackMoveState.attempted = NO;
   _trackMoveState.attemptedTranslationGridX = 0;
   _trackMoveState.attemptedTranslationGridY = 0;
-  FLSegmentNode *anySegmentNode = [segmentNodes anyObject];
+  FLSegmentNode *anySegmentNode = [segmentNodes firstObject];
   if (anySegmentNode.parent) {
     // note: Okay, pretty big assumption here, but it's a precondition of the function.
     _trackMoveState.placed = YES;
@@ -3386,6 +3418,7 @@ struct PointerPairHash
 
   [self FL_trackEditMenuUpdateAnimated:YES];
   _trackMoveState.segmentNodes = nil;
+  _trackMoveState.segmentNodePointers = nil;
   _trackMoveState.completion = nil;
 }
 
@@ -3442,12 +3475,15 @@ struct PointerPairHash
     placementGridX += deltaTranslationGridX;
     placementGridY += deltaTranslationGridY;
     FLSegmentNode *occupyingSegmentNode = _trackGrid->get(placementGridX, placementGridY);
-    if (occupyingSegmentNode && ![_trackMoveState.segmentNodes containsObject:occupyingSegmentNode]) {
-      [self FL_trackConflictShow:occupyingSegmentNode];
+    if (placementGridX < FLTrackGridXMin || placementGridX > FLTrackGridXMax
+        || placementGridY < FLTrackGridYMin || placementGridY > FLTrackGridYMax) {
       hasConflict = YES;
-    } else if (placementGridX < FLTrackGridXMin || placementGridX > FLTrackGridXMax
-               || placementGridY < FLTrackGridYMin || placementGridY > FLTrackGridYMax) {
-      hasConflict = YES;
+    } else if (occupyingSegmentNode) {
+      NSValue *occupyingSegmentNodePointer = [NSValue valueWithPointer:(void *)occupyingSegmentNode];
+      if (![_trackMoveState.segmentNodePointers containsObject:occupyingSegmentNodePointer]) {
+        [self FL_trackConflictShow:occupyingSegmentNode];
+        hasConflict = YES;
+      }
     }
   }
   if (hasConflict) {
@@ -3524,7 +3560,7 @@ struct PointerPairHash
   }
 
   // Collect information about selected segments.
-  NSSet *segmentNodes = _trackSelectState.selectedSegments;
+  NSArray *segmentNodes = _trackSelectState.selectedSegments;
   CGFloat segmentsPositionTop;
   CGFloat segmentsPositionBottom;
   CGFloat segmentsPositionLeft;
@@ -3821,7 +3857,7 @@ struct PointerPairHash
   }
 }
 
-- (void)FL_linkSwitchTogglePathIdForSegments:(NSSet *)segmentNodes animated:(BOOL)animated
+- (void)FL_linkSwitchTogglePathIdForSegments:(NSArray *)segmentNodes animated:(BOOL)animated
 {
   for (FLSegmentNode *segmentNode in segmentNodes) {
     linksToggleSwitchPathId(_links, segmentNode, animated);
@@ -3940,7 +3976,7 @@ struct PointerPairHash
   }
 }
 
-- (void)FL_labelPickForSegments:(NSSet *)segmentNodes
+- (void)FL_labelPickForSegments:(NSArray *)segmentNodes
 {
   if (!_labelState.labelPicker) {
 
@@ -4060,10 +4096,10 @@ struct PointerPairHash
   }
 }
 
-- (void)FL_trackRotateSegments:(NSSet *)segmentNodes rotateBy:(int)rotateBy animated:(BOOL)animated
+- (void)FL_trackRotateSegments:(NSArray *)segmentNodes rotateBy:(int)rotateBy animated:(BOOL)animated
 {
   if ([segmentNodes count] == 1) {
-    [self FL_trackRotateSegment:[segmentNodes anyObject] rotateBy:rotateBy animated:animated];
+    [self FL_trackRotateSegment:[segmentNodes firstObject] rotateBy:rotateBy animated:animated];
     return;
   }
 
@@ -4091,7 +4127,7 @@ struct PointerPairHash
       // changes.  Well, okay, let's steal some state that already exists: The zRotation of the
       // first segment in the set.
       CGPoint offsetPivot = CGPointMake(FLTrackSegmentSize / 2.0f, 0.0f);
-      int normalRotationQuarters = normalizeRotationQuarters([[segmentNodes anyObject] zRotationQuarters]);
+      int normalRotationQuarters = normalizeRotationQuarters([[segmentNodes firstObject] zRotationQuarters]);
       rotatePoints(&offsetPivot, 1, normalRotationQuarters);
       pivot.x += offsetPivot.x;
       pivot.y += offsetPivot.y;
@@ -4101,6 +4137,11 @@ struct PointerPairHash
   // Check proposed rotation for conflicts.
   int normalRotationQuarters = normalizeRotationQuarters(rotateBy);
   BOOL hasConflict = NO;
+  NSMutableSet *segmentNodePointers = [NSMutableSet set];
+  for (FLSegmentNode *segmentNode in segmentNodes) {
+    NSValue *segmentNodePointer = [NSValue valueWithPointer:(void *)segmentNode];
+    [segmentNodePointers addObject:segmentNodePointer];
+  }
   for (FLSegmentNode *segmentNode in segmentNodes) {
     CGPoint positionRelativeToPivot = CGPointMake(segmentNode.position.x - pivot.x, segmentNode.position.y - pivot.y);
     rotatePoints(&positionRelativeToPivot, 1, normalRotationQuarters);
@@ -4108,9 +4149,12 @@ struct PointerPairHash
     // note: Could store final position to be used below.  My instinct, though, is that
     // recalculating it is fast enough to be okay (or perhaps even as good).
     FLSegmentNode *occupyingSegmentNode = trackGridConvertGet(*_trackGrid, finalPosition);
-    if (occupyingSegmentNode && ![segmentNodes containsObject:occupyingSegmentNode]) {
-      [self FL_trackConflictShow:occupyingSegmentNode];
-      hasConflict = YES;
+    if (occupyingSegmentNode) {
+      NSValue *occupyingSegmentNodePointer = [NSValue valueWithPointer:(void *)occupyingSegmentNode];
+      if (![segmentNodePointers containsObject:occupyingSegmentNodePointer]) {
+        [self FL_trackConflictShow:occupyingSegmentNode];
+        hasConflict = YES;
+      }
     }
   }
   if (hasConflict) {
@@ -4189,7 +4233,7 @@ struct PointerPairHash
   }
 }
 
-- (void)FL_trackEraseSegments:(NSSet *)segmentNodes animated:(BOOL)animated
+- (void)FL_trackEraseSegments:(NSArray *)segmentNodes animated:(BOOL)animated
 {
   for (FLSegmentNode *segmentNode in segmentNodes) {
     [self FL_trackEraseCommon:segmentNode animated:animated];
@@ -4626,7 +4670,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
       // hopefully suggesting a good place to put the straight segment (to wit, extending
       // the track up from the existing join segment).
       panSceneLocation.y += FLTrackSegmentSize * 2.0f;
-      [self FL_tutorialShowWithLabel:label firstPanWorld:YES panLocation:panSceneLocation animated:animated];
+      [self FL_tutorialShowWithLabel:label firstPanWorld:YES panLocation:panSceneLocation animated:YES];
       _tutorialState.conditions.emplace_back(FLTutorialActionConstructionToolbarPanBegan, FLTutorialResultHideBackdropDisallowInteraction);
       _tutorialState.conditions.emplace_back(FLTutorialActionConstructionToolbarPanEnded, ^NSUInteger(NSArray *arguments){
         // note: Hacky: Peek into _trackMoveState, hopefully before it clears state.

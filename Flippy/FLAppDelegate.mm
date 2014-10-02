@@ -22,6 +22,11 @@
   self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
   self.window.backgroundColor = [UIColor whiteColor];
 
+#if TARGET_IPHONE_SIMULATOR
+  NSLog(@"Simulator: %@",
+        [[[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask] lastObject]);
+#endif
+
   // note: Root view controller might already have been created by application
   // state restoration process.
   if (!_flViewController) {
