@@ -6,14 +6,10 @@ circuits.
 
 Current
 
-  . Add auto scroll behavior for constructiontoolbar pan.
-
   . BUG: All NSSets shall not contain SKNodes that change.
     - search containsObject
     - HLScene, natch, and then maybe the comment about that in FLTrackScene
       if we end up removing the nssets
-
-  . BUG: dragging train should set camera mode off train
 
   . BUG: Circuits are unlocked in a new sandbox after clear.
 
@@ -93,8 +89,6 @@ Current
     challenge level information.
 
 Lower Priority
-
-  . Dragging train needs a ghost to drag?  Plus auto scroll?
 
   . For challenge games, show the level title in the save game slots
     when loading and saving.  (Need to encode the level number

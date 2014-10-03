@@ -96,6 +96,8 @@ static NSString *FLExportsDirectoryPath;
 static SKColor *FLSceneBackgroundColor = [SKColor blackColor];
 //static SKColor *FLSceneBackgroundColor = [SKColor colorWithRed:0.4f green:0.6f blue:0.0f alpha:1.0f];
 
+static const CGFloat FLCursorNodeAlpha = 0.4f;
+
 static const CGFloat FLLinkLineWidth = 2.0f;
 static SKColor *FLLinkLineColor = [SKColor colorWithRed:0.2f green:0.6f blue:0.9f alpha:1.0f];
 static SKColor *FLLinkEraseLineColor = [SKColor whiteColor];
@@ -178,6 +180,13 @@ struct FLSimulationToolbarState
 {
   FLSimulationToolbarState() : toolbarNode(nil) {}
   HLToolbarNode *toolbarNode;
+};
+
+struct FLTrainMoveState
+{
+  FLTrainMoveState() : cursorNode(nil) {}
+  SKNode *cursorNode;
+  CGFloat progressPrecision;
 };
 
 struct FLTrackSelectState
@@ -374,6 +383,7 @@ struct PointerPairHash
   FLWorldAutoScrollState _worldAutoScrollState;
   FLConstructionToolbarState _constructionToolbarState;
   FLSimulationToolbarState _simulationToolbarState;
+  FLTrainMoveState _trainMoveState;
   FLTrackEditMenuState _trackEditMenuState;
   FLTrackSelectState _trackSelectState;
   FLTrackConflictState _trackConflictState;
@@ -1333,13 +1343,19 @@ struct PointerPairHash
 
   if (gestureRecognizer.state == UIGestureRecognizerStateChanged) {
     [self FL_trackMoveChangedWithLocation:worldLocation];
+    [self FL_worldAutoScrollEnableForGestureWithLocation:sceneLocation gestureUpdateBlock:^{
+      CGPoint scrolledWorldLocation = [self->_worldNode convertPoint:sceneLocation fromNode:self];
+      [self FL_trackMoveChangedWithLocation:scrolledWorldLocation];
+    }];
   } else if (gestureRecognizer.state == UIGestureRecognizerStateEnded) {
     if (_tutorialState.tutorialActive) {
       [self FL_tutorialRecognizedAction:FLTutorialActionConstructionToolbarPanEnded withArguments:nil];
     }
     [self FL_trackMoveEndedWithLocation:worldLocation];
+    [self FL_worldAutoScrollDisable];
   } else if (gestureRecognizer.state == UIGestureRecognizerStateCancelled) {
     [self FL_trackMoveCancelledWithLocation:worldLocation];
+    [self FL_worldAutoScrollDisable];
   }
 }
 
@@ -1481,21 +1497,28 @@ struct PointerPairHash
 
 - (void)handleTrainPan:(UIGestureRecognizer *)gestureRecognizer
 {
-  static CGFloat progressPrecision;
+  _cameraMode = FLCameraModeManual;
+
   if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
-    // note: This seems to work pretty well.  When adjusting, consider two things: 1) When the pan
-    // gesture moves a pixel, the train should also move; 2) When the gesture puts the train at the
-    // end of a switched segment (like a join), this precision determines how close it has to be
-    // to the end of the path so that the switch is considered relevant (and will determine which
-    // path the train ends up on).
-    progressPrecision = FLPath::getLength(FLPathTypeStraight) / FLTrackSegmentSize / _worldNode.xScale;
-  }
-  if (gestureRecognizer.state != UIGestureRecognizerStateCancelled) {
-    const int FLGridSearchDistance = 1;
     CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
     CGPoint sceneLocation = [self convertPointFromView:viewLocation];
     CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
-    [_train moveToClosestOnTrackLocationForLocation:worldLocation gridSearchDistance:FLGridSearchDistance progressPrecision:progressPrecision];
+    [self FL_trainMoveBeganWithLocation:worldLocation];
+  } else if (gestureRecognizer.state == UIGestureRecognizerStateChanged) {
+    CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
+    CGPoint sceneLocation = [self convertPointFromView:viewLocation];
+    CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
+    [self FL_trainMoveChangedWithLocation:worldLocation];
+    [self FL_worldAutoScrollEnableForGestureWithLocation:sceneLocation gestureUpdateBlock:^{
+      CGPoint scrolledWorldLocation = [self->_worldNode convertPoint:sceneLocation fromNode:self];
+      [self FL_trainMoveChangedWithLocation:scrolledWorldLocation];
+    }];
+  } else if (gestureRecognizer.state == UIGestureRecognizerStateEnded) {
+    [self FL_trainMoveEnded];
+    [self FL_worldAutoScrollDisable];
+  } else if (gestureRecognizer.state == UIGestureRecognizerStateCancelled) {
+    [self FL_trainMoveEnded];
+    [self FL_worldAutoScrollDisable];
   }
 }
 
@@ -3159,6 +3182,42 @@ struct PointerPairHash
   return gridNode;
 }
 
+- (void)FL_trainMoveBeganWithLocation:(CGPoint)worldLocation
+{
+  // note: This seems to work pretty well.  When adjusting, consider two things: 1) When the pan
+  // gesture moves a pixel, the train should also move; 2) When the gesture puts the train at the
+  // end of a switched segment (like a join), this precision determines how close it has to be
+  // to the end of the path so that the switch is considered relevant (and will determine which
+  // path the train ends up on).
+  _trainMoveState.progressPrecision = FLPath::getLength(FLPathTypeStraight) / FLTrackSegmentSize / _worldNode.xScale;
+
+  if (!_trainMoveState.cursorNode) {
+    SKSpriteNode *cursorNode = [SKSpriteNode spriteNodeWithTexture:[[HLTextureStore sharedStore] textureForKey:@"engine"]];
+    cursorNode.zPosition = FLZPositionWorldOverlay;
+    cursorNode.zRotation = (CGFloat)M_PI_2;
+    cursorNode.xScale = FLTrackArtScale;
+    cursorNode.yScale = FLTrackArtScale;
+    cursorNode.alpha = FLCursorNodeAlpha;
+    _trainMoveState.cursorNode = cursorNode;
+  }
+  _trainMoveState.cursorNode.position = worldLocation;
+  [_trackNode addChild:_trainMoveState.cursorNode];
+}
+
+- (void)FL_trainMoveChangedWithLocation:(CGPoint)worldLocation
+{
+  const int FLGridSearchDistance = 1;
+  _trainMoveState.cursorNode.position = worldLocation;
+  [_train moveToClosestOnTrackLocationForLocation:worldLocation
+                               gridSearchDistance:FLGridSearchDistance
+                                progressPrecision:_trainMoveState.progressPrecision];
+}
+
+- (void)FL_trainMoveEnded
+{
+  [_trainMoveState.cursorNode removeFromParent];
+}
+
 - (void)FL_trackSelect:(NSArray *)segmentNodes
 {
   if (!_trackSelectState.visualParentNode) {
@@ -3348,7 +3407,8 @@ struct PointerPairHash
 
   if (!_trackMoveState.cursorNode) {
     _trackMoveState.cursorNode = [SKNode node];
-    _trackMoveState.cursorNode.alpha = 0.4f;
+    _trackMoveState.cursorNode.zPosition = FLZPositionWorldOverlay;
+    _trackMoveState.cursorNode.alpha = FLCursorNodeAlpha;
   }
   for (FLSegmentNode *segmentNode in segmentNodes) {
     [_trackMoveState.cursorNode addChild:[segmentNode copy]];
