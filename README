@@ -6,20 +6,20 @@ circuits.
 
 Current
 
+  . tutorial entry for halfadder about how to use the import/export
+    buttons.
+
   . BUG: All NSSets shall not contain SKNodes that change.
     - search containsObject
     - HLScene, natch, and then maybe the comment about that in FLTrackScene
       if we end up removing the nssets
 
-  . BUG: Circuits are unlocked in a new sandbox after clear.
-
-  . BUG: bad access after deleting a user export
-
-  . BUG: bad access on tutorial step 2
+  . BUG: truth table blocks dismiss node in goals screen
 
   . Radial autoscroll; see TODO in autoScrollEnable.
 
   . Tile terrain by making multiple SKNodes, not making one big one.
+  . Tile grass node in title screen, too.
 
   . Consider recentering world as needed when construction tool is
     released, so that track edit popup menu can fit fully onscreen.
@@ -35,6 +35,10 @@ Current
 
   . Rotation gesture recognizer for rotation; flick for deletion;
     pinch or something for mirror.
+
+  . Selecting straight segments or platforms sucks.  Can we do a
+    closest-segment to click thing on selection/tap, not just for
+    linking?
 
   . Victory Screen
     . Track piece count for solved levels; have achievements.  Would be

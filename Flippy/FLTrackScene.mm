@@ -140,6 +140,9 @@ enum FLUnlockItem {
   FLUnlockGateXor1,
   FLUnlockGateXor2,
   FLUnlockCircuits,
+  FLUnlockCircuitXor,
+  FLUnlockCircuitHalfAdder,
+  FLUnlockCircuitFullAdder,
   FLUnlockTutorialCompleted,
 };
 
@@ -528,6 +531,16 @@ struct PointerPairHash
   if (!_contentCreated) {
     return;
   }
+
+  // note: So... this encoding is often triggered by a in-game menu save button being clicked.
+  // The in-game menu is presented as a modal node, child of the scene; a tap on the button
+  // triggers a sound effect via SKAction playSoundFileNamed.  So the modal presentation node
+  // is removed, but the SKAction persists in the scene's/ _action ivar; it gets encoded; and
+  // on decoding it crashes (because it can't find the sound file at the path specified for the
+  // old bundle path, now probably invalid).  In iOS8 the bundle changes for new simulator runs,
+  // which is probably why this only started crashing in iOS8.  There might be a more elegant
+  // fix for this problem, but this gets the job done.
+  [self removeAllActions];
 
   // Remove nodes from hierarchy that should not be persisted.
   SKNode *holdTerrainNode = [_worldNode childNodeWithName:@"terrain"];
@@ -2497,7 +2510,12 @@ struct PointerPairHash
 
 - (void)FL_constructionToolbarShowCircuits:(int)page animation:(HLToolbarNodeAnimation)animation
 {
-  [self FL_constructionToolbarShowImports:FLCircuitsDirectoryPath unlockItems:nullptr page:page animation:animation];
+  vector<FLUnlockItem> unlockItems = {
+    FLUnlockCircuitXor,
+    FLUnlockCircuitHalfAdder,
+    FLUnlockCircuitFullAdder,
+  };
+  [self FL_constructionToolbarShowImports:FLCircuitsDirectoryPath unlockItems:&unlockItems page:page animation:animation];
 }
 
 - (void)FL_constructionToolbarShowExports:(int)page animation:(HLToolbarNodeAnimation)animation
@@ -4407,8 +4425,15 @@ struct PointerPairHash
       case FLUnlockGateXor2:
         return FLUserUnlocksUnlocked(@"FLUserUnlockGateXor");
       case FLUnlockCircuits:
-        // note: Until something unlocks this, hardcode to true.
-        return YES;
+        return FLUserUnlocksUnlocked(@"FLUserUnlockCircuitXor")
+          || FLUserUnlocksUnlocked(@"FLUserUnlockCircuitHalfAdder")
+          || FLUserUnlocksUnlocked(@"FLUserUnlockCircuitFullAdder");
+      case FLUnlockCircuitXor:
+        return FLUserUnlocksUnlocked(@"FLUserUnlockCircuitXor");
+      case FLUnlockCircuitHalfAdder:
+        return FLUserUnlocksUnlocked(@"FLUserUnlockHalfAdder");
+      case FLUnlockCircuitFullAdder:
+        return FLUserUnlocksUnlocked(@"FLUserUnlockFullAdder");
       case FLUnlockTutorialCompleted:
         return FLUserUnlocksUnlocked(@"FLUserUnlockTutorialCompleted");
       default:

@@ -78,6 +78,32 @@
 		<array>
 			<string>FLUserUnlockLevel4</string>
 			<string>FLUserUnlockGateXor</string>
+			<string>FLUserUnlockCircuitXor</string>
+		</array>
+	</dict>
+	<dict>
+		<key>title</key>
+		<string>Half Adder</string>
+		<key>goal-short</key>
+		<string>A + B = 2C + S</string>
+		<key>goal-long</key>
+		<string>Find the sum of two bits A and B. Output S should contain the sum, and output C should contain the carry bit.</string>
+		<key>goal-values</key>
+		<array>
+			<integer>0</integer>
+			<integer>0</integer>
+			<integer>1</integer>
+			<integer>0</integer>
+			<integer>1</integer>
+			<integer>0</integer>
+			<integer>0</integer>
+			<integer>1</integer>
+		</array>
+		<key>victory-user-unlocks</key>
+		<array>
+			<string>FLUserUnlockLevel5</string>
+			<string>FLUserUnlockCircuitHalfAdder</string>
+			<string>FLUserUnlockCircuitFullAdder</string>
 		</array>
 	</dict>
 </array>
