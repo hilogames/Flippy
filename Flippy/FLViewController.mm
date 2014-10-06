@@ -20,6 +20,10 @@ static const CGFloat FLZPositionTitleBackground = 1.0f;
 static const CGFloat FLZPositionTitleMenu = 2.0f;
 static const CGFloat FLZPositionTitleMessage = 3.0f;
 
+static const CGFloat FLZPositionGameOverlayStatus = 1.0f;
+static const CGFloat FLZPositionGameOverlayMenu = 2.0f;
+static const CGFloat FLZPositionGameOverlayMessage = 3.0f;
+
 static NSString * const FLExtraStateName = @"extra-application-state";
 static NSString * FLExtraStatePath;
 
@@ -525,6 +529,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
 - (void)FL_titleSceneCreate
 {
   _titleScene = [HLScene sceneWithSize:self.view.bounds.size];
+  _titleScene.gestureTargetHitTestMode = HLSceneGestureTargetHitTestModeZPositionThenParent;
   _titleScene.scaleMode = SKSceneScaleModeResizeFill;
   _titleScene.anchorPoint = CGPointMake(0.5f, 0.5f);
 
@@ -611,16 +616,19 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   SKSpriteNode *statusBackgroundNode = [SKSpriteNode spriteNodeWithColor:[SKColor colorWithRed:0.4f green:0.5f blue:0.8f alpha:0.9f] size:CGSizeZero];
   [_gameOverlay addChild:statusBackgroundNode];
   _gameStatusNode = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
+  _gameStatusNode.zPosition = FLZPositionGameOverlayStatus;
   _gameStatusNode.fontSize = 18.0f;
   _gameStatusNode.fontColor = [SKColor whiteColor];
   [statusBackgroundNode addChild:_gameStatusNode];
 
   _gameMenuNode = [self FL_commonMenuNodeCreate];
+  _gameMenuNode.zPosition = FLZPositionGameOverlayMenu;
   [_gameOverlay addChild:_gameMenuNode];
 
   [self FL_gameMenuCreate];
 
   _gameMessageNode = [self FL_commonMessageNodeCreate];
+  _gameMessageNode.zPosition = FLZPositionGameOverlayMessage;
 }
 
 - (void)FL_gameOverlayUpdateGeometry

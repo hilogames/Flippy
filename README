@@ -6,15 +6,21 @@ circuits.
 
 Current
 
-  . tutorial entry for halfadder about how to use the import/export
-    buttons.
-
   . BUG: All NSSets shall not contain SKNodes that change.
     - search containsObject
     - HLScene, natch, and then maybe the comment about that in FLTrackScene
       if we end up removing the nssets
 
-  . BUG: truth table blocks dismiss node in goals screen
+  . SKScene ignoreSiblingOrder leads to problems with agreement
+    between components about the correct zPosition interval.  For
+    instance, one SKNode class might be composed of two or three
+    others, each of which use their own zPosition range.  There needs
+    to be a way to set zPosition scale for a reusable component, so
+    that it can conform itself within, say, 0.1 range of zPosition.
+    That way, a component that owns other components can set its
+    component's zPositionRanges to a fraction of its own.
+    Consider making an HLNode class to hold the property, and
+    inherit all HLNodes from this.
 
   . Radial autoscroll; see TODO in autoScrollEnable.
 
@@ -56,6 +62,11 @@ Current
       appropriate; font size or side-by-side display or a button for
       details or something.  Maybe toggle goals-long display with
       results display?  Or even both goals-short+goals-long.
+      Okay, how about this: First implement general-purpose scrolling
+      on the goals overlay; that will solve the problem crudely.  Then
+      try a simple new tabbed window component (HLTabbedNode) and
+      split goals and results onto separate tabs.  See if like it, but
+      even if not, then we've got a nice new component.
     . Also maybe prompt user to save (and/or autosave) on victory rather
       than going straight to next level.
 
@@ -91,6 +102,10 @@ Current
 
   . Localize the saved circuit/gate names, perhaps in a plist like the
     challenge level information.
+
+  . Maybe at the same time as doing icons and splash screens: Check
+    SKScene dimensions for each device; is anything being scaled that
+    shouldn't be?  c.f. nativeScale documentation on UIScreen.
 
 Lower Priority
 
@@ -131,7 +146,10 @@ Lower Priority
   . A tool/gesture for selecting everything connected to the current
     segment.
 
-  . Intertia for scrolling pan motion.
+  . Inertia for scrolling pan motion.
+
+  . Consider doing tutorial stuff for the Half Adder level: Show the
+    user how to handle gates/circuits/exports.
 
   . If multiple trains, then train edit menu for play/pause controls
     (and an explicit way to turn train around, perhaps).

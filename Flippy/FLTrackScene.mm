@@ -434,6 +434,7 @@ struct PointerPairHash
     _simulationRunning = NO;
     _simulationSpeed = 0;
     _trackGrid.reset(new FLTrackGrid(FLTrackSegmentSize));
+    self.gestureTargetHitTestMode = HLSceneGestureTargetHitTestModeZPositionThenParent;
   }
   return self;
 }
@@ -457,6 +458,10 @@ struct PointerPairHash
     // TODO: Some older archives were created with different scene background color.  Reset it here upon
     // decoding; can delete this code once (if) all archives have been recreated recently.
     self.backgroundColor = FLSceneBackgroundColor;
+    
+    // TODO: Some older archives were created with a different gesture target hit test mode.  Reset it
+    // here upon decoding; can delete this code once (if) all archives have been recreated recently.
+    self.gestureTargetHitTestMode = HLSceneGestureTargetHitTestModeZPositionThenParent;
 
     _gameType = (FLGameType)[aDecoder decodeIntForKey:@"gameType"];
     _gameLevel = [aDecoder decodeIntForKey:@"gameLevel"];
@@ -2877,8 +2882,9 @@ struct PointerPairHash
 
 - (void)FL_goalsShowWithSplash:(BOOL)splash
 {
-  const CGFloat FLZPositionGoalsOverlayDismissNode = 0.1f;
-  const CGFloat FLZPositionGoalsOverlayVictoryButton = 0.2f;
+  const CGFloat FLZPositionGoalsOverlayContent = 0.0f;
+  const CGFloat FLZPositionGoalsOverlayDismissNode = 1.0f;
+  const CGFloat FLZPositionGoalsOverlayVictoryButton = 2.0f;
 
   // Always show results if this goals screen is being shown by a command from the
   // user.  Otherwise, only show results if this is an old (loaded or application
@@ -2891,6 +2897,7 @@ struct PointerPairHash
   // note: Show in a square that won't have to change size if the interface rotates.
   CGFloat edgeSizeMax = MIN(self.size.width, self.size.height);
   DSMultilineLabelNode *introNode = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
+  introNode.zPosition = FLZPositionGoalsOverlayContent;
   introNode.fontSize = 18.0f;
   introNode.fontColor = [SKColor whiteColor];
   if (_gameType == FLGameTypeChallenge) {
@@ -2935,6 +2942,7 @@ struct PointerPairHash
         goalValues = FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsGoalValues);
       }
       HLGridNode *truthTable = [self FL_truthTableCreate:trackTruthTable index:0 correctValues:goalValues correct:&victory];
+      truthTable.zPosition = FLZPositionGoalsOverlayContent;
       [layoutNodes addObject:truthTable];
       if (_gameType == FLGameTypeChallenge && victory) {
         if (_gameLevel + 1 >= FLChallengeLevelsCount()) {
@@ -2953,6 +2961,7 @@ struct PointerPairHash
     }
     if (resultText) {
       DSMultilineLabelNode *resultNode = [[DSMultilineLabelNode alloc] initWithFontNamed:FLInterfaceFontName];
+      resultNode.zPosition = FLZPositionGoalsOverlayContent;
       resultNode.fontSize = 18.0f;
       resultNode.fontColor = resultColor;
       resultNode.text = resultText;
