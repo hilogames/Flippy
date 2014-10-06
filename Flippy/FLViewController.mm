@@ -76,11 +76,11 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
 
 + (void)initialize
 {
-  FLExtraStatePath = [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0]
+  FLExtraStatePath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES)[0]
                       stringByAppendingPathComponent:[FLExtraStateName stringByAppendingPathExtension:@"archive"]];
 }
 
-- (id)init
+- (instancetype)init
 {
   self = [super init];
   if (self) {
@@ -522,7 +522,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
 {
   // note: Start with label faded all the way out, so that a quick load screen will
   // be a simple black.
-  SKLabelNode *loadingLabelNode = (SKLabelNode *)[[_loadingScene children] objectAtIndex:0];
+  SKLabelNode *loadingLabelNode = (SKLabelNode *)[_loadingScene children][0];
   loadingLabelNode.alpha = 0.0f;
 }
 
@@ -793,7 +793,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   if (!attributes) {
     return nil;
   }
-  NSDate *saveDate = (NSDate *)[attributes objectForKey:NSFileCreationDate];
+  NSDate *saveDate = (NSDate *)attributes[NSFileCreationDate];
 
   NSString *gameTypeSaveTitle;
   switch (gameType) {
@@ -827,7 +827,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
     [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %d.", gameType];
   }
   NSString *fileName = [NSString stringWithFormat:@"save-%@-%lu", gameTypeTag, (unsigned long)saveNumber];
-  return [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0]
+  return [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES)[0]
           stringByAppendingPathComponent:[fileName stringByAppendingPathExtension:@"archive"]];
 }
 

@@ -90,9 +90,9 @@ convertRotationQuartersToRadians(int quarters)
  */
 + (UIImage *)createImageForReadoutSegment:(FLSegmentType)segmentType imageSize:(CGFloat)imageSize;
 
-- (id)initWithSegmentType:(FLSegmentType)segmentType;
+- (instancetype)initWithSegmentType:(FLSegmentType)segmentType;
 
-- (id)initWithTextureKey:(NSString *)textureKey;
+- (instancetype)initWithTextureKey:(NSString *)textureKey;
 
 - (BOOL)canHaveSwitch;
 - (BOOL)mustHaveSwitch;

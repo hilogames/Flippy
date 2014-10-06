@@ -90,7 +90,7 @@ FLTruthTable::outputValues(const vector<int>& inputValues)
   vector<FLTruthTable> _truthTables;
 }
 
-- (id)initWithCardinality:(int)valueCardinality
+- (instancetype)initWithCardinality:(int)valueCardinality
 {
   self = [super init];
   if (self) {
@@ -492,7 +492,7 @@ trackGridGenerateTruthTable(const FLTrackGrid& trackGrid, const FLLinks& links, 
       FL_runInputsToOutputs(trackGrid,
                             links,
                             switchPathIdsCopy,
-                            [platformStartSegmentNodes objectAtIndex:static_cast<NSUInteger>(platformStart)],
+                            platformStartSegmentNodes[static_cast<NSUInteger>(platformStart)],
                             inputSegmentNodes,
                             inputValues,
                             outputSegmentNodes,

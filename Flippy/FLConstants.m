@@ -54,9 +54,9 @@ FLChallengeLevelsInfo(int gameLevel, FLChallengeLevelsInfoKey infoKey)
   if (gameLevel < 0 || gameLevel >= (int)[_challengeLevels count]) {
     [NSException raise:@"FLChallengeLevelsLevelInvalid" format:@"Invalid level for challenge game."];
   }
-  NSDictionary *challengeLevel = (NSDictionary *)[_challengeLevels objectAtIndex:(NSUInteger)gameLevel];
+  NSDictionary *challengeLevel = (NSDictionary *)_challengeLevels[(NSUInteger)gameLevel];
   NSString *infoKeyString = FLChallengeLevelsInfoKeyString[(int)infoKey];
-  return [challengeLevel objectForKey:infoKeyString];
+  return challengeLevel[infoKeyString];
 }
 
 static NSMutableDictionary *_userUnlocks = nil;
@@ -78,7 +78,7 @@ FLUserUnlocksUnlocked(NSString *unlockKey)
   if (!_userUnlocks) {
     FLUserUnlocksInit();
   }
-  NSNumber *value = [_userUnlocks objectForKey:unlockKey];
+  NSNumber *value = _userUnlocks[unlockKey];
   return (value && [value boolValue]);
 }
 
@@ -89,7 +89,7 @@ FLUserUnlocksUnlock(NSArray *unlockKeys)
     FLUserUnlocksInit();
   }
   for (NSString *unlockKey in unlockKeys) {
-    [_userUnlocks setValue:[NSNumber numberWithBool:YES] forKey:unlockKey];
+    [_userUnlocks setValue:@YES forKey:unlockKey];
   }
   [[NSUserDefaults standardUserDefaults] setObject:_userUnlocks forKey:@"FLUserUnlocks"];
 }

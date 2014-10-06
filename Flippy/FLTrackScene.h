@@ -32,7 +32,12 @@ FOUNDATION_EXPORT NSString * const FLGameTypeSandboxTitle;
 @property (nonatomic, readonly) int gameLevel;
 @property (nonatomic, assign) BOOL gameIsNew;
 
-- (id)initWithSize:(CGSize)size gameType:(FLGameType)gameType gameLevel:(int)gameLevel;
+- (instancetype)initWithSize:(CGSize)size gameType:(FLGameType)gameType gameLevel:(int)gameLevel NS_DESIGNATED_INITIALIZER;
+
+// TODO: This is declared for the sake of the NS_DESIGNATED_INITIALIZER; I expected
+// a superclass to do this for me.  Give it some time and then try to remove this
+// declaration.
+- (instancetype)initWithCoder:(NSCoder *)aDecoder NS_DESIGNATED_INITIALIZER;
 
 - (size_t)segmentCount;
 

@@ -82,19 +82,19 @@ using namespace std;
   int _switchPathId;
 }
 
-- (id)initWithSegmentType:(FLSegmentType)segmentType
+- (instancetype)initWithSegmentType:(FLSegmentType)segmentType
 {
   NSString *textureKey = [FLSegmentNode keyForSegmentType:segmentType];
   return [self initWithSegmentType:segmentType textureKey:textureKey];
 }
 
-- (id)initWithTextureKey:(NSString *)textureKey
+- (instancetype)initWithTextureKey:(NSString *)textureKey
 {
   FLSegmentType segmentType = [FLSegmentNode segmentTypeForKey:textureKey];
   return [self initWithSegmentType:segmentType textureKey:textureKey];
 }
 
-- (id)initWithSegmentType:(FLSegmentType)segmentType textureKey:(NSString *)textureKey
+- (instancetype)initWithSegmentType:(FLSegmentType)segmentType textureKey:(NSString *)textureKey
 {
   if (segmentType == FLSegmentTypeReadoutInput || segmentType == FLSegmentTypeReadoutOutput) {
     self = [super initWithColor:[SKColor clearColor] size:CGSizeMake(FLSegmentArtSizeFull, FLSegmentArtSizeFull)];
@@ -117,7 +117,7 @@ using namespace std;
   return self;
 }
 
-- (id)initWithCoder:(NSCoder *)aDecoder
+- (instancetype)initWithCoder:(NSCoder *)aDecoder
 {
   self = [super initWithCoder:aDecoder];
   if (self) {
@@ -152,7 +152,7 @@ using namespace std;
   [aCoder encodeBool:_showsSwitchValue forKey:@"showsSwitchValue"];
 }
 
-- (id)copyWithZone:(NSZone *)zone
+- (instancetype)copyWithZone:(NSZone *)zone
 {
   FLSegmentNode *copy = [super copyWithZone:zone];
   if (copy) {

@@ -210,9 +210,9 @@ enum FLTrackTruthTableState {
 @property (nonatomic, strong) NSArray *platformStartSegmentNodes;
 @property (nonatomic, strong) NSArray *inputSegmentNodes;
 @property (nonatomic, strong) NSArray *outputSegmentNodes;
-- (id)initWithCardinality:(int)valueCardinality;
+- (instancetype)initWithCardinality:(int)valueCardinality NS_DESIGNATED_INITIALIZER;
 - (std::vector<FLTruthTable>&)truthTables;
-- (FLTruthTable *)firstTruthTable;
+- (FLTruthTable *)firstTruthTable NS_RETURNS_INNER_POINTER;
 @end
 
 /**

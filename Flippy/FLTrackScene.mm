@@ -159,7 +159,13 @@ struct FLExportState
   UIAlertView *descriptionInputAlert;
 };
 
-enum FLToolbarToolType { FLToolbarToolTypeNone, FLToolbarToolTypeActionTap, FLToolbarToolTypeActionPan, FLToolbarToolTypeNavigation, FLToolbarToolTypeMode };
+enum FLToolbarToolType {
+  FLToolbarToolTypeNone,
+  FLToolbarToolTypeActionTap,
+  FLToolbarToolTypeActionPan,
+  FLToolbarToolTypeNavigation,
+  FLToolbarToolTypeMode
+};
 
 struct FLConstructionToolbarState
 {
@@ -403,7 +409,7 @@ struct PointerPairHash
   NSString *bundleDirectory = [[NSBundle mainBundle] bundlePath];
   FLGatesDirectoryPath = [bundleDirectory stringByAppendingPathComponent:@"gates"];
   FLCircuitsDirectoryPath = [bundleDirectory stringByAppendingPathComponent:@"circuits"];
-  NSString *documentsDirectory = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0];
+  NSString *documentsDirectory = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES)[0];
   FLExportsDirectoryPath = [documentsDirectory stringByAppendingPathComponent:@"exports"];
 }
 
@@ -421,7 +427,7 @@ struct PointerPairHash
   // no good way, for now, to release them, and no real need to do so.
 }
 
-- (id)initWithSize:(CGSize)size gameType:(FLGameType)gameType gameLevel:(int)gameLevel
+- (instancetype)initWithSize:(CGSize)size gameType:(FLGameType)gameType gameLevel:(int)gameLevel
 {
   self = [super initWithSize:size];
   if (self) {
@@ -439,12 +445,12 @@ struct PointerPairHash
   return self;
 }
 
-- (id)initWithSize:(CGSize)size
+- (instancetype)initWithSize:(CGSize)size
 {
   return [self initWithSize:size gameType:FLGameTypeSandbox gameLevel:0];
 }
 
-- (id)initWithCoder:(NSCoder *)aDecoder
+- (instancetype)initWithCoder:(NSCoder *)aDecoder
 {
   self = [super initWithCoder:aDecoder];
   if (self) {
@@ -498,9 +504,9 @@ struct PointerPairHash
     NSArray *links = [aDecoder decodeObjectForKey:@"links"];
     NSUInteger l = 0;
     while (l + 1 < [links count]) {
-      FLSegmentNode *a = [links objectAtIndex:l];
+      FLSegmentNode *a = links[l];
       ++l;
-      FLSegmentNode *b = [links objectAtIndex:l];
+      FLSegmentNode *b = links[l];
       ++l;
       SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:a.switchPosition toLocation:b.switchPosition linkErase:NO];
       _links.insert(a, b, connectorNode);
@@ -1123,7 +1129,7 @@ struct PointerPairHash
     [self FL_tutorialRecognizedAction:FLTutorialActionConstructionToolbarTap withArguments:@[ toolTag ]];
   }
 
-  FLToolbarToolType toolType = (FLToolbarToolType)[[_constructionToolbarState.toolTypes objectForKey:toolTag] intValue];
+  FLToolbarToolType toolType = (FLToolbarToolType)[_constructionToolbarState.toolTypes[toolTag] integerValue];
 
   // If navigating, reset state on mode buttons.
   if (toolType == FLToolbarToolTypeNavigation) {
@@ -1186,7 +1192,7 @@ struct PointerPairHash
 
   } else if (toolType == FLToolbarToolTypeActionPan) {
 
-    [self FL_messageShow:[_constructionToolbarState.toolDescriptions objectForKey:toolTag]];
+    [self FL_messageShow:_constructionToolbarState.toolDescriptions[toolTag]];
 
   } else if (toolType == FLToolbarToolTypeMode) {
 
@@ -1214,7 +1220,7 @@ struct PointerPairHash
     return;
   }
 
-  NSString *description = [_constructionToolbarState.toolDescriptions objectForKey:toolTag];
+  NSString *description = _constructionToolbarState.toolDescriptions[toolTag];
   if (!description) {
     return;
   }
@@ -1247,7 +1253,7 @@ struct PointerPairHash
       _worldGestureState.panType = FLWorldPanTypeNone;
       return;
     }
-    FLToolbarToolType toolType = (FLToolbarToolType)[[_constructionToolbarState.toolTypes objectForKey:toolTag] intValue];
+    FLToolbarToolType toolType = (FLToolbarToolType)[_constructionToolbarState.toolTypes[toolTag] integerValue];
     if (toolType != FLToolbarToolTypeActionPan) {
       _worldGestureState.panType = FLWorldPanTypeNone;
       return;
@@ -1261,7 +1267,7 @@ struct PointerPairHash
 
     if ([_constructionToolbarState.currentNavigation isEqualToString:@"segments"]) {
 
-      FLSegmentType segmentType = (FLSegmentType)[[_constructionToolbarState.toolSegmentTypes objectForKey:toolTag] intValue];
+      FLSegmentType segmentType = (FLSegmentType)[_constructionToolbarState.toolSegmentTypes[toolTag] intValue];
       FLSegmentNode *newSegmentNode = [self FL_createSegmentWithSegmentType:segmentType];
       newSegmentNode.showsLabel = _labelsVisible;
       newSegmentNode.showsSwitchValue = _valuesVisible;
@@ -1340,9 +1346,9 @@ struct PointerPairHash
         if (placed) {
           NSUInteger l = 0;
           while (l + 1 < [links count]) {
-            FLSegmentNode *a = [links objectAtIndex:l];
+            FLSegmentNode *a = links[l];
             ++l;
-            FLSegmentNode *b = [links objectAtIndex:l];
+            FLSegmentNode *b = links[l];
             ++l;
             SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:a.switchPosition toLocation:b.switchPosition linkErase:NO];
             // note: Explicit "self" to make it obvious we are retaining it.
@@ -2330,46 +2336,46 @@ struct PointerPairHash
   textureKey = @"segments";
   [toolTags addObject:textureKey];
   [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-  [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeNavigation] forKey:textureKey];
+  _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
 
   if ([self FL_unlocked:FLUnlockGates]) {
     textureKey = @"gates";
     [toolTags addObject:textureKey];
     [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-    [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeNavigation] forKey:textureKey];
+    _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
   }
 
   if ([self FL_unlocked:FLUnlockCircuits]) {
     textureKey = @"circuits";
     [toolTags addObject:textureKey];
     [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-    [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeNavigation] forKey:textureKey];
+    _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
   }
 
   textureKey = @"exports";
   [toolTags addObject:textureKey];
   [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-  [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeNavigation] forKey:textureKey];
+  _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
 
   textureKey = @"link";
   [toolTags addObject:textureKey];
   [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-  [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeMode] forKey:textureKey];
+  _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeMode);
 
   textureKey = @"show-labels";
   [toolTags addObject:textureKey];
   [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-  [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeActionTap] forKey:textureKey];
+  _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionTap);
 
   textureKey = @"show-values";
   [toolTags addObject:textureKey];
   [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-  [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeActionTap] forKey:textureKey];
+  _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionTap);
 
   textureKey = @"export";
   [toolTags addObject:textureKey];
   [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-  [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeActionTap] forKey:textureKey];
+  _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionTap);
 
   [_constructionToolbarState.toolbarNode setTools:toolNodes tags:toolTags animation:animation];
 
@@ -2389,74 +2395,74 @@ struct PointerPairHash
   SKSpriteNode *toolNode = [self FL_createToolNodeForTextureKey:textureKey];
   toolNode.position = CGPointMake(FLSegmentArtStraightShift, 0.0f);
   [toolNodes addObject:toolNode];
-  [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeActionPan] forKey:textureKey];
-  [_constructionToolbarState.toolDescriptions setObject:@"Straight Track" forKey:textureKey];
-  [_constructionToolbarState.toolSegmentTypes setObject:[NSNumber numberWithInt:FLSegmentTypeStraight] forKey:textureKey];
+  _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
+  _constructionToolbarState.toolDescriptions[textureKey] = @"Straight Track";
+  _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypeStraight);
 
   textureKey = @"curve";
   [toolTags addObject:textureKey];
   toolNode = [self FL_createToolNodeForTextureKey:textureKey];
   toolNode.position = CGPointMake(FLSegmentArtCurveShift, -FLSegmentArtCurveShift);
   [toolNodes addObject:toolNode];
-  [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeActionPan] forKey:textureKey];
-  [_constructionToolbarState.toolDescriptions setObject:@"Curved Track" forKey:textureKey];
-  [_constructionToolbarState.toolSegmentTypes setObject:[NSNumber numberWithInt:FLSegmentTypeCurve] forKey:textureKey];
+  _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
+  _constructionToolbarState.toolDescriptions[textureKey] = @"Curved Track";
+  _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypeCurve);
 
   textureKey = @"join-left";
   [toolTags addObject:textureKey];
   toolNode = [self FL_createToolNodeForTextureKey:textureKey];
   toolNode.position = CGPointMake(FLSegmentArtCurveShift, -FLSegmentArtCurveShift);
   [toolNodes addObject:toolNode];
-  [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeActionPan] forKey:textureKey];
-  [_constructionToolbarState.toolDescriptions setObject:@"Fork Right Track" forKey:textureKey];
-  [_constructionToolbarState.toolSegmentTypes setObject:[NSNumber numberWithInt:FLSegmentTypeJoinLeft] forKey:textureKey];
+  _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
+  _constructionToolbarState.toolDescriptions[textureKey] = @"Fork Right Track";
+  _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypeJoinLeft);
 
   textureKey = @"join-right";
   [toolTags addObject:textureKey];
   toolNode = [self FL_createToolNodeForTextureKey:textureKey];
   toolNode.position = CGPointMake(FLSegmentArtCurveShift, FLSegmentArtCurveShift);
   [toolNodes addObject:toolNode];
-  [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeActionPan] forKey:textureKey];
-  [_constructionToolbarState.toolDescriptions setObject:@"Fork Left Track" forKey:textureKey];
-  [_constructionToolbarState.toolSegmentTypes setObject:[NSNumber numberWithInt:FLSegmentTypeJoinRight] forKey:textureKey];
+  _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
+  _constructionToolbarState.toolDescriptions[textureKey] = @"Fork Left Track";
+  _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypeJoinRight);
 
   textureKey = @"jog-left";
   [toolTags addObject:textureKey];
   [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-  [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeActionPan] forKey:textureKey];
-  [_constructionToolbarState.toolDescriptions setObject:@"Jog Left Track" forKey:textureKey];
-  [_constructionToolbarState.toolSegmentTypes setObject:[NSNumber numberWithInt:FLSegmentTypeJogLeft] forKey:textureKey];
+  _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
+  _constructionToolbarState.toolDescriptions[textureKey] = @"Jog Left Track";
+  _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypeJogLeft);
 
   textureKey = @"jog-right";
   [toolTags addObject:textureKey];
   [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-  [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeActionPan] forKey:textureKey];
-  [_constructionToolbarState.toolDescriptions setObject:@"Jog Right Track" forKey:textureKey];
-  [_constructionToolbarState.toolSegmentTypes setObject:[NSNumber numberWithInt:FLSegmentTypeJogRight] forKey:textureKey];
+  _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
+  _constructionToolbarState.toolDescriptions[textureKey] = @"Jog Right Track";
+  _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypeJogRight);
 
   textureKey = @"cross";
   [toolTags addObject:textureKey];
   [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-  [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeActionPan] forKey:textureKey];
-  [_constructionToolbarState.toolDescriptions setObject:@"Cross Track" forKey:textureKey];
-  [_constructionToolbarState.toolSegmentTypes setObject:[NSNumber numberWithInt:FLSegmentTypeCross] forKey:textureKey];
+  _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
+  _constructionToolbarState.toolDescriptions[textureKey] = @"Cross Track";
+  _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypeCross);
 
   if (_gameType == FLGameTypeSandbox) {
     textureKey = @"readout-input";
     [toolTags addObject:textureKey];
     [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-    [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeActionPan] forKey:textureKey];
-    [_constructionToolbarState.toolDescriptions setObject:@"Input Value" forKey:textureKey];
-    [_constructionToolbarState.toolSegmentTypes setObject:[NSNumber numberWithInt:FLSegmentTypeReadoutInput] forKey:textureKey];
+    _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
+    _constructionToolbarState.toolDescriptions[textureKey] = @"Input Value";
+    _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypeReadoutInput);
   }
 
   if (_gameType == FLGameTypeSandbox) {
     textureKey = @"readout-output";
     [toolTags addObject:textureKey];
     [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-    [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeActionPan] forKey:textureKey];
-    [_constructionToolbarState.toolDescriptions setObject:@"Output Value" forKey:textureKey];
-    [_constructionToolbarState.toolSegmentTypes setObject:[NSNumber numberWithInt:FLSegmentTypeReadoutOutput] forKey:textureKey];
+    _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
+    _constructionToolbarState.toolDescriptions[textureKey] = @"Output Value";
+    _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypeReadoutOutput);
   }
 
   if (_gameType == FLGameTypeSandbox) {
@@ -2465,9 +2471,9 @@ struct PointerPairHash
     toolNode = [self FL_createToolNodeForTextureKey:textureKey];
     toolNode.position = CGPointMake(FLSegmentArtStraightShift, 0.0f);
     [toolNodes addObject:toolNode];
-    [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeActionPan] forKey:textureKey];
-    [_constructionToolbarState.toolDescriptions setObject:@"Platform" forKey:textureKey];
-    [_constructionToolbarState.toolSegmentTypes setObject:[NSNumber numberWithInt:FLSegmentTypePlatform] forKey:textureKey];
+    _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
+    _constructionToolbarState.toolDescriptions[textureKey] = @"Platform";
+    _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypePlatform);
   }
 
   if (_gameType == FLGameTypeSandbox) {
@@ -2476,9 +2482,9 @@ struct PointerPairHash
     toolNode = [self FL_createToolNodeForTextureKey:textureKey];
     toolNode.position = CGPointMake(FLSegmentArtStraightShift, 0.0f);
     [toolNodes addObject:toolNode];
-    [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeActionPan] forKey:textureKey];
-    [_constructionToolbarState.toolDescriptions setObject:@"Starting Platform" forKey:textureKey];
-    [_constructionToolbarState.toolSegmentTypes setObject:[NSNumber numberWithInt:FLSegmentTypePlatformStart] forKey:textureKey];
+    _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
+    _constructionToolbarState.toolDescriptions[textureKey] = @"Starting Platform";
+    _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypePlatformStart);
   }
 
   // note: Currently we create all tools and then discard those that aren't on the current page.
@@ -2580,8 +2586,8 @@ struct PointerPairHash
       NSArray *segmentNodes = [self FL_importWithPath:importPath description:&importDescription links:NULL];
       UIImage *importImage = [self FL_createImageForSegments:segmentNodes withSize:FLMainToolbarToolArtSize];
       [[HLTextureStore sharedStore] setTextureWithImage:importImage forKey:importName filteringMode:SKTextureFilteringNearest];
-      [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeActionPan] forKey:importName];
-      [_constructionToolbarState.toolDescriptions setObject:importDescription forKey:importName];
+      _constructionToolbarState.toolTypes[importName] = @(FLToolbarToolTypeActionPan);
+      _constructionToolbarState.toolDescriptions[importName] = importDescription;
     }
     if (!unlockItems || unlockItemIndex >= unlockItems->size() || [self FL_unlocked:(*unlockItems)[unlockItemIndex]]) {
       [importTextureKeys addObject:importName];
@@ -2605,27 +2611,27 @@ struct PointerPairHash
   NSString *textureKey = @"main";
   [toolTags addObject:textureKey];
   [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-  [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeNavigation] forKey:textureKey];
+  _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
   // note: Next "previous".
   if (page != 0) {
     textureKey = @"previous";
     [toolTags addObject:textureKey];
     [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-    [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeNavigation] forKey:textureKey];
+    _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
   }
   // note: The page might end up with no imports if the requested page is too
   // large.  Caller beware.
   for (NSUInteger i = beginIndex; i < endIndex; ++i) {
-    textureKey = [importTextureKeys objectAtIndex:i];
+    textureKey = importTextureKeys[i];
     [toolTags addObject:textureKey];
     [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-    [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeActionPan] forKey:textureKey];
+    _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
   }
   if (endIndex < importTextureKeysCount) {
     textureKey = @"next";
     [toolTags addObject:textureKey];
     [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-    [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeNavigation] forKey:textureKey];
+    _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
   }
 
   // Set tools.
@@ -2679,20 +2685,20 @@ struct PointerPairHash
   NSString *textureKey = @"main";
   [selectedToolTags addObject:textureKey];
   [selectedToolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-  [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeNavigation] forKey:textureKey];
+  _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
 
   // Next tool is "previous" if not on first page.
   if (page != 0) {
     textureKey = @"previous";
     [selectedToolTags addObject:textureKey];
     [selectedToolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-    [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeNavigation] forKey:textureKey];
+    _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
   }
 
   // Then include the content tools.
   for (NSUInteger i = beginIndex; i < endIndex; ++i) {
-    [selectedToolTags addObject:[toolTags objectAtIndex:i]];
-    [selectedToolNodes addObject:[toolNodes objectAtIndex:i]];
+    [selectedToolTags addObject:toolTags[i]];
+    [selectedToolNodes addObject:toolNodes[i]];
   }
 
   // And last a "next" button if not on last page.
@@ -2700,7 +2706,7 @@ struct PointerPairHash
     textureKey = @"next";
     [selectedToolTags addObject:textureKey];
     [selectedToolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-    [_constructionToolbarState.toolTypes setObject:[NSNumber numberWithInt:FLToolbarToolTypeNavigation] forKey:textureKey];
+    _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
   }
 
   *pageToolNodes = selectedToolNodes;
@@ -3143,7 +3149,7 @@ struct PointerPairHash
       if (!correctValues) {
         [contentColors addObject:FLInterfaceColorLight()];
       } else {
-        int correctValue = [[correctValues objectAtIndex:cv++] intValue];
+        int correctValue = [correctValues[cv++] intValue];
         if (outputValues[ov] == correctValue) {
           [contentColors addObject:FLInterfaceColorGood()];
         } else {
@@ -3170,9 +3176,9 @@ struct PointerPairHash
   NSMutableArray *contentNodes = [NSMutableArray array];
   for (NSUInteger c = 0; c < [contentTexts count]; ++c) {
     SKLabelNode *labelNode = [SKLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
-    labelNode.fontColor = [contentColors objectAtIndex:c];
+    labelNode.fontColor = contentColors[c];
     labelNode.fontSize = 24.0f;
-    labelNode.text = [contentTexts objectAtIndex:c];
+    labelNode.text = contentTexts[c];
     if (labelNode.frame.size.width > labelWidthMax) {
       labelWidthMax = labelNode.frame.size.width;
     }
@@ -3271,13 +3277,13 @@ struct PointerPairHash
   }
   for (FLSegmentNode *segmentNode in segmentNodes) {
     NSValue *segmentNodePointer = [NSValue valueWithPointer:(void *)segmentNode];
-    SKSpriteNode *selectionSquare = [_trackSelectState.visualSquareNodes objectForKey:segmentNodePointer];
+    SKSpriteNode *selectionSquare = _trackSelectState.visualSquareNodes[segmentNodePointer];
     if (!selectionSquare) {
       selectionSquare = [SKSpriteNode spriteNodeWithColor:[SKColor colorWithWhite:0.2f alpha:1.0f]
                                                      size:CGSizeMake(FLSegmentArtSizeBasic * FLTrackArtScale,
                                                                      FLSegmentArtSizeBasic * FLTrackArtScale)];
       selectionSquare.blendMode = SKBlendModeAdd;
-      [_trackSelectState.visualSquareNodes setObject:selectionSquare forKey:segmentNodePointer];
+      _trackSelectState.visualSquareNodes[segmentNodePointer] = selectionSquare;
       [_trackSelectState.visualParentNode addChild:selectionSquare];
     }
     selectionSquare.position = segmentNode.position;
@@ -3335,7 +3341,7 @@ struct PointerPairHash
     [_trackSelectState.selectedSegments removeObjectsInArray:segmentNodes];
     for (FLSegmentNode *segmentNode in segmentNodes) {
       NSValue *segmentNodePointer = [NSValue valueWithPointer:(void *)segmentNode];
-      SKSpriteNode *selectionSquare = [_trackSelectState.visualSquareNodes objectForKey:segmentNodePointer];
+      SKSpriteNode *selectionSquare = _trackSelectState.visualSquareNodes[segmentNodePointer];
       if (selectionSquare) {
         [selectionSquare removeFromParent];
         [_trackSelectState.visualSquareNodes removeObjectForKey:segmentNodePointer];

@@ -27,9 +27,9 @@ using namespace std;
   BOOL _lastSegmentNodeAlreadySwitched;
 }
 
-- (id)initWithTexture:(SKTexture *)texture trackGrid:(shared_ptr<FLTrackGrid>&)trackGrid
+- (instancetype)initWithTexture:(SKTexture *)texture trackGrid:(shared_ptr<FLTrackGrid>&)trackGrid
 {
-  self = [super initWithTexture:texture];
+  self = [super initWithTexture:texture color:[SKColor whiteColor] size:texture.size];
   if (self) {
     self.zRotation = (CGFloat)M_PI_2;
     _trackGrid = trackGrid;
@@ -39,7 +39,13 @@ using namespace std;
   return self;
 }
 
-- (id)initWithCoder:(NSCoder *)aDecoder
+- (instancetype)initWithTexture:(SKTexture *)texture color:(UIColor *)color size:(CGSize)size
+{
+  shared_ptr<FLTrackGrid> trackGrid;
+  return [self initWithTexture:texture trackGrid:trackGrid];
+}
+
+- (instancetype)initWithCoder:(NSCoder *)aDecoder
 {
   self = [super initWithCoder:aDecoder];
   if (self) {

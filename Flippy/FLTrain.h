@@ -42,7 +42,10 @@ class FLTrackGrid;
  */
 @property (nonatomic, assign) CGFloat trainSpeed;
 
-- (id)initWithTexture:(SKTexture *)texture trackGrid:(std::shared_ptr<FLTrackGrid>&)trackGrid;
+// TODO: I'd like to declare this NS_DESIGNATED_INITIALIZER, but there are problems with initWithCoder
+// (which causes compilation errors whether I do or don't designate it also).  Maybe wait a bit and
+// see if it works later.
+- (instancetype)initWithTexture:(SKTexture *)texture trackGrid:(std::shared_ptr<FLTrackGrid>&)trackGrid;
 
 - (void)resetTrackGrid:(std::shared_ptr<FLTrackGrid>&)trackGrid;
 
