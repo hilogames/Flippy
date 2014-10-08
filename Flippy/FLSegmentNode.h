@@ -24,7 +24,7 @@ FOUNDATION_EXPORT const CGFloat FLSegmentArtCurveShift;
 
 FOUNDATION_EXPORT const int FLSegmentSwitchPathIdNone;
 
-enum FLSegmentType {
+typedef NS_ENUM(NSInteger, FLSegmentType) {
   FLSegmentTypeNone = 0,
   FLSegmentTypeStraight,
   FLSegmentTypeCurve,

@@ -14,7 +14,11 @@
 #import "FLConstants.h"
 #import "FLTrackScene.h"
 
-typedef enum FLViewControllerScene { FLViewControllerSceneNone, FLViewControllerSceneTitle, FLViewControllerSceneGame } FLViewControllerScene;
+typedef NS_ENUM(NSInteger, FLViewControllerScene) {
+  FLViewControllerSceneNone,
+  FLViewControllerSceneTitle,
+  FLViewControllerSceneGame
+};
 
 static const CGFloat FLZPositionTitleBackground = 1.0f;
 static const CGFloat FLZPositionTitleMenu = 2.0f;
@@ -122,7 +126,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   } else if (_currentScene == _gameScene) {
     currentScene = FLViewControllerSceneGame;
   }
-  [coder encodeInt:(int)currentScene forKey:@"currentScene"];
+  [coder encodeInteger:currentScene forKey:@"currentScene"];
 }
 
 - (void)decodeRestorableStateWithCoder:(NSCoder *)coder
@@ -161,7 +165,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
     [extraCoder finishDecoding];
   }
 
-  FLViewControllerScene currentScene = (FLViewControllerScene)[coder decodeIntForKey:@"currentScene"];
+  FLViewControllerScene currentScene = (FLViewControllerScene)[coder decodeIntegerForKey:@"currentScene"];
   _currentScene = nil;
   switch (currentScene) {
     case FLViewControllerSceneTitle:
@@ -188,7 +192,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
       }
       break;
     default:
-      [NSException raise:@"FLViewControllerUnknownScene" format:@"Unrecognized scene code %d during decoding view controller.", currentScene];
+      [NSException raise:@"FLViewControllerUnknownScene" format:@"Unrecognized scene code %ld during decoding view controller.", (long)currentScene];
       break;
   }
 }
@@ -687,7 +691,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
                               NSLocalizedString(@"segments used", @"Game information: preceded by a number of segments used in a track.")];
       break;
     default:
-      [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %d.", _gameScene.gameType];
+      [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %ld.", (long)_gameScene.gameType];
   }
 }
 
@@ -768,7 +772,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   if (gameType == FLGameTypeChallenge) {
     gameTypeTag = FLGameTypeChallengeTag;
   } else {
-    [NSException raise:@"FLViewControllerGameTypeInvalid" format:@"Invalid game type %d for level information.", gameType];
+    [NSException raise:@"FLViewControllerGameTypeInvalid" format:@"Invalid game type %ld for level information.", (long)gameType];
   }
   NSString *fileName = [NSString stringWithFormat:@"level-%@-%d", gameTypeTag, gameLevel];
   return [[NSBundle mainBundle] pathForResource:fileName ofType:@"archive" inDirectory:@"levels"];
@@ -805,7 +809,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
       gameTypeSaveTitle = FLGameTypeSandboxTitle;
       break;
     default:
-      [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %d.", gameType];
+      [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %ld.", (long)gameType];
   }
 
   return [NSString stringWithFormat:@"%@ %lu (%@)",
@@ -825,7 +829,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
       gameTypeTag = FLGameTypeSandboxTag;
       break;
     default:
-    [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %d.", gameType];
+    [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %ld.", (long)gameType];
   }
   NSString *fileName = [NSString stringWithFormat:@"save-%@-%lu", gameTypeTag, (unsigned long)saveNumber];
   return [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES)[0]
@@ -907,7 +911,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
           NSString *levelPath = [self FL_levelPathForGameType:gameType gameLevel:gameLevel];
           self->_gameScene = [NSKeyedUnarchiver unarchiveObjectWithFile:levelPath];
           if (!self->_gameScene) {
-            [NSException raise:@"FLGameLoadFailure" format:@"Could not load new game type %d level %d from archive '%@'.", gameType, gameLevel, levelPath];
+            [NSException raise:@"FLGameLoadFailure" format:@"Could not load new game type %ld level %d from archive '%@'.", (long)gameType, gameLevel, levelPath];
           }
           // note: Scene size in archive might be different from our current scene size;
           // this happens most often when unarchiving a level that was created on a different
@@ -921,20 +925,20 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
           // (because of the maintenance headache of trying to figure out what interface elements depend
           // on game type and level).  Instead, we insist that the archive be what we expected.
           if (self->_gameScene.gameType != gameType || self->_gameScene.gameLevel != gameLevel) {
-            [NSException raise:@"FLGameLoadFailure" format:@"Archive '%@' has game type %d and game %d but expected game type %d and level %d.",
-             levelPath, self->_gameScene.gameType, self->_gameScene.gameLevel, gameType, gameLevel];
+            [NSException raise:@"FLGameLoadFailure" format:@"Archive '%@' has game type %ld and game %d but expected game type %ld and level %d.",
+             levelPath, (long)self->_gameScene.gameType, self->_gameScene.gameLevel, (long)gameType, gameLevel];
           }
           self->_gameScene.gameIsNew = YES;
           break;
         }
         default:
-          [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %d.", gameType];
+          [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %ld.", (long)gameType];
       }
     } else {
       NSString *savePath = [self FL_savePathForGameType:gameType saveNumber:saveNumber];
       self->_gameScene = [NSKeyedUnarchiver unarchiveObjectWithFile:savePath];
       if (!self->_gameScene) {
-        [NSException raise:@"FLGameLoadFailure" format:@"Could not load game type %d save number %lu from archive '%@'.", gameType, (unsigned long)saveNumber, savePath];
+        [NSException raise:@"FLGameLoadFailure" format:@"Could not load game type %ld save number %lu from archive '%@'.", (long)gameType, (unsigned long)saveNumber, savePath];
       }
       self->_gameScene.size = self.view.bounds.size;
       self->_gameScene.delegate = self;
@@ -965,7 +969,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
                                 @"Alert prompt: confirmation of intention to restart a sandbox game.");
       break;
     default:
-      [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %d.", _gameScene.gameType];
+      [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %ld.", (long)_gameScene.gameType];
   }
 
   UIAlertView *confirmAlert = [[UIAlertView alloc] initWithTitle:title

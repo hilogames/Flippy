@@ -193,7 +193,7 @@ private:
  *                                               and one set of input values led to an infinite
  *                                               loop.  (It is not noted which one.)
  */
-enum FLTrackTruthTableState {
+typedef NS_ENUM(NSInteger, FLTrackTruthTableState) {
   FLTrackTruthTableStateInitialized,
   FLTrackTruthTableStateMissingSegments,
   FLTrackTruthTableStateInfiniteLoopDetected

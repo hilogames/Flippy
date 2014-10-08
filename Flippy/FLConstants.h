@@ -11,13 +11,13 @@
 
 @class HLLabelButtonNode;
 
-typedef enum FLChallengeLevelsInfoKey {
+typedef NS_ENUM(NSInteger, FLChallengeLevelsInfoKey) {
   FLChallengeLevelsTitle = 0,
   FLChallengeLevelsGoalShort,
   FLChallengeLevelsGoalLong,
   FLChallengeLevelsGoalValues,
   FLChallengeLevelsVictoryUserUnlocks,
-} FLChallengeLevelsInfoKey;
+};
 
 FOUNDATION_EXPORT int FLChallengeLevelsCount();
 

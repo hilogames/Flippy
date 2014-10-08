@@ -8,7 +8,7 @@
 
 #include <memory>
 
-enum FLPathType {
+typedef NS_ENUM(NSInteger, FLPathType) {
   FLPathTypeNone,
   FLPathTypeStraight,
   FLPathTypeCurve,

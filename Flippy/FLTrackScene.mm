@@ -130,7 +130,7 @@ static int FLSquareIndexForLabelPickerLabel(char label) {
   return -1;
 }
 
-enum FLUnlockItem {
+typedef NS_ENUM(NSInteger, FLUnlockItem) {
   FLUnlockGates,
   FLUnlockGateNot1,
   FLUnlockGateNot2,
@@ -159,7 +159,7 @@ struct FLExportState
   UIAlertView *descriptionInputAlert;
 };
 
-enum FLToolbarToolType {
+typedef NS_ENUM(NSInteger, FLToolbarToolType) {
   FLToolbarToolTypeNone,
   FLToolbarToolTypeActionTap,
   FLToolbarToolTypeActionPan,
@@ -253,9 +253,9 @@ struct FLLabelState
   NSArray *segmentNodesToBeLabeled;
 };
 
-enum FLWorldPanType { FLWorldPanTypeNone, FLWorldPanTypeScroll, FLWorldPanTypeTrackMove, FLWorldPanTypeLink };
+typedef NS_ENUM(NSInteger, FLWorldPanType) { FLWorldPanTypeNone, FLWorldPanTypeScroll, FLWorldPanTypeTrackMove, FLWorldPanTypeLink };
 
-enum FLWorldLongPressMode { FLWorldLongPressModeNone, FLWorldLongPressModeAdd, FLWorldLongPressModeErase };
+typedef NS_ENUM(NSInteger, FLWorldLongPressMode) { FLWorldLongPressModeNone, FLWorldLongPressModeAdd, FLWorldLongPressModeErase };
 
 // note: This contains extra state information that seems too minor to split out
 // into a "component".  For instance, track selection and track movement are
@@ -279,9 +279,9 @@ struct FLWorldAutoScrollState
   void (^gestureUpdateBlock)(void);
 };
 
-enum FLCameraMode { FLCameraModeManual, FLCameraModeFollowTrain };
+typedef NS_ENUM(NSInteger, FLCameraMode) { FLCameraModeManual, FLCameraModeFollowTrain };
 
-enum FLTutorialAction {
+typedef NS_ENUM(NSInteger, FLTutorialAction) {
   FLTutorialActionNone,
   FLTutorialActionBackdropTap,
   FLTutorialActionBackdropLongPress,
@@ -296,12 +296,14 @@ enum FLTutorialAction {
   FLTutorialActionLinkCreated,
 };
 
-static const NSUInteger FLTutorialResultNone = 0;
-static const NSUInteger FLTutorialResultContinue = (1 << 0);
-static const NSUInteger FLTutorialResultRepeat = (1 << 1);
-static const NSUInteger FLTutorialResultPrevious = (1 << 2);
-static const NSUInteger FLTutorialResultHideBackdropAllowInteraction = (1 << 3);
-static const NSUInteger FLTutorialResultHideBackdropDisallowInteraction = (1 << 4);
+typedef NS_OPTIONS(NSUInteger, FLTutorialResults) {
+  FLTutorialResultNone = 0,
+  FLTutorialResultContinue = (1 << 0),
+  FLTutorialResultRepeat = (1 << 1),
+  FLTutorialResultPrevious = (1 << 2),
+  FLTutorialResultHideBackdropAllowInteraction = (1 << 3),
+  FLTutorialResultHideBackdropDisallowInteraction = (1 << 4),
+};
 
 struct FLTutorialCutout {
   FLTutorialCutout() {}
@@ -319,17 +321,17 @@ struct FLTutorialCutout {
 
 // note: Takes an array of arguments (those passed at runtime to FL_tutorialRecognizedAction)
 // and returns a bitmask of results.
-typedef NSUInteger(^FLTutorialConditionBlock)(NSArray *);
+typedef FLTutorialResults(^FLTutorialConditionBlock)(NSArray *);
 
 struct FLTutorialCondition {
-  FLTutorialCondition(FLTutorialAction action_, NSUInteger simpleResults_) : action(action_), simpleResults(simpleResults_), dynamicResults(nil) {}
+  FLTutorialCondition(FLTutorialAction action_, FLTutorialResults simpleResults_) : action(action_), simpleResults(simpleResults_), dynamicResults(nil) {}
   FLTutorialCondition(FLTutorialAction action_, FLTutorialConditionBlock dynamicResults_) : action(action_), simpleResults(FLTutorialResultNone), dynamicResults(dynamicResults_) {}
   FLTutorialAction action;
-  NSUInteger simpleResults;
+  FLTutorialResults simpleResults;
   FLTutorialConditionBlock dynamicResults;
 };
 
-enum FLTutorialLabelPosition {
+typedef NS_ENUM(NSInteger, FLTutorialLabelPosition) {
   FLTutorialLabelCenterScene,
   FLTutorialLabelUpperScene,
   FLTutorialLabelLowerScene,
@@ -469,10 +471,10 @@ struct PointerPairHash
     // here upon decoding; can delete this code once (if) all archives have been recreated recently.
     self.gestureTargetHitTestMode = HLSceneGestureTargetHitTestModeZPositionThenParent;
 
-    _gameType = (FLGameType)[aDecoder decodeIntForKey:@"gameType"];
+    _gameType = (FLGameType)[aDecoder decodeIntegerForKey:@"gameType"];
     _gameLevel = [aDecoder decodeIntForKey:@"gameLevel"];
     _tutorialState.step = [aDecoder decodeIntForKey:@"tutorialStateStep"];
-    _cameraMode = (FLCameraMode)[aDecoder decodeIntForKey:@"cameraMode"];
+    _cameraMode = (FLCameraMode)[aDecoder decodeIntegerForKey:@"cameraMode"];
     // note: These settings affect the state of the simulation toolbar at creation;
     // make sure they are decoded before the simulation toolbar is created.
     _simulationRunning = [aDecoder decodeBoolForKey:@"simulationRunning"];
@@ -617,10 +619,10 @@ struct PointerPairHash
   [aCoder encodeObject:links forKey:@"links"];
 
   // Encode other state.
-  [aCoder encodeInt:(int)_gameType forKey:@"gameType"];
+  [aCoder encodeInteger:_gameType forKey:@"gameType"];
   [aCoder encodeInt:_gameLevel forKey:@"gameLevel"];
   [aCoder encodeInt:_tutorialState.step forKey:@"tutorialStateStep"];
-  [aCoder encodeInt:(int)_cameraMode forKey:@"cameraMode"];
+  [aCoder encodeInteger:_cameraMode forKey:@"cameraMode"];
   [aCoder encodeBool:_simulationRunning forKey:@"simulationRunning"];
   [aCoder encodeInt:_simulationSpeed forKey:@"simulationSpeed"];
   [aCoder encodeObject:_train forKey:@"train"];
@@ -1267,7 +1269,7 @@ struct PointerPairHash
 
     if ([_constructionToolbarState.currentNavigation isEqualToString:@"segments"]) {
 
-      FLSegmentType segmentType = (FLSegmentType)[_constructionToolbarState.toolSegmentTypes[toolTag] intValue];
+      FLSegmentType segmentType = (FLSegmentType)[_constructionToolbarState.toolSegmentTypes[toolTag] integerValue];
       FLSegmentNode *newSegmentNode = [self FL_createSegmentWithSegmentType:segmentType];
       newSegmentNode.showsLabel = _labelsVisible;
       newSegmentNode.showsSwitchValue = _valuesVisible;
@@ -4418,7 +4420,7 @@ struct PointerPairHash
       case FLUnlockTutorialCompleted:
         return FLUserUnlocksUnlocked(@"FLUserUnlockTutorialCompleted");
       default:
-        [NSException raise:@"FLUnlockItemUnknown" format:@"Unknown unlock item %d.", item];
+        [NSException raise:@"FLUnlockItemUnknown" format:@"Unknown unlock item %ld.", (long)item];
     }
   } else if (_gameType == FLGameTypeSandbox) {
     switch (item) {
@@ -4451,7 +4453,7 @@ struct PointerPairHash
       case FLUnlockTutorialCompleted:
         return FLUserUnlocksUnlocked(@"FLUserUnlockTutorialCompleted");
       default:
-        [NSException raise:@"FLUnlockItemUnknown" format:@"Unknown unlock item %d.", item];
+        [NSException raise:@"FLUnlockItemUnknown" format:@"Unknown unlock item %ld.", (long)item];
     }
   }
   return NO;
@@ -5032,7 +5034,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
 - (void)FL_tutorialRecognizedAction:(FLTutorialAction)action withArguments:(NSArray *)arguments
 {
   // note: Assume caller already checked _tutorialState.tutorialActive.
-  NSUInteger results = FLTutorialResultNone;
+  FLTutorialResults results = FLTutorialResultNone;
   for (FLTutorialCondition& condition : _tutorialState.conditions) {
     if (condition.action == action) {
       if (condition.dynamicResults) {

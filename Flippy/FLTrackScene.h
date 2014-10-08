@@ -12,10 +12,10 @@
 
 #import "FLTrain.h"
 
-typedef enum FLGameType {
+typedef NS_ENUM(NSInteger, FLGameType) {
   FLGameTypeChallenge,
   FLGameTypeSandbox,
-} FLGameType;
+};
 
 FOUNDATION_EXPORT NSString * const FLGameTypeChallengeTag;
 FOUNDATION_EXPORT NSString * const FLGameTypeChallengeTitle;

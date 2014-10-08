@@ -121,7 +121,7 @@ using namespace std;
 {
   self = [super initWithCoder:aDecoder];
   if (self) {
-    _segmentType = (FLSegmentType)[aDecoder decodeIntForKey:@"segmentType"];
+    _segmentType = (FLSegmentType)[aDecoder decodeIntegerForKey:@"segmentType"];
     _label = (char)[aDecoder decodeIntForKey:@"label"];
     _switchPathId = [aDecoder decodeIntForKey:@"switchPathId"];
     _showsLabel = [aDecoder decodeBoolForKey:@"showsLabel"];
@@ -145,8 +145,8 @@ using namespace std;
   // children instead.
   [self FL_createContent];
 
-  [aCoder encodeInt:(int)_segmentType forKey:@"segmentType"];
-  [aCoder encodeInt:(int)_label forKey:@"label"];
+  [aCoder encodeInteger:_segmentType forKey:@"segmentType"];
+  [aCoder encodeInt:(char)_label forKey:@"label"];
   [aCoder encodeInt:_switchPathId forKey:@"switchPathId"];
   [aCoder encodeBool:_showsLabel forKey:@"showsLabel"];
   [aCoder encodeBool:_showsSwitchValue forKey:@"showsSwitchValue"];
@@ -1144,7 +1144,7 @@ using namespace std;
     case FLSegmentTypeReadoutOutput:
     case FLSegmentTypeNone:
     default:
-      [NSException raise:@"FLSegmentNodeSegmentTypeInvalid" format:@"Invalid segment type %d.", _segmentType];
+      [NSException raise:@"FLSegmentNodeSegmentTypeInvalid" format:@"Invalid segment type %ld.", (long)_segmentType];
   }
   return FLPathStore::sharedStore()->getPath(pathType, rotationQuarters);
 }
@@ -1187,7 +1187,7 @@ using namespace std;
       return 0;
     case FLSegmentTypeNone:
     default:
-      [NSException raise:@"FLSegmentNodeSegmentTypeInvalid" format:@"Invalid segment type %d.", _segmentType];
+      [NSException raise:@"FLSegmentNodeSegmentTypeInvalid" format:@"Invalid segment type %ld.", (long)_segmentType];
       return 0;
   }
 }
@@ -1218,7 +1218,7 @@ using namespace std;
       return 0;
     case FLSegmentTypeNone:
     default:
-      [NSException raise:@"FLSegmentNodeSegmentTypeInvalid" format:@"Invalid segment type %d.", _segmentType];
+      [NSException raise:@"FLSegmentNodeSegmentTypeInvalid" format:@"Invalid segment type %ld.", (long)_segmentType];
       return 0;
   }
 }

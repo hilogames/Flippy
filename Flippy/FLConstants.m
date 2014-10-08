@@ -55,7 +55,7 @@ FLChallengeLevelsInfo(int gameLevel, FLChallengeLevelsInfoKey infoKey)
     [NSException raise:@"FLChallengeLevelsLevelInvalid" format:@"Invalid level for challenge game."];
   }
   NSDictionary *challengeLevel = (NSDictionary *)_challengeLevels[(NSUInteger)gameLevel];
-  NSString *infoKeyString = FLChallengeLevelsInfoKeyString[(int)infoKey];
+  NSString *infoKeyString = FLChallengeLevelsInfoKeyString[(NSInteger)infoKey];
   return challengeLevel[infoKeyString];
 }
 
