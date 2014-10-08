@@ -2144,8 +2144,7 @@ struct PointerPairHash
 /**
  * Update the auto scroll state based on the scene location of a relevant gesture (usually
  * a pan): If the gesture is within a margin near the edge of the screen, then enable
- * auto-scrolling and set the velocity of the auto-scroll (based on the proximity of the
- * gesture to the edge).
+ * auto-scrolling and set the velocity of the auto-scroll.
  *
  * The actual scroll, at the calculated velocities, will be triggered through calls to
  * update:.  The gestureUpdateBlock will be called immediately after the scroll in update:.
@@ -2168,58 +2167,125 @@ struct PointerPairHash
     marginSize = FLWorldAutoScrollMarginSizeMax;
   }
 
+// Commented out karl: I'm surprised to find that I like this old autoscroll (which
+// only goes in X direction, or Y direction, or both equally) as much or maybe more
+// than the new autoscroll (which scrolls in a radial direction from center of screen).
+// So, keep it around for a little while I decide which to keep.
+//
+//  // note: Proximity measures linearly how close the gesture is to the edge of the screen,
+//  // ranging from zero to one, where one is all the way on the screen's edge.  Velocity
+//  // has a magnitude indicating the speed of the scrolling, in screen points, and a direction
+//  // indicating the direction of the scroll along the X or Y axis.
+//  //
+//  // note: Current formula for velocity magnitude:
+//  //
+//  //   v_mag = base^p + linear*p + min
+//  //
+//  // It's mostly linear for the first half of proximity, and then the exponent term takes over.
+//  const CGFloat FLAutoScrollVelocityMin = 4.0f;
+//  const CGFloat FLAutoScrollVelocityLinear = 108.0f;
+//  const CGFloat FLAutoScrollVelocityBase = 256.0f;
+//  
+//  // TODO: Measure proximity using edge, but then calculate X and Y velocities with respect to
+//  // radial direction from the center of the screen.
+//  
+//  _worldAutoScrollState.scrolling = NO;
+//  
+//  CGFloat sceneXMin = self.size.width * -1.0f * self.anchorPoint.x;
+//  CGFloat sceneXMax = sceneXMin + self.size.width;
+//  if (sceneLocation.x < sceneXMin + marginSize) {
+//    CGFloat proximity = ((sceneXMin + marginSize) - sceneLocation.x) / marginSize;
+//    CGFloat speed = pow(FLAutoScrollVelocityBase, proximity) + FLAutoScrollVelocityLinear * proximity + FLAutoScrollVelocityMin;
+//    _worldAutoScrollState.scrolling = YES;
+//    _worldAutoScrollState.velocityX = -1.0f * speed;
+//  } else if (sceneLocation.x > sceneXMax - marginSize) {
+//    CGFloat proximity = (sceneLocation.x - (sceneXMax - marginSize)) / marginSize;
+//    CGFloat speed = pow(FLAutoScrollVelocityBase, proximity) + FLAutoScrollVelocityLinear * proximity + FLAutoScrollVelocityMin;
+//    _worldAutoScrollState.scrolling = YES;
+//    _worldAutoScrollState.velocityX = speed;
+//  } else {
+//    _worldAutoScrollState.velocityX = 0.0f;
+//  }
+//  
+//  CGFloat sceneYMin = self.size.height * -1.0f * self.anchorPoint.y;
+//  CGFloat sceneYMax = sceneYMin + self.size.height;
+//  if (sceneLocation.y < sceneYMin + marginSize) {
+//    CGFloat proximity = ((sceneYMin + marginSize) - sceneLocation.y) / marginSize;
+//    CGFloat speed = pow(FLAutoScrollVelocityBase, proximity) + FLAutoScrollVelocityLinear * proximity + FLAutoScrollVelocityMin;
+//    _worldAutoScrollState.scrolling = YES;
+//    _worldAutoScrollState.velocityY = -1.0f * speed;
+//  } else if (sceneLocation.y > sceneYMax - marginSize) {
+//    CGFloat proximity = (sceneLocation.y - (sceneYMax - marginSize)) / marginSize;
+//    CGFloat speed = pow(FLAutoScrollVelocityBase, proximity) + FLAutoScrollVelocityLinear * proximity + FLAutoScrollVelocityMin;
+//    _worldAutoScrollState.scrolling = YES;
+//    _worldAutoScrollState.velocityY = speed;
+//  } else {
+//    _worldAutoScrollState.velocityY = 0.0f;
+//  }
+//  
+//  if (_worldAutoScrollState.scrolling) {
+//    _worldAutoScrollState.gestureUpdateBlock = gestureUpdateBlock;
+//  }
+  
+  
   // note: Proximity measures linearly how close the gesture is to the edge of the screen,
-  // ranging from zero to one, where one is all the way on the screen's edge.  Velocity
-  // has a magnitude indicating the speed of the scrolling, in screen points, and a direction
-  // indicating the direction of the scroll along the X or Y axis.
+  // ranging from zero to one, where one is all the way on the screen's edge.  (If the gesture
+  // is close to two edges, the closer one is used.)  A velocity vector is calculated in X
+  // and Y vector components; each component has magnitude (speed in screen points) and sign
+  // (direction) along the corresponding axis.
   //
-  // note: Current formula for velocity magnitude:
+  // note: Current formula for velocity magnitude (speed):
   //
   //   v_mag = base^p + linear*p + min
   //
-  // It's mostly linear for the first half of proximity, and then the exponent term takes over.
+  // With the below values, it's mostly linear for the first half of proximity, and then the
+  // exponent term takes over.
   const CGFloat FLAutoScrollVelocityMin = 4.0f;
   const CGFloat FLAutoScrollVelocityLinear = 108.0f;
   const CGFloat FLAutoScrollVelocityBase = 256.0f;
-
-  // TODO: Measure proximity using edge, but then calculate X and Y velocities with respect to
-  // radial direction from the center of the screen.
 
   _worldAutoScrollState.scrolling = NO;
 
   CGFloat sceneXMin = self.size.width * -1.0f * self.anchorPoint.x;
   CGFloat sceneXMax = sceneXMin + self.size.width;
-  if (sceneLocation.x < sceneXMin + marginSize) {
-    CGFloat proximity = ((sceneXMin + marginSize) - sceneLocation.x) / marginSize;
-    CGFloat speed = pow(FLAutoScrollVelocityBase, proximity) + FLAutoScrollVelocityLinear * proximity + FLAutoScrollVelocityMin;
-    _worldAutoScrollState.scrolling = YES;
-    _worldAutoScrollState.velocityX = -1.0f * speed;
-  } else if (sceneLocation.x > sceneXMax - marginSize) {
-    CGFloat proximity = (sceneLocation.x - (sceneXMax - marginSize)) / marginSize;
-    CGFloat speed = pow(FLAutoScrollVelocityBase, proximity) + FLAutoScrollVelocityLinear * proximity + FLAutoScrollVelocityMin;
-    _worldAutoScrollState.scrolling = YES;
-    _worldAutoScrollState.velocityX = speed;
-  } else {
-    _worldAutoScrollState.velocityX = 0.0f;
-  }
-
   CGFloat sceneYMin = self.size.height * -1.0f * self.anchorPoint.y;
   CGFloat sceneYMax = sceneYMin + self.size.height;
+
+  CGFloat proximity = 0.0f;
+  if (sceneLocation.x < sceneXMin + marginSize) {
+    CGFloat proximityX = ((sceneXMin + marginSize) - sceneLocation.x) / marginSize;
+    proximity = proximityX;
+    _worldAutoScrollState.scrolling = YES;
+  } else if (sceneLocation.x > sceneXMax - marginSize) {
+    CGFloat proximityX = (sceneLocation.x - (sceneXMax - marginSize)) / marginSize;
+    proximity = proximityX;
+    _worldAutoScrollState.scrolling = YES;
+  }
   if (sceneLocation.y < sceneYMin + marginSize) {
-    CGFloat proximity = ((sceneYMin + marginSize) - sceneLocation.y) / marginSize;
-    CGFloat speed = pow(FLAutoScrollVelocityBase, proximity) + FLAutoScrollVelocityLinear * proximity + FLAutoScrollVelocityMin;
+    CGFloat proximityY = ((sceneYMin + marginSize) - sceneLocation.y) / marginSize;
+    if (proximityY > proximity) {
+      proximity = proximityY;
+    }
     _worldAutoScrollState.scrolling = YES;
-    _worldAutoScrollState.velocityY = -1.0f * speed;
   } else if (sceneLocation.y > sceneYMax - marginSize) {
-    CGFloat proximity = (sceneLocation.y - (sceneYMax - marginSize)) / marginSize;
-    CGFloat speed = pow(FLAutoScrollVelocityBase, proximity) + FLAutoScrollVelocityLinear * proximity + FLAutoScrollVelocityMin;
+    CGFloat proximityY = (sceneLocation.y - (sceneYMax - marginSize)) / marginSize;
+    if (proximityY > proximity) {
+      proximity = proximityY;
+    }
     _worldAutoScrollState.scrolling = YES;
-    _worldAutoScrollState.velocityY = speed;
-  } else {
-    _worldAutoScrollState.velocityY = 0.0f;
   }
 
   if (_worldAutoScrollState.scrolling) {
+
+    CGFloat sceneXCenter = sceneXMin + self.size.width / 2.0f;
+    CGFloat sceneYCenter = sceneYMin + self.size.height / 2.0f;
+    CGFloat locationOffsetX = sceneLocation.x - sceneXCenter;
+    CGFloat locationOffsetY = sceneLocation.y - sceneYCenter;
+    CGFloat locationOffsetSum = abs(locationOffsetX) + abs(locationOffsetY);
+    CGFloat speed = pow(FLAutoScrollVelocityBase, proximity) + FLAutoScrollVelocityLinear * proximity + FLAutoScrollVelocityMin;
+    _worldAutoScrollState.velocityX = (locationOffsetX / locationOffsetSum) * speed;
+    _worldAutoScrollState.velocityY = (locationOffsetY / locationOffsetSum) * speed;
+
     _worldAutoScrollState.gestureUpdateBlock = gestureUpdateBlock;
   }
 }
