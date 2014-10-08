@@ -3401,7 +3401,8 @@ struct PointerPairHash
     _trackSelectState.visualSquareNodes = nil;
   } else {
     // note: This might get nasty for large selections.  But the selected segments are mutable, which makes
-    // storing them in NSSet or NSOrderedSet problematic.
+    // storing them in NSSet or NSOrderedSet problematic.  Could store them in an NSDictionary that maps
+    // pointer to object.
     [_trackSelectState.selectedSegments removeObjectsInArray:segmentNodes];
     for (FLSegmentNode *segmentNode in segmentNodes) {
       NSValue *segmentNodePointer = [NSValue valueWithPointer:(void *)segmentNode];
@@ -3417,6 +3418,7 @@ struct PointerPairHash
 - (void)FL_trackSelectClear
 {
   _trackSelectState.selectedSegments = nil;
+  _trackSelectState.selectedSegmentPointers = nil;
   _trackSelectState.visualSquareNodes = nil;
   [_trackSelectState.visualParentNode removeAllChildren];
 }

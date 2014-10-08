@@ -6,9 +6,6 @@ circuits.
 
 Current
 
-  . BUG: Select a segment, unselect, try to move it.  Can end up with
-    one pointer in selectedSegmentPointers but no nodes in selectedSegments.
-
   . Tile terrain by making multiple SKNodes, not making one big one.
   . Tile grass node in title screen, too.
 
