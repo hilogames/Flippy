@@ -3057,8 +3057,7 @@ struct PointerPairHash
   __weak HLLabelButtonNode *victoryButtonWeak = victoryButton;
   __weak HLGestureTargetSpriteNode *dismissNodeWeak = dismissNode;
   if (victoryButton) {
-    victoryButton.addsToTapGestureRecognizer = YES;
-    victoryButton.handleGestureBlock = ^(UIGestureRecognizer *gestureRecognizer){
+    [victoryButton setGestureTargetDelegateStrong:[[HLGestureTargetTapDelegate alloc] initWithHandleGestureBlock:^(UIGestureRecognizer *gestureRecognizer){
       if (self->_tutorialState.tutorialActive) {
         [self FL_tutorialRecognizedAction:FLTutorialActionGoalsDismissed withArguments:nil];
       }
@@ -3084,12 +3083,11 @@ struct PointerPairHash
         // a retain cycle I haven't noticed it yet.
         [delegate performSelector:@selector(trackSceneDidTapNextLevelButton:) withObject:self];
       }
-    };
+    }]];
     [self registerDescendant:victoryButton withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
   }
 
-  dismissNode.addsToTapGestureRecognizer = YES;
-  dismissNode.handleGestureBlock = ^(UIGestureRecognizer *gestureRecognizer){
+  [dismissNode setGestureTargetDelegateStrong:[[HLGestureTargetTapDelegate alloc] initWithHandleGestureBlock:^(UIGestureRecognizer *gestureRecognizer){
     if (self->_tutorialState.tutorialActive) {
       [self FL_tutorialRecognizedAction:FLTutorialActionGoalsDismissed withArguments:nil];
     }
@@ -3097,7 +3095,7 @@ struct PointerPairHash
     [self unregisterDescendant:dismissNodeWeak];
     __unused HLGestureTargetSpriteNode *dismissNodeStrongAgain = dismissNodeWeak;
     [self dismissModalNodeAnimation:HLScenePresentationAnimationFade];
-  };
+  }]];
   [self registerDescendant:dismissNode withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
 
   [self presentModalNode:goalsOverlay animation:HLScenePresentationAnimationFade];
@@ -4104,6 +4102,7 @@ struct PointerPairHash
                                                          squareSize:CGSizeMake(squareEdgeSize, squareEdgeSize)
                                                backgroundBorderSize:5.0f
                                                 squareSeparatorSize:1.0f];
+    [_labelState.labelPicker setGestureTargetDelegateWeak:_labelState.labelPicker];
     _labelState.labelPicker.backgroundColor = FLInterfaceColorDark();
     _labelState.labelPicker.squareColor = FLInterfaceColorMedium();
     _labelState.labelPicker.highlightColor = FLInterfaceColorLight();

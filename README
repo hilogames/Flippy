@@ -6,28 +6,10 @@ circuits.
 
 Current
 
-  . TODOs in HLLabelButton: Make it a component.  Try: HLGestureTarget
-    just defines a single delegate.  Then HLGestureTargetDelegate
-    implements all methods.  Provide a couple common delegates e.g.
-    for HLGestureTargetNode/HLGestureTargetSpriteNode.  Then make one
-    for HLLabelButton, or else make it its own delegate.  Make HLToolbar
-    its own delegate.
-
   . BUG: All NSSets shall not contain SKNodes that change.
     - search containsObject
     - HLScene, natch, and then maybe the comment about that in FLTrackScene
       if we end up removing the nssets
-
-  . SKScene ignoreSiblingOrder leads to problems with agreement
-    between components about the correct zPosition interval.  For
-    instance, one SKNode class might be composed of two or three
-    others, each of which use their own zPosition range.  There needs
-    to be a way to set zPosition scale for a reusable component, so
-    that it can conform itself within, say, 0.1 range of zPosition.
-    That way, a component that owns other components can set its
-    component's zPositionRanges to a fraction of its own.
-    Consider making an HLNode class to hold the property, and
-    inherit all HLNodes from this.
 
   . Radial autoscroll; see TODO in autoScrollEnable.
 
