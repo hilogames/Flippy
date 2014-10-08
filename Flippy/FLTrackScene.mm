@@ -3027,13 +3027,11 @@ struct PointerPairHash
   //
   //  2) But really, the only reason the buttons need to be aware of each other is (currently)
   //     because of unregistering: they both need to unregister both (when dismissing the overlay).
-  //     Which reminds me that unregistering HLGestureTargets is a pain in the ass, and it would
-  //     (currently) not be hard to get rid of the NSSets in HLScene so that gesture targets kinda
-  //     didn't need to be unregistered (since all state would be stored in the node's userData,
-  //     and not in the HLScene).  BUT.  Unregistering still makes sense for other kinds of
-  //     HLScene behaviors, and NSSets in HLScene for gesture targets MIGHT prove required in the
-  //     future, and no matter what, unregistering is a nice option to have (even just to clear
-  //     userData) and so it philosophically makes sense to always do it.
+  //     Which reminds me that unregistering HLGestureTargets is a pain in the ass in general, and
+  //     according to current implementation not even essential.  BUT.  Unregistering still makes
+  //     sense for other possible future HLScene implementations, and no matter what, unregistering
+  //     is a nice option to have (even just to clear userData) and so it philosophically makes sense
+  //     to always do it.
   //
   //  3) Unregistering is especially a pain in the ass when an HLGestureTarget*Node wants to
   //     unregister itself: The node contains a reference to the handleGesture block, but then

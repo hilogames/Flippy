@@ -6,11 +6,6 @@ circuits.
 
 Current
 
-  . BUG: All NSSets shall not contain SKNodes that change.
-    - search containsObject
-    - HLScene, natch, and then maybe the comment about that in FLTrackScene
-      if we end up removing the nssets
-
   . Radial autoscroll; see TODO in autoScrollEnable.
 
   . Tile terrain by making multiple SKNodes, not making one big one.
