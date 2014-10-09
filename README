@@ -6,8 +6,6 @@ circuits.
 
 Current
 
-  . Tile or stretch grass node in title screen.
-
   . Consider recentering world as needed when construction tool is
     released, so that track edit popup menu can fit fully onscreen.
     (Get the track edit menu to report its width, I guess, and then

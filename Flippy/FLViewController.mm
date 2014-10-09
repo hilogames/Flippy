@@ -9,6 +9,7 @@
 #import "FLViewController.h"
 
 #import <HLSpriteKit/HLError.h>
+#import <HLSpriteKit/HLTiledNode.h>
 
 #import "DSMultilineLabelNode.h"
 #import "FLConstants.h"
@@ -262,6 +263,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
 - (void)viewWillDisappear:(BOOL)animated
 {
   [NSException raise:@"FLViewControllerBadState" format:@"Method viewWillAppear assumes that the view never disappears."];
+  [super viewWillDisappear:animated];
 }
 
 - (void)viewDidLayoutSubviews
@@ -538,7 +540,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   _titleScene.scaleMode = SKSceneScaleModeResizeFill;
   _titleScene.anchorPoint = CGPointMake(0.5f, 0.5f);
 
-  SKSpriteNode *backgroundNode = [SKSpriteNode spriteNodeWithImageNamed:@"grass.jpg"];
+  HLTiledNode *backgroundNode = [HLTiledNode tiledNodeWithImageNamed:@"grass.jpg" size:_titleScene.size];
   backgroundNode.zPosition = FLZPositionTitleBackground;
   [_titleScene addChild:backgroundNode withOptions:[NSSet setWithObject:HLSceneChildResizeWithScene]];
 
@@ -580,7 +582,6 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
 - (void)FL_titleMenuCreate
 {
   HLMenu *menu = [[HLMenu alloc] init];
-
   // note: Create empty loading menus for now; update later with FL_commonMenuUpdateSaves.
   [menu addItem:[HLMenu menuWithText:FLTitleMenuChallenge items:@[] ]];
   [menu addItem:[HLMenu menuWithText:FLTitleMenuSandbox items:@[] ]];

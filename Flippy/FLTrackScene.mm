@@ -4058,7 +4058,7 @@ struct PointerPairHash
   // each side, which seems like a good standard unit of closeness; from there, the
   // multiplying factor is just based on my experimentation and personal preference.
   const CGFloat FLLinkSwitchFindDistanceMax = FLTrackSegmentSize * 1.1f;
-  if (closestDistanceSquared > FLLinkSwitchFindDistanceMax * FLLinkSwitchFindDistanceMax) {
+  if (!closestSegmentNode || closestDistanceSquared > FLLinkSwitchFindDistanceMax * FLLinkSwitchFindDistanceMax) {
     return nil;
   } else {
     return closestSegmentNode;
@@ -4174,7 +4174,7 @@ struct PointerPairHash
       break;
     }
   }
-  if (allSegmentsHaveCommonLabel) {
+  if (!firstSegment && allSegmentsHaveCommonLabel) {
     int squareIndex = FLSquareIndexForLabelPickerLabel(commonLabel);
     [_labelState.labelPicker setSelectionForSquare:squareIndex];
   } else {
