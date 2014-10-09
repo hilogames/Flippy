@@ -6,8 +6,7 @@ circuits.
 
 Current
 
-  . Tile terrain by making multiple SKNodes, not making one big one.
-  . Tile grass node in title screen, too.
+  . Tile or stretch grass node in title screen.
 
   . Consider recentering world as needed when construction tool is
     released, so that track edit popup menu can fit fully onscreen.

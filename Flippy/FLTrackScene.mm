@@ -715,34 +715,7 @@ struct PointerPairHash
 
 - (void)FL_createTerrainNode
 {
-  // TODO: But won't this use more memory?  Instead, clone a node repeatedly, and it can be drawn with less memory
-  // in a single pass?  Try SSKTileableNode from SuperSpriteKit.
-
-  UIGraphicsBeginImageContext(FLWorldSize);
-  CGContextRef context = UIGraphicsGetCurrentContext();
-  CGContextTranslateCTM(context, 0.0f, FLWorldSize.height);
-  CGContextScaleCTM(context, 1.0f, -1.0f);
-
-  UIImage *terrainTileImage = [UIImage imageNamed:@"grass.jpg"];
-  // note: Offset the tile origin by half the image size, so that (0,0) in world coordinates is in the
-  // middle of a tile rather than at the intersection of four tiles, in case there are flaws in the
-  // tile seams.
-  CGRect terrainTileRect = CGRectMake(terrainTileImage.size.width / 2.0f,
-                                      terrainTileImage.size.height / 2.0f,
-                                      terrainTileImage.size.width,
-                                      terrainTileImage.size.height);
-  CGContextDrawTiledImage(context, terrainTileRect, [terrainTileImage CGImage]);
-
-  // TODO: Put this border outside the world, not half in and half out.
-  CGContextSetLineWidth(context, 10.0f);
-  CGContextSetStrokeColorWithColor(context, [[SKColor whiteColor] CGColor]);
-  CGContextStrokeRect(context, CGRectMake(0.0f, 0.0f, FLWorldSize.width, FLWorldSize.height));
-
-  UIImage *terrainImage = UIGraphicsGetImageFromCurrentImageContext();
-  UIGraphicsEndImageContext();
-
-  SKTexture *terrainTexture = [SKTexture textureWithCGImage:[terrainImage CGImage]];
-  SKSpriteNode *terrainNode = [SKSpriteNode spriteNodeWithTexture:terrainTexture];
+  HLTiledNode *terrainNode = [HLTiledNode tiledNodeWithImageNamed:@"grass.jpg" size:FLWorldSize];
   terrainNode.name = @"terrain";
   terrainNode.zPosition = FLZPositionWorldTerrain;
   // noob: Using a tip to use replace blend mode for opaque sprites, but since
