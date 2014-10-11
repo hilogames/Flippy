@@ -34,8 +34,8 @@ NSString * const FLGameTypeSandboxTitle = NSLocalizedString(@"Sandbox", @"Game i
 static const CGFloat FLTrackArtScale = 2.0f;
 static const CGFloat FLTrackSegmentSize = FLSegmentArtSizeBasic * FLTrackArtScale;
 
-static const int FLTrackGridWidth = 51;
-static const int FLTrackGridHeight = 51;
+static const int FLTrackGridWidth = 101;
+static const int FLTrackGridHeight = 101;
 // note: Track grid min and max are inclusive.
 static const int FLTrackGridXMin = -FLTrackGridWidth / 2;
 static const int FLTrackGridXMax = FLTrackGridXMin + FLTrackGridWidth - 1;
@@ -74,6 +74,7 @@ static const CGFloat FLZPositionModalMax = FLZPositionModal + 1.0f;
 
 static const NSTimeInterval FLWorldAdjustDuration = 0.5;
 static const NSTimeInterval FLWorldAdjustDurationSlow = 1.0;
+static const NSTimeInterval FLWorldFitDuration = 0.3;
 static const NSTimeInterval FLTrackRotateDuration = 0.1;
 static const NSTimeInterval FLBlinkHalfCycleDuration = 0.1;
 static const NSTimeInterval FLTutorialStepFadeDuration = 0.4;
@@ -81,9 +82,15 @@ static const NSTimeInterval FLTutorialStepFadeDuration = 0.4;
 // noob: The tool art uses a somewhat arbitrary size.  The display height is
 // chosen based on the screen layout.  Perhaps scaling like that is a bad idea.
 static const CGFloat FLMainToolbarToolArtSize = 54.0f;
-static const CGFloat FLMainToolbarToolHeight = 48.0f;
+static const CGFloat FLMainToolbarHeight = 48.0f;
 static const CGFloat FLMessageSpacer = 1.0f;
 static const CGFloat FLMessageHeight = 20.0f;
+static const CGFloat FLTrackEditMenuHeight = 42.0f;  // at scale = 1
+static const CGFloat FLTrackEditMenuBackgroundBorderSize = 3.0f;
+static const CGFloat FLTrackEditMenuSquareSeparatorSize = 3.0f;
+static const CGFloat FLTrackEditMenuWorldInverseScaleFactor = 1.0f / 3.0f;
+static const CGFloat FLTrackEditMenuWorldScaleMinimum = 2.0f / 3.0f;
+static const CGFloat FLTrackEditMenuSegmentPad = 20.0f;
 
 // note: I've seen strings display wider than the paragraph width specified;
 // so pad it a little.
@@ -466,7 +473,7 @@ struct PointerPairHash
     // TODO: Some older archives were created with different scene background color.  Reset it here upon
     // decoding; can delete this code once (if) all archives have been recreated recently.
     self.backgroundColor = FLSceneBackgroundColor;
-    
+
     // TODO: Some older archives were created with a different gesture target hit test mode.  Reset it
     // here upon decoding; can delete this code once (if) all archives have been recreated recently.
     self.gestureTargetHitTestMode = HLSceneGestureTargetHitTestModeZPositionThenParent;
@@ -865,39 +872,29 @@ struct PointerPairHash
     CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
     CGPoint sceneLocation = [self convertPointFromView:viewLocation];
     CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
-    FLSegmentNode *segmentNode = trackGridConvertGet(*_trackGrid, worldLocation);
-    if (segmentNode) {
-      if ([self FL_trackSelected:segmentNode]) {
-        _worldGestureState.longPressMode = FLWorldLongPressModeErase;
-        [self FL_trackSelectEraseSegment:segmentNode];
-      } else {
-        _worldGestureState.longPressMode = FLWorldLongPressModeAdd;
-        [self FL_trackSelect:@[ segmentNode ]];
-      }
-      [self FL_trackEditMenuHideAnimated:YES];
-    } else {
-      _worldGestureState.longPressMode = FLWorldLongPressModeNone;
-    }
+    [self FL_trackSelectPaintBeganWithLocation:worldLocation];
 
   } else if (gestureRecognizer.state == UIGestureRecognizerStateChanged) {
 
-    if (_worldGestureState.longPressMode != FLWorldLongPressModeNone) {
-      CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
-      CGPoint sceneLocation = [self convertPointFromView:viewLocation];
-      CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
-      FLSegmentNode *segmentNode = trackGridConvertGet(*_trackGrid, worldLocation);
-      if (segmentNode) {
-        if (_worldGestureState.longPressMode == FLWorldLongPressModeAdd) {
-          [self FL_trackSelect:@[ segmentNode ]];
-        } else {
-          [self FL_trackSelectEraseSegment:segmentNode];
-        }
-      }
-    }
+    CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
+    CGPoint sceneLocation = [self convertPointFromView:viewLocation];
+    CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
+    // note: Track selection painting might not even be functional (if the long press
+    // did not start on a track segment), but the auto scroll is part of the functionality
+    // here: it's a way of scrolling the world.
+    [self FL_trackSelectPaintChangedWithLocation:worldLocation];
+    [self FL_worldAutoScrollEnableForGestureWithLocation:sceneLocation gestureUpdateBlock:^{
+      CGPoint scrolledWorldLocation = [self->_worldNode convertPoint:sceneLocation fromNode:self];
+      [self FL_trackSelectPaintChangedWithLocation:scrolledWorldLocation];
+    }];
 
   } else if (gestureRecognizer.state == UIGestureRecognizerStateEnded) {
+    [self FL_worldAutoScrollDisable];
+    [self FL_worldFitSegments:_trackSelectState.selectedSegments scaling:YES scrolling:YES includeTrackEditMenu:YES animated:YES];
     [self FL_trackEditMenuUpdateAnimated:YES];
   } else if (gestureRecognizer.state == UIGestureRecognizerStateCancelled) {
+    [self FL_worldAutoScrollDisable];
+    [self FL_worldFitSegments:_trackSelectState.selectedSegments scaling:YES scrolling:YES includeTrackEditMenu:YES animated:YES];
     [self FL_trackEditMenuUpdateAnimated:YES];
   }
 }
@@ -1242,6 +1239,7 @@ struct PointerPairHash
 
     if ([_constructionToolbarState.currentNavigation isEqualToString:@"segments"]) {
 
+      // Create segment.
       FLSegmentType segmentType = (FLSegmentType)[_constructionToolbarState.toolSegmentTypes[toolTag] integerValue];
       FLSegmentNode *newSegmentNode = [self FL_createSegmentWithSegmentType:segmentType];
       newSegmentNode.showsLabel = _labelsVisible;
@@ -1258,6 +1256,7 @@ struct PointerPairHash
 
     } else {
 
+      // Import segments.
       NSString *importDirectory;
       if ([_constructionToolbarState.currentNavigation isEqualToString:@"gates"]) {
         importDirectory = FLGatesDirectoryPath;
@@ -1273,47 +1272,22 @@ struct PointerPairHash
       NSArray *links;
       NSArray *newSegmentNodes = [self FL_importWithPath:importPath description:&description links:&links];
 
-      // Configure imported segment set.
+      // Configure imported segments for this world.
       for (FLSegmentNode *segmentNode in newSegmentNodes) {
         segmentNode.showsLabel = _labelsVisible;
         segmentNode.showsSwitchValue = _valuesVisible;
       }
 
-      // Find position-aligned center point of the imported segment set.
+      // Locate the new segments underneath the current touch.
       //
-      // note: Locate the new segments underneath the current touch, even though they
-      // are not yet added to the node hierarchy.  (The track move routines translate nodes
-      // relative to their current position.)
-      CGFloat segmentsPositionTop;
-      CGFloat segmentsPositionBottom;
-      CGFloat segmentsPositionLeft;
-      CGFloat segmentsPositionRight;
-      [self FL_getSegmentsExtremes:newSegmentNodes left:&segmentsPositionLeft right:&segmentsPositionRight top:&segmentsPositionTop bottom:&segmentsPositionBottom];
-      int widthUnits = int((segmentsPositionRight - segmentsPositionLeft + 0.00001f) / FLTrackSegmentSize);
-      int heightUnits = int((segmentsPositionTop - segmentsPositionBottom + 0.00001f) / FLTrackSegmentSize);
-      // note: Width and height of position differences, so for instance a width of one means
-      // the group is two segments wide.
-      CGPoint segmentsAlignedCenter = CGPointMake((segmentsPositionLeft + segmentsPositionRight) / 2.0f,
-                                                  (segmentsPositionBottom + segmentsPositionTop) / 2.0f);
-      if (widthUnits % 2 == 1) {
-        segmentsAlignedCenter.x -= (FLTrackSegmentSize / 2.0f);
-      }
-      if (heightUnits % 2 == 1) {
-        segmentsAlignedCenter.y -= (FLTrackSegmentSize / 2.0f);
-      }
+      // note: Do so even though they are not yet added to the node hierarchy.  (The track move
+      // routines translate nodes relative to their current position.)
+      [self FL_segments:newSegmentNodes setPositionCenteredOnLocation:worldLocation];
 
-      // Shift segments to the touch gesture (using calculated center).
-      int gridX;
-      int gridY;
-      _trackGrid->convert(worldLocation, &gridX, &gridY);
-      CGPoint touchAlignedCenter = _trackGrid->convert(gridX, gridY);
-      CGPoint shift = CGPointMake(touchAlignedCenter.x - segmentsAlignedCenter.x,
-                                  touchAlignedCenter.y - segmentsAlignedCenter.y);
-      for (FLSegmentNode *segmentNode in newSegmentNodes) {
-        segmentNode.position = CGPointMake(segmentNode.position.x + shift.x,
-                                           segmentNode.position.y + shift.y);
-      }
+      // Scale world to fit import, if possible.
+      [self FL_worldFitSegments:newSegmentNodes scaling:YES scrolling:NO includeTrackEditMenu:YES animated:YES];
 
+      // Begin track move.
       [self FL_messageShow:[NSString stringWithFormat:NSLocalizedString(@"Added “%@” to track.",
                                                                         @"Message to user: Shown after successful import of {export name}."),
                             description]];
@@ -1326,7 +1300,6 @@ struct PointerPairHash
             FLSegmentNode *b = links[l];
             ++l;
             SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:a.switchPosition toLocation:b.switchPosition linkErase:NO];
-            // note: Explicit "self" to make it obvious we are retaining it.
             self->_links.insert(a, b, connectorNode);
           }
         }
@@ -1350,10 +1323,16 @@ struct PointerPairHash
     if (_tutorialState.tutorialActive) {
       [self FL_tutorialRecognizedAction:FLTutorialActionConstructionToolbarPanEnded withArguments:nil];
     }
-    [self FL_trackMoveEndedWithLocation:worldLocation];
+    NSArray *placedSegmentNodes = [self FL_trackMoveEndedWithLocation:worldLocation];
+    if (placedSegmentNodes) {
+      [self FL_worldFitSegments:placedSegmentNodes scaling:NO scrolling:YES includeTrackEditMenu:YES animated:YES];
+    }
     [self FL_worldAutoScrollDisable];
   } else if (gestureRecognizer.state == UIGestureRecognizerStateCancelled) {
-    [self FL_trackMoveCancelledWithLocation:worldLocation];
+    NSArray *placedSegmentNodes = [self FL_trackMoveCancelledWithLocation:worldLocation];
+    if (placedSegmentNodes) {
+      [self FL_worldFitSegments:placedSegmentNodes scaling:NO scrolling:YES includeTrackEditMenu:YES animated:YES];
+    }
     [self FL_worldAutoScrollDisable];
   }
 }
@@ -2007,7 +1986,32 @@ struct PointerPairHash
   return toolNode;
 }
 
-- (UIImage *)FL_createImageForSegments:(NSArray *)segmentNodes withSize:(CGFloat)imageSize
+- (void)FL_segments:(NSArray *)segmentNodes getExtremesLeft:(CGFloat *)left right:(CGFloat *)right top:(CGFloat *)top bottom:(CGFloat *)bottom
+{
+  BOOL firstSegment = YES;
+  for (FLSegmentNode *segmentNode in segmentNodes) {
+    if (firstSegment) {
+      firstSegment = NO;
+      *left = segmentNode.position.x;
+      *right = segmentNode.position.x;
+      *top = segmentNode.position.y;
+      *bottom = segmentNode.position.y;
+    } else {
+      if (segmentNode.position.x < *left) {
+        *left = segmentNode.position.x;
+      } else if (segmentNode.position.x > *right) {
+        *right = segmentNode.position.x;
+      }
+      if (segmentNode.position.y < *bottom) {
+        *bottom = segmentNode.position.y;
+      } else if (segmentNode.position.y > *top) {
+        *top = segmentNode.position.y;
+      }
+    }
+  }
+}
+
+- (UIImage *)FL_segments:(NSArray *)segmentNodes createImageWithSize:(CGFloat)imageSize
 {
   // TODO: Can this same purpose (eventually, to create a sprite node with this image)
   // be accomplished by calling "textureFromNode" method?  But keep in mind my desire
@@ -2016,11 +2020,11 @@ struct PointerPairHash
   // the image down until you can't even see the shape -- textureFromNode probably can't
   // do that.
 
-  CGFloat segmentsPositionTop;
-  CGFloat segmentsPositionBottom;
   CGFloat segmentsPositionLeft;
   CGFloat segmentsPositionRight;
-  [self FL_getSegmentsExtremes:segmentNodes left:&segmentsPositionLeft right:&segmentsPositionRight top:&segmentsPositionTop bottom:&segmentsPositionBottom];
+  CGFloat segmentsPositionTop;
+  CGFloat segmentsPositionBottom;
+  [self FL_segments:segmentNodes getExtremesLeft:&segmentsPositionLeft right:&segmentsPositionRight top:&segmentsPositionTop bottom:&segmentsPositionBottom];
 
   // note: Keep in mind, segment images are drawn overlapping, with the "basic" segment size
   // representing the main content portion of the image drawn within the "full" segment size.
@@ -2094,6 +2098,43 @@ struct PointerPairHash
   return image;
 }
 
+- (void)FL_segments:(NSArray *)segmentNodes setPositionCenteredOnLocation:(CGPoint)worldLocation
+{
+  // note: The worldLocation will be aligned by this method to track grid square it is within;
+  // the caller does not need to align it before passing it to this method.
+
+  // Find position-aligned center point of segments.
+  CGFloat segmentsPositionLeft;
+  CGFloat segmentsPositionRight;
+  CGFloat segmentsPositionTop;
+  CGFloat segmentsPositionBottom;
+  [self FL_segments:segmentNodes getExtremesLeft:&segmentsPositionLeft right:&segmentsPositionRight top:&segmentsPositionTop bottom:&segmentsPositionBottom];
+  int widthUnits = int((segmentsPositionRight - segmentsPositionLeft + 0.00001f) / FLTrackSegmentSize);
+  int heightUnits = int((segmentsPositionTop - segmentsPositionBottom + 0.00001f) / FLTrackSegmentSize);
+  // note: Width and height of position differences, so for instance a width of one means
+  // the group is two segments wide.
+  CGPoint segmentsAlignedCenter = CGPointMake((segmentsPositionLeft + segmentsPositionRight) / 2.0f,
+                                              (segmentsPositionBottom + segmentsPositionTop) / 2.0f);
+  if (widthUnits % 2 == 1) {
+    segmentsAlignedCenter.x -= (FLTrackSegmentSize / 2.0f);
+  }
+  if (heightUnits % 2 == 1) {
+    segmentsAlignedCenter.y -= (FLTrackSegmentSize / 2.0f);
+  }
+
+  // Shift segments to the touch gesture (using calculated center).
+  int gridX;
+  int gridY;
+  _trackGrid->convert(worldLocation, &gridX, &gridY);
+  CGPoint touchAlignedCenter = _trackGrid->convert(gridX, gridY);
+  CGPoint shift = CGPointMake(touchAlignedCenter.x - segmentsAlignedCenter.x,
+                              touchAlignedCenter.y - segmentsAlignedCenter.y);
+  for (FLSegmentNode *segmentNode in segmentNodes) {
+    segmentNode.position = CGPointMake(segmentNode.position.x + shift.x,
+                                       segmentNode.position.y + shift.y);
+  }
+}
+
 - (CGPoint)FL_worldConstrainedPositionX:(CGFloat)x positionY:(CGFloat)y
 {
   const CGFloat FLOffWorldScreenMargin = 30.0f;
@@ -2112,6 +2153,187 @@ struct PointerPairHash
     y = FLWorldYMax * worldYScale - sceneHalfHeight + FLOffWorldScreenMargin;
   }
   return CGPointMake(x, y);
+}
+
+- (void)FL_sceneGetVisibleLeft:(CGFloat *)left right:(CGFloat *)right top:(CGFloat *)top bottom:(CGFloat *)bottom
+{
+  CGSize sceneSize = self.size;
+
+  *left = sceneSize.width * -1.0f * self.anchorPoint.x;
+
+  *right = sceneSize.width * (1.0f - self.anchorPoint.x);
+
+  HLToolbarNode *simulationToolbarNode = _simulationToolbarState.toolbarNode;
+  if (simulationToolbarNode && simulationToolbarNode.parent) {
+    CGFloat simulationToolbarBottom = simulationToolbarNode.position.y - simulationToolbarNode.size.height * simulationToolbarNode.anchorPoint.y;
+    *top = simulationToolbarBottom;
+  } else {
+    *top = sceneSize.height * (1.0f - self.anchorPoint.y);
+  }
+
+  HLToolbarNode *constructionToolbarNode = _constructionToolbarState.toolbarNode;
+  if (constructionToolbarNode && constructionToolbarNode.parent) {
+    CGFloat constructionToolbarTop = constructionToolbarNode.position.y + constructionToolbarNode.size.height * (1.0f - constructionToolbarNode.anchorPoint.y);
+    *bottom = constructionToolbarTop;
+  } else {
+    *bottom = sceneSize.height * -1.0f * self.anchorPoint.y;
+  }
+}
+
+- (void)FL_worldFitSegments:(NSArray *)segmentNodes
+                    scaling:(BOOL)scaling
+                  scrolling:(BOOL)scrolling
+       includeTrackEditMenu:(BOOL)includeTrackEditMenu
+                   animated:(BOOL)animated
+{
+  CGFloat contentWorldLeft;
+  CGFloat contentWorldRight;
+  CGFloat contentWorldTop;
+  CGFloat contentWorldBottom;
+  [self FL_segments:segmentNodes getExtremesLeft:&contentWorldLeft right:&contentWorldRight top:&contentWorldTop bottom:&contentWorldBottom];
+  // note: The segment extrema are returned as segment positions (centers of segments).  We want to
+  // pad out farther: A half segment size gets us to the edge of the basic segment, but of course
+  // track runs along the edge and overlaps into the next segment.  So push it out to full segment
+  // size, for sure, plus a little visual padding: Perhaps another half (basic) segments size
+  // is about right.
+  contentWorldLeft -= FLTrackSegmentSize;
+  contentWorldRight += FLTrackSegmentSize;
+  contentWorldTop += FLTrackSegmentSize;
+  contentWorldBottom -= FLTrackSegmentSize;
+  CGSize contentWorldSize = CGSizeMake(contentWorldRight - contentWorldLeft, contentWorldTop - contentWorldBottom);
+
+  CGFloat visibleSceneLeft;
+  CGFloat visibleSceneRight;
+  CGFloat visibleSceneTop;
+  CGFloat visibleSceneBottom;
+  [self FL_sceneGetVisibleLeft:&visibleSceneLeft right:&visibleSceneRight top:&visibleSceneTop bottom:&visibleSceneBottom];
+  CGSize visibleSceneSize = CGSizeMake(visibleSceneRight - visibleSceneLeft, visibleSceneTop - visibleSceneBottom);
+
+  BOOL scalingNeeded = NO;
+  CGFloat worldScaleNew;
+  if (scaling) {
+    if (includeTrackEditMenu) {
+      // note: For now, don't bother calculating track edit menu width from segmentNodes
+      // using [self FL_trackEditMenuWidthForSegments:segmentNodes].  Instead, assume that
+      // the toolbar width fits on the screen at all world scales.
+      worldScaleNew = [self FL_trackEditMenuWorldScaleToFitSegmentSize:contentWorldSize intoTargetSceneSize:visibleSceneSize withTrackEditMenuWidth:0.0f];
+    } else {
+      worldScaleNew = MIN(visibleSceneSize.width / contentWorldSize.width,
+                          visibleSceneSize.height / contentWorldSize.height);
+    }
+    if (worldScaleNew < FLWorldScaleMin) {
+      worldScaleNew = FLWorldScaleMin;
+    }
+    if (worldScaleNew < _worldNode.xScale) {
+      scalingNeeded = YES;
+    }
+  }
+
+  BOOL scrollingNeeded = NO;
+  CGPoint worldPositionNew;
+  if (scrolling) {
+
+    // Calculate some additional helpful scrolling-relevant metrics.
+    CGFloat worldScaleFinal = (scalingNeeded ? worldScaleNew : _worldNode.xScale);
+    CGSize visibleWorldSize = CGSizeMake(visibleSceneSize.width / worldScaleFinal,
+                                         visibleSceneSize.height / worldScaleFinal);
+    CGPoint visibleSceneCenter = CGPointMake(visibleSceneLeft + (visibleSceneRight - visibleSceneLeft) / 2.0f,
+                                             visibleSceneBottom + (visibleSceneTop - visibleSceneBottom) / 2.0f);
+    CGPoint visibleWorldCenter = CGPointMake((visibleSceneCenter.x - _worldNode.position.x) / worldScaleFinal,
+                                             (visibleSceneCenter.y - _worldNode.position.y) / worldScaleFinal);
+
+    // Include track edit menu (if appropriate) in content bounds, size, and center.
+    CGPoint contentWorldCenter = CGPointMake(contentWorldLeft + (contentWorldRight - contentWorldLeft) / 2.0f,
+                                             contentWorldBottom + (contentWorldTop - contentWorldBottom) / 2.0f);
+    if (includeTrackEditMenu) {
+      CGFloat trackEditMenuScale = [self FL_trackEditMenuScaleForWorldScale:worldScaleFinal];
+      CGFloat trackEditMenuWorldWidth = [self FL_trackEditMenuWidthForSegments:segmentNodes] * trackEditMenuScale;
+      if (trackEditMenuWorldWidth > contentWorldSize.width) {
+        CGFloat halfTrackEditMenuWorldWidth = trackEditMenuWorldWidth / 2.0f;
+        contentWorldLeft = contentWorldCenter.x - halfTrackEditMenuWorldWidth;
+        contentWorldRight = contentWorldCenter.x + halfTrackEditMenuWorldWidth;
+        contentWorldSize.width = trackEditMenuWorldWidth;
+      }
+      CGFloat trackEditMenuWorldHeight = FLTrackEditMenuSegmentPad + FLTrackEditMenuHeight * trackEditMenuScale;
+      contentWorldTop += trackEditMenuWorldHeight;
+      contentWorldSize.height += trackEditMenuWorldHeight;
+      contentWorldCenter.y += trackEditMenuWorldHeight / 2.0f;
+    }
+
+    // Adjust world position (in scene) to fit content (as much as possible).
+    CGPoint visibleWorldCenterNew = visibleWorldCenter;
+    if (contentWorldSize.width > visibleWorldSize.width) {
+      visibleWorldCenterNew.x = contentWorldCenter.x;
+    } else if (abs(visibleWorldCenter.x - contentWorldCenter.x) < (visibleWorldSize.width - contentWorldSize.width) / 2.0f) {
+      // note: Already fits in visible area.
+    } else if (visibleWorldCenter.x < contentWorldCenter.x) {
+      visibleWorldCenterNew.x = contentWorldRight - visibleWorldSize.width / 2.0f;
+    } else {
+      visibleWorldCenterNew.x = contentWorldLeft + visibleWorldSize.width / 2.0f;
+    }
+    if (contentWorldSize.height > visibleWorldSize.height) {
+      if (includeTrackEditMenu) {
+        visibleWorldCenterNew.y = contentWorldTop - visibleWorldSize.height / 2.0f;
+      } else {
+        visibleWorldCenterNew.y = contentWorldCenter.y;
+      }
+    } else if (abs(visibleWorldCenter.y - contentWorldCenter.y) < (visibleWorldSize.height - contentWorldSize.height) / 2.0f) {
+      // note: Already fits in visible area.
+    } else if (visibleWorldCenter.y < contentWorldCenter.y) {
+      visibleWorldCenterNew.y = contentWorldTop - visibleWorldSize.height / 2.0f;
+    } else {
+      visibleWorldCenterNew.y = contentWorldBottom + visibleWorldSize.height / 2.0f;
+    }
+    if (abs(visibleWorldCenter.x - visibleWorldCenterNew.x) > 0.5f
+        || abs(visibleWorldCenter.y - visibleWorldCenterNew.y) > 0.5f) {
+      scrollingNeeded = YES;
+      worldPositionNew.x = visibleSceneCenter.x - visibleWorldCenterNew.x * worldScaleFinal;
+      worldPositionNew.y = visibleSceneCenter.y - visibleWorldCenterNew.y * worldScaleFinal;
+    }
+  }
+  // note: worldPositionNew not yet constrained to world; do it below.
+
+  if (!scalingNeeded && !scrollingNeeded) {
+    return;
+  }
+
+  // note: While scaling out, need to constantly check position so that we don't show too much off-world.
+  if (animated) {
+    NSMutableArray *worldFitActions = [NSMutableArray array];
+    if (scalingNeeded) {
+      // TODO: Check if track edit menu changes scale with world scale changes.
+      // Probably need to do that ourselves.  And search for other places where
+      // world scale is changed automatically...if any...
+      [worldFitActions addObject:[SKAction scaleTo:worldScaleNew duration:FLWorldFitDuration]];
+      if (scrollingNeeded) {
+        [worldFitActions addObject:[SKAction customActionWithDuration:FLWorldFitDuration actionBlock:^(SKNode *node, CGFloat elapsedTime){
+          self->_worldNode.position = [self FL_worldConstrainedPositionX:worldPositionNew.x positionY:worldPositionNew.y];
+        }]];
+      } else {
+        [worldFitActions addObject:[SKAction customActionWithDuration:FLWorldFitDuration actionBlock:^(SKNode *node, CGFloat elapsedTime){
+          CGPoint worldPositionCurrent = self->_worldNode.position;
+          self->_worldNode.position = [self FL_worldConstrainedPositionX:worldPositionCurrent.x positionY:worldPositionCurrent.y];
+        }]];
+      }
+    } else {
+      [self FL_worldConstrainedPositionX:0.0f positionY:0.0f];
+      [worldFitActions addObject:[SKAction moveTo:worldPositionNew duration:FLWorldFitDuration]];
+    }
+    [_worldNode runAction:[SKAction group:worldFitActions]];
+  } else {
+    if (scalingNeeded) {
+      _worldNode.xScale = worldScaleNew;
+      _worldNode.yScale = worldScaleNew;
+      if (scrollingNeeded) {
+        _worldNode.position = [self FL_worldConstrainedPositionX:worldPositionNew.x positionY:worldPositionNew.y];
+      } else {
+        CGPoint worldPositionCurrent = self->_worldNode.position;
+        _worldNode.position = [self FL_worldConstrainedPositionX:worldPositionCurrent.x positionY:worldPositionCurrent.y];
+      }
+    } else {
+      _worldNode.position = [self FL_worldConstrainedPositionX:worldPositionNew.x positionY:worldPositionNew.y];
+    }
+  }
 }
 
 /**
@@ -2158,12 +2380,9 @@ struct PointerPairHash
 //  const CGFloat FLAutoScrollVelocityMin = 4.0f;
 //  const CGFloat FLAutoScrollVelocityLinear = 108.0f;
 //  const CGFloat FLAutoScrollVelocityBase = 256.0f;
-//  
-//  // TODO: Measure proximity using edge, but then calculate X and Y velocities with respect to
-//  // radial direction from the center of the screen.
-//  
+//
 //  _worldAutoScrollState.scrolling = NO;
-//  
+//
 //  CGFloat sceneXMin = self.size.width * -1.0f * self.anchorPoint.x;
 //  CGFloat sceneXMax = sceneXMin + self.size.width;
 //  if (sceneLocation.x < sceneXMin + marginSize) {
@@ -2179,7 +2398,7 @@ struct PointerPairHash
 //  } else {
 //    _worldAutoScrollState.velocityX = 0.0f;
 //  }
-//  
+//
 //  CGFloat sceneYMin = self.size.height * -1.0f * self.anchorPoint.y;
 //  CGFloat sceneYMax = sceneYMin + self.size.height;
 //  if (sceneLocation.y < sceneYMin + marginSize) {
@@ -2195,12 +2414,12 @@ struct PointerPairHash
 //  } else {
 //    _worldAutoScrollState.velocityY = 0.0f;
 //  }
-//  
+//
 //  if (_worldAutoScrollState.scrolling) {
 //    _worldAutoScrollState.gestureUpdateBlock = gestureUpdateBlock;
 //  }
-  
-  
+
+
   // note: Proximity measures linearly how close the gesture is to the edge of the screen,
   // ranging from zero to one, where one is all the way on the screen's edge.  (If the gesture
   // is close to two edges, the closer one is used.)  A velocity vector is calculated in X
@@ -2282,31 +2501,6 @@ struct PointerPairHash
   }
 }
 
-- (void)FL_getSegmentsExtremes:(NSArray *)segmentNodes left:(CGFloat *)left right:(CGFloat *)right top:(CGFloat *)top bottom:(CGFloat *)bottom
-{
-  BOOL firstSegment = YES;
-  for (FLSegmentNode *segmentNode in segmentNodes) {
-    if (firstSegment) {
-      firstSegment = NO;
-      *left = segmentNode.position.x;
-      *right = segmentNode.position.x;
-      *top = segmentNode.position.y;
-      *bottom = segmentNode.position.y;
-    } else {
-      if (segmentNode.position.x < *left) {
-        *left = segmentNode.position.x;
-      } else if (segmentNode.position.x > *right) {
-        *right = segmentNode.position.x;
-      }
-      if (segmentNode.position.y < *bottom) {
-        *bottom = segmentNode.position.y;
-      } else if (segmentNode.position.y > *top) {
-        *top = segmentNode.position.y;
-      }
-    }
-  }
-}
-
 - (void)FL_constructionToolbarSetVisible:(BOOL)visible
 {
   if (!_constructionToolbarState.toolbarNode) {
@@ -2333,7 +2527,7 @@ struct PointerPairHash
   _constructionToolbarState.toolbarNode.automaticWidth = NO;
   _constructionToolbarState.toolbarNode.automaticHeight = NO;
   _constructionToolbarState.toolbarNode.position = CGPointMake(0.0f, -self.size.height / 2.0f);
-  _constructionToolbarState.toolbarNode.size = CGSizeMake(self.size.width, FLMainToolbarToolHeight);
+  _constructionToolbarState.toolbarNode.size = CGSizeMake(self.size.width, FLMainToolbarHeight);
 
   // note: Page might be too large as a result of additional toolbar width made possible by the new geometry.
   int pageMax = _constructionToolbarState.currentPage;
@@ -2625,7 +2819,7 @@ struct PointerPairHash
       NSString *importPath = [importDirectory stringByAppendingPathComponent:importFile];
       NSString *importDescription = nil;
       NSArray *segmentNodes = [self FL_importWithPath:importPath description:&importDescription links:NULL];
-      UIImage *importImage = [self FL_createImageForSegments:segmentNodes withSize:FLMainToolbarToolArtSize];
+      UIImage *importImage = [self FL_segments:segmentNodes createImageWithSize:FLMainToolbarToolArtSize];
       [[HLTextureStore sharedStore] setTextureWithImage:importImage forKey:importName filteringMode:SKTextureFilteringNearest];
       _constructionToolbarState.toolTypes[importName] = @(FLToolbarToolTypeActionPan);
       _constructionToolbarState.toolDescriptions[importName] = importDescription;
@@ -2696,7 +2890,7 @@ struct PointerPairHash
 {
   CGFloat backgroundBorderSize = _constructionToolbarState.toolbarNode.backgroundBorderSize;
   CGFloat squareSeparatorSize = _constructionToolbarState.toolbarNode.squareSeparatorSize;
-  NSUInteger pageSize = (NSUInteger)((_constructionToolbarState.toolbarNode.size.width + squareSeparatorSize - 2.0f * backgroundBorderSize) / (FLMainToolbarToolHeight - 2.0f * backgroundBorderSize + squareSeparatorSize));
+  NSUInteger pageSize = (NSUInteger)((_constructionToolbarState.toolbarNode.size.width + squareSeparatorSize - 2.0f * backgroundBorderSize) / (FLMainToolbarHeight - 2.0f * backgroundBorderSize + squareSeparatorSize));
   // note: Need main/previous/next buttons, and then anything less than two remaining is silly.
   if (pageSize < 5) {
     pageSize = 5;
@@ -2803,7 +2997,7 @@ struct PointerPairHash
   _simulationToolbarState.toolbarNode.automaticWidth = NO;
   _simulationToolbarState.toolbarNode.automaticHeight = NO;
   _simulationToolbarState.toolbarNode.position = CGPointMake(0.0f, self.size.height / 2.0f);
-  _simulationToolbarState.toolbarNode.size = CGSizeMake(self.size.width, FLMainToolbarToolHeight);
+  _simulationToolbarState.toolbarNode.size = CGSizeMake(self.size.width, FLMainToolbarHeight);
   [self FL_simulationToolbarUpdateTools];
 }
 
@@ -3418,6 +3612,40 @@ struct PointerPairHash
   return [_trackSelectState.selectedSegmentPointers count];
 }
 
+- (void)FL_trackSelectPaintBeganWithLocation:(CGPoint)worldLocation
+{
+  FLSegmentNode *segmentNode = trackGridConvertGet(*_trackGrid, worldLocation);
+  if (!segmentNode) {
+    _worldGestureState.longPressMode = FLWorldLongPressModeNone;
+    return;
+  }
+
+  if ([self FL_trackSelected:segmentNode]) {
+    _worldGestureState.longPressMode = FLWorldLongPressModeErase;
+    [self FL_trackSelectEraseSegment:segmentNode];
+  } else {
+    _worldGestureState.longPressMode = FLWorldLongPressModeAdd;
+    [self FL_trackSelect:@[ segmentNode ]];
+  }
+  [self FL_trackEditMenuHideAnimated:YES];
+}
+
+- (void)FL_trackSelectPaintChangedWithLocation:(CGPoint)worldLocation
+{
+  if (_worldGestureState.longPressMode == FLWorldLongPressModeNone) {
+    return;
+  }
+
+  FLSegmentNode *segmentNode = trackGridConvertGet(*_trackGrid, worldLocation);
+  if (segmentNode) {
+    if (_worldGestureState.longPressMode == FLWorldLongPressModeAdd) {
+      [self FL_trackSelect:@[ segmentNode ]];
+    } else {
+      [self FL_trackSelectEraseSegment:segmentNode];
+    }
+  }
+}
+
 - (void)FL_trackConflictShow:(FLSegmentNode *)segmentNode
 {
   SKSpriteNode *conflictNode = [SKSpriteNode spriteNodeWithColor:FLInterfaceColorBad()
@@ -3501,32 +3729,34 @@ struct PointerPairHash
   [self FL_trackMoveUpdateWithLocation:worldLocation];
 }
 
-- (void)FL_trackMoveEndedWithLocation:(CGPoint)worldLocation
+- (NSArray *)FL_trackMoveEndedWithLocation:(CGPoint)worldLocation
 {
   if (!_trackMoveState.segmentNodes) {
     [NSException raise:@"FLTrackMoveBadState"
                 format:@"Ended track move, but track move not begun."];
   }
-  [self FL_trackMoveEndedCommonWithLocation:worldLocation];
+  NSArray *placedSegmentNodes = [self FL_trackMoveEndedCommonWithLocation:worldLocation];
   [_trackMoveState.cursorNode removeAllChildren];
   [_trackMoveState.cursorNode removeFromParent];
   if (_trackMoveState.placed) {
     [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-clickity-2.caf" waitForCompletion:NO]];
   }
+  return placedSegmentNodes;
 }
 
-- (void)FL_trackMoveCancelledWithLocation:(CGPoint)worldLocation
+- (NSArray *)FL_trackMoveCancelledWithLocation:(CGPoint)worldLocation
 {
   if (!_trackMoveState.segmentNodes) {
     [NSException raise:@"FLTrackMoveBadState"
                 format:@"Cancelled track move, but track move not begun."];
   }
-  [self FL_trackMoveEndedCommonWithLocation:worldLocation];
+  NSArray *placedSegmentNodes = [self FL_trackMoveEndedCommonWithLocation:worldLocation];
   [_trackMoveState.cursorNode removeAllChildren];
   [_trackMoveState.cursorNode removeFromParent];
+  return placedSegmentNodes;
 }
 
-- (void)FL_trackMoveEndedCommonWithLocation:(CGPoint)worldLocation
+- (NSArray *)FL_trackMoveEndedCommonWithLocation:(CGPoint)worldLocation
 {
   // noob: Does the platform guarantee this behavior already, to wit, that an "ended" call
   // with a certain location will always be preceeded by a "moved" call at that same
@@ -3549,9 +3779,17 @@ struct PointerPairHash
   }
 
   [self FL_trackEditMenuUpdateAnimated:YES];
+
+  NSArray *placedSegmentNodes = nil;
+  if (_trackMoveState.placed) {
+    placedSegmentNodes = _trackMoveState.segmentNodes;
+  }
+
   _trackMoveState.segmentNodes = nil;
   _trackMoveState.segmentNodePointers = nil;
   _trackMoveState.completion = nil;
+
+  return placedSegmentNodes;
 }
 
 - (void)FL_trackMoveUpdateWithLocation:(CGPoint)worldLocation
@@ -3682,45 +3920,28 @@ struct PointerPairHash
 
   if (!_trackEditMenuState.editMenuNode) {
     _trackEditMenuState.editMenuNode = [[HLToolbarNode alloc] init];
-    _trackEditMenuState.editMenuNode.size = CGSizeMake(0.0f, 42.0f);
+    _trackEditMenuState.editMenuNode.size = CGSizeMake(0.0f, FLTrackEditMenuHeight);
     _trackEditMenuState.editMenuNode.zPosition = FLZPositionWorldOverlay;
     _trackEditMenuState.editMenuNode.anchorPoint = CGPointMake(0.5f, 0.0f);
     _trackEditMenuState.editMenuNode.automaticWidth = YES;
     _trackEditMenuState.editMenuNode.automaticHeight = NO;
-    _trackEditMenuState.editMenuNode.backgroundBorderSize = 3.0f;
-    _trackEditMenuState.editMenuNode.squareSeparatorSize = 3.0f;
+    _trackEditMenuState.editMenuNode.backgroundBorderSize = FLTrackEditMenuBackgroundBorderSize;
+    _trackEditMenuState.editMenuNode.squareSeparatorSize = FLTrackEditMenuSquareSeparatorSize;
   }
 
   // Collect information about selected segments.
   NSArray *segmentNodes = _trackSelectState.selectedSegments;
-  CGFloat segmentsPositionTop;
-  CGFloat segmentsPositionBottom;
   CGFloat segmentsPositionLeft;
   CGFloat segmentsPositionRight;
-  [self FL_getSegmentsExtremes:segmentNodes left:&segmentsPositionLeft right:&segmentsPositionRight top:&segmentsPositionTop bottom:&segmentsPositionBottom];
+  CGFloat segmentsPositionTop;
+  CGFloat segmentsPositionBottom;
+  [self FL_segments:segmentNodes getExtremesLeft:&segmentsPositionLeft right:&segmentsPositionRight top:&segmentsPositionTop bottom:&segmentsPositionBottom];
   BOOL hasSwitch = NO;
   BOOL canHaveSwitch = NO;
   BOOL canLabelAny = (_gameType == FLGameTypeSandbox);
-  for (FLSegmentNode *segmentNode in segmentNodes) {
-    if ([segmentNode canHaveSwitch]) {
-      canHaveSwitch = YES;
-      if (segmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
-        hasSwitch = YES;
-        break;
-      }
-    }
-  }
   BOOL canDeleteAny = NO;
-  if (_gameType == FLGameTypeSandbox) {
-    canDeleteAny = YES;
-  } else {
-    for (FLSegmentNode *segmentNode in segmentNodes) {
-      if ([self FL_gameTypeChallengeCanEraseSegment:segmentNode]) {
-        canDeleteAny = YES;
-        break;
-      }
-    }
-  }
+  NSUInteger toolCount;
+  [self FL_trackEditMenuGetTraitsForSegments:segmentNodes hasSwitch:&hasSwitch canHaveSwitch:&canHaveSwitch canLabelAny:&canLabelAny canDeleteAny:&canDeleteAny toolCount:&toolCount];
 
   // Update tools.
   NSMutableArray *textureKeys = [NSMutableArray array];
@@ -3733,6 +3954,10 @@ struct PointerPairHash
   }
   [textureKeys addObject:@"delete"];
   [textureKeys addObject:@"rotate-cw"];
+  // note: Internal checking here to make sure of consistent logic.
+  if ([textureKeys count] != toolCount) {
+    [NSException raise:@"FLTrackEditMenuInconsistent" format:@"Ensure that tool counting is the same in FL_trackEditMenuShowAnimated: and FL_trackEditMenuGetTraitsForSegments:."];
+  }
   NSMutableArray *toolNodes = [NSMutableArray array];
   for (NSString *textureKey in textureKeys) {
     [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
@@ -3744,20 +3969,70 @@ struct PointerPairHash
   [_trackEditMenuState.editMenuNode setEnabled:canDeleteAny forTool:@"delete"];
 
   // Show menu.
-  const CGFloat FLTrackEditMenuBottomPad = 20.0f;
   if (!_trackEditMenuState.showing) {
     [_worldNode addChild:_trackEditMenuState.editMenuNode];
     _trackEditMenuState.showing = YES;
   }
   CGFloat segmentsPositionMidX = (segmentsPositionLeft + segmentsPositionRight) / 2.0f;
   CGFloat segmentsPositionMidY = (segmentsPositionBottom + segmentsPositionTop) / 2.0f;
-  CGPoint position = CGPointMake(segmentsPositionMidX, segmentsPositionTop + FLTrackSegmentSize / 2.0f + FLTrackEditMenuBottomPad);
+  CGPoint position = CGPointMake(segmentsPositionMidX, segmentsPositionTop + FLTrackSegmentSize / 2.0f + FLTrackEditMenuSegmentPad);
   CGPoint origin = CGPointMake(segmentsPositionMidX, segmentsPositionMidY);
-  CGFloat fullScale = [self FL_trackEditMenuScaleForWorld];
+  CGFloat fullScale = [self FL_trackEditMenuScaleForWorldScale:_worldNode.xScale];
   [_trackEditMenuState.editMenuNode showWithOrigin:origin
                                      finalPosition:position
                                          fullScale:fullScale
                                           animated:animated];
+}
+
+- (void)FL_trackEditMenuGetTraitsForSegments:(NSArray *)segmentNodes
+                                   hasSwitch:(BOOL *)hasSwitch
+                               canHaveSwitch:(BOOL *)canHaveSwitch
+                                 canLabelAny:(BOOL *)canLabelAny
+                                canDeleteAny:(BOOL *)canDeleteAny
+                                   toolCount:(NSUInteger *)toolCount
+{
+  *hasSwitch = NO;
+  *canHaveSwitch = NO;
+  *canLabelAny = (_gameType == FLGameTypeSandbox);
+  for (FLSegmentNode *segmentNode in segmentNodes) {
+    if ([segmentNode canHaveSwitch]) {
+      *canHaveSwitch = YES;
+      if (segmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
+        *hasSwitch = YES;
+        break;
+      }
+    }
+  }
+  *canDeleteAny = NO;
+  if (_gameType == FLGameTypeSandbox) {
+    *canDeleteAny = YES;
+  } else {
+    for (FLSegmentNode *segmentNode in segmentNodes) {
+      if ([self FL_gameTypeChallengeCanEraseSegment:segmentNode]) {
+        *canDeleteAny = YES;
+        break;
+      }
+    }
+  }
+  *toolCount = 3;
+  if (*canHaveSwitch) {
+    ++(*toolCount);
+  }
+  if (*canLabelAny) {
+    ++(*toolCount);
+  }
+}
+
+- (CGFloat)FL_trackEditMenuWidthForSegments:(NSArray *)segmentNodes
+{
+  // note: At scale = 1.
+  BOOL hasSwitch = NO;
+  BOOL canHaveSwitch = NO;
+  BOOL canLabelAny = (_gameType == FLGameTypeSandbox);
+  BOOL canDeleteAny = NO;
+  NSUInteger toolCount;
+  [self FL_trackEditMenuGetTraitsForSegments:segmentNodes hasSwitch:&hasSwitch canHaveSwitch:&canHaveSwitch canLabelAny:&canLabelAny canDeleteAny:&canDeleteAny toolCount:&toolCount];
+  return (FLTrackEditMenuHeight - 2.0f * FLTrackEditMenuBackgroundBorderSize + FLTrackEditMenuSquareSeparatorSize) * toolCount - FLTrackEditMenuSquareSeparatorSize;
 }
 
 - (void)FL_trackEditMenuHideAnimated:(BOOL)animated
@@ -3771,19 +4046,70 @@ struct PointerPairHash
 
 - (void)FL_trackEditMenuScaleToWorld
 {
-  CGFloat editMenuScale = [self FL_trackEditMenuScaleForWorld];
+  CGFloat editMenuScale = [self FL_trackEditMenuScaleForWorldScale:_worldNode.xScale];
   _trackEditMenuState.editMenuNode.xScale = editMenuScale;
   _trackEditMenuState.editMenuNode.yScale = editMenuScale;
 }
 
-- (CGFloat)FL_trackEditMenuScaleForWorld
+- (CGFloat)FL_trackEditMenuScaleForWorldScale:(CGFloat)worldScale
 {
   // note: The track edit menu scales inversely to the world, but perhaps at a different rate.
   // A value of 1.0f means the edit menu will always maintain the same screen size no matter
   // what the scale of the world.  Values less than one mean less-dramatic scaling than
   // the world, and vice versa.
-  const CGFloat FLTrackEditMenuScaleFactor = 0.5f;
-  return 1.0f / pow(_worldNode.xScale, FLTrackEditMenuScaleFactor);
+  //
+  // note: Use same formula here as FL_trackEditMenuWorldScaleToFitSegmentSize:intoTargetSceneSize:.
+  // My original formula was 1 / sqrt(_worldNode.xScale), but to make some math easier I changed it
+  // to (1/3) / _worldNode.xScale + 2/3.  (Note that both of them solve to 1 at 1.)
+  return FLTrackEditMenuWorldInverseScaleFactor / worldScale + FLTrackEditMenuWorldScaleMinimum;
+}
+
+/**
+ * Returns a world scale that will fit the passed (size of) segments, along with an accompanying
+ * track edit menu, into the passed target size (in scene coordinates).  The width of the track
+ * edit menu can be calculated by the caller and passed in, or else passed 0.0f meaning "don't
+ * bother to take the width of the track edit menu into account, just the height".
+ *
+ * note: It might be surprising that this would be the purview of the track edit menu.  The
+ * reason why, of course, is because the track edit menu itself changes screen size as a function
+ * of world scale.  It's not the identity function, and it's kept private (in FL_trackEditMenuScaleForWorldScale),
+ * so unless we make it public, we have to do the math here in FL_trackEditMenu* land.
+ */
+- (CGFloat)FL_trackEditMenuWorldScaleToFitSegmentSize:(CGSize)segmentSize intoTargetSceneSize:(CGSize)sceneSize withTrackEditMenuWidth:(CGFloat)trackEditMenuWidth
+{
+  // note: The segments are in the world, and the world is in the scene.  So to fit segmentSize into
+  // sceneSize, the correct scale is simply:
+  //
+  //    worldScale = MIN(sceneSize.x / segmentSize.x, sceneSize.y / segmentSize.y)
+  //
+  // When we also want to leave room for the trackEditMenu (displayed above the segments according
+  // to current implementation).  The scale of the trackEditMenu is a function of worldScale; see
+  // FL_trackEditMenuScaleForWorldScale, but current function is this:
+  //
+  //    trackScale(worldScale) = 1 / (3 * worldScale) + 2/3
+  //
+  // So then the calculation to fit segmentSize + trackMenuSize becomes, in X:
+  //
+  //    worldScale_x = sceneSize.x / MAX(segmentSize.x, trackMenuSize.x * trackScale(worldScale_x))
+  //
+  // and in Y:
+  //
+  //    worldScale_y = sceneSize.y / (segmentSize.y + trackMenuSegmentPad + trackMenuSize.y * trackScale(worldScale_y))
+  //
+  // Solve for worldScale_x and worldScale_y, and then take the minimum to fit both dimensions.
+
+  CGFloat worldScaleX;
+  CGFloat worldScaleXSegments = sceneSize.width / segmentSize.width;
+  if (trackEditMenuWidth < 0.001f) {
+    worldScaleX = worldScaleXSegments;
+  } else {
+    CGFloat worldScaleXTrackEditMenu = sceneSize.width / trackEditMenuWidth;
+    worldScaleX = MIN(worldScaleXSegments, worldScaleXTrackEditMenu);
+  }
+
+  CGFloat worldScaleY = (sceneSize.height - FLTrackEditMenuHeight * FLTrackEditMenuWorldInverseScaleFactor) / (segmentSize.height + FLTrackEditMenuSegmentPad + FLTrackEditMenuHeight * FLTrackEditMenuWorldScaleMinimum);
+
+  return MIN(worldScaleX, worldScaleY);
 }
 
 - (SKShapeNode *)FL_linkDrawFromLocation:(CGPoint)fromWorldLocation toLocation:(CGPoint)toWorldLocation linkErase:(BOOL)linkErase
@@ -4237,11 +4563,11 @@ struct PointerPairHash
   }
 
   // Collect information about segments.
-  CGFloat segmentsPositionTop;
-  CGFloat segmentsPositionBottom;
   CGFloat segmentsPositionLeft;
   CGFloat segmentsPositionRight;
-  [self FL_getSegmentsExtremes:segmentNodes left:&segmentsPositionLeft right:&segmentsPositionRight top:&segmentsPositionTop bottom:&segmentsPositionBottom];
+  CGFloat segmentsPositionTop;
+  CGFloat segmentsPositionBottom;
+  [self FL_segments:segmentNodes getExtremesLeft:&segmentsPositionLeft right:&segmentsPositionRight top:&segmentsPositionTop bottom:&segmentsPositionBottom];
   // note: isSymmetryRotation just in terms of the bounding box, which will be the same
   // after the rotation as before the rotation.
   BOOL isSymmetricRotation = (rotateBy % 2 == 0) || (fabs(segmentsPositionRight - segmentsPositionLeft - segmentsPositionTop + segmentsPositionBottom) < 0.001f);
