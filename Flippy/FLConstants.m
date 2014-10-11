@@ -89,7 +89,7 @@ FLUserUnlocksUnlock(NSArray *unlockKeys)
     FLUserUnlocksInit();
   }
   for (NSString *unlockKey in unlockKeys) {
-    [_userUnlocks setValue:@YES forKey:unlockKey];
+    _userUnlocks[unlockKey] = @YES;
   }
   [[NSUserDefaults standardUserDefaults] setObject:_userUnlocks forKey:@"FLUserUnlocks"];
 }
