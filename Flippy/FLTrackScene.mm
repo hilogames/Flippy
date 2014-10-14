@@ -676,7 +676,8 @@ struct PointerPairHash
 - (void)didChangeSize:(CGSize)oldSize
 {
   [super didChangeSize:oldSize];
-  _worldNode.position = [self FL_worldConstrainedPositionX:_worldNode.position.x positionY:_worldNode.position.y];
+  // note: Reset current world position using constraints that might now be changed.
+  [self FL_worldSetPositionX:_worldNode.position.x positionY:_worldNode.position.y];
   [self FL_tutorialUpdateGeometry];
   [self FL_constructionToolbarUpdateGeometry];
   [self FL_simulationToolbarUpdateGeometry];
@@ -753,8 +754,8 @@ struct PointerPairHash
       // note: Set world position based on train position.  Note that the
       // train is in the world, but the world is in the scene, so convert.
       CGPoint trainSceneLocation = [self convertPoint:_train.position fromNode:_worldNode];
-      _worldNode.position = [self FL_worldConstrainedPositionX:_worldNode.position.x - trainSceneLocation.x
-                                                     positionY:_worldNode.position.y - trainSceneLocation.y];
+      [self FL_worldSetPositionX:(_worldNode.position.x - trainSceneLocation.x)
+                       positionY:(_worldNode.position.y - trainSceneLocation.y)];
       break;
     }
     case FLCameraModeManual:
@@ -961,8 +962,8 @@ struct PointerPairHash
       }
       case FLWorldPanTypeScroll: {
         CGPoint translation = [gestureRecognizer translationInView:self.view];
-        _worldNode.position = [self FL_worldConstrainedPositionX:_worldNode.position.x + translation.x / self.xScale
-                                                       positionY:_worldNode.position.y - translation.y / self.yScale];
+        [self FL_worldSetPositionX:(_worldNode.position.x + translation.x / self.xScale)
+                         positionY:(_worldNode.position.y - translation.y / self.yScale)];
         [gestureRecognizer setTranslation:CGPointZero inView:self.view];
         break;
       }
@@ -1071,20 +1072,12 @@ struct PointerPairHash
     return;
   }
 
-  CGFloat worldScaleCurrent = handlePinchWorldScaleBegin * gestureRecognizer.scale;
-  if (worldScaleCurrent > FLWorldScaleMax) {
-    worldScaleCurrent = FLWorldScaleMax;
-  } else if (worldScaleCurrent < FLWorldScaleMin) {
-    worldScaleCurrent = FLWorldScaleMin;
-  }
-  _worldNode.xScale = worldScaleCurrent;
-  _worldNode.yScale = worldScaleCurrent;
-  [self FL_trackEditMenuScaleToWorld];
-  CGFloat scaleFactor = worldScaleCurrent / handlePinchWorldScaleBegin;
-
   // Zoom around previously-chosen center point.
-  _worldNode.position = [self FL_worldConstrainedPositionX:(handlePinchWorldPositionBegin.x - _worldGestureState.pinchZoomCenter.x) * scaleFactor + _worldGestureState.pinchZoomCenter.x
-                                                 positionY:(handlePinchWorldPositionBegin.y - _worldGestureState.pinchZoomCenter.y) * scaleFactor + _worldGestureState.pinchZoomCenter.y];
+  CGFloat worldScaleNew = [self FL_worldConstrainedScale:(handlePinchWorldScaleBegin * gestureRecognizer.scale)];
+  CGFloat scaleFactor = worldScaleNew / handlePinchWorldScaleBegin;
+  [self FL_worldSetConstrainedScale:worldScaleNew
+                          positionX:((handlePinchWorldPositionBegin.x - _worldGestureState.pinchZoomCenter.x) * scaleFactor + _worldGestureState.pinchZoomCenter.x)
+                          positionY:((handlePinchWorldPositionBegin.y - _worldGestureState.pinchZoomCenter.y) * scaleFactor + _worldGestureState.pinchZoomCenter.y)];
 }
 
 - (void)handleConstructionToolbarTap:(UITapGestureRecognizer *)gestureRecognizer
@@ -1369,13 +1362,12 @@ struct PointerPairHash
     [self FL_simulationCycleSpeed];
   } else if ([toolTag isEqualToString:@"center"]) {
     CGPoint trainSceneLocation = [self convertPoint:_train.position fromNode:_worldNode];
-    CGPoint worldPosition = [self FL_worldConstrainedPositionX:_worldNode.position.x - trainSceneLocation.x
-                                                     positionY:_worldNode.position.y - trainSceneLocation.y];
-    SKAction *move = [SKAction moveTo:worldPosition duration:FLWorldAdjustDuration];
-    move.timingMode = SKActionTimingEaseInEaseOut;
-    [_worldNode runAction:move completion:^{
-      self->_cameraMode = FLCameraModeFollowTrain;
-    }];
+    [self FL_worldSetPositionX:(_worldNode.position.x - trainSceneLocation.x)
+                     positionY:(_worldNode.position.y - trainSceneLocation.y)
+              animatedDuration:FLWorldAdjustDuration
+                    completion:^{
+                      self->_cameraMode = FLCameraModeFollowTrain;
+                    }];
   } else if ([toolTag isEqualToString:@"goals"]) {
     [self FL_goalsShowWithSplash:NO];
   }
@@ -1396,15 +1388,7 @@ struct PointerPairHash
   }
 
   if ([toolTag isEqualToString:@"center"]) {
-    CGFloat startScale = _worldNode.xScale;
-    SKAction *scaleWorld = [SKAction customActionWithDuration:FLWorldAdjustDuration actionBlock:^(SKNode *node, CGFloat elapsedTime){
-      CGFloat currentScale = startScale + (1.0f - startScale) * (CGFloat)(elapsedTime / FLWorldAdjustDuration);
-      self->_worldNode.xScale = currentScale;
-      self->_worldNode.yScale = currentScale;
-      [self FL_trackEditMenuScaleToWorld];
-    }];
-    scaleWorld.timingMode = SKActionTimingEaseInEaseOut;
-    [_worldNode runAction:scaleWorld];
+    [self FL_worldSetScale:1.0f animatedDuration:FLWorldAdjustDuration completion:nil];
   }
 }
 
@@ -2135,26 +2119,6 @@ struct PointerPairHash
   }
 }
 
-- (CGPoint)FL_worldConstrainedPositionX:(CGFloat)x positionY:(CGFloat)y
-{
-  const CGFloat FLOffWorldScreenMargin = 30.0f;
-  CGFloat worldXScale = _worldNode.xScale;
-  CGFloat sceneHalfWidth = self.size.width / 2.0f;
-  if (x < FLWorldXMin * worldXScale + sceneHalfWidth - FLOffWorldScreenMargin) {
-    x = FLWorldXMin * worldXScale + sceneHalfWidth - FLOffWorldScreenMargin;
-  } else if (x > FLWorldXMax * worldXScale - sceneHalfWidth + FLOffWorldScreenMargin) {
-    x = FLWorldXMax * worldXScale - sceneHalfWidth + FLOffWorldScreenMargin;
-  }
-  CGFloat worldYScale = _worldNode.yScale;
-  CGFloat sceneHalfHeight = self.size.height / 2.0f;
-  if (y < FLWorldYMin * worldYScale + sceneHalfHeight - FLOffWorldScreenMargin) {
-    y = FLWorldYMin * worldYScale + sceneHalfHeight - FLOffWorldScreenMargin;
-  } else if (y > FLWorldYMax * worldYScale - sceneHalfHeight + FLOffWorldScreenMargin) {
-    y = FLWorldYMax * worldYScale - sceneHalfHeight + FLOffWorldScreenMargin;
-  }
-  return CGPointMake(x, y);
-}
-
 - (void)FL_sceneGetVisibleLeft:(CGFloat *)left right:(CGFloat *)right top:(CGFloat *)top bottom:(CGFloat *)bottom
 {
   CGSize sceneSize = self.size;
@@ -2178,6 +2142,174 @@ struct PointerPairHash
   } else {
     *bottom = sceneSize.height * -1.0f * self.anchorPoint.y;
   }
+}
+
+- (CGPoint)FL_worldConstrainedPositionX:(CGFloat)positionX
+                              positionY:(CGFloat)positionY
+                              forScaleX:(CGFloat)scaleX
+                                 scaleY:(CGFloat)scaleY
+{
+  // note: World position is constrained by scale, not vice versa.
+  const CGFloat FLOffWorldScreenMargin = 30.0f;
+  CGFloat sceneHalfWidth = self.size.width / 2.0f;
+  if (positionX < FLWorldXMin * scaleX + sceneHalfWidth - FLOffWorldScreenMargin) {
+    positionX = FLWorldXMin * scaleX + sceneHalfWidth - FLOffWorldScreenMargin;
+  } else if (positionX > FLWorldXMax * scaleX - sceneHalfWidth + FLOffWorldScreenMargin) {
+    positionX = FLWorldXMax * scaleX - sceneHalfWidth + FLOffWorldScreenMargin;
+  }
+  CGFloat sceneHalfHeight = self.size.height / 2.0f;
+  if (positionY < FLWorldYMin * scaleY + sceneHalfHeight - FLOffWorldScreenMargin) {
+    positionY = FLWorldYMin * scaleY + sceneHalfHeight - FLOffWorldScreenMargin;
+  } else if (positionY > FLWorldYMax * scaleY - sceneHalfHeight + FLOffWorldScreenMargin) {
+    positionY = FLWorldYMax * scaleY - sceneHalfHeight + FLOffWorldScreenMargin;
+  }
+  return CGPointMake(positionX, positionY);
+}
+
+- (CGFloat)FL_worldConstrainedScale:(CGFloat)scale
+{
+  // note: World position is constrained by scale, not vice versa.
+  if (scale < FLWorldScaleMin) {
+    scale = FLWorldScaleMin;
+  } else if (scale > FLWorldScaleMax) {
+    scale = FLWorldScaleMax;
+  }
+  return scale;
+}
+
+- (void)FL_worldSetPositionX:(CGFloat)positionX
+                   positionY:(CGFloat)positionY
+{
+  _worldNode.position = [self FL_worldConstrainedPositionX:positionX
+                                                 positionY:positionY
+                                                 forScaleX:_worldNode.xScale
+                                                    scaleY:_worldNode.yScale];
+}
+
+- (void)FL_worldSetPositionX:(CGFloat)positionX
+                   positionY:(CGFloat)positionY
+            animatedDuration:(NSTimeInterval)duration
+                  completion:(void (^)(void))completion
+{
+  CGPoint worldPosition = [self FL_worldConstrainedPositionX:positionX
+                                                   positionY:positionY
+                                                   forScaleX:_worldNode.xScale
+                                                      scaleY:_worldNode.yScale];
+  SKAction *move = [SKAction moveTo:worldPosition duration:duration];
+  move.timingMode = SKActionTimingEaseInEaseOut;
+  [_worldNode runAction:move completion:completion];
+}
+
+/**
+ * Sets the world scale and updates all interface elements which depend on world
+ * scale.  The passed scale is first constrained to legal values according to
+ * FL_worldConstrainedScale.  Note that world position is constrained by scale,
+ * not vice versa, so world position is one of the dependencies that will be
+ * updated.
+ */
+- (void)FL_worldSetScale:(CGFloat)scale
+{
+  CGFloat constrainedScale = [self FL_worldConstrainedScale:scale];
+  [self FL_worldSetConstrainedScale:constrainedScale
+                          positionX:_worldNode.position.x
+                          positionY:_worldNode.position.y];
+}
+
+/**
+ * Animates the world scale to a new value and updates all interface elements which
+ * depend on world scale (in animation if appropriate).  The passed scale is first
+ * constrained to legal values according to FL_worldConstrainedScale.  Note that
+ * world position is constrained by scale, not vice versa, so world position is one
+ * of the dependencies that will be updated.
+ */
+- (void)FL_worldSetScale:(CGFloat)scale
+        animatedDuration:(NSTimeInterval)duration
+              completion:(void (^)(void))completion
+{
+  CGFloat constrainedScale = [self FL_worldConstrainedScale:scale];
+  // note: Could re-use FL_worldSetConstrainedScale:positionX:positionY:animatedDuration:completion:
+  // here, but that does a little extra unnecessary computation for position (which is assumes is
+  // changing over the animation duration).
+  CGFloat startScale = _worldNode.xScale;
+  CGFloat positionX = _worldNode.position.x;
+  CGFloat positionY = _worldNode.position.y;
+  SKAction *scaleWorld = [SKAction customActionWithDuration:duration actionBlock:^(SKNode *node, CGFloat elapsedTime){
+    CGFloat currentScale = startScale + (constrainedScale - startScale) * (CGFloat)(elapsedTime / duration);
+    node.xScale = currentScale;
+    node.yScale = currentScale;
+    [self FL_trackEditMenuScaleToWorld];
+    // note: Maybe smoother to constrain the position once before animation, and animate
+    // to that position?  Might even be able to skip the constraint checks in the animation,
+    // since any intermediate values will be temporary.
+    node.position = [self FL_worldConstrainedPositionX:positionX
+                                             positionY:positionY
+                                             forScaleX:currentScale
+                                                scaleY:currentScale];
+  }];
+  scaleWorld.timingMode = SKActionTimingEaseInEaseOut;
+  [_worldNode runAction:scaleWorld completion:completion];
+}
+
+/**
+ * Sets the world scale and position and updates all interface elements which depend
+ * on world scale.  The passed scale is first constrained to legal values according to
+ * FL_worldConstrainedScale.  Note that the passed world position is constrained by scale,
+ * not vice versa.
+ *
+ * note: The caller is responsible to constrain the scale value using FL_worldConstrainedScale
+ * before calling this method.  (This is because the caller typically needs to know the final
+ * scale value before calling, and so we shouldn't change it after it's been passed to us.)
+ */
+- (void)FL_worldSetConstrainedScale:(CGFloat)constrainedScale
+                          positionX:(CGFloat)positionX
+                          positionY:(CGFloat)positionY
+{
+  _worldNode.xScale = constrainedScale;
+  _worldNode.yScale = constrainedScale;
+  [self FL_trackEditMenuScaleToWorld];
+  _worldNode.position = [self FL_worldConstrainedPositionX:positionX
+                                                 positionY:positionY
+                                                 forScaleX:constrainedScale
+                                                    scaleY:constrainedScale];
+}
+
+/**
+ * Animates the world scale and position to new values and updates all interface elements
+ * which depend on world scale (in animation if appropriate).  The passed scale is first
+ * constrained to legal values according to FL_worldConstrainedScale.  Note that the passed
+ * world position is constrained by scale, not vice versa.
+ *
+ * note: The caller is responsible to constrain the scale value using FL_worldConstrainedScale
+ * before calling this method.  (This is because the caller typically needs to know the final
+ * scale value before calling, and so we shouldn't change it after it's been passed to us.)
+ */
+- (void)FL_worldSetConstrainedScale:(CGFloat)constrainedScale
+                          positionX:(CGFloat)positionX
+                          positionY:(CGFloat)positionY
+                   animatedDuration:(NSTimeInterval)duration
+                         completion:(void (^)(void))completion
+{
+  CGFloat startScale = _worldNode.xScale;
+  CGFloat startPositionX = _worldNode.position.x;
+  CGFloat startPositionY = _worldNode.position.y;
+  SKAction *scaleWorld = [SKAction customActionWithDuration:duration actionBlock:^(SKNode *node, CGFloat elapsedTime){
+    CGFloat elapsedProportion = (CGFloat)(elapsedTime / duration);
+    CGFloat currentScale = startScale + (constrainedScale - startScale) * elapsedProportion;
+    node.xScale = currentScale;
+    node.yScale = currentScale;
+    [self FL_trackEditMenuScaleToWorld];
+    // note: Maybe smoother to constrain the position once before animation, and animate
+    // to that position?  Might even be able to skip the constraint checks in the animation,
+    // since any intermediate values will be temporary.
+    CGFloat currentPositionX = startPositionX + (positionX - startPositionX) * elapsedProportion;
+    CGFloat currentPositionY = startPositionY + (positionY - startPositionY) * elapsedProportion;
+    node.position = [self FL_worldConstrainedPositionX:currentPositionX
+                                             positionY:currentPositionY
+                                             forScaleX:currentScale
+                                                scaleY:currentScale];
+  }];
+  scaleWorld.timingMode = SKActionTimingEaseInEaseOut;
+  [_worldNode runAction:scaleWorld completion:completion];
 }
 
 - (void)FL_worldFitSegments:(NSArray *)segmentNodes
@@ -2209,9 +2341,9 @@ struct PointerPairHash
   [self FL_sceneGetVisibleLeft:&visibleSceneLeft right:&visibleSceneRight top:&visibleSceneTop bottom:&visibleSceneBottom];
   CGSize visibleSceneSize = CGSizeMake(visibleSceneRight - visibleSceneLeft, visibleSceneTop - visibleSceneBottom);
 
-  BOOL scalingNeeded = NO;
-  CGFloat worldScaleNew;
+  CGFloat worldConstrainedScaleNew = _worldNode.xScale;
   if (scaling) {
+    CGFloat worldScaleNew;
     if (includeTrackEditMenu) {
       // note: For now, don't bother calculating track edit menu width from segmentNodes
       // using [self FL_trackEditMenuWidthForSegments:segmentNodes].  Instead, assume that
@@ -2221,32 +2353,25 @@ struct PointerPairHash
       worldScaleNew = MIN(visibleSceneSize.width / contentWorldSize.width,
                           visibleSceneSize.height / contentWorldSize.height);
     }
-    if (worldScaleNew < FLWorldScaleMin) {
-      worldScaleNew = FLWorldScaleMin;
-    }
-    if (worldScaleNew < _worldNode.xScale) {
-      scalingNeeded = YES;
-    }
+    worldConstrainedScaleNew = [self FL_worldConstrainedScale:worldScaleNew];
   }
 
-  BOOL scrollingNeeded = NO;
   CGPoint worldPositionNew;
   if (scrolling) {
 
     // Calculate some additional helpful scrolling-relevant metrics.
-    CGFloat worldScaleFinal = (scalingNeeded ? worldScaleNew : _worldNode.xScale);
-    CGSize visibleWorldSize = CGSizeMake(visibleSceneSize.width / worldScaleFinal,
-                                         visibleSceneSize.height / worldScaleFinal);
+    CGSize visibleWorldSize = CGSizeMake(visibleSceneSize.width / worldConstrainedScaleNew,
+                                         visibleSceneSize.height / worldConstrainedScaleNew);
     CGPoint visibleSceneCenter = CGPointMake(visibleSceneLeft + (visibleSceneRight - visibleSceneLeft) / 2.0f,
                                              visibleSceneBottom + (visibleSceneTop - visibleSceneBottom) / 2.0f);
-    CGPoint visibleWorldCenter = CGPointMake((visibleSceneCenter.x - _worldNode.position.x) / worldScaleFinal,
-                                             (visibleSceneCenter.y - _worldNode.position.y) / worldScaleFinal);
+    CGPoint visibleWorldCenter = CGPointMake((visibleSceneCenter.x - _worldNode.position.x) / worldConstrainedScaleNew,
+                                             (visibleSceneCenter.y - _worldNode.position.y) / worldConstrainedScaleNew);
 
     // Include track edit menu (if appropriate) in content bounds, size, and center.
     CGPoint contentWorldCenter = CGPointMake(contentWorldLeft + (contentWorldRight - contentWorldLeft) / 2.0f,
                                              contentWorldBottom + (contentWorldTop - contentWorldBottom) / 2.0f);
     if (includeTrackEditMenu) {
-      CGFloat trackEditMenuScale = [self FL_trackEditMenuScaleForWorldScale:worldScaleFinal];
+      CGFloat trackEditMenuScale = [self FL_trackEditMenuScaleForWorldScale:worldConstrainedScaleNew];
       CGFloat trackEditMenuWorldWidth = [self FL_trackEditMenuWidthForSegments:segmentNodes] * trackEditMenuScale;
       if (trackEditMenuWorldWidth > contentWorldSize.width) {
         CGFloat halfTrackEditMenuWorldWidth = trackEditMenuWorldWidth / 2.0f;
@@ -2284,55 +2409,27 @@ struct PointerPairHash
     } else {
       visibleWorldCenterNew.y = contentWorldBottom + visibleWorldSize.height / 2.0f;
     }
-    if (abs(visibleWorldCenter.x - visibleWorldCenterNew.x) > 0.5f
-        || abs(visibleWorldCenter.y - visibleWorldCenterNew.y) > 0.5f) {
-      scrollingNeeded = YES;
-      worldPositionNew.x = visibleSceneCenter.x - visibleWorldCenterNew.x * worldScaleFinal;
-      worldPositionNew.y = visibleSceneCenter.y - visibleWorldCenterNew.y * worldScaleFinal;
-    }
+    worldPositionNew.x = visibleSceneCenter.x - visibleWorldCenterNew.x * worldConstrainedScaleNew;
+    worldPositionNew.y = visibleSceneCenter.y - visibleWorldCenterNew.y * worldConstrainedScaleNew;
   }
   // note: worldPositionNew not yet constrained to world; do it below.
 
-  if (!scalingNeeded && !scrollingNeeded) {
+  if ((!scaling || abs(worldConstrainedScaleNew - _worldNode.xScale) < 0.001f)
+      && (!scrolling || (abs(worldPositionNew.x - _worldNode.position.x) < 0.1f
+                         && abs(worldPositionNew.y - _worldNode.position.y) < 0.1f))) {
     return;
   }
-
-  // note: While scaling out, need to constantly check position so that we don't show too much off-world.
+  
   if (animated) {
-    NSMutableArray *worldFitActions = [NSMutableArray array];
-    if (scalingNeeded) {
-      // TODO: Check if track edit menu changes scale with world scale changes.
-      // Probably need to do that ourselves.  And search for other places where
-      // world scale is changed automatically...if any...
-      [worldFitActions addObject:[SKAction scaleTo:worldScaleNew duration:FLWorldFitDuration]];
-      if (scrollingNeeded) {
-        [worldFitActions addObject:[SKAction customActionWithDuration:FLWorldFitDuration actionBlock:^(SKNode *node, CGFloat elapsedTime){
-          self->_worldNode.position = [self FL_worldConstrainedPositionX:worldPositionNew.x positionY:worldPositionNew.y];
-        }]];
-      } else {
-        [worldFitActions addObject:[SKAction customActionWithDuration:FLWorldFitDuration actionBlock:^(SKNode *node, CGFloat elapsedTime){
-          CGPoint worldPositionCurrent = self->_worldNode.position;
-          self->_worldNode.position = [self FL_worldConstrainedPositionX:worldPositionCurrent.x positionY:worldPositionCurrent.y];
-        }]];
-      }
-    } else {
-      [self FL_worldConstrainedPositionX:0.0f positionY:0.0f];
-      [worldFitActions addObject:[SKAction moveTo:worldPositionNew duration:FLWorldFitDuration]];
-    }
-    [_worldNode runAction:[SKAction group:worldFitActions]];
+    [self FL_worldSetConstrainedScale:worldConstrainedScaleNew
+                            positionX:worldPositionNew.x
+                            positionY:worldPositionNew.y
+                     animatedDuration:FLWorldFitDuration
+                           completion:nil];
   } else {
-    if (scalingNeeded) {
-      _worldNode.xScale = worldScaleNew;
-      _worldNode.yScale = worldScaleNew;
-      if (scrollingNeeded) {
-        _worldNode.position = [self FL_worldConstrainedPositionX:worldPositionNew.x positionY:worldPositionNew.y];
-      } else {
-        CGPoint worldPositionCurrent = self->_worldNode.position;
-        _worldNode.position = [self FL_worldConstrainedPositionX:worldPositionCurrent.x positionY:worldPositionCurrent.y];
-      }
-    } else {
-      _worldNode.position = [self FL_worldConstrainedPositionX:worldPositionNew.x positionY:worldPositionNew.y];
-    }
+    [self FL_worldSetConstrainedScale:worldConstrainedScaleNew
+                            positionX:worldPositionNew.x
+                            positionY:worldPositionNew.y];
   }
 }
 
@@ -2494,8 +2591,8 @@ struct PointerPairHash
   CGFloat scrollXDistance = _worldAutoScrollState.velocityX * (CGFloat)elapsedTime;
   CGFloat scrollYDistance = _worldAutoScrollState.velocityY * (CGFloat)elapsedTime;
   // note: Scrolling velocity is measured in scene units, not world units (i.e. regardless of world scale).
-  _worldNode.position = [self FL_worldConstrainedPositionX:_worldNode.position.x - scrollXDistance / _worldNode.xScale
-                                                 positionY:_worldNode.position.y - scrollYDistance / _worldNode.yScale];
+  [self FL_worldSetPositionX:(_worldNode.position.x - scrollXDistance / _worldNode.xScale)
+                   positionY:(_worldNode.position.y - scrollYDistance / _worldNode.yScale)];
   if (_worldAutoScrollState.gestureUpdateBlock) {
     _worldAutoScrollState.gestureUpdateBlock();
   }
@@ -5021,11 +5118,10 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
       if (duration > FLWorldAdjustDurationSlow) {
         duration = FLWorldAdjustDurationSlow;
       }
-      CGPoint worldPosition = [self FL_worldConstrainedPositionX:_worldNode.position.x - panSceneLocation.x
-                                                       positionY:_worldNode.position.y - panSceneLocation.y];
-      SKAction *move = [SKAction moveTo:worldPosition duration:duration];
-      move.timingMode = SKActionTimingEaseInEaseOut;
-      [_worldNode runAction:move completion:showBackdrop];
+      [self FL_worldSetPositionX:(_worldNode.position.x - panSceneLocation.x)
+                       positionY:(_worldNode.position.y - panSceneLocation.y)
+                animatedDuration:duration
+                      completion:showBackdrop];
       return;
     }
   }

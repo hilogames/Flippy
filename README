@@ -6,10 +6,18 @@ circuits.
 
 Current
 
-  . Consider recentering world as needed when construction tool is
-    released, so that track edit popup menu can fit fully onscreen.
-    (Get the track edit menu to report its width, I guess, and then
-    do the centering in the handleGesture method.)
+  . check world scaling: need something which restricts scale based on
+    world size, so that more than the entire world isn't showing.  and
+    also that makes sure track edit menu is resized at the same time.
+    perhaps we need FL_worldSetScale and FL_worldSetScaleOnly methods,
+    or something.
+
+       . FLWorldScaleMin should be calculated based on screen size,
+         not constant.
+
+  . CHANGE: Starting train shouldn't hide track edit menu during
+    normal game play, I don't think.  Maybe just during the tutorial
+    thing should deselect and hide.
 
   . Make a copy/duplicate of current selection.  Insert the same way
     as an import, so factor out that code.
