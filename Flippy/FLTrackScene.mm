@@ -51,9 +51,7 @@ static const CGFloat FLWorldXMin = -FLWorldSize.width / 2.0f;
 static const CGFloat FLWorldXMax = FLWorldXMin + FLWorldSize.width;
 static const CGFloat FLWorldYMin = -FLWorldSize.height / 2.0f;
 static const CGFloat FLWorldYMax = FLWorldYMin + FLWorldSize.height;
-
-static const CGFloat FLWorldScaleMin = 0.125f;
-static const CGFloat FLWorldScaleMax = 1.0f;
+static const CGFloat FLOffWorldScreenMargin = 30.0f;
 
 // Main layers.
 static const CGFloat FLZPositionWorld = 0.0f;
@@ -676,8 +674,8 @@ struct PointerPairHash
 - (void)didChangeSize:(CGSize)oldSize
 {
   [super didChangeSize:oldSize];
-  // note: Reset current world position using constraints that might now be changed.
-  [self FL_worldSetPositionX:_worldNode.position.x positionY:_worldNode.position.y];
+  // note: Reset current world scale (and thence position) using constraints that might now be changed.
+  [self FL_worldSetScale:_worldNode.xScale];
   [self FL_tutorialUpdateGeometry];
   [self FL_constructionToolbarUpdateGeometry];
   [self FL_simulationToolbarUpdateGeometry];
@@ -2150,7 +2148,6 @@ struct PointerPairHash
                                  scaleY:(CGFloat)scaleY
 {
   // note: World position is constrained by scale, not vice versa.
-  const CGFloat FLOffWorldScreenMargin = 30.0f;
   CGFloat sceneHalfWidth = self.size.width / 2.0f;
   if (positionX < FLWorldXMin * scaleX + sceneHalfWidth - FLOffWorldScreenMargin) {
     positionX = FLWorldXMin * scaleX + sceneHalfWidth - FLOffWorldScreenMargin;
@@ -2168,11 +2165,21 @@ struct PointerPairHash
 
 - (CGFloat)FL_worldConstrainedScale:(CGFloat)scale
 {
-  // note: World position is constrained by scale, not vice versa.
-  if (scale < FLWorldScaleMin) {
-    scale = FLWorldScaleMin;
-  } else if (scale > FLWorldScaleMax) {
+  const CGFloat FLWorldScaleMin = 0.125f;
+  const CGFloat FLWorldScaleMax = 1.0f;
+  
+  // note: World position is constrained by scale, not vice versa.  But minimum
+  // scale is constrained by scene size.
+  if (scale > FLWorldScaleMax) {
     scale = FLWorldScaleMax;
+    return scale;
+  }
+
+  CGFloat worldScaleOffWorldLimit = MAX((self.size.width - FLOffWorldScreenMargin * 2.0f) / FLWorldSize.width,
+                                        (self.size.height - FLOffWorldScreenMargin * 2.0f) / FLWorldSize.height);
+  CGFloat worldScaleMin = MAX(FLWorldScaleMin, worldScaleOffWorldLimit);
+  if (scale < worldScaleMin) {
+    scale = worldScaleMin;
   }
   return scale;
 }
