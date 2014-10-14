@@ -6,10 +6,6 @@ circuits.
 
 Current
 
-  . CHANGE: Starting train shouldn't hide track edit menu during
-    normal game play, I don't think.  Maybe just during the tutorial
-    thing should deselect and hide.
-
   . Limit paragraph width even on very large scene sizes, to improve
     readability.
 

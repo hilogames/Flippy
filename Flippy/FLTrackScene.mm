@@ -1348,7 +1348,6 @@ struct PointerPairHash
       [delegate trackSceneDidTapMenuButton:self];
     }
   } else if ([toolTag isEqualToString:@"play"]) {
-    [self FL_trackEditMenuHideAnimated:YES];
     [self FL_simulationStart];
     [_trackNode runAction:[SKAction playSoundFileNamed:@"train-whistle-2.caf" waitForCompletion:NO]];
   } else if ([toolTag isEqualToString:@"pause"]) {
