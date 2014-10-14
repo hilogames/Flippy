@@ -90,9 +90,10 @@ static const CGFloat FLTrackEditMenuWorldInverseScaleFactor = 1.0f / 3.0f;
 static const CGFloat FLTrackEditMenuWorldScaleMinimum = 2.0f / 3.0f;
 static const CGFloat FLTrackEditMenuSegmentPad = 20.0f;
 
+static const CGFloat FLDSMultelineLabelParagraphWidthReadableMax = 480.0f;
 // note: I've seen strings display wider than the paragraph width specified;
 // so pad it a little.
-static const CGFloat FLDSMultilineLabelParagraphWidthPad = 10.0f;
+static const CGFloat FLDSMultilineLabelParagraphWidthBugWorkaroundPad = 10.0f;
 
 static NSString *FLGatesDirectoryPath;
 static NSString *FLCircuitsDirectoryPath;
@@ -3239,7 +3240,7 @@ struct PointerPairHash
   NSMutableArray *layoutNodes = [NSMutableArray array];
 
   // note: Show in a square that won't have to change size if the interface rotates.
-  CGFloat edgeSizeMax = MIN(self.size.width, self.size.height);
+  CGFloat edgeSizeMax = MIN(MIN(self.size.width, self.size.height), FLDSMultelineLabelParagraphWidthReadableMax);
   DSMultilineLabelNode *introNode = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
   introNode.zPosition = FLZPositionGoalsOverlayContent;
   introNode.fontSize = 18.0f;
@@ -3260,7 +3261,7 @@ struct PointerPairHash
                       introNode.text,
                       NSLocalizedString(@"Current Results", @"Game information: on the goals screen, the header over the displayed results of the current level solution."0)];
   }
-  introNode.paragraphWidth = edgeSizeMax - FLDSMultilineLabelParagraphWidthPad;
+  introNode.paragraphWidth = edgeSizeMax - FLDSMultilineLabelParagraphWidthBugWorkaroundPad;
   [layoutNodes addObject:introNode];
 
   HLLabelButtonNode *victoryButton = nil;
@@ -3309,7 +3310,7 @@ struct PointerPairHash
       resultNode.fontSize = 18.0f;
       resultNode.fontColor = resultColor;
       resultNode.text = resultText;
-      resultNode.paragraphWidth = edgeSizeMax - FLDSMultilineLabelParagraphWidthPad;
+      resultNode.paragraphWidth = edgeSizeMax - FLDSMultilineLabelParagraphWidthBugWorkaroundPad;
       [layoutNodes addObject:resultNode];
     }
     if (_gameType == FLGameTypeChallenge && victory) {
@@ -5034,13 +5035,16 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
   _tutorialState.backdropNode = backdropNode;
   backdropNode.zPosition = FLZPositionTutorial;
 
-  const CGFloat FLTutorialLabelPad = 5.0f;
   DSMultilineLabelNode *labelNode = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
   labelNode.zPosition = 0.1f;
   labelNode.fontSize = 20.0f;
   labelNode.fontColor = [SKColor whiteColor];
   labelNode.text = label;
-  labelNode.paragraphWidth = MIN(sceneSize.width, sceneSize.height) - FLDSMultilineLabelParagraphWidthPad - FLTutorialLabelPad * 2.0f;
+  // note: Adding a little extra padding to the sides of the text.  Maybe this should be for all paragraphs,
+  // but for now it makes sense to me that tutorial messages are supposed to be especially padded.
+  const CGFloat FLTutorialLabelPad = 10.0f;
+  CGFloat edgeSizeMax = MIN(MIN(sceneSize.width, sceneSize.height) - FLTutorialLabelPad, FLDSMultelineLabelParagraphWidthReadableMax);
+  labelNode.paragraphWidth = edgeSizeMax - FLDSMultilineLabelParagraphWidthBugWorkaroundPad;
   [backdropNode addChild:labelNode];
 
   // Layout label relative to cutouts (if appropriate).

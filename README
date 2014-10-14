@@ -6,9 +6,6 @@ circuits.
 
 Current
 
-  . Limit paragraph width even on very large scene sizes, to improve
-    readability.
-
   . Make a copy/duplicate of current selection.  Insert the same way
     as an import, so factor out that code.
 
