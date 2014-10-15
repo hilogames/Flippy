@@ -6,15 +6,15 @@ circuits.
 
 Current
 
-  . Make a copy/duplicate of current selection.  Insert the same way
-    as an import, so factor out that code.
-
   . Mirror tool especially for mirroring a large selection.  (And
     maybe then remove mirror images from segment construction
     toolbar, since it would work for single segments, too.)
 
   . Rotation gesture recognizer for rotation; flick for deletion;
     pinch or something for mirror.
+
+  . A tool/gesture for selecting everything connected to the current
+    segment.  Triple-tap.
 
   . Selecting straight segments or platforms sucks.  Can we do a
     closest-segment to click thing on selection/tap, not just for
@@ -116,9 +116,6 @@ Lower Priority
     direction of the other endpoint, but then if the other endpoint
     has the same X or Y coordinate, then bend it 45 degrees or
     something.
-
-  . A tool/gesture for selecting everything connected to the current
-    segment.
 
   . Inertia for scrolling pan motion.
 

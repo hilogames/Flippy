@@ -145,3 +145,26 @@ linksToggleSwitchPathId(const FLLinks& links, FLSegmentNode *segmentNode, BOOL a
   }
   return pathId;
 }
+
+NSArray *
+linksIntersect(const FLLinks& links, NSSet *segmentNodePointers)
+{
+  // note: Linear traversal of links, for now, since the FLLinks::get() on a single
+  // segment does a linear traversal also.
+  NSMutableArray *intersectingLinks = [NSMutableArray array];
+  for (auto link : links) {
+    FLSegmentNode *fromSegmentNode = (__bridge FLSegmentNode *)link.first.first;
+    NSValue *fromSegmentNodePointer = [NSValue valueWithPointer:(void *)fromSegmentNode];
+    if (![segmentNodePointers containsObject:fromSegmentNodePointer]) {
+      continue;
+    }
+    FLSegmentNode *toSegmentNode = (__bridge FLSegmentNode *)link.first.second;
+    NSValue *toSegmentNodePointer = [NSValue valueWithPointer:(void *)toSegmentNode];
+    if (![segmentNodePointers containsObject:toSegmentNodePointer]) {
+      continue;
+    }
+    [intersectingLinks addObject:fromSegmentNode];
+    [intersectingLinks addObject:toSegmentNode];
+  }
+  return intersectingLinks;
+}

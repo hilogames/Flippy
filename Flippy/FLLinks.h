@@ -89,4 +89,22 @@ void linksSetSwitchPathId(const FLLinks& links, FLSegmentNode *segmentNode, int 
  */
 int linksToggleSwitchPathId(const FLLinks& links, FLSegmentNode *segmentNode, BOOL animated);
 
+/**
+ * Returns a list of segments that are linked in the passed FLLinks and also
+ * both exist in the passed segment node collection.
+ *
+ * note: The operation is fairly trivial; the distinction is mostly in the particular
+ * containers passed and returned.  The main reason this is included in FLLinks, though,
+ * is because the performance of the implementation might change greatly depending on the
+ * implementation of FLLinks.
+ *
+ * @param Links.
+ *
+ * @param An NSSet of NSValues representing segment pointers.
+ *
+ * @return A list of linked segment objects in pairs: The first segment is linked to the
+ *         second; the third to the fourth; etc.  (Objects are retained FLSegmentNode pointers.)
+ */
+NSArray *linksIntersect(const FLLinks& links, NSSet *segmentNodePointers);
+
 #endif /* defined(__Flippy__FLLinks__) */

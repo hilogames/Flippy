@@ -100,7 +100,6 @@ static NSString *FLCircuitsDirectoryPath;
 static NSString *FLExportsDirectoryPath;
 
 static SKColor *FLSceneBackgroundColor = [SKColor blackColor];
-//static SKColor *FLSceneBackgroundColor = [SKColor colorWithRed:0.4f green:0.6f blue:0.0f alpha:1.0f];
 
 static const CGFloat FLCursorNodeAlpha = 0.4f;
 
@@ -1141,10 +1140,11 @@ struct PointerPairHash
 
   } else if (toolType == FLToolbarToolTypeActionTap) {
 
+    
     if ([toolTag isEqualToString:@"export"]) {
       if ([self FL_trackSelectedNone]) {
         [self FL_messageShow:NSLocalizedString(@"Export: Make a selection.",
-                                               @"Message to user: Shown when export button is pressed but no track selection currently exists.")];
+                                               @"Message to user: Shown when export button is pressed but no track is selected.")];
       } else {
         [self FL_export];
       }
@@ -1222,7 +1222,13 @@ struct PointerPairHash
       _worldGestureState.panType = FLWorldPanTypeNone;
       return;
     }
-    [self FL_trackSelectClear];
+    if ([toolTag isEqualToString:@"duplicate"] && [self FL_trackSelectedNone]) {
+      [self FL_messageShow:NSLocalizedString(@"Duplicate: Make a selection.",
+                                             @"Message to user: Shown when duplicate button is dragged but no track is selected.")];
+      _worldGestureState.panType = FLWorldPanTypeNone;
+      return;
+    }
+
     _worldGestureState.panType = FLWorldPanTypeTrackMove;
 
     if (_tutorialState.tutorialActive) {
@@ -1230,6 +1236,7 @@ struct PointerPairHash
     }
 
     if ([_constructionToolbarState.currentNavigation isEqualToString:@"segments"]) {
+      [self FL_trackSelectClear];
 
       // Create segment.
       FLSegmentType segmentType = (FLSegmentType)[_constructionToolbarState.toolSegmentTypes[toolTag] integerValue];
@@ -1244,7 +1251,49 @@ struct PointerPairHash
       int gridY;
       _trackGrid->convert(worldLocation, &gridX, &gridY);
       newSegmentNode.position = _trackGrid->convert(gridX, gridY);
+      [self FL_trackSelectClear];
       [self FL_trackMoveBeganWithNodes:@[ newSegmentNode ] location:worldLocation completion:nil];
+
+    } else if ([toolTag isEqualToString:@"duplicate"]) {
+
+      // Copy selected segments.
+      NSArray *duplicatedSegmentNodes = [[NSArray alloc] initWithArray:_trackSelectState.selectedSegments copyItems:YES];
+      // note: A reasonably fast n^2?  Could put this off until segments placed, but if it's
+      // fast enough it's neater to do it ahead of time.
+      NSMutableArray *links = [NSMutableArray array];
+      NSUInteger segmentNodeCount = [_trackSelectState.selectedSegments count];
+      for (NSUInteger i = 0; i < segmentNodeCount; ++i) {
+        for (NSUInteger j = i + 1; j < segmentNodeCount; ++j) {
+          if (_links.get(_trackSelectState.selectedSegments[i], _trackSelectState.selectedSegments[j])) {
+            [links addObject:duplicatedSegmentNodes[i]];
+            [links addObject:duplicatedSegmentNodes[j]];
+          }
+        }
+      }
+      
+      // Locate the new segments underneath the current touch.
+      //
+      // note: Do so even though they are not yet added to the node hierarchy.  (The track move
+      // routines translate nodes relative to their current position.)
+      [self FL_segments:duplicatedSegmentNodes setPositionCenteredOnLocation:worldLocation];
+      
+      // Scale world to fit import, if possible.
+      [self FL_worldFitSegments:duplicatedSegmentNodes scaling:YES scrolling:NO includeTrackEditMenu:YES animated:YES];
+      
+      // Begin track move.
+      [self FL_messageShow:NSLocalizedString(@"Duplicated selection to track.",
+                                             @"Message to user: Shown after successful duplication of track selection.")];
+      [self FL_trackSelectClear];
+      [self FL_trackMoveBeganWithNodes:duplicatedSegmentNodes location:worldLocation completion:^(BOOL placed){
+        if (placed) {
+          for (NSUInteger l = 0; l + 1 < [links count]; l += 2) {
+            FLSegmentNode *a = links[l];
+            FLSegmentNode *b = links[l + 1];
+            SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:a.switchPosition toLocation:b.switchPosition linkErase:NO];
+            self->_links.insert(a, b, connectorNode);
+          }
+        }
+      }];
 
     } else {
 
@@ -1283,14 +1332,12 @@ struct PointerPairHash
       [self FL_messageShow:[NSString stringWithFormat:NSLocalizedString(@"Added “%@” to track.",
                                                                         @"Message to user: Shown after successful import of {export name}."),
                             description]];
+      [self FL_trackSelectClear];
       [self FL_trackMoveBeganWithNodes:newSegmentNodes location:worldLocation completion:^(BOOL placed){
         if (placed) {
-          NSUInteger l = 0;
-          while (l + 1 < [links count]) {
+          for (NSUInteger l = 0; l + 1 < [links count]; l += 2) {
             FLSegmentNode *a = links[l];
-            ++l;
-            FLSegmentNode *b = links[l];
-            ++l;
+            FLSegmentNode *b = links[l + 1];
             SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:a.switchPosition toLocation:b.switchPosition linkErase:NO];
             self->_links.insert(a, b, connectorNode);
           }
@@ -1780,6 +1827,7 @@ struct PointerPairHash
   [textureStore setTextureWithImageNamed:@"link" forKey:@"link" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"show-labels" forKey:@"show-labels" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"show-values" forKey:@"show-values" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"duplicate" forKey:@"duplicate" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"export" forKey:@"export" filteringMode:SKTextureFilteringLinear];
 
   // Other.
@@ -1886,18 +1934,7 @@ struct PointerPairHash
 
   [aCoder encodeObject:trackDescription forKey:@"trackDescription"];
   [aCoder encodeObject:_trackSelectState.selectedSegments forKey:@"segmentNodes"];
-  NSMutableArray *links = [NSMutableArray array];
-  for (auto link : _links) {
-    FLSegmentNode *fromSegmentNode = (__bridge FLSegmentNode *)link.first.first;
-    FLSegmentNode *toSegmentNode = (__bridge FLSegmentNode *)link.first.second;
-    NSValue *fromSegmentNodePointer = [NSValue valueWithPointer:(void *)fromSegmentNode];
-    NSValue *toSegmentNodePointer = [NSValue valueWithPointer:(void *)toSegmentNode];
-    if ([_trackSelectState.selectedSegmentPointers containsObject:fromSegmentNodePointer]
-        && [_trackSelectState.selectedSegmentPointers containsObject:toSegmentNodePointer]) {
-      [links addObject:fromSegmentNode];
-      [links addObject:toSegmentNode];
-    }
-  }
+  NSArray *links = linksIntersect(_links, _trackSelectState.selectedSegmentPointers);
   [aCoder encodeObject:links forKey:@"links"];
   [aCoder finishEncoding];
   [archiveData writeToFile:exportPath atomically:NO];
@@ -2350,17 +2387,20 @@ struct PointerPairHash
 
   CGFloat worldConstrainedScaleNew = _worldNode.xScale;
   if (scaling) {
-    CGFloat worldScaleNew;
+    CGFloat worldScaleFit;
     if (includeTrackEditMenu) {
       // note: For now, don't bother calculating track edit menu width from segmentNodes
       // using [self FL_trackEditMenuWidthForSegments:segmentNodes].  Instead, assume that
       // the toolbar width fits on the screen at all world scales.
-      worldScaleNew = [self FL_trackEditMenuWorldScaleToFitSegmentSize:contentWorldSize intoTargetSceneSize:visibleSceneSize withTrackEditMenuWidth:0.0f];
+      worldScaleFit = [self FL_trackEditMenuWorldScaleToFitSegmentSize:contentWorldSize intoTargetSceneSize:visibleSceneSize withTrackEditMenuWidth:0.0f];
     } else {
-      worldScaleNew = MIN(visibleSceneSize.width / contentWorldSize.width,
+      worldScaleFit = MIN(visibleSceneSize.width / contentWorldSize.width,
                           visibleSceneSize.height / contentWorldSize.height);
     }
-    worldConstrainedScaleNew = [self FL_worldConstrainedScale:worldScaleNew];
+    CGFloat worldConstrainedScaleFit = [self FL_worldConstrainedScale:worldScaleFit];
+    if (worldConstrainedScaleFit < worldConstrainedScaleNew) {
+      worldConstrainedScaleNew = worldConstrainedScaleFit;
+    }
   }
 
   CGPoint worldPositionNew;
@@ -2711,6 +2751,13 @@ struct PointerPairHash
   [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionTap);
 
+  textureKey = @"duplicate";
+  [toolTags addObject:textureKey];
+  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+  _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
+  _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Drag to duplicate selected track.",
+                                                                             @"Message to user: shown when the duplicate tool (in the bottom toolbar) is tapped.");
+
   textureKey = @"export";
   [toolTags addObject:textureKey];
   [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
@@ -2735,7 +2782,8 @@ struct PointerPairHash
   toolNode.position = CGPointMake(FLSegmentArtStraightShift, 0.0f);
   [toolNodes addObject:toolNode];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
-  _constructionToolbarState.toolDescriptions[textureKey] = @"Straight Track";
+  _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Straight Track",
+                                                                             @"The name of the straight track segment.");
   _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypeStraight);
 
   textureKey = @"curve";
@@ -2744,7 +2792,8 @@ struct PointerPairHash
   toolNode.position = CGPointMake(FLSegmentArtCurveShift, -FLSegmentArtCurveShift);
   [toolNodes addObject:toolNode];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
-  _constructionToolbarState.toolDescriptions[textureKey] = @"Curved Track";
+  _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Curved Track",
+                                                                             @"The name of the curved track segment.");
   _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypeCurve);
 
   textureKey = @"join-left";
@@ -2753,7 +2802,8 @@ struct PointerPairHash
   toolNode.position = CGPointMake(FLSegmentArtCurveShift, -FLSegmentArtCurveShift);
   [toolNodes addObject:toolNode];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
-  _constructionToolbarState.toolDescriptions[textureKey] = @"Fork Right Track";
+  _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Fork Right Track",
+                                                                             @"The name of the track segment with one straight section and one that curves away to the right.");
   _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypeJoinLeft);
 
   textureKey = @"join-right";
@@ -2762,28 +2812,32 @@ struct PointerPairHash
   toolNode.position = CGPointMake(FLSegmentArtCurveShift, FLSegmentArtCurveShift);
   [toolNodes addObject:toolNode];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
-  _constructionToolbarState.toolDescriptions[textureKey] = @"Fork Left Track";
+  _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Fork Left Track",
+                                                                             @"The name of the track segment with one straight section and one that curves away to the left.");
   _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypeJoinRight);
 
   textureKey = @"jog-left";
   [toolTags addObject:textureKey];
   [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
-  _constructionToolbarState.toolDescriptions[textureKey] = @"Jog Left Track";
+  _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Jog Left Track",
+                                                                             @"The name of the track segment that jogs to the left.");
   _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypeJogLeft);
 
   textureKey = @"jog-right";
   [toolTags addObject:textureKey];
   [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
-  _constructionToolbarState.toolDescriptions[textureKey] = @"Jog Right Track";
+  _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Jog Right Track",
+                                                                             @"The name of the track segment that jogs to the right.");
   _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypeJogRight);
 
   textureKey = @"cross";
   [toolTags addObject:textureKey];
   [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
-  _constructionToolbarState.toolDescriptions[textureKey] = @"Cross Track";
+  _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Cross Track",
+                                                                             @"The name of the track segment that is shaped like an X.");
   _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypeCross);
 
   if (_gameType == FLGameTypeSandbox) {
@@ -2791,7 +2845,8 @@ struct PointerPairHash
     [toolTags addObject:textureKey];
     [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
     _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
-    _constructionToolbarState.toolDescriptions[textureKey] = @"Input Value";
+    _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Input Value",
+                                                                               @"The name of the track segment that shows input values.");
     _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypeReadoutInput);
   }
 
@@ -2800,7 +2855,8 @@ struct PointerPairHash
     [toolTags addObject:textureKey];
     [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
     _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
-    _constructionToolbarState.toolDescriptions[textureKey] = @"Output Value";
+    _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Output Value",
+                                                                               @"The name of the track segment that shows output values.");
     _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypeReadoutOutput);
   }
 
@@ -2811,7 +2867,8 @@ struct PointerPairHash
     toolNode.position = CGPointMake(FLSegmentArtStraightShift, 0.0f);
     [toolNodes addObject:toolNode];
     _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
-    _constructionToolbarState.toolDescriptions[textureKey] = @"Platform";
+    _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Platform",
+                                                                               @"The name of the (non-starting) platform track segment.");
     _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypePlatform);
   }
 
@@ -2822,7 +2879,8 @@ struct PointerPairHash
     toolNode.position = CGPointMake(FLSegmentArtStraightShift, 0.0f);
     [toolNodes addObject:toolNode];
     _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
-    _constructionToolbarState.toolDescriptions[textureKey] = @"Starting Platform";
+    _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Starting Platform",
+                                                                               @"The name of the starting platform track segment.");
     _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypePlatformStart);
   }
 
