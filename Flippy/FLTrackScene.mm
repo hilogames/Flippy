@@ -1139,7 +1139,6 @@ struct PointerPairHash
     }
 
   } else if (toolType == FLToolbarToolTypeActionTap) {
-
     
     if ([toolTag isEqualToString:@"export"]) {
       if ([self FL_trackSelectedNone]) {
@@ -1445,9 +1444,13 @@ struct PointerPairHash
   NSString *buttonTag = [_trackEditMenuState.editMenuNode toolAtLocation:toolbarLocation];
 
   if ([buttonTag isEqualToString:@"rotate-cw"]) {
-    [self FL_trackRotateSegments:_trackSelectState.selectedSegments rotateBy:-1 animated:YES];
+    [self FL_trackRotateSegments:_trackSelectState.selectedSegments pointers:_trackSelectState.selectedSegmentPointers rotateBy:-1 animated:YES];
   } else if ([buttonTag isEqualToString:@"rotate-ccw"]) {
-    [self FL_trackRotateSegments:_trackSelectState.selectedSegments rotateBy:1 animated:YES];
+    [self FL_trackRotateSegments:_trackSelectState.selectedSegments pointers:_trackSelectState.selectedSegmentPointers rotateBy:1 animated:YES];
+  } else if ([buttonTag isEqualToString:@"flip-horizontal"]) {
+    [self FL_trackFlipSegments:_trackSelectState.selectedSegments pointers:_trackSelectState.selectedSegmentPointers direction:FLSegmentFlipHorizontal];
+  } else if ([buttonTag isEqualToString:@"flip-vertical"]) {
+    [self FL_trackFlipSegments:_trackSelectState.selectedSegments pointers:_trackSelectState.selectedSegmentPointers direction:FLSegmentFlipVertical];
   } else if ([buttonTag isEqualToString:@"toggle-switch"]) {
     [self FL_linkSwitchTogglePathIdForSegments:_trackSelectState.selectedSegments animated:YES];
   } else if ([buttonTag isEqualToString:@"set-label"]) {
@@ -1737,11 +1740,12 @@ struct PointerPairHash
   [self FL_simulationStop];
   [_trackNode runAction:[SKAction playSoundFileNamed:@"train-stop-hiss.caf" waitForCompletion:NO]];
 
+  FLSegmentType segmentType = segmentNode.segmentType;
   if (_gameType == FLGameTypeChallenge) {
-    if (segmentNode.segmentType == FLSegmentTypePlatform) {
+    if (segmentType == FLSegmentTypePlatformLeft || segmentType == FLSegmentTypePlatformRight) {
       FLSegmentNode *platformStartSegmentNode = nil;
       for (auto s : *_trackGrid) {
-        if (s.second.segmentType == FLSegmentTypePlatformStart) {
+        if (s.second.segmentType == FLSegmentTypePlatformStartLeft || s.second.segmentType == FLSegmentTypePlatformStartRight) {
           platformStartSegmentNode = s.second;
           break;
         }
@@ -1754,7 +1758,8 @@ struct PointerPairHash
         }];
       }
     }
-  } else if (segmentNode.segmentType == FLSegmentTypePlatform || segmentNode.segmentType == FLSegmentTypePlatformStart) {
+  } else if (segmentType == FLSegmentTypePlatformLeft || segmentType == FLSegmentTypePlatformRight
+             || segmentType == FLSegmentTypePlatformStartLeft || segmentType == FLSegmentTypePlatformStartRight) {
     // note: Strictly speaking, we aren't allowed to mess with the train's zRotation.  But
     // we know the train is stopped, and we know we'll put it back on track in a second.
     const NSTimeInterval FLTrainRotateDuration = 0.4;
@@ -1815,6 +1820,8 @@ struct PointerPairHash
   [textureStore setTextureWithImageNamed:@"delete" forKey:@"delete" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"rotate-cw" forKey:@"rotate-cw" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"rotate-ccw" forKey:@"rotate-ccw" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"flip-horizontal" forKey:@"flip-horizontal" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"flip-vertical" forKey:@"flip-vertical" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"set-label" forKey:@"set-label" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"toggle-switch" forKey:@"toggle-switch" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"main" forKey:@"main" filteringMode:SKTextureFilteringLinear];
@@ -1843,8 +1850,10 @@ struct PointerPairHash
   [textureStore setTextureWithImageNamed:@"jog-left" andUIImageWithImageNamed:@"jog-left-nonatlas" forKey:@"jog-left" filteringMode:SKTextureFilteringNearest];
   [textureStore setTextureWithImageNamed:@"jog-right" andUIImageWithImageNamed:@"jog-right-nonatlas" forKey:@"jog-right" filteringMode:SKTextureFilteringNearest];
   [textureStore setTextureWithImageNamed:@"cross" andUIImageWithImageNamed:@"cross-nonatlas" forKey:@"cross" filteringMode:SKTextureFilteringNearest];
-  [textureStore setTextureWithImageNamed:@"platform" andUIImageWithImageNamed:@"platform-nonatlas" forKey:@"platform" filteringMode:SKTextureFilteringNearest];
-  [textureStore setTextureWithImageNamed:@"platform-start" andUIImageWithImageNamed:@"platform-start-nonatlas" forKey:@"platform-start" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"platform-left" andUIImageWithImageNamed:@"platform-left-nonatlas" forKey:@"platform-left" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"platform-right" andUIImageWithImageNamed:@"platform-right-nonatlas" forKey:@"platform-right" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"platform-start-left" andUIImageWithImageNamed:@"platform-start-left-nonatlas" forKey:@"platform-start-left" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"platform-start-right" andUIImageWithImageNamed:@"platform-start-right-nonatlas" forKey:@"platform-start-right" filteringMode:SKTextureFilteringNearest];
   // note: This looks particularly bad when used as a toolbar image -- which in fact is its only purpose.  But *all*
   // the segments look bad, so I'm choosing not to use linear filtering on this one, for now; see the TODO in HLToolbarNode.
   [textureStore setTextureWithImage:[FLSegmentNode createImageForReadoutSegment:FLSegmentTypeReadoutInput imageSize:FLSegmentArtSizeFull] forKey:@"readout-input" filteringMode:SKTextureFilteringLinear];
@@ -2419,7 +2428,10 @@ struct PointerPairHash
                                              contentWorldBottom + (contentWorldTop - contentWorldBottom) / 2.0f);
     if (includeTrackEditMenu) {
       CGFloat trackEditMenuScale = [self FL_trackEditMenuScaleForWorldScale:worldConstrainedScaleNew];
-      CGFloat trackEditMenuWorldWidth = [self FL_trackEditMenuWidthForSegments:segmentNodes] * trackEditMenuScale;
+      // note: If track edit menu is wider than the content, then we lose the pad previously added to the
+      // content width.  Add a (smaller) pad appropriate to the track edit menu.
+      const CGFloat FLWorldFitTrackEditMenuWidthPad = FLTrackEditMenuBackgroundBorderSize * 2.0f;
+      CGFloat trackEditMenuWorldWidth = ([self FL_trackEditMenuWidthForSegments:segmentNodes] + FLWorldFitTrackEditMenuWidthPad) * trackEditMenuScale;
       if (trackEditMenuWorldWidth > contentWorldSize.width) {
         CGFloat halfTrackEditMenuWorldWidth = trackEditMenuWorldWidth / 2.0f;
         contentWorldLeft = contentWorldCenter.x - halfTrackEditMenuWorldWidth;
@@ -2861,7 +2873,7 @@ struct PointerPairHash
   }
 
   if (_gameType == FLGameTypeSandbox) {
-    textureKey = @"platform";
+    textureKey = @"platform-left";
     [toolTags addObject:textureKey];
     toolNode = [self FL_createToolNodeForTextureKey:textureKey];
     toolNode.position = CGPointMake(FLSegmentArtStraightShift, 0.0f);
@@ -2869,11 +2881,11 @@ struct PointerPairHash
     _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
     _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Platform",
                                                                                @"The name of the (non-starting) platform track segment.");
-    _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypePlatform);
+    _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypePlatformLeft);
   }
 
   if (_gameType == FLGameTypeSandbox) {
-    textureKey = @"platform-start";
+    textureKey = @"platform-start-left";
     [toolTags addObject:textureKey];
     toolNode = [self FL_createToolNodeForTextureKey:textureKey];
     toolNode.position = CGPointMake(FLSegmentArtStraightShift, 0.0f);
@@ -2881,7 +2893,7 @@ struct PointerPairHash
     _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
     _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Starting Platform",
                                                                                @"The name of the starting platform track segment.");
-    _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypePlatformStart);
+    _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypePlatformStartLeft);
   }
 
   // note: Currently we create all tools and then discard those that aren't on the current page.
@@ -4098,12 +4110,19 @@ struct PointerPairHash
   CGFloat segmentsPositionTop;
   CGFloat segmentsPositionBottom;
   [self FL_segments:segmentNodes getExtremesLeft:&segmentsPositionLeft right:&segmentsPositionRight top:&segmentsPositionTop bottom:&segmentsPositionBottom];
-  BOOL hasSwitch = NO;
-  BOOL canHaveSwitch = NO;
-  BOOL canLabelAny = (_gameType == FLGameTypeSandbox);
-  BOOL canDeleteAny = NO;
+  BOOL hasSwitch;
+  BOOL canHaveSwitch;
+  BOOL canLabelAny;
+  BOOL canDeleteAny;
+  BOOL canFlipAny;
   NSUInteger toolCount;
-  [self FL_trackEditMenuGetTraitsForSegments:segmentNodes hasSwitch:&hasSwitch canHaveSwitch:&canHaveSwitch canLabelAny:&canLabelAny canDeleteAny:&canDeleteAny toolCount:&toolCount];
+  [self FL_trackEditMenuGetTraitsForSegments:segmentNodes
+                                   hasSwitch:&hasSwitch
+                               canHaveSwitch:&canHaveSwitch
+                                 canLabelAny:&canLabelAny
+                                canDeleteAny:&canDeleteAny
+                                  canFlipAny:&canFlipAny
+                                   toolCount:&toolCount];
 
   // Update tools.
   NSMutableArray *textureKeys = [NSMutableArray array];
@@ -4115,6 +4134,10 @@ struct PointerPairHash
     [textureKeys addObject:@"set-label"];
   }
   [textureKeys addObject:@"delete"];
+  if (canFlipAny) {
+    [textureKeys addObject:@"flip-horizontal"];
+    [textureKeys addObject:@"flip-vertical"];
+  }
   [textureKeys addObject:@"rotate-cw"];
   // note: Internal checking here to make sure of consistent logic.
   if ([textureKeys count] != toolCount) {
@@ -4151,11 +4174,11 @@ struct PointerPairHash
                                canHaveSwitch:(BOOL *)canHaveSwitch
                                  canLabelAny:(BOOL *)canLabelAny
                                 canDeleteAny:(BOOL *)canDeleteAny
+                                  canFlipAny:(BOOL *)canFlipAny
                                    toolCount:(NSUInteger *)toolCount
 {
   *hasSwitch = NO;
   *canHaveSwitch = NO;
-  *canLabelAny = (_gameType == FLGameTypeSandbox);
   for (FLSegmentNode *segmentNode in segmentNodes) {
     if ([segmentNode canHaveSwitch]) {
       *canHaveSwitch = YES;
@@ -4165,6 +4188,7 @@ struct PointerPairHash
       }
     }
   }
+  *canLabelAny = (_gameType == FLGameTypeSandbox);
   *canDeleteAny = NO;
   if (_gameType == FLGameTypeSandbox) {
     *canDeleteAny = YES;
@@ -4176,6 +4200,13 @@ struct PointerPairHash
       }
     }
   }
+  *canFlipAny = NO;
+  for (FLSegmentNode *segmentNode in segmentNodes) {
+    if ([segmentNode canFlip]) {
+      *canFlipAny = YES;
+      break;
+    }
+  }
   *toolCount = 3;
   if (*canHaveSwitch) {
     ++(*toolCount);
@@ -4183,18 +4214,30 @@ struct PointerPairHash
   if (*canLabelAny) {
     ++(*toolCount);
   }
+  if (*canFlipAny) {
+    (*toolCount) += 2;
+  }
 }
 
 - (CGFloat)FL_trackEditMenuWidthForSegments:(NSArray *)segmentNodes
 {
   // note: At scale = 1.
-  BOOL hasSwitch = NO;
-  BOOL canHaveSwitch = NO;
-  BOOL canLabelAny = (_gameType == FLGameTypeSandbox);
-  BOOL canDeleteAny = NO;
+  BOOL hasSwitch;
+  BOOL canHaveSwitch;
+  BOOL canLabelAny;
+  BOOL canDeleteAny;
+  BOOL canFlipAny;
   NSUInteger toolCount;
-  [self FL_trackEditMenuGetTraitsForSegments:segmentNodes hasSwitch:&hasSwitch canHaveSwitch:&canHaveSwitch canLabelAny:&canLabelAny canDeleteAny:&canDeleteAny toolCount:&toolCount];
-  return (FLTrackEditMenuHeight - 2.0f * FLTrackEditMenuBackgroundBorderSize + FLTrackEditMenuSquareSeparatorSize) * toolCount - FLTrackEditMenuSquareSeparatorSize;
+  [self FL_trackEditMenuGetTraitsForSegments:segmentNodes
+                                   hasSwitch:&hasSwitch
+                               canHaveSwitch:&canHaveSwitch
+                                 canLabelAny:&canLabelAny
+                                canDeleteAny:&canDeleteAny
+                                  canFlipAny:&canFlipAny
+                                   toolCount:&toolCount];
+  return (FLTrackEditMenuHeight - 2.0f * FLTrackEditMenuBackgroundBorderSize + FLTrackEditMenuSquareSeparatorSize) * toolCount
+    - FLTrackEditMenuSquareSeparatorSize
+    + 2.0f * FLTrackEditMenuBackgroundBorderSize;
 }
 
 - (void)FL_trackEditMenuHideAnimated:(BOOL)animated
@@ -4717,7 +4760,7 @@ struct PointerPairHash
   }
 }
 
-- (void)FL_trackRotateSegments:(NSArray *)segmentNodes rotateBy:(int)rotateBy animated:(BOOL)animated
+- (void)FL_trackRotateSegments:(NSArray *)segmentNodes pointers:(NSSet *)segmentNodePointers rotateBy:(int)rotateBy animated:(BOOL)animated
 {
   if ([segmentNodes count] == 1) {
     [self FL_trackRotateSegment:[segmentNodes firstObject] rotateBy:rotateBy animated:animated];
@@ -4758,11 +4801,6 @@ struct PointerPairHash
   // Check proposed rotation for conflicts.
   int normalRotationQuarters = normalizeRotationQuarters(rotateBy);
   BOOL hasConflict = NO;
-  NSMutableSet *segmentNodePointers = [NSMutableSet set];
-  for (FLSegmentNode *segmentNode in segmentNodes) {
-    NSValue *segmentNodePointer = [NSValue valueWithPointer:(void *)segmentNode];
-    [segmentNodePointers addObject:segmentNodePointer];
-  }
   for (FLSegmentNode *segmentNode in segmentNodes) {
     CGPoint positionRelativeToPivot = CGPointMake(segmentNode.position.x - pivot.x, segmentNode.position.y - pivot.y);
     rotatePoints(&positionRelativeToPivot, 1, normalRotationQuarters);
@@ -4844,6 +4882,79 @@ struct PointerPairHash
   } else {
     finalizeRotation();
   }
+}
+
+- (void)FL_trackFlipSegment:(FLSegmentNode *)segmentNode direction:(FLSegmentFlipDirection)direction
+{
+  [segmentNode flip:direction];
+  [self FL_linkRedrawForSegment:segmentNode];
+  [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-click-1.caf" waitForCompletion:NO]];
+}
+
+- (void)FL_trackFlipSegments:(NSArray *)segmentNodes
+                    pointers:(NSSet *)segmentNodePointers
+                   direction:(FLSegmentFlipDirection)direction
+{
+  if ([segmentNodes count] == 1) {
+    [self FL_trackFlipSegment:[segmentNodes firstObject] direction:direction];
+    return;
+  }
+  
+  // Collect information about segments.
+  CGFloat segmentsPositionLeft;
+  CGFloat segmentsPositionRight;
+  CGFloat segmentsPositionTop;
+  CGFloat segmentsPositionBottom;
+  [self FL_segments:segmentNodes getExtremesLeft:&segmentsPositionLeft right:&segmentsPositionRight top:&segmentsPositionTop bottom:&segmentsPositionBottom];
+  
+  // Check proposed flip for conflicts.
+  BOOL hasConflict = NO;
+  for (FLSegmentNode *segmentNode in segmentNodes) {
+    CGPoint finalPosition;
+    if (direction == FLSegmentFlipHorizontal) {
+      finalPosition.x = segmentsPositionLeft + segmentsPositionRight - segmentNode.position.x;
+      finalPosition.y = segmentNode.position.y;
+    } else {
+      finalPosition.x = segmentNode.position.x;
+      finalPosition.y = segmentsPositionBottom + segmentsPositionTop - segmentNode.position.y;
+    }
+    FLSegmentNode *occupyingSegmentNode = trackGridConvertGet(*_trackGrid, finalPosition);
+    if (occupyingSegmentNode) {
+      NSValue *occupyingSegmentNodePointer = [NSValue valueWithPointer:(void *)occupyingSegmentNode];
+      if (![segmentNodePointers containsObject:occupyingSegmentNodePointer]) {
+        [self FL_trackConflictShow:occupyingSegmentNode];
+        hasConflict = YES;
+      }
+    }
+  }
+  if (hasConflict) {
+    [self performSelector:@selector(FL_trackConflictClear) withObject:nil afterDelay:0.5];
+    return;
+  }
+  
+  // Flip.
+  for (FLSegmentNode *segmentNode in segmentNodes) {
+    trackGridConvertErase(*(self->_trackGrid), segmentNode.position);
+  }
+  for (FLSegmentNode *segmentNode in segmentNodes) {
+    CGPoint finalPosition;
+    if (direction == FLSegmentFlipHorizontal) {
+      finalPosition.x = segmentsPositionLeft + segmentsPositionRight - segmentNode.position.x;
+      finalPosition.y = segmentNode.position.y;
+    } else {
+      finalPosition.x = segmentNode.position.x;
+      finalPosition.y = segmentsPositionBottom + segmentsPositionTop - segmentNode.position.y;
+    }
+    segmentNode.position = finalPosition;
+    [segmentNode flip:direction];
+    trackGridConvertSet(*(self->_trackGrid), segmentNode.position, segmentNode);
+  }
+  for (FLSegmentNode *segmentNode in segmentNodes) {
+    [self FL_linkRedrawForSegment:segmentNode];
+  }
+  [self FL_trackSelect:segmentNodes];
+
+  [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-click-1.caf" waitForCompletion:NO]];
 }
 
 - (void)FL_trackEraseSegment:(FLSegmentNode *)segmentNode animated:(BOOL)animated
@@ -4993,9 +5104,11 @@ struct PointerPairHash
   // but could make a general system for it like FL_unlocked, where certain named
   // permissions are routed through a single FL_allowed or FL_included or
   // something method.
-  return (segmentNode.segmentType != FLSegmentTypeReadoutInput
-          && segmentNode.segmentType != FLSegmentTypeReadoutOutput
-          && segmentNode.segmentType != FLSegmentTypePlatformStart);
+  FLSegmentType segmentType = segmentNode.segmentType;
+  return (segmentType != FLSegmentTypeReadoutInput
+          && segmentType != FLSegmentTypeReadoutOutput
+          && segmentType != FLSegmentTypePlatformStartLeft
+          && segmentType != FLSegmentTypePlatformStartRight);
 }
 
 void

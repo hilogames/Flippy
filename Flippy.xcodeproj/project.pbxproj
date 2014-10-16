@@ -14,6 +14,10 @@
 		CB17FD7819C8A69000DECE5E /* train-whistle-tune-1.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB17FD7719C8A69000DECE5E /* train-whistle-tune-1.caf */; };
 		CB17FD7A19C8A7B800DECE5E /* ka-chick.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB17FD7919C8A7B800DECE5E /* ka-chick.caf */; };
 		CB17FD7C19C8AAD100DECE5E /* pop-2.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB17FD7B19C8AAD100DECE5E /* pop-2.caf */; };
+		CB1D39E219F05A3900D829CB /* platform-left-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB1D39DE19F05A3900D829CB /* platform-left-nonatlas.png */; };
+		CB1D39E319F05A3900D829CB /* platform-right-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB1D39DF19F05A3900D829CB /* platform-right-nonatlas.png */; };
+		CB1D39E419F05A3900D829CB /* platform-start-left-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB1D39E019F05A3900D829CB /* platform-start-left-nonatlas.png */; };
+		CB1D39E519F05A3900D829CB /* platform-start-right-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB1D39E119F05A3900D829CB /* platform-start-right-nonatlas.png */; };
 		CB2ED87419D9AB8C0021CF86 /* grass.jpg in Resources */ = {isa = PBXBuildFile; fileRef = CB2ED87319D9AB8C0021CF86 /* grass.jpg */; };
 		CB3FBDCD1889860A00CE5BBD /* QuadTree.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */; };
 		CB485D88196ECE2B00E8646B /* ChallengeLevels.plist in Resources */ = {isa = PBXBuildFile; fileRef = CB485D87196ECE2B00E8646B /* ChallengeLevels.plist */; };
@@ -37,14 +41,12 @@
 		CB960338196B88AD00569870 /* jog-right-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB96032D196B88AD00569870 /* jog-right-nonatlas.png */; };
 		CB960339196B88AD00569870 /* join-left-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB96032E196B88AD00569870 /* join-left-nonatlas.png */; };
 		CB96033A196B88AD00569870 /* join-right-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB96032F196B88AD00569870 /* join-right-nonatlas.png */; };
-		CB96033B196B88AD00569870 /* platform-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB960330196B88AD00569870 /* platform-nonatlas.png */; };
 		CB96033C196B88AD00569870 /* straight-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB960331196B88AD00569870 /* straight-nonatlas.png */; };
 		CB96033D196B88AD00569870 /* switch-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB960332196B88AD00569870 /* switch-nonatlas.png */; };
 		CB96033E196B88AD00569870 /* value-0-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB960333196B88AD00569870 /* value-0-nonatlas.png */; };
 		CB96033F196B88AD00569870 /* value-1-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB960334196B88AD00569870 /* value-1-nonatlas.png */; };
 		CB960343196B892E00569870 /* tools.atlas in Resources */ = {isa = PBXBuildFile; fileRef = CB960341196B892E00569870 /* tools.atlas */; };
 		CB960344196B892E00569870 /* track.atlas in Resources */ = {isa = PBXBuildFile; fileRef = CB960342196B892E00569870 /* track.atlas */; };
-		CBA38EEA19707080004B5334 /* platform-start-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CBA38EE919707080004B5334 /* platform-start-nonatlas.png */; };
 		CBA5ED521906FECD00DBF36E /* gates in Resources */ = {isa = PBXBuildFile; fileRef = CBA5ED511906FECD00DBF36E /* gates */; };
 		CBA5ED541907007800DBF36E /* circuits in Resources */ = {isa = PBXBuildFile; fileRef = CBA5ED531907007800DBF36E /* circuits */; };
 		CBB4B7F9183C00E1003C3444 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B7F8183C00E1003C3444 /* Foundation.framework */; };
@@ -112,6 +114,10 @@
 		CB17FD7719C8A69000DECE5E /* train-whistle-tune-1.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "train-whistle-tune-1.caf"; sourceTree = "<group>"; };
 		CB17FD7919C8A7B800DECE5E /* ka-chick.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ka-chick.caf"; sourceTree = "<group>"; };
 		CB17FD7B19C8AAD100DECE5E /* pop-2.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "pop-2.caf"; sourceTree = "<group>"; };
+		CB1D39DE19F05A3900D829CB /* platform-left-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "platform-left-nonatlas.png"; sourceTree = "<group>"; };
+		CB1D39DF19F05A3900D829CB /* platform-right-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "platform-right-nonatlas.png"; sourceTree = "<group>"; };
+		CB1D39E019F05A3900D829CB /* platform-start-left-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "platform-start-left-nonatlas.png"; sourceTree = "<group>"; };
+		CB1D39E119F05A3900D829CB /* platform-start-right-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "platform-start-right-nonatlas.png"; sourceTree = "<group>"; };
 		CB2E3250198BF31000720EAA /* fnv.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fnv.h; sourceTree = "<group>"; };
 		CB2ED87319D9AB8C0021CF86 /* grass.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = grass.jpg; sourceTree = "<group>"; };
 		CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = QuadTree.cpp; sourceTree = "<group>"; };
@@ -143,14 +149,12 @@
 		CB96032D196B88AD00569870 /* jog-right-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "jog-right-nonatlas.png"; sourceTree = "<group>"; };
 		CB96032E196B88AD00569870 /* join-left-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "join-left-nonatlas.png"; sourceTree = "<group>"; };
 		CB96032F196B88AD00569870 /* join-right-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "join-right-nonatlas.png"; sourceTree = "<group>"; };
-		CB960330196B88AD00569870 /* platform-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "platform-nonatlas.png"; sourceTree = "<group>"; };
 		CB960331196B88AD00569870 /* straight-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "straight-nonatlas.png"; sourceTree = "<group>"; };
 		CB960332196B88AD00569870 /* switch-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "switch-nonatlas.png"; sourceTree = "<group>"; };
 		CB960333196B88AD00569870 /* value-0-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "value-0-nonatlas.png"; sourceTree = "<group>"; };
 		CB960334196B88AD00569870 /* value-1-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "value-1-nonatlas.png"; sourceTree = "<group>"; };
 		CB960341196B892E00569870 /* tools.atlas */ = {isa = PBXFileReference; lastKnownFileType = folder.skatlas; path = tools.atlas; sourceTree = "<group>"; };
 		CB960342196B892E00569870 /* track.atlas */ = {isa = PBXFileReference; lastKnownFileType = folder.skatlas; path = track.atlas; sourceTree = "<group>"; };
-		CBA38EE919707080004B5334 /* platform-start-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "platform-start-nonatlas.png"; sourceTree = "<group>"; };
 		CBA5ED511906FECD00DBF36E /* gates */ = {isa = PBXFileReference; lastKnownFileType = folder; path = gates; sourceTree = "<group>"; };
 		CBA5ED531907007800DBF36E /* circuits */ = {isa = PBXFileReference; lastKnownFileType = folder; path = circuits; sourceTree = "<group>"; };
 		CBB4B7F5183C00E1003C3444 /* Flippy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Flippy.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -233,8 +237,10 @@
 				CB96032E196B88AD00569870 /* join-left-nonatlas.png */,
 				CB96032F196B88AD00569870 /* join-right-nonatlas.png */,
 				CB9602F2196B86FF00569870 /* menu-button.png */,
-				CB960330196B88AD00569870 /* platform-nonatlas.png */,
-				CBA38EE919707080004B5334 /* platform-start-nonatlas.png */,
+				CB1D39DE19F05A3900D829CB /* platform-left-nonatlas.png */,
+				CB1D39DF19F05A3900D829CB /* platform-right-nonatlas.png */,
+				CB1D39E019F05A3900D829CB /* platform-start-left-nonatlas.png */,
+				CB1D39E119F05A3900D829CB /* platform-start-right-nonatlas.png */,
 				CB9602F4196B86FF00569870 /* rail.png */,
 				CB9602F5196B86FF00569870 /* sleeper.png */,
 				CB960331196B88AD00569870 /* straight-nonatlas.png */,
@@ -513,6 +519,7 @@
 				CB96033D196B88AD00569870 /* switch-nonatlas.png in Resources */,
 				CB17FD7C19C8AAD100DECE5E /* pop-2.caf in Resources */,
 				CBB4B81B183C00E1003C3444 /* Images.xcassets in Resources */,
+				CB1D39E419F05A3900D829CB /* platform-start-left-nonatlas.png in Resources */,
 				CB960337196B88AD00569870 /* jog-left-nonatlas.png in Resources */,
 				CB05B3B5196B358800FF58A5 /* levels in Resources */,
 				CB05B3B1196B353A00FF58A5 /* sleeperDestruction.sks in Resources */,
@@ -520,7 +527,7 @@
 				CBA5ED521906FECD00DBF36E /* gates in Resources */,
 				CB485D95196EE0CC00E8646B /* Localizable.strings in Resources */,
 				CB960308196B86FF00569870 /* rail.png in Resources */,
-				CB96033B196B88AD00569870 /* platform-nonatlas.png in Resources */,
+				CB1D39E219F05A3900D829CB /* platform-left-nonatlas.png in Resources */,
 				CBBB184B19C736F30088D345 /* train-whistle-2.caf in Resources */,
 				CB960310196B86FF00569870 /* wooden-click-2.caf in Resources */,
 				CB960335196B88AD00569870 /* cross-nonatlas.png in Resources */,
@@ -529,13 +536,14 @@
 				CB96033F196B88AD00569870 /* value-1-nonatlas.png in Resources */,
 				CB960309196B86FF00569870 /* sleeper.png in Resources */,
 				CBBB185219C739EF0088D345 /* train-stop-hiss.caf in Resources */,
+				CB1D39E519F05A3900D829CB /* platform-start-right-nonatlas.png in Resources */,
 				CB485D88196ECE2B00E8646B /* ChallengeLevels.plist in Resources */,
 				CB17FD7A19C8A7B800DECE5E /* ka-chick.caf in Resources */,
-				CBA38EEA19707080004B5334 /* platform-start-nonatlas.png in Resources */,
 				CBB4B805183C00E1003C3444 /* InfoPlist.strings in Resources */,
 				CB960338196B88AD00569870 /* jog-right-nonatlas.png in Resources */,
 				CB05B3B0196B353A00FF58A5 /* railDestruction.sks in Resources */,
 				CB96030F196B86FF00569870 /* wooden-click-1.caf in Resources */,
+				CB1D39E319F05A3900D829CB /* platform-right-nonatlas.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

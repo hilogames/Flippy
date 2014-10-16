@@ -6,10 +6,6 @@ circuits.
 
 Current
 
-  . Mirror tool especially for mirroring a large selection.  (And
-    maybe then remove mirror images from segment construction
-    toolbar, since it would work for single segments, too.)
-
   . Rotation gesture recognizer for rotation; flick for deletion;
     pinch or something for mirror.
 

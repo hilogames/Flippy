@@ -85,9 +85,16 @@ FLPath::FLPath(FLPathType pathType, int rotationQuarters) : pathType_(pathType)
       rotatePoints(points_, 4, rotationQuarters);
       break;
     }
-    case FLPathTypeHalf: {
+    case FLPathTypeHalfLeft: {
       points_[0] = { 0.0f, 0.5f };
       points_[1] = { 0.5f, 0.5f };
+      rotatePoints(points_, 2, rotationQuarters);
+      precomputeCoefficients = false;
+      break;
+    }
+    case FLPathTypeHalfRight: {
+      points_[0] = { 0.0f, 0.5f };
+      points_[1] = { -0.5f, 0.5f };
       rotatePoints(points_, 2, rotationQuarters);
       precomputeCoefficients = false;
       break;
@@ -112,7 +119,8 @@ FLPath::getPoint(CGFloat progress) const
 {
   switch (pathType_) {
     case FLPathTypeStraight:
-    case FLPathTypeHalf:
+    case FLPathTypeHalfLeft:
+    case FLPathTypeHalfRight:
       return getPointLinear(progress);
     case FLPathTypeCurve:
     case FLPathTypeJogLeft:
@@ -147,7 +155,8 @@ FLPath::getTangent(CGFloat progress) const
   CGPoint tangentPoint;
   switch (pathType_) {
     case FLPathTypeStraight:
-    case FLPathTypeHalf:
+    case FLPathTypeHalfLeft:
+    case FLPathTypeHalfRight:
       // Linear.
       tangentPoint.x = points_[1].x - points_[0].x;
       tangentPoint.y = points_[1].y - points_[0].y;
@@ -173,7 +182,8 @@ FLPath::getClosestOnPathPoint(CGPoint *onPathPoint, CGFloat *onPathProgress, CGP
 {
   switch (pathType_) {
     case FLPathTypeStraight:
-    case FLPathTypeHalf: {
+    case FLPathTypeHalfLeft:
+    case FLPathTypeHalfRight: {
       CGFloat t = ((offPathPoint.x - points_[0].x) * (points_[1].x - points_[0].x)
                    + (offPathPoint.y - points_[0].y) * (points_[1].y - points_[0].y));
       if (t < 0.0f) {
@@ -248,7 +258,8 @@ FLPath::getLength(FLPathType pathType)
       // but good enough for rock and roll.  Note M_PI_2 is reasonably close also, but
       // that's an even more baseless way to approximate.
       return 1.52f;
-    case FLPathTypeHalf:
+    case FLPathTypeHalfLeft:
+    case FLPathTypeHalfRight:
       return 0.5f;
     default:
       return 0.0f;
@@ -279,11 +290,17 @@ FLPathStore::FLPathStore()
   jogRightPaths_[0] = { FLPathTypeJogRight, 0 };
   jogRightPaths_[1] = { FLPathTypeJogRight, 1 };
   
-  // Half paths.
-  halfPaths_[0] = { FLPathTypeHalf, 0 };
-  halfPaths_[1] = { FLPathTypeHalf, 1 };
-  halfPaths_[2] = { FLPathTypeHalf, 2 };
-  halfPaths_[3] = { FLPathTypeHalf, 3 };
+  // Half-left paths.
+  halfLeftPaths_[0] = { FLPathTypeHalfLeft, 0 };
+  halfLeftPaths_[1] = { FLPathTypeHalfLeft, 1 };
+  halfLeftPaths_[2] = { FLPathTypeHalfLeft, 2 };
+  halfLeftPaths_[3] = { FLPathTypeHalfLeft, 3 };
+
+  // Half-right paths.
+  halfRightPaths_[0] = { FLPathTypeHalfRight, 0 };
+  halfRightPaths_[1] = { FLPathTypeHalfRight, 1 };
+  halfRightPaths_[2] = { FLPathTypeHalfRight, 2 };
+  halfRightPaths_[3] = { FLPathTypeHalfRight, 3 };
 }
 
 shared_ptr<FLPathStore>
@@ -314,8 +331,10 @@ FLPathStore::getPath(FLPathType pathType, int rotationQuarters)
       return &jogLeftPaths_[rotationQuarters % 2];
     case FLPathTypeJogRight:
       return &jogRightPaths_[rotationQuarters % 2];
-    case FLPathTypeHalf:
-      return &halfPaths_[rotationQuarters];
+    case FLPathTypeHalfLeft:
+      return &halfLeftPaths_[rotationQuarters];
+    case FLPathTypeHalfRight:
+      return &halfRightPaths_[rotationQuarters];
     default:
       return nullptr;
   }

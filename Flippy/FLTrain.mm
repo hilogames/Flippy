@@ -161,11 +161,15 @@ using namespace std;
   }
   
   // If train arrived at a platform, then stop it gracefully.
-  if (_lastSegmentNode.segmentType == FLSegmentTypePlatform && _lastDirection == FLPathDirectionDecreasing && _lastProgress < 0.0f) {
-    _lastProgress = 0.0f;
-    [self FL_moveToCurrent];
-    [self FL_stop];
-    return;
+  if (_lastProgress < 0.0f && _lastDirection == FLPathDirectionDecreasing) {
+    FLSegmentType segmentType = _lastSegmentNode.segmentType;
+    if (segmentType == FLSegmentTypePlatformLeft || segmentType == FLSegmentTypePlatformRight
+        || segmentType == FLSegmentTypePlatformStartLeft || segmentType == FLSegmentTypePlatformStartRight) {
+      _lastProgress = 0.0f;
+      [self FL_moveToCurrent];
+      [self FL_stop];
+      return;
+    }
   }
 
   // If the train tries to go past the end of the segment, then attempt to

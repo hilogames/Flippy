@@ -14,7 +14,8 @@ typedef NS_ENUM(NSInteger, FLPathType) {
   FLPathTypeCurve,
   FLPathTypeJogLeft,
   FLPathTypeJogRight,
-  FLPathTypeHalf,
+  FLPathTypeHalfLeft,
+  FLPathTypeHalfRight,
 };
 
 /**
@@ -105,5 +106,6 @@ private:
   FLPath curvePaths_[4];
   FLPath jogLeftPaths_[2];
   FLPath jogRightPaths_[2];
-  FLPath halfPaths_[4];
+  FLPath halfLeftPaths_[4];
+  FLPath halfRightPaths_[4];
 };

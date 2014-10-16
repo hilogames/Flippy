@@ -33,10 +33,17 @@ typedef NS_ENUM(NSInteger, FLSegmentType) {
   FLSegmentTypeJogLeft,
   FLSegmentTypeJogRight,
   FLSegmentTypeCross,
-  FLSegmentTypePlatform,
-  FLSegmentTypePlatformStart,
+  FLSegmentTypePlatformLeft,
+  FLSegmentTypePlatformStartLeft,
   FLSegmentTypeReadoutInput,
   FLSegmentTypeReadoutOutput,
+  FLSegmentTypePlatformRight,
+  FLSegmentTypePlatformStartRight,
+};
+
+typedef NS_ENUM(NSInteger, FLSegmentFlipDirection) {
+  FLSegmentFlipHorizontal = 0,
+  FLSegmentFlipVertical = 1,
 };
 
 inline int
@@ -58,7 +65,7 @@ convertRotationQuartersToRadians(int quarters)
 
 @interface FLSegmentNode : SKSpriteNode <NSCoding, NSCopying>
 
-@property (nonatomic) FLSegmentType segmentType;
+@property (nonatomic, readonly) FLSegmentType segmentType;
 
 @property (nonatomic, readonly) NSString *segmentKey;
 
@@ -76,7 +83,11 @@ convertRotationQuartersToRadians(int quarters)
 
 + (NSString *)keyForSegmentType:(FLSegmentType)segmentType;
 
-+ (FLSegmentType)segmentTypeForKey:(NSString *)key;
++ (BOOL)canFlip:(FLSegmentType)segmentType;
+
++ (BOOL)canHaveSwitch:(FLSegmentType)segmentType;
+
++ (BOOL)mustHaveSwitch:(FLSegmentType)segmentType;
 
 /**
  * Creates a image of the readout segment in one of its possible states.
@@ -92,7 +103,8 @@ convertRotationQuartersToRadians(int quarters)
 
 - (instancetype)initWithSegmentType:(FLSegmentType)segmentType;
 
-- (instancetype)initWithTextureKey:(NSString *)textureKey;
+- (BOOL)canFlip;
+- (void)flip:(FLSegmentFlipDirection)flipDirection;
 
 - (BOOL)canHaveSwitch;
 - (BOOL)mustHaveSwitch;

@@ -452,7 +452,8 @@ trackGridGenerateTruthTable(const FLTrackGrid& trackGrid, const FLLinks& links, 
       case FLSegmentTypeReadoutOutput:
         [outputSegmentNodes addObject:segmentNode];
         break;
-      case FLSegmentTypePlatformStart:
+      case FLSegmentTypePlatformStartLeft:
+      case FLSegmentTypePlatformStartRight:
         [platformStartSegmentNodes addObject:segmentNode];
         break;
       default:

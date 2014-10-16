@@ -84,28 +84,16 @@ using namespace std;
 
 - (instancetype)initWithSegmentType:(FLSegmentType)segmentType
 {
-  NSString *textureKey = [FLSegmentNode keyForSegmentType:segmentType];
-  return [self initWithSegmentType:segmentType textureKey:textureKey];
-}
-
-- (instancetype)initWithTextureKey:(NSString *)textureKey
-{
-  FLSegmentType segmentType = [FLSegmentNode segmentTypeForKey:textureKey];
-  return [self initWithSegmentType:segmentType textureKey:textureKey];
-}
-
-- (instancetype)initWithSegmentType:(FLSegmentType)segmentType textureKey:(NSString *)textureKey
-{
   if (segmentType == FLSegmentTypeReadoutInput || segmentType == FLSegmentTypeReadoutOutput) {
     self = [super initWithColor:[SKColor clearColor] size:CGSizeMake(FLSegmentArtSizeFull, FLSegmentArtSizeFull)];
   } else {
+    NSString *textureKey = [FLSegmentNode keyForSegmentType:segmentType];
     SKTexture *texture = [[HLTextureStore sharedStore] textureForKey:textureKey];
     self = [super initWithTexture:texture];
   }
   if (self) {
     _segmentType = segmentType;
-    if (_segmentType == FLSegmentTypeJoinLeft || _segmentType == FLSegmentTypeJoinRight
-        || _segmentType == FLSegmentTypeReadoutInput || _segmentType == FLSegmentTypeReadoutOutput) {
+    if ([FLSegmentNode canHaveSwitch:segmentType]) {
       _switchPathId = 1;
     } else {
       _switchPathId = FLSegmentSwitchPathIdNone;
@@ -115,6 +103,32 @@ using namespace std;
     [self FL_createContent];
   }
   return self;
+}
+
+- (void)FL_setSegmentType:(FLSegmentType)segmentType
+{
+  [self FL_deleteContent];
+  if (segmentType == FLSegmentTypeReadoutInput || segmentType == FLSegmentTypeReadoutOutput) {
+    self.texture = nil;
+    self.color = [SKColor clearColor];
+    self.size = CGSizeMake(FLSegmentArtSizeFull, FLSegmentArtSizeFull);
+  } else {
+    NSString *textureKey = [FLSegmentNode keyForSegmentType:segmentType];
+    SKTexture *texture = [[HLTextureStore sharedStore] textureForKey:textureKey];
+    self.texture = texture;
+  }
+  FLSegmentType oldSegmentType = _segmentType;
+  _segmentType = segmentType;
+  if ([FLSegmentNode canHaveSwitch:segmentType]) {
+    if (![FLSegmentNode canHaveSwitch:oldSegmentType]) {
+      _switchPathId = 1;
+    }
+  } else {
+    if ([FLSegmentNode canHaveSwitch:oldSegmentType]) {
+      _switchPathId = FLSegmentSwitchPathIdNone;
+    }
+  }
+  [self FL_createContent];
 }
 
 - (instancetype)initWithCoder:(NSCoder *)aDecoder
@@ -184,10 +198,14 @@ using namespace std;
       return @"jog-right";
     case FLSegmentTypeCross:
       return @"cross";
-    case FLSegmentTypePlatform:
-      return @"platform";
-    case FLSegmentTypePlatformStart:
-      return @"platform-start";
+    case FLSegmentTypePlatformLeft:
+      return @"platform-left";
+    case FLSegmentTypePlatformRight:
+      return @"platform-right";
+    case FLSegmentTypePlatformStartLeft:
+      return @"platform-start-left";
+    case FLSegmentTypePlatformStartRight:
+      return @"platform-start-right";
     case FLSegmentTypeReadoutInput:
       return @"readout-input";
     case FLSegmentTypeReadoutOutput:
@@ -198,34 +216,28 @@ using namespace std;
   }
 }
 
-+ (FLSegmentType)segmentTypeForKey:(NSString *)key
++ (BOOL)canFlip:(FLSegmentType)segmentType
 {
-  if ([key isEqualToString:@"straight"]) {
-    return FLSegmentTypeStraight;
-  } else if ([key isEqualToString:@"curve"]) {
-    return FLSegmentTypeCurve;
-  } else if ([key isEqualToString:@"join-left"]) {
-    return FLSegmentTypeJoinLeft;
-  } else if ([key isEqualToString:@"join-right"]) {
-    return FLSegmentTypeJoinRight;
-  } else if ([key isEqualToString:@"jog-left"]) {
-    return FLSegmentTypeJogLeft;
-  } else if ([key isEqualToString:@"jog-right"]) {
-    return FLSegmentTypeJogRight;
-  } else if ([key isEqualToString:@"cross"]) {
-    return FLSegmentTypeCross;
-  } else if ([key isEqualToString:@"platform"]) {
-    return FLSegmentTypePlatform;
-  } else if ([key isEqualToString:@"platform-start"]) {
-    return FLSegmentTypePlatformStart;
-  } else if ([key isEqualToString:@"readout-input"]) {
-    return FLSegmentTypeReadoutInput;
-  } else if ([key isEqualToString:@"readout-output"]) {
-    return FLSegmentTypeReadoutOutput;
-  } else {
-    [NSException raise:@"FLSegmentNodeTexureKeyUnknown" format:@"Unknown segment texture key."];
-  }
-  return FLSegmentTypeNone;
+  // note: For now, determine canFlip based only on segmentType and not orientation (e.g. for
+  // a straight segment at rotation 0, a horizontal flip won't actually change anything, and
+  // so could be disallowed).  Keeping flippability separate from orientation makes things
+  // easier for our current callers, because then they don't have to keep checking back at
+  // each rotation change.
+  return (segmentType != FLSegmentTypeReadoutInput && segmentType != FLSegmentTypeReadoutOutput);
+}
+
++ (BOOL)canHaveSwitch:(FLSegmentType)segmentType
+{
+  return segmentType == FLSegmentTypeJoinLeft
+    || segmentType == FLSegmentTypeJoinRight
+    || segmentType == FLSegmentTypeReadoutInput
+    || segmentType == FLSegmentTypeReadoutOutput;
+}
+
++ (BOOL)mustHaveSwitch:(FLSegmentType)segmentType
+{
+  return segmentType == FLSegmentTypeReadoutInput
+    || segmentType == FLSegmentTypeReadoutOutput;
 }
 
 + (UIImage *)createImageForReadoutSegment:(FLSegmentType)segmentType imageSize:(CGFloat)imageSize
@@ -329,18 +341,104 @@ using namespace std;
   }
 }
 
+- (BOOL)canFlip
+{
+  return [FLSegmentNode canFlip:_segmentType];
+}
+
+- (void)flip:(FLSegmentFlipDirection)flipDirection
+{
+  switch (_segmentType) {
+    case FLSegmentTypeStraight: {
+      int zRotationQuarters = self.zRotationQuarters;
+      if ((zRotationQuarters + flipDirection) % 2 != 0) {
+        self.zRotationQuarters = zRotationQuarters + 2;
+      }
+      break;
+    }
+    case FLSegmentTypeCurve: {
+      int zRotationQuarters = self.zRotationQuarters;
+      if ((zRotationQuarters + flipDirection) % 2 != 0) {
+        self.zRotationQuarters = zRotationQuarters + 3;
+      } else {
+        self.zRotationQuarters = zRotationQuarters + 1;
+      }
+      break;
+    }
+    case FLSegmentTypeJoinLeft: {
+      int zRotationQuarters = self.zRotationQuarters;
+      [self FL_setSegmentType:FLSegmentTypeJoinRight];
+      if ((zRotationQuarters + flipDirection) % 2 != 0) {
+        self.zRotationQuarters = zRotationQuarters + 2;
+      }
+      break;
+    }
+    case FLSegmentTypeJoinRight: {
+      int zRotationQuarters = self.zRotationQuarters;
+      [self FL_setSegmentType:FLSegmentTypeJoinLeft];
+      if ((zRotationQuarters + flipDirection) % 2 != 0) {
+        self.zRotationQuarters = zRotationQuarters + 2;
+      }
+      break;
+    }
+    case FLSegmentTypeJogLeft:
+      [self FL_setSegmentType:FLSegmentTypeJogRight];
+      break;
+    case FLSegmentTypeJogRight:
+      [self FL_setSegmentType:FLSegmentTypeJogLeft];
+      break;
+    case FLSegmentTypeCross:
+      // note: Cross has both vertical and horizontal symmetry in all rotations.
+      break;
+    case FLSegmentTypePlatformLeft: {
+      int zRotationQuarters = self.zRotationQuarters;
+      [self FL_setSegmentType:FLSegmentTypePlatformRight];
+      if ((zRotationQuarters + flipDirection) % 2 != 0) {
+        self.zRotationQuarters = zRotationQuarters + 2;
+      }
+      break;
+    }
+    case FLSegmentTypePlatformRight: {
+      int zRotationQuarters = self.zRotationQuarters;
+      [self FL_setSegmentType:FLSegmentTypePlatformLeft];
+      if ((zRotationQuarters + flipDirection) % 2 != 0) {
+        self.zRotationQuarters = zRotationQuarters + 2;
+      }
+      break;
+    }
+    case FLSegmentTypePlatformStartLeft: {
+      int zRotationQuarters = self.zRotationQuarters;
+      [self FL_setSegmentType:FLSegmentTypePlatformStartRight];
+      if ((zRotationQuarters + flipDirection) % 2 != 0) {
+        self.zRotationQuarters = zRotationQuarters + 2;
+      }
+      break;
+    }
+    case FLSegmentTypePlatformStartRight: {
+      int zRotationQuarters = self.zRotationQuarters;
+      [self FL_setSegmentType:FLSegmentTypePlatformStartLeft];
+      if ((zRotationQuarters + flipDirection) % 2 != 0) {
+        self.zRotationQuarters = zRotationQuarters + 2;
+      }
+      break;
+    }
+    case FLSegmentTypeReadoutInput:
+    case FLSegmentTypeReadoutOutput:
+    case FLSegmentTypeNone:
+      break;
+    default:
+      [NSException raise:@"FLSegmentNodeSegmentTypeInvalid" format:@"Invalid segment type %ld.", (long)_segmentType];
+  };
+}
+
 - (BOOL)canHaveSwitch
 {
-  return _segmentType == FLSegmentTypeJoinLeft
-    || _segmentType == FLSegmentTypeJoinRight
-    || _segmentType == FLSegmentTypeReadoutInput
-    || _segmentType == FLSegmentTypeReadoutOutput;
+  return [FLSegmentNode canHaveSwitch:_segmentType];
 }
 
 - (BOOL)mustHaveSwitch
 {
-  return _segmentType == FLSegmentTypeReadoutInput
-    || _segmentType == FLSegmentTypeReadoutOutput;
+  return [FLSegmentNode mustHaveSwitch:_segmentType];
 }
 
 - (int)switchPathId
@@ -1136,9 +1234,13 @@ using namespace std;
         pathType = FLPathTypeJogRight;
       }
       break;
-    case FLSegmentTypePlatform:
-    case FLSegmentTypePlatformStart:
-      pathType = FLPathTypeHalf;
+    case FLSegmentTypePlatformLeft:
+    case FLSegmentTypePlatformStartLeft:
+      pathType = FLPathTypeHalfLeft;
+      break;
+    case FLSegmentTypePlatformRight:
+    case FLSegmentTypePlatformStartRight:
+      pathType = FLPathTypeHalfRight;
       break;
     case FLSegmentTypeReadoutInput:
     case FLSegmentTypeReadoutOutput:
@@ -1178,9 +1280,13 @@ using namespace std;
       paths[0] = FLPathStore::sharedStore()->getPath(FLPathTypeJogLeft, rotationQuarters);
       paths[1] = FLPathStore::sharedStore()->getPath(FLPathTypeJogRight, rotationQuarters);
       return 2;
-    case FLSegmentTypePlatform:
-    case FLSegmentTypePlatformStart:
-      paths[0] = FLPathStore::sharedStore()->getPath(FLPathTypeHalf, rotationQuarters);
+    case FLSegmentTypePlatformLeft:
+    case FLSegmentTypePlatformStartLeft:
+      paths[0] = FLPathStore::sharedStore()->getPath(FLPathTypeHalfLeft, rotationQuarters);
+      return 1;
+    case FLSegmentTypePlatformRight:
+    case FLSegmentTypePlatformStartRight:
+      paths[0] = FLPathStore::sharedStore()->getPath(FLPathTypeHalfRight, rotationQuarters);
       return 1;
     case FLSegmentTypeReadoutInput:
     case FLSegmentTypeReadoutOutput:
@@ -1210,8 +1316,10 @@ using namespace std;
       return 1;
     case FLSegmentTypeCross:
       return 2;
-    case FLSegmentTypePlatform:
-    case FLSegmentTypePlatformStart:
+    case FLSegmentTypePlatformLeft:
+    case FLSegmentTypePlatformRight:
+    case FLSegmentTypePlatformStartLeft:
+    case FLSegmentTypePlatformStartRight:
       return 1;
     case FLSegmentTypeReadoutInput:
     case FLSegmentTypeReadoutOutput:
