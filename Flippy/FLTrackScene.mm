@@ -663,6 +663,7 @@ struct PointerPairHash
   [self needSharedLongPressGestureRecognizer];
   [self needSharedPanGestureRecognizer];
   [self needSharedPinchGestureRecognizer];
+  [self needSharedRotationGestureRecognizer];
 
   if (_gameType == FLGameTypeChallenge) {
     if ([self FL_unlocked:FLUnlockTutorialCompleted] || ![self FL_tutorialStepAnimated:_gameIsNew]) {
@@ -1076,6 +1077,23 @@ struct PointerPairHash
   [self FL_worldSetConstrainedScale:worldScaleNew
                           positionX:((handlePinchWorldPositionBegin.x - _worldGestureState.pinchZoomCenter.x) * scaleFactor + _worldGestureState.pinchZoomCenter.x)
                           positionY:((handlePinchWorldPositionBegin.y - _worldGestureState.pinchZoomCenter.y) * scaleFactor + _worldGestureState.pinchZoomCenter.y)];
+}
+
+- (void)handleWorldRotation:(UIRotationGestureRecognizer *)gestureRecognizer
+{
+  if (gestureRecognizer.state != UIGestureRecognizerStateBegan) {
+    return;
+  }
+  if ([self FL_trackSelectedNone]) {
+    return;
+  }
+  int rotateBy;
+  if (gestureRecognizer.velocity < 0.0f) {
+    rotateBy = 1;
+  } else {
+    rotateBy = -1;
+  }
+  [self FL_trackRotateSegments:_trackSelectState.selectedSegments pointers:_trackSelectState.selectedSegmentPointers rotateBy:rotateBy animated:YES];
 }
 
 - (void)handleConstructionToolbarTap:(UITapGestureRecognizer *)gestureRecognizer
@@ -1697,32 +1715,31 @@ struct PointerPairHash
     [gestureRecognizer removeTarget:nil action:nil];
     [gestureRecognizer addTarget:self action:@selector(handleWorldTap:)];
     return YES;
-  }
-  if (gestureRecognizer == _doubleTapRecognizer) {
+  } else if (gestureRecognizer == _doubleTapRecognizer) {
     [gestureRecognizer removeTarget:nil action:nil];
     [gestureRecognizer addTarget:self action:@selector(handleWorldDoubleTap:)];
     return YES;
-  }
-  if (gestureRecognizer == _longPressRecognizer) {
+  } else if (gestureRecognizer == _longPressRecognizer) {
     [gestureRecognizer removeTarget:nil action:nil];
     [gestureRecognizer addTarget:self action:@selector(handleWorldLongPress:)];
     return YES;
-  }
-  if (gestureRecognizer == _panRecognizer) {
+  } else if (gestureRecognizer == _panRecognizer) {
     [gestureRecognizer removeTarget:nil action:nil];
     [gestureRecognizer addTarget:self action:@selector(handleWorldPan:)];
     return YES;
-  }
-  if (gestureRecognizer == _pinchRecognizer) {
+  } else if (gestureRecognizer == _pinchRecognizer) {
     [gestureRecognizer removeTarget:nil action:nil];
     [gestureRecognizer addTarget:self action:@selector(handleWorldPinch:)];
+    return YES;
+  } else if (gestureRecognizer == _rotationRecognizer) {
+    [gestureRecognizer removeTarget:nil action:nil];
+    [gestureRecognizer addTarget:self action:@selector(handleWorldRotation:)];
     return YES;
   }
 
   // None.
   //
-  // noob: So, what if we return NO?  We want the gesture recognizer to be disabled, and its target
-  // not to be called.  If returning NO doesn't do that, then try calling removeTarget:.
+  // noob: Need to call removeTarget:?
   return NO;
 }
 

@@ -43,7 +43,7 @@ Current
   . Interface help screen (explain holding down for multi-select,
     double-click switches, hold down switch to delete it, center
     button to find and follow train, hold center button to reset
-    zoom).
+    zoom, rotate gesture).
 
   . "About" screen with name.  Choose production company.  Reserve
     website?  Include feedback email address?  Credits: grass texture
