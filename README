@@ -6,9 +6,6 @@ circuits.
 
 Current
 
-  . Rotation gesture recognizer for rotation; flick for deletion;
-    pinch or something for mirror.
-
   . A tool/gesture for selecting everything connected to the current
     segment.  Triple-tap.
 

@@ -653,17 +653,61 @@ struct PointerPairHash
 
   // note: HLScene (through [super]) needs shared gesture recognizers only for registered
   // HLGestureTarget nodes.  We know ahead of time which ones we need.
-  [self needSharedTapGestureRecognizer];
-  [self needSharedDoubleTapGestureRecognizer];
+  UITapGestureRecognizer *doubleTapGestureRecognizer = [[UITapGestureRecognizer alloc] init];
+  doubleTapGestureRecognizer.numberOfTapsRequired = 2;
   // note: This can be nice, but it slows down the single-tap recognition significantly
   // (and, in my opinion, unacceptably).  Instead there should be code in the double-tap
   // recognizers to "undo" any undesirable effect of single-tapping; see how that goes.
   // For example, see code in handleWorldDoubleTap.
-  //[_tapRecognizer requireGestureRecognizerToFail:_doubleTapRecognizer];
-  [self needSharedLongPressGestureRecognizer];
-  [self needSharedPanGestureRecognizer];
-  [self needSharedPinchGestureRecognizer];
-  [self needSharedRotationGestureRecognizer];
+  //[tapRecognizer requireGestureRecognizerToFail:doubleTapRecognizer];
+  // note: Okay, a big note on trying to get swipe gesture recognizers working with a pan
+  // gesture recognizer.  Here are some combinations I tried:
+  //
+  //   . If swipe touches required are all 1, then either you allow both gesture recognizers
+  //     to recognize simultaneously, in which case every gesture is both a pan and a swipe,
+  //     or you don't, in which case every gesture is considered a swipe.
+  //
+  //   . So then if swipe touches required are 2: If you allow simultaneous recognition, then
+  //     the one-finger gesture is only a pan, but the two-finger gesture is both a pan and
+  //     a swipe.  If you don't allow simultaneous recognition, every gesture is considered only
+  //     a pan.  (This doesn't quite jive with the previous result where every gesture was considered
+  //     a swipe.  Also, it seems pans allow any number of touches.)
+  //
+  //   . Okay, so test for touches explicitly upon gesture recognition: If it's two, it's a swipe;
+  //     if it's one, it's a pan.  This doesn't work at gestureRecognizer:shouldReceiveTouch:,
+  //     because at that point the numberOfTouches of the gesture is always 0.  But you can set
+  //     the swipe recognizers to require two touches, and you can check for one touch in the
+  //     pan gesture target handler method.  The number of touches can change during a two-fingered
+  //     pan gesture, typically from 1 to 2 to 1 to 0.  So check when the gesture state is at
+  //     BEGIN; that seems to do the trick.
+  //
+  //   . If you make the pan gesture require the swipe gestures to fail, with two touches, then
+  //     everything is pretty good: The two-finger swipes fail when there is only one touch,
+  //     and the two-finger gestures are reconized right away.  But it introduces a delay into
+  //     the pan recognition, which is unacceptable here (since panning is so much more common
+  //     than swiping).
+  UISwipeGestureRecognizer *swipeLeftGestureRecognizer = [[UISwipeGestureRecognizer alloc] init];
+  swipeLeftGestureRecognizer.direction = UISwipeGestureRecognizerDirectionLeft;
+  swipeLeftGestureRecognizer.numberOfTouchesRequired = 2;
+  UISwipeGestureRecognizer *swipeRightGestureRecognizer = [[UISwipeGestureRecognizer alloc] init];
+  swipeRightGestureRecognizer.direction = UISwipeGestureRecognizerDirectionRight;
+  swipeRightGestureRecognizer.numberOfTouchesRequired = 2;
+  UISwipeGestureRecognizer *swipeUpGestureRecognizer = [[UISwipeGestureRecognizer alloc] init];
+  swipeUpGestureRecognizer.direction = UISwipeGestureRecognizerDirectionUp;
+  swipeUpGestureRecognizer.numberOfTouchesRequired = 2;
+  UISwipeGestureRecognizer *swipeDownGestureRecognizer = [[UISwipeGestureRecognizer alloc] init];
+  swipeDownGestureRecognizer.direction = UISwipeGestureRecognizerDirectionDown;
+  swipeDownGestureRecognizer.numberOfTouchesRequired = 2;
+  [self needSharedGestureRecognizers:@[ [[UITapGestureRecognizer alloc] init],
+                                        doubleTapGestureRecognizer,
+                                        [[UILongPressGestureRecognizer alloc] init],
+                                        [[UIPanGestureRecognizer alloc] init],
+                                        [[UIPinchGestureRecognizer alloc] init],
+                                        [[UIRotationGestureRecognizer alloc] init],
+                                        swipeUpGestureRecognizer,
+                                        swipeDownGestureRecognizer,
+                                        swipeLeftGestureRecognizer,
+                                        swipeRightGestureRecognizer ]];
 
   if (_gameType == FLGameTypeChallenge) {
     if ([self FL_unlocked:FLUnlockTutorialCompleted] || ![self FL_tutorialStepAnimated:_gameIsNew]) {
@@ -905,6 +949,17 @@ struct PointerPairHash
 
   if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
 
+    // note: Our view recognizes two-touch swipe gestures separately from pan gestures.
+    // But there is no way of setting numberOfTouchesRequired on a pan recognizer.  So
+    // must check manually here.
+    //
+    // noob: If I test for this in gestureRecognizer:shouldReceiveTouch:, then I always get numberOfTouches=0.
+    // And the numberOfTouches changes through the gesture, so should check at the beginning of the gesture.
+    if (gestureRecognizer.numberOfTouches != 1) {
+      _worldGestureState.panType = FLWorldPanTypeNone;
+      return;
+    }
+
     // Determine type of pan based on gesture location and current tool.
     //
     // note: The decision is based on the location of the first touch in the gesture, not the
@@ -1096,6 +1151,25 @@ struct PointerPairHash
   [self FL_trackRotateSegments:_trackSelectState.selectedSegments pointers:_trackSelectState.selectedSegmentPointers rotateBy:rotateBy animated:YES];
 }
 
+- (void)handleWorldSwipe:(UISwipeGestureRecognizer *)gestureRecognizer
+{
+  if ([self FL_trackSelectedNone]) {
+    return;
+  }
+  FLSegmentFlipDirection flipDirection;
+  switch (gestureRecognizer.direction) {
+    case UISwipeGestureRecognizerDirectionLeft:
+    case UISwipeGestureRecognizerDirectionRight:
+      flipDirection = FLSegmentFlipHorizontal;
+      break;
+    case UISwipeGestureRecognizerDirectionUp:
+    case UISwipeGestureRecognizerDirectionDown:
+      flipDirection = FLSegmentFlipVertical;
+      break;
+  }
+  [self FL_trackFlipSegments:_trackSelectState.selectedSegments pointers:_trackSelectState.selectedSegmentPointers direction:flipDirection];
+}
+
 - (void)handleConstructionToolbarTap:(UITapGestureRecognizer *)gestureRecognizer
 {
   CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
@@ -1157,7 +1231,7 @@ struct PointerPairHash
     }
 
   } else if (toolType == FLToolbarToolTypeActionTap) {
-    
+
     if ([toolTag isEqualToString:@"export"]) {
       if ([self FL_trackSelectedNone]) {
         [self FL_messageShow:NSLocalizedString(@"Export: Make a selection.",
@@ -1287,16 +1361,16 @@ struct PointerPairHash
           }
         }
       }
-      
+
       // Locate the new segments underneath the current touch.
       //
       // note: Do so even though they are not yet added to the node hierarchy.  (The track move
       // routines translate nodes relative to their current position.)
       [self FL_segments:duplicatedSegmentNodes setPositionCenteredOnLocation:worldLocation];
-      
+
       // Scale world to fit import, if possible.
       [self FL_worldFitSegments:duplicatedSegmentNodes scaling:YES scrolling:NO includeTrackEditMenu:YES animated:YES];
-      
+
       // Begin track move.
       [self FL_messageShow:NSLocalizedString(@"Duplicated selection to track.",
                                              @"Message to user: Shown after successful duplication of track selection.")];
@@ -1562,25 +1636,33 @@ struct PointerPairHash
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer
 {
-  // I'm adding these one at a time as discovered needful, but so far things organize
-  // themselves around the pan gesture recognizer:
+  // I'm adding these one at a time as discovered needful.
   //
-  //  . Pinch: I think this helps.  Otherwise it seems my pinch gesture sometimes gets
-  //    interpreted as a pan.  I think.
-  //
-  //  . Taps: The way I wrote shouldReceiveTouch:, e.g. a tap on the train will get
-  //    blocked because a train tap doesn't currently mean anything, but it doesn't let
-  //    the tap fall through to anything below it.  I think that also means that the tap
-  //    gesture doesn't get a chance to fail, which means the pan gesture never gets
-  //    started at all.  Uuuuuuuunless I allow them to recognize simultaneously.  Ditto
-  //    for _doubleTapRecognizer?  Untested.  But no, wait: Now I'm having problems where
-  //    I'm in the middle of a pan (say, moving a track), and then suddenly the tap
-  //    gesture recognizer fires (if I pan only a very short distance).  That's no good.
-  //    So let's try no simultaneous again for a while.
-  //
-  //  . Long press: A pan motion after a long press should be handled only by the long
-  //    press gesture recognizer, so no simultaneous recognition with pan.
-  return gestureRecognizer == _panRecognizer && otherGestureRecognizer == _pinchRecognizer;
+  //  . Swipe and pan: Basically these are the same gesture, or at least every swipe is
+  //    also a pan, so they must be recognized simultaneously or else one will never fire.
+  //    (I think according to my early tests, the swipe always worked and never the pan.)
+  //    So allow simultaneous.  (But of course I don't actually want both gestures to
+  //    happen at the same time.  I tried having the swipes require more touches, but the
+  //    pan gesture recognizes even when there are multiple touches.  I tried having the
+  //    pan requireGestureRecognizerToFail for the swipe, but that's too much delay.
+  //    Instead I do extra testing on number of touches after both gestures have
+  //    recognized simultaneously; see notes elsewhere.)
+  if ([gestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]]
+      && [otherGestureRecognizer isKindOfClass:[UISwipeGestureRecognizer class]]) {
+    return YES;
+  }
+  //  . Pinch and rotation: If they don't recognize simultaneously, the pinch usually
+  //    wins, and it's pretty hard to do a rotation.  However, when they recognize
+  //    simultaneously, then I find they both pretty much recognize every time, and it's
+  //    too easy to rotate things accidentally.  I could recognize both simultaneously and
+  //    then put some kind of test in the rotation code e.g. a minimum velocity or angle
+  //    or something.  But actually that's pretty much the same thing that happens when
+  //    they aren't recognized simultaneously.  So go with that for now; commented out.
+  //if ([gestureRecognizer isKindOfClass:[UIPinchGestureRecognizer class]]
+  //    && [otherGestureRecognizer isKindOfClass:[UIRotationGestureRecognizer class]]) {
+  //  return YES;
+  //}
+  return NO;
 }
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch
@@ -1616,13 +1698,14 @@ struct PointerPairHash
         }
       }
       if (!passGestureToOtherHandlers) {
-        if (gestureRecognizer == _tapRecognizer) {
-          [gestureRecognizer removeTarget:nil action:nil];
+        if ([gestureRecognizer isKindOfClass:[UITapGestureRecognizer class]]
+            && [(UITapGestureRecognizer *)gestureRecognizer numberOfTapsRequired] == 1) {
+          [gestureRecognizer removeTarget:nil action:NULL];
           [gestureRecognizer addTarget:self action:@selector(handleTutorialTap:)];
           return YES;
         }
-        if (gestureRecognizer == _longPressRecognizer) {
-          [gestureRecognizer removeTarget:nil action:nil];
+        if ([gestureRecognizer isKindOfClass:[UILongPressGestureRecognizer class]]) {
+          [gestureRecognizer removeTarget:nil action:NULL];
           [gestureRecognizer addTarget:self action:@selector(handleTutorialLongPress:)];
           return YES;
         }
@@ -1647,18 +1730,19 @@ struct PointerPairHash
   if (_constructionToolbarState.toolbarNode
       && _constructionToolbarState.toolbarNode.parent
       && [_constructionToolbarState.toolbarNode containsPoint:sceneLocation]) {
-    if (gestureRecognizer == _panRecognizer) {
-      [gestureRecognizer removeTarget:nil action:nil];
+    if ([gestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]]) {
+      [gestureRecognizer removeTarget:nil action:NULL];
       [gestureRecognizer addTarget:self action:@selector(handleConstructionToolbarPan:)];
       return YES;
     }
-    if (gestureRecognizer == _tapRecognizer) {
-      [gestureRecognizer removeTarget:nil action:nil];
+    if ([gestureRecognizer isKindOfClass:[UITapGestureRecognizer class]]
+        && [(UITapGestureRecognizer *)gestureRecognizer numberOfTapsRequired] == 1) {
+      [gestureRecognizer removeTarget:nil action:NULL];
       [gestureRecognizer addTarget:self action:@selector(handleConstructionToolbarTap:)];
       return YES;
     }
-    if (gestureRecognizer == _longPressRecognizer) {
-      [gestureRecognizer removeTarget:nil action:nil];
+    if ([gestureRecognizer isKindOfClass:[UILongPressGestureRecognizer class]]) {
+      [gestureRecognizer removeTarget:nil action:NULL];
       [gestureRecognizer addTarget:self action:@selector(handleConstructionToolbarLongPress:)];
       return YES;
     }
@@ -1669,13 +1753,14 @@ struct PointerPairHash
   if (_simulationToolbarState.toolbarNode
       && _simulationToolbarState.toolbarNode.parent
       && [_simulationToolbarState.toolbarNode containsPoint:sceneLocation]) {
-    if (gestureRecognizer == _tapRecognizer) {
-      [gestureRecognizer removeTarget:nil action:nil];
+    if ([gestureRecognizer isKindOfClass:[UITapGestureRecognizer class]]
+        && [(UITapGestureRecognizer *)gestureRecognizer numberOfTapsRequired] == 1) {
+      [gestureRecognizer removeTarget:nil action:NULL];
       [gestureRecognizer addTarget:self action:@selector(handleSimulationToolbarTap:)];
       return YES;
     }
-    if (gestureRecognizer == _longPressRecognizer) {
-      [gestureRecognizer removeTarget:nil action:nil];
+    if ([gestureRecognizer isKindOfClass:[UILongPressGestureRecognizer class]]) {
+      [gestureRecognizer removeTarget:nil action:NULL];
       [gestureRecognizer addTarget:self action:@selector(handleSimulationToolbarLongPress:)];
       return YES;
     }
@@ -1686,13 +1771,14 @@ struct PointerPairHash
   CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
   if (_trackEditMenuState.showing
       && [_trackEditMenuState.editMenuNode containsPoint:worldLocation]) {
-    if (gestureRecognizer == _tapRecognizer) {
-      [gestureRecognizer removeTarget:nil action:nil];
+    if ([gestureRecognizer isKindOfClass:[UITapGestureRecognizer class]]
+        && [(UITapGestureRecognizer *)gestureRecognizer numberOfTapsRequired] == 1) {
+      [gestureRecognizer removeTarget:nil action:NULL];
       [gestureRecognizer addTarget:self action:@selector(handleTrackEditMenuTap:)];
       return YES;
     }
-    if (gestureRecognizer == _longPressRecognizer) {
-      [gestureRecognizer removeTarget:nil action:nil];
+    if ([gestureRecognizer isKindOfClass:[UILongPressGestureRecognizer class]]) {
+      [gestureRecognizer removeTarget:nil action:NULL];
       [gestureRecognizer addTarget:self action:@selector(handleTrackEditMenuLongPress:)];
       return YES;
     }
@@ -1702,8 +1788,8 @@ struct PointerPairHash
   // Train.
   if (_train.parent
       && [_train containsPoint:worldLocation]) {
-    if (gestureRecognizer == _panRecognizer) {
-      [gestureRecognizer removeTarget:nil action:nil];
+    if ([gestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]]) {
+      [gestureRecognizer removeTarget:nil action:NULL];
       [gestureRecognizer addTarget:self action:@selector(handleTrainPan:)];
       return YES;
     }
@@ -1711,29 +1797,35 @@ struct PointerPairHash
   }
 
   // World (and track).
-  if (gestureRecognizer == _tapRecognizer) {
-    [gestureRecognizer removeTarget:nil action:nil];
-    [gestureRecognizer addTarget:self action:@selector(handleWorldTap:)];
-    return YES;
-  } else if (gestureRecognizer == _doubleTapRecognizer) {
-    [gestureRecognizer removeTarget:nil action:nil];
-    [gestureRecognizer addTarget:self action:@selector(handleWorldDoubleTap:)];
-    return YES;
-  } else if (gestureRecognizer == _longPressRecognizer) {
-    [gestureRecognizer removeTarget:nil action:nil];
+  if ([gestureRecognizer isKindOfClass:[UITapGestureRecognizer class]]) {
+    if ([(UITapGestureRecognizer *)gestureRecognizer numberOfTapsRequired] == 1) {
+      [gestureRecognizer removeTarget:nil action:NULL];
+      [gestureRecognizer addTarget:self action:@selector(handleWorldTap:)];
+      return YES;
+    } else if ([(UITapGestureRecognizer *)gestureRecognizer numberOfTapsRequired] == 2) {
+      [gestureRecognizer removeTarget:nil action:NULL];
+      [gestureRecognizer addTarget:self action:@selector(handleWorldDoubleTap:)];
+      return YES;
+    }
+  } else if ([gestureRecognizer isKindOfClass:[UILongPressGestureRecognizer class]]) {
+    [gestureRecognizer removeTarget:nil action:NULL];
     [gestureRecognizer addTarget:self action:@selector(handleWorldLongPress:)];
     return YES;
-  } else if (gestureRecognizer == _panRecognizer) {
-    [gestureRecognizer removeTarget:nil action:nil];
+  } else if ([gestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]]) {
+    [gestureRecognizer removeTarget:nil action:NULL];
     [gestureRecognizer addTarget:self action:@selector(handleWorldPan:)];
     return YES;
-  } else if (gestureRecognizer == _pinchRecognizer) {
-    [gestureRecognizer removeTarget:nil action:nil];
+  } else if ([gestureRecognizer isKindOfClass:[UIPinchGestureRecognizer class]]) {
+    [gestureRecognizer removeTarget:nil action:NULL];
     [gestureRecognizer addTarget:self action:@selector(handleWorldPinch:)];
     return YES;
-  } else if (gestureRecognizer == _rotationRecognizer) {
-    [gestureRecognizer removeTarget:nil action:nil];
+  } else if ([gestureRecognizer isKindOfClass:[UIRotationGestureRecognizer class]]) {
+    [gestureRecognizer removeTarget:nil action:NULL];
     [gestureRecognizer addTarget:self action:@selector(handleWorldRotation:)];
+    return YES;
+  } else if ([gestureRecognizer isKindOfClass:[UISwipeGestureRecognizer class]]) {
+    [gestureRecognizer removeTarget:nil action:NULL];
+    [gestureRecognizer addTarget:self action:@selector(handleWorldSwipe:)];
     return YES;
   }
 
@@ -2230,7 +2322,7 @@ struct PointerPairHash
 {
   const CGFloat FLWorldScaleMin = 0.125f;
   const CGFloat FLWorldScaleMax = 1.0f;
-  
+
   // note: World position is constrained by scale, not vice versa.  But minimum
   // scale is constrained by scene size.
   if (scale > FLWorldScaleMax) {
@@ -2495,7 +2587,7 @@ struct PointerPairHash
                          && abs(worldPositionNew.y - _worldNode.position.y) < 0.1f))) {
     return;
   }
-  
+
   if (animated) {
     [self FL_worldSetConstrainedScale:worldConstrainedScaleNew
                             positionX:worldPositionNew.x
@@ -4916,14 +5008,14 @@ struct PointerPairHash
     [self FL_trackFlipSegment:[segmentNodes firstObject] direction:direction];
     return;
   }
-  
+
   // Collect information about segments.
   CGFloat segmentsPositionLeft;
   CGFloat segmentsPositionRight;
   CGFloat segmentsPositionTop;
   CGFloat segmentsPositionBottom;
   [self FL_segments:segmentNodes getExtremesLeft:&segmentsPositionLeft right:&segmentsPositionRight top:&segmentsPositionTop bottom:&segmentsPositionBottom];
-  
+
   // Check proposed flip for conflicts.
   BOOL hasConflict = NO;
   for (FLSegmentNode *segmentNode in segmentNodes) {
@@ -4948,7 +5040,7 @@ struct PointerPairHash
     [self performSelector:@selector(FL_trackConflictClear) withObject:nil afterDelay:0.5];
     return;
   }
-  
+
   // Flip.
   for (FLSegmentNode *segmentNode in segmentNodes) {
     trackGridConvertErase(*(self->_trackGrid), segmentNode.position);
