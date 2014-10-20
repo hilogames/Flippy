@@ -659,6 +659,17 @@ using namespace std;
   return [self FL_getConnectingPath:pathId progress:progress forEndPoint:endPoint doRotationCheck:YES rotation:forRotationRadians progress:forProgress scale:scale switchPathId:switchPathId];
 }
 
+- (BOOL)hasConnectingPathForEndPoint:(CGPoint)endPoint
+                            rotation:(CGFloat)forRotationRadians
+                            progress:(CGFloat)forProgress
+                               scale:(CGFloat)scale
+                        switchPathId:(int)switchPathId
+{
+  int pathId;
+  CGFloat progress;
+  return [self FL_getConnectingPath:&pathId progress:&progress forEndPoint:endPoint doRotationCheck:YES rotation:forRotationRadians progress:forProgress scale:scale switchPathId:switchPathId];
+}
+
 - (BOOL)FL_getConnectingPath:(int *)pathId
                     progress:(CGFloat *)progress
                  forEndPoint:(CGPoint)endPoint

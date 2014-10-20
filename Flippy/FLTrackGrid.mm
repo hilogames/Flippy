@@ -334,6 +334,93 @@ trackGridFindConnecting(const FLTrackGrid& trackGrid,
   return false;
 }
 
+static NSSet *
+FL_getAllDirectlyConnecting(const FLTrackGrid& trackGrid, FLSegmentNode *segmentNode, FLSegmentNode *sourceSegmentNode)
+{
+  NSMutableSet *directlyConnectingSegmentNodes = [NSMutableSet set];
+
+  CGFloat segmentSize = trackGrid.segmentSize();
+  CGFloat halfSegmentSize = segmentSize / 2.0f;
+
+  int pathCount = [segmentNode pathCount];
+  for (int pathId = 0; pathId < pathCount; ++pathId) {
+
+    for (CGFloat progress = 0.0f; progress < 1.5f; progress += 1.0f) {
+
+      CGPoint endPoint;
+      CGFloat rotation;
+      [segmentNode getPoint:&endPoint rotation:&rotation forPath:pathId progress:progress scale:segmentSize];
+
+      // note: Currently segments only connect at corners.  If the end point isn't on a corner (e.g.
+      // for the end of a platform) then it doesn't connect to anything.
+      bool onEdgeX;
+      bool onEdgeY;
+      trackGridIsOnEdge(trackGrid, endPoint, &onEdgeX, &onEdgeY);
+      if (!onEdgeX || !onEdgeY) {
+        continue;
+      }
+  
+      int rightGridX = int(floor((endPoint.x + halfSegmentSize) / segmentSize + 0.5f));
+      int topGridY = int(floor((endPoint.y + halfSegmentSize) / segmentSize + 0.5f));
+  
+      for (int gx = rightGridX - 1; gx <= rightGridX; ++gx) {
+        for (int gy = topGridY - 1; gy <= topGridY; ++gy) {
+      
+          FLSegmentNode *adjacentSegmentNode = trackGrid.get(gx, gy);
+          if (!adjacentSegmentNode || adjacentSegmentNode == segmentNode || adjacentSegmentNode == sourceSegmentNode) {
+            continue;
+          }
+      
+          if ([adjacentSegmentNode hasConnectingPathForEndPoint:endPoint
+                                                       rotation:rotation
+                                                       progress:progress
+                                                          scale:segmentSize
+                                                   switchPathId:FLSegmentSwitchPathIdNone]) {
+            [directlyConnectingSegmentNodes addObject:adjacentSegmentNode];
+          }
+        }
+      }
+    }
+  }
+  return directlyConnectingSegmentNodes;
+}
+
+NSArray *
+trackGridGetAllConnecting(const FLTrackGrid& trackGrid, FLSegmentNode *startSegmentNode)
+{
+  NSMutableArray *connectingSegmentNodes = [NSMutableArray array];
+  NSMutableSet *connectingSegmentNodePointers = [NSMutableSet set];
+
+  NSMutableArray *unprocessedSegmentNodes = [NSMutableArray array];
+  NSMutableArray *unprocessedSegmentNodeSources = [NSMutableArray array];
+
+  // note: The "source" is the node which was processed to find the connection to this node.
+  FLSegmentNode *segmentNode = startSegmentNode;
+  FLSegmentNode *sourceSegmentNode = nil;
+
+  while (segmentNode) {
+
+    NSSet *directlyConnectingSegmentNodes = FL_getAllDirectlyConnecting(trackGrid, segmentNode, sourceSegmentNode);
+    for (FLSegmentNode *directlyConnectingSegmentNode in directlyConnectingSegmentNodes) {
+      NSValue *directlyConnectingSegmentNodePointer = [NSValue valueWithNonretainedObject:directlyConnectingSegmentNode];
+      if (![connectingSegmentNodePointers containsObject:directlyConnectingSegmentNodePointer]) {
+        [connectingSegmentNodes addObject:directlyConnectingSegmentNode];
+        [connectingSegmentNodePointers addObject:directlyConnectingSegmentNodePointer];
+        [unprocessedSegmentNodes addObject:directlyConnectingSegmentNode];
+        [unprocessedSegmentNodeSources addObject:segmentNode];
+      }
+    }
+
+    segmentNode = [unprocessedSegmentNodes lastObject];
+    sourceSegmentNode = [unprocessedSegmentNodeSources lastObject];
+    if (segmentNode) {
+      [unprocessedSegmentNodes removeLastObject];
+      [unprocessedSegmentNodeSources removeLastObject];
+    }
+  }
+  return connectingSegmentNodes;
+}
+
 struct FLRunState
 {
   FLRunState(void *currentSegmentNode_, int currentPathId_, int currentDirection_) : currentSegmentNode(currentSegmentNode_), currentPathId(currentPathId_), currentDirection(currentDirection_) {}

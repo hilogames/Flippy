@@ -320,6 +320,12 @@ trackGridFindConnecting(const FLTrackGrid& trackGrid,
                         const std::unordered_map<void *, int> *switchPathIds);
 
 /**
+ * Returns all segments connected, directly and indirectly, to the passed segment.
+ */
+NSArray *
+trackGridGetAllConnecting(const FLTrackGrid& trackGrid, FLSegmentNode *startSegmentNode);
+
+/**
  * Generates a truth table of the current track as follows:
  *
  *   . Find all platform start segments.  Each start is considered separately, and

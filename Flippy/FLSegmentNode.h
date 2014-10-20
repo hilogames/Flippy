@@ -145,9 +145,16 @@ convertRotationQuartersToRadians(int quarters)
 /**
  * Same as getConnectingPath:progress:forEndPoint:rotation:rotationRadians:progress:scale:,
  * but allowing the caller to pass in a hypothetical value for the switchPathId used in
- * the computation.
+ * the computation.  If the passed value is FLSegmentSwitchPathIdNone, then switch position
+ * is ignored, and the first connecting path is returned (regardless of switch position).
  */
 - (BOOL)getConnectingPath:(int *)pathId progress:(CGFloat *)progress forEndPoint:(CGPoint)endPoint rotation:(CGFloat)rotationRadians progress:(CGFloat)forProgress scale:(CGFloat)scale switchPathId:(int)switchPathId;
+
+/**
+ * Same as getConnectingPath:progress:forEndPoint:rotation:progress:scale:switchPathId,
+ * but does not return the connecting path information.
+ */
+- (BOOL)hasConnectingPathForEndPoint:(CGPoint)endPoint rotation:(CGFloat)rotationRadians progress:(CGFloat)forProgress scale:(CGFloat)scale switchPathId:(int)switchPathId;
 
 - (int)pathCount;
 

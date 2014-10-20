@@ -6,9 +6,6 @@ circuits.
 
 Current
 
-  . A tool/gesture for selecting everything connected to the current
-    segment.  Triple-tap.
-
   . Selecting straight segments or platforms sucks.  Can we do a
     closest-segment to click thing on selection/tap, not just for
     linking?
@@ -38,9 +35,9 @@ Current
       than going straight to next level.
 
   . Interface help screen (explain holding down for multi-select,
-    double-click switches, hold down switch to delete it, center
-    button to find and follow train, hold center button to reset
-    zoom, rotate gesture).
+    double-two-finger-click switches, hold down switch to delete it,
+    center button to find and follow train, hold center button to
+    reset zoom, rotate gesture, double-tap to select connected).
 
   . "About" screen with name.  Choose production company.  Reserve
     website?  Include feedback email address?  Credits: grass texture
