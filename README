@@ -6,9 +6,6 @@ circuits.
 
 Current
 
-  . Messages for what's happening when entering/leaving link mode and
-    value mode and labels mode.
-
   . Victory Screen
     . Track piece count for solved levels; have achievements.  Would be
       cool if there were two achievements: the fewest piece award, but

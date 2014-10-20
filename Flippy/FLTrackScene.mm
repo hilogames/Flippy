@@ -168,8 +168,7 @@ typedef NS_ENUM(NSInteger, FLToolbarToolType) {
   FLToolbarToolTypeNone,
   FLToolbarToolTypeActionTap,
   FLToolbarToolTypeActionPan,
-  FLToolbarToolTypeNavigation,
-  FLToolbarToolTypeMode
+  FLToolbarToolTypeNavigation
 };
 
 struct FLConstructionToolbarState
@@ -1214,7 +1213,7 @@ struct PointerPairHash
 
   FLToolbarToolType toolType = (FLToolbarToolType)[_constructionToolbarState.toolTypes[toolTag] integerValue];
 
-  // If navigating, reset state on mode buttons.
+  // If navigating, reset state on linking mode (and any other similar modes).
   if (toolType == FLToolbarToolTypeNavigation) {
     if (![toolTag isEqualToString:@"link"] && _linksVisible) {
       [self FL_linksToggle];
@@ -1260,28 +1259,42 @@ struct PointerPairHash
 
   } else if (toolType == FLToolbarToolTypeActionTap) {
 
-    if ([toolTag isEqualToString:@"export"]) {
+    if ([toolTag isEqualToString:@"link"]) {
+      if ([self FL_linksToggle]) {
+        [self FL_messageShow:NSLocalizedString(@"Entering linking mode.",
+                                               @"Message to user: Shown when link-mode button is pressed to enable linking mode.")];
+      } else {
+        [self FL_messageShow:NSLocalizedString(@"Leaving linking mode.",
+                                               @"Message to user: Shown when link-mode button is pressed to disable linking mode.")];
+      }
+    } else if ([toolTag isEqualToString:@"show-values"]) {
+      if ([self FL_valuesToggle]) {
+        [self FL_messageShow:NSLocalizedString(@"Showing switch values.",
+                                               @"Message to user: Shown when values button is pressed to show switch values.")];
+      } else {
+        [self FL_messageShow:NSLocalizedString(@"Hiding switch values.",
+                                               @"Message to user: Shown when values button is pressed to hide switch values.")];
+      }
+    } else if ([toolTag isEqualToString:@"show-labels"]) {
+      if ([self FL_labelsToggle]) {
+        [self FL_messageShow:NSLocalizedString(@"Showing track labels.",
+                                               @"Message to user: Shown when labels button is pressed to show track labels.")];
+      } else {
+        [self FL_messageShow:NSLocalizedString(@"Hiding track labels.",
+                                               @"Message to user: Shown when labels button is pressed to hide track labels.")];
+      }
+    } else if ([toolTag isEqualToString:@"export"]) {
       if ([self FL_trackSelectedNone]) {
         [self FL_messageShow:NSLocalizedString(@"Export: Make a selection.",
                                                @"Message to user: Shown when export button is pressed but no track is selected.")];
       } else {
         [self FL_export];
       }
-    } else if ([toolTag isEqualToString:@"show-values"]) {
-      [self FL_valuesToggle];
-    } else if ([toolTag isEqualToString:@"show-labels"]) {
-      [self FL_labelsToggle];
     }
 
   } else if (toolType == FLToolbarToolTypeActionPan) {
 
     [self FL_messageShow:_constructionToolbarState.toolDescriptions[toolTag]];
-
-  } else if (toolType == FLToolbarToolTypeMode) {
-
-    if ([toolTag isEqualToString:@"link"]) {
-      [self FL_linksToggle];
-    }
 
   }
 }
@@ -2902,7 +2915,7 @@ struct PointerPairHash
   textureKey = @"link";
   [toolTags addObject:textureKey];
   [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-  _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeMode);
+  _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionTap);
 
   textureKey = @"show-labels";
   [toolTags addObject:textureKey];
@@ -4791,12 +4804,14 @@ struct PointerPairHash
   }
 }
 
-- (void)FL_linksToggle
+- (BOOL)FL_linksToggle
 {
   if (_linksVisible) {
     [self FL_linksHide];
+    return NO;
   } else {
     [self FL_linksShow];
+    return YES;
   }
 }
 
@@ -4824,7 +4839,7 @@ struct PointerPairHash
   [_linksNode removeFromParent];
 }
 
-- (void)FL_labelsToggle
+- (BOOL)FL_labelsToggle
 {
   _labelsVisible = !_labelsVisible;
   [_constructionToolbarState.toolbarNode setHighlight:_labelsVisible forTool:@"show-labels"];
@@ -4832,6 +4847,7 @@ struct PointerPairHash
     FLSegmentNode *segmentNode = s.second;
     segmentNode.showsLabel = _labelsVisible;
   }
+  return _labelsVisible;
 }
 
 - (void)FL_labelPickForSegments:(NSArray *)segmentNodes
@@ -4921,7 +4937,7 @@ struct PointerPairHash
   [self dismissModalNodeAnimation:HLScenePresentationAnimationFade];
 }
 
-- (void)FL_valuesToggle
+- (BOOL)FL_valuesToggle
 {
   _valuesVisible = !_valuesVisible;
   [_constructionToolbarState.toolbarNode setHighlight:_valuesVisible forTool:@"show-values"];
@@ -4929,6 +4945,7 @@ struct PointerPairHash
     FLSegmentNode *segmentNode = s.second;
     segmentNode.showsSwitchValue = _valuesVisible;
   }
+  return _valuesVisible;
 }
 
 - (void)FL_trackRotateSegment:(FLSegmentNode *)segmentNode rotateBy:(int)rotateBy animated:(BOOL)animated
