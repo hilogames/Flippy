@@ -6,9 +6,8 @@ circuits.
 
 Current
 
-  . Selecting straight segments or platforms sucks.  Can we do a
-    closest-segment to click thing on selection/tap, not just for
-    linking?
+  . Messages for what's happening when entering/leaving link mode and
+    value mode and labels mode.
 
   . Victory Screen
     . Track piece count for solved levels; have achievements.  Would be
@@ -71,6 +70,9 @@ Current
     SKScene dimensions for each device; is anything being scaled that
     shouldn't be?  c.f. nativeScale documentation on UIScreen.
 
+  . Either implement a simple undo stack to undo deletions, or else
+    make the delete button be long-press.
+
 Lower Priority
 
   . For challenge games, show the level title in the save game slots
@@ -124,3 +126,6 @@ Lower Priority
   . Undo stack.
 
   . Train acceleration.
+
+  . "Advanced" interface mode where most messages and tutorial are
+    suppressed.

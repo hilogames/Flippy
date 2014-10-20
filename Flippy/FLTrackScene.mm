@@ -881,7 +881,8 @@ struct PointerPairHash
   CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
   CGPoint sceneLocation = [self convertPointFromView:viewLocation];
   CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
-  FLSegmentNode *segmentNode = trackGridConvertGet(*_trackGrid, worldLocation);
+  
+  FLSegmentNode *segmentNode = [self FL_trackFindSegmentNearLocation:worldLocation];
 
   if (!segmentNode || [self FL_trackSelected:segmentNode]) {
     [self FL_trackSelectClear];
@@ -902,7 +903,7 @@ struct PointerPairHash
   CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
   CGPoint sceneLocation = [self convertPointFromView:viewLocation];
   CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
-  FLSegmentNode *segmentNode = trackGridConvertGet(*_trackGrid, worldLocation);
+  FLSegmentNode *segmentNode = [self FL_trackFindSegmentNearLocation:worldLocation];
   
   if (segmentNode) {
     [self FL_trackSelectClear];
@@ -929,7 +930,7 @@ struct PointerPairHash
     CGPoint viewLocation = [gestureRecognizer locationOfTouch:touch inView:self.view];
     CGPoint sceneLocation = [self convertPointFromView:viewLocation];
     CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
-    FLSegmentNode *segmentNode = trackGridConvertGet(*_trackGrid, worldLocation);
+    FLSegmentNode *segmentNode = [self FL_trackFindSegmentNearLocation:worldLocation];
     if (segmentNode && segmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
       [self FL_linkSwitchTogglePathIdForSegment:segmentNode animated:YES];
     }
@@ -1008,7 +1009,7 @@ struct PointerPairHash
       }
     } else {
       // Pan is not using link tool.
-      FLSegmentNode *segmentNode = trackGridConvertGet(*_trackGrid, firstTouchWorldLocation);
+      FLSegmentNode *segmentNode = [self FL_trackFindSegmentNearLocation:firstTouchWorldLocation];
       if ([self FL_trackSelected:segmentNode]) {
         // Pan begins inside a selected track segment.
         //
@@ -3806,6 +3807,50 @@ struct PointerPairHash
   [_trainMoveState.cursorNode removeFromParent];
 }
 
+/**
+ * Returns the segment that appears visually closest to the passed world location,
+ * or nil for none.
+ *
+ * In particular: Note that trackGridConvertGet returns the segment in the grid
+ * square containing the passed point.  But that result can be very surprising
+ * because of the way that segments visually overlap.  For example, consider
+ * two grid squares next to each other, both containing a straight track segment
+ * centered on the colon (:) but rotated so the track is drawn on the line (|):
+ *
+ *                 |:|:
+ *
+ * In this case, a tap on the right-handle line (as it is drawn) might technically
+ * be inside the left-hand segment.  This result is not appropriate for most
+ * user-interaction.  Rather than trackGridConvertGet, use trackGridFindVisualNearest.
+ *
+ * note: Right now the implementation includes SKNode-specific techniques and
+ * information outside of the FLTrackGrid.  If, however, we resort to an implementation
+ * that relies only on segment type (and rotation) to make decisions about visual
+ * closeness, this routine should be pushed down into FLTrackGrid, perhaps called
+ * trackGridFindVisualNearest.
+ */
+- (FLSegmentNode *)FL_trackFindSegmentNearLocation:(CGPoint)worldLocation
+{
+  // note: This works pretty well as a first pass at implementation.  Perhaps it
+  // will be improved in the future.
+  
+  NSArray *nodesAtPoint = [_trackNode nodesAtPoint:worldLocation];
+  for (SKNode *nodeAtPoint in nodesAtPoint) {
+    if (![nodeAtPoint isKindOfClass:[FLSegmentNode class]]) {
+      continue;
+    }
+    FLSegmentNode *segmentNode = (FLSegmentNode *)nodeAtPoint;
+    FLSegmentType segmentType = segmentNode.segmentType;
+    if (segmentType == FLSegmentTypeStraight
+        || segmentType == FLSegmentTypePlatformLeft || segmentType == FLSegmentTypePlatformRight
+        || segmentType == FLSegmentTypePlatformStartLeft || segmentType == FLSegmentTypePlatformStartRight) {
+      return segmentNode;
+    }
+  }
+
+  return trackGridConvertGet(*_trackGrid, worldLocation);
+}
+
 - (void)FL_trackSelect:(NSArray *)segmentNodes
 {
   if (!_trackSelectState.visualParentNode) {
@@ -3938,7 +3983,7 @@ struct PointerPairHash
 
 - (void)FL_trackSelectPaintBeganWithLocation:(CGPoint)worldLocation
 {
-  FLSegmentNode *segmentNode = trackGridConvertGet(*_trackGrid, worldLocation);
+  FLSegmentNode *segmentNode = [self FL_trackFindSegmentNearLocation:worldLocation];
   if (!segmentNode) {
     _worldGestureState.longPressMode = FLWorldLongPressModeNone;
     return;
@@ -3960,7 +4005,7 @@ struct PointerPairHash
     return;
   }
 
-  FLSegmentNode *segmentNode = trackGridConvertGet(*_trackGrid, worldLocation);
+  FLSegmentNode *segmentNode = [self FL_trackFindSegmentNearLocation:worldLocation];
   if (segmentNode) {
     if (_worldGestureState.longPressMode == FLWorldLongPressModeAdd) {
       [self FL_trackSelect:@[ segmentNode ]];
@@ -5145,45 +5190,6 @@ struct PointerPairHash
   }
   trackGridConvertErase(*_trackGrid, segmentNode.position);
   _links.erase(segmentNode);
-}
-
-- (void)FL_trackGridDump
-{
-  std::cout << "dump track grid:" << std::endl;
-  for (int y = 3; y >= -4; --y) {
-    for (int x = -4; x <= 3; ++x) {
-      FLSegmentNode *segmentNode = _trackGrid->get(x, y);
-      char c;
-      if (segmentNode == nil) {
-        c = '.';
-      } else {
-        switch (segmentNode.segmentType) {
-          case FLSegmentTypeStraight:
-            c = '|';
-            break;
-          case FLSegmentTypeCurve:
-            c = '/';
-            break;
-          case FLSegmentTypeJoinLeft:
-          case FLSegmentTypeJoinRight:
-            c = 'Y';
-            break;
-          case FLSegmentTypeJogLeft:
-          case FLSegmentTypeJogRight:
-            c = 'S';
-            break;
-          case FLSegmentTypeNone:
-            c = ' ';
-            break;
-          default:
-            c = '?';
-            break;
-        }
-      }
-      std::cout << c;
-    }
-    std::cout << std::endl;
-  }
 }
 
 - (BOOL)FL_unlocked:(FLUnlockItem)item
