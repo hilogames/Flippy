@@ -3609,13 +3609,19 @@ struct PointerPairHash
     contentScale = FLGoalsOverlayContentScaleMin;
   }
   goalsOverlay.contentScale = contentScale;
-  // note: Show top middle of content if bigger than screen; otherwise center.
+  // note: Show center if content fits vertically; otherwise show top.  But if
+  // victory, then animate a scroll down to the bottom.  (TODO: This will be
+  // replaced by something fancier once we have achievements.)
   CGPoint contentOffset = CGPointZero;
-  if (goalsOverlaySize.height * contentScale > sceneSize.height) {
-    contentOffset.y = (sceneSize.height - goalsOverlaySize.height * contentScale) / 2.0f;
+  if (contentSize.height * contentScale > sceneSize.height) {
+    contentOffset.y = (sceneSize.height - contentSize.height * contentScale) / 2.0f;
   }
   goalsOverlay.contentOffset = contentOffset;
   goalsOverlay.contentNode = goalsContent;
+  if (contentSize.height * contentScale > sceneSize.height) {
+    const NSTimeInterval FLGoalsScrollDuration = 1.0;
+    [goalsOverlay setContentOffset:CGPointMake(contentOffset.x, -contentOffset.y) animatedDuration:FLGoalsScrollDuration completion:nil];
+  }
   _goalsState.goalsOverlay = goalsOverlay;
 
   // Set up interactive elements.
@@ -5684,7 +5690,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
       NSString *label = NSLocalizedString(@"Flippy starts out on a green platform. Each level has only one.",
                                           @"Tutorial message.");
       FLSegmentNode *segmentNode = _trackGrid->get(0, 0);
-      _tutorialState.cutouts.emplace_back(segmentNode, [[HLTextureStore sharedStore] imageForKey:@"platform-start"], NO);
+      _tutorialState.cutouts.emplace_back(segmentNode, [[HLTextureStore sharedStore] imageForKey:@"platform-start-left"], NO);
       _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
       CGPoint panSceneLocation = [self convertPoint:segmentNode.position fromNode:_trackNode];
       [self FL_tutorialShowWithLabel:label firstPanWorld:YES panLocation:panSceneLocation animated:animated];

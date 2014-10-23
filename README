@@ -7,10 +7,6 @@ circuits.
 Current
 
   . Goals Screen
-    . For new scrolling/zooming behavior:
-       - test on large screens (ipad) to make sure it works
-       - test on a puzzle level with "Next Level" button;
-         landscape on iPhone4 i think is too tall
     . Consider splitting goals screen into two tabs on a tabbed
       component: goals information on one tab, and results+victory on
       another.  (Make new HLTabbedNode or something.)
