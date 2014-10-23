@@ -6,7 +6,14 @@ circuits.
 
 Current
 
-  . Victory Screen
+  . Goals Screen
+    . For new scrolling/zooming behavior:
+       - test on large screens (ipad) to make sure it works
+       - test on a puzzle level with "Next Level" button;
+         landscape on iPhone4 i think is too tall
+    . Consider splitting goals screen into two tabs on a tabbed
+      component: goals information on one tab, and results+victory on
+      another.  (Make new HLTabbedNode or something.)
     . Track piece count for solved levels; have achievements.  Would be
       cool if there were two achievements: the fewest piece award, but
       also the rube goldberg award for more-than-X switched joins, and
@@ -16,17 +23,12 @@ Current
       sparkler bursts: kachung! kachung! kachung!
         . goal accomplished: ka-chick?
         . achievement: brr-bring
-    . Goals screen (esp with results) doesn't fit, especially when
-      showing results and with victory button and in landscape on 3.5
-      inch iPhone.  Maybe some screen-specific code would be
-      appropriate; font size or side-by-side display or a button for
-      details or something.  Maybe toggle goals-long display with
-      results display?  Or even both goals-short+goals-long.
-      Okay, how about this: First implement general-purpose scrolling
-      on the goals overlay; that will solve the problem crudely.  Then
-      try a simple new tabbed window component (HLTabbedNode) and
-      split goals and results onto separate tabs.  See if like it, but
-      even if not, then we've got a nice new component.
+      Probably use HLScrollNode to center the action on small screens.
+      Consider sparkling each output as it's checked; total duration
+      constant (2 seconds, maybe) so it doesn't take forever with lots
+      of outputs.  Scroll along with the checks if necessary.  Then
+      "Level complete!", achievements, and the button similarly appear,
+      with effects, and centered if necessary.  Then:
     . Also maybe prompt user to save (and/or autosave) on victory rather
       than going straight to next level.
 

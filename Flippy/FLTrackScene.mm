@@ -264,13 +264,11 @@ typedef NS_ENUM(NSInteger, FLWorldLongPressMode) { FLWorldLongPressModeNone, FLW
 // note: This contains extra state information that seems too minor to split out
 // into a "component".  For instance, track selection and track movement are
 // caused by gestures in the world, but they are split out into their own
-// components, with their own FL_* methods.  Tracking the original center
-// of a pinch zoom, though, can stay here for now.
+// components, with their own FL_* methods.
 struct FLWorldGestureState
 {
   CGPoint gestureFirstTouchLocation;
   FLWorldPanType panType;
-  CGPoint pinchZoomCenter;
   FLWorldLongPressMode longPressMode;
 };
 
@@ -1119,6 +1117,7 @@ struct PointerPairHash
 {
   static CGFloat handlePinchWorldScaleBegin;
   static CGPoint handlePinchWorldPositionBegin;
+  static CGPoint handlePinchZoomCenter;
 
   // noob: Pinch gesture continues for the recognizer until both fingers have
   // been lifted.  Seems like after one finger is up, we could be done.  But
@@ -1140,15 +1139,14 @@ struct PointerPairHash
     // gesture.
     //
     // noob: I experimented with recalculating the center of the pinch while the pinch changed,
-    // so that the pinch gesture could do some panning while pinching.  But as the code is written,
-    // the result was the opposite of, say, Google Maps app, and I found it a bit disorienting
-    // anyway.  I like choosing my zoom center and then being able to move my fingers around on the
+    // so that the pinch gesture could do some panning while pinching, but I found it a bit
+    // disorienting.  I like choosing my zoom center and then being able to move my fingers around on the
     // screen if I need more room for the gesture.  But probably there's a human interface guideline for
     // this which I should follow.
-    _worldGestureState.pinchZoomCenter = CGPointZero;
+    handlePinchZoomCenter = CGPointZero;
     if (_cameraMode == FLCameraModeManual) {
       CGPoint centerViewLocation = [gestureRecognizer locationInView:self.view];
-      _worldGestureState.pinchZoomCenter = [self convertPointFromView:centerViewLocation];
+      handlePinchZoomCenter = [self convertPointFromView:centerViewLocation];
     }
     return;
   }
@@ -1157,8 +1155,8 @@ struct PointerPairHash
   CGFloat worldScaleNew = [self FL_worldConstrainedScale:(handlePinchWorldScaleBegin * gestureRecognizer.scale)];
   CGFloat scaleFactor = worldScaleNew / handlePinchWorldScaleBegin;
   [self FL_worldSetConstrainedScale:worldScaleNew
-                          positionX:((handlePinchWorldPositionBegin.x - _worldGestureState.pinchZoomCenter.x) * scaleFactor + _worldGestureState.pinchZoomCenter.x)
-                          positionY:((handlePinchWorldPositionBegin.y - _worldGestureState.pinchZoomCenter.y) * scaleFactor + _worldGestureState.pinchZoomCenter.y)];
+                          positionX:((handlePinchWorldPositionBegin.x - handlePinchZoomCenter.x) * scaleFactor + handlePinchZoomCenter.x)
+                          positionY:((handlePinchWorldPositionBegin.y - handlePinchZoomCenter.y) * scaleFactor + handlePinchZoomCenter.y)];
 }
 
 - (void)handleWorldRotation:(UIRotationGestureRecognizer *)gestureRecognizer
@@ -3464,17 +3462,17 @@ struct PointerPairHash
   const CGFloat FLZPositionGoalsOverlayContent = 0.0f;
   const CGFloat FLZPositionGoalsOverlayDismissNode = 1.0f;
   const CGFloat FLZPositionGoalsOverlayVictoryButton = 2.0f;
+  CGSize sceneSize = self.size;
 
   // Always show results if this goals screen is being shown by a command from the
   // user.  Otherwise, only show results if this is an old (loaded or application
   // restored) game.
   BOOL showResults = !splash || !_gameIsNew;
 
-  SKNode *goalsOverlay = [SKNode node];
   NSMutableArray *layoutNodes = [NSMutableArray array];
 
   // note: Show in a square that won't have to change size if the interface rotates.
-  CGFloat edgeSizeMax = MIN(MIN(self.size.width, self.size.height), FLDSMultelineLabelParagraphWidthReadableMax);
+  CGFloat edgeSizeMax = MIN(MIN(sceneSize.width, sceneSize.height), FLDSMultelineLabelParagraphWidthReadableMax);
   DSMultilineLabelNode *introNode = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
   introNode.zPosition = FLZPositionGoalsOverlayContent;
   introNode.fontSize = 18.0f;
@@ -3562,27 +3560,51 @@ struct PointerPairHash
   }
 
   // Layout main components (not counting dismissNode).
-  CGFloat totalHeight = 0.0f;
+  SKNode *goalsContent = [SKNode node];
+  CGSize contentSize = CGSizeZero;
   for (id layoutNode in layoutNodes) {
-    totalHeight += [layoutNode size].height;
+    CGSize layoutNodeSize = [layoutNode size];
+    if (layoutNodeSize.width > contentSize.width) {
+      contentSize.width = layoutNodeSize.width;
+    }
+    contentSize.height += layoutNodeSize.height;
   }
-  const CGFloat FLLayoutNodePad = 10.0f;
-  totalHeight += ([layoutNodes count] - 1) * FLLayoutNodePad;
-  CGFloat layoutNodeY = totalHeight / 2.0f;
+  const CGFloat FLLayoutNodeSpacer = 10.0f;
+  contentSize.width += 2.0f * FLLayoutNodeSpacer;
+  contentSize.height += ([layoutNodes count] + 1) * FLLayoutNodeSpacer;
+  CGFloat layoutNodeY = contentSize.height / 2.0f - FLLayoutNodeSpacer;
   for (id layoutNode in layoutNodes) {
-    CGFloat layoutNodeHeight = [layoutNode size].height;
-    [layoutNode setPosition:CGPointMake(0.0f, layoutNodeY - layoutNodeHeight / 2.0f)];
-    layoutNodeY -= (layoutNodeHeight + FLLayoutNodePad);
-    [goalsOverlay addChild:layoutNode];
+    CGSize layoutNodeSize = [layoutNode size];
+    [layoutNode setPosition:CGPointMake(0.0f, layoutNodeY - layoutNodeSize.height / 2.0f)];
+    layoutNodeY -= (layoutNodeSize.height + FLLayoutNodeSpacer);
+    [goalsContent addChild:layoutNode];
   }
 
-  HLGestureTargetSpriteNode *dismissNode = [HLGestureTargetSpriteNode spriteNodeWithColor:[SKColor clearColor] size:self.size];
-  // noob: Some confusion around zPositions here.  We don't need to know absolute zPosition of
-  // the dismissNode, which is a good thing, because it would be hard to figure out.  (I know that
-  // HLScene's presentModalNode will put the goalsOverlay somewhere between our passed min
-  // and max (FLZPositionModalMin and FLZPositionModalMax), but I don't know where.)
+  CGSize dismissSize = CGSizeMake(MAX(sceneSize.width, contentSize.width),
+                                  MAX(sceneSize.height, contentSize.height));
+  HLGestureTargetSpriteNode *dismissNode = [HLGestureTargetSpriteNode spriteNodeWithColor:[SKColor clearColor] size:dismissSize];
   dismissNode.zPosition = FLZPositionGoalsOverlayDismissNode;
-  [goalsOverlay addChild:dismissNode];
+  [goalsContent addChild:dismissNode];
+
+  CGSize goalsOverlaySize = CGSizeMake(MIN(sceneSize.width, contentSize.width),
+                                       MIN(sceneSize.height, contentSize.height));
+  HLScrollNode *goalsOverlay = [[HLScrollNode alloc] initWithSize:goalsOverlaySize contentSize:contentSize];
+  goalsOverlay.contentScaleMinimum = 0.0f;
+  goalsOverlay.contentScaleMinimumMode = HLScrollNodeContentScaleMinimumFitLoose;
+  goalsOverlay.contentScaleMaximum = 1.0f;
+  // note: Show top middle of content if bigger than screen; otherwise center.
+  CGPoint contentOffset = CGPointZero;
+  if (contentSize.height > sceneSize.height) {
+    contentOffset.y = (goalsOverlaySize.height - contentSize.height) / 2.0f;
+  }
+  goalsOverlay.contentOffset = contentOffset;
+  const CGFloat FLGoalsOverlayContentScaleMin = 0.25f;
+  CGFloat contentScale = (goalsOverlaySize.width / contentSize.width);
+  if (contentScale < FLGoalsOverlayContentScaleMin) {
+    contentScale = FLGoalsOverlayContentScaleMin;
+  }
+  goalsOverlay.contentScale = contentScale;
+  goalsOverlay.contentNode = goalsContent;
 
   // Set up interactive elements.
   //
@@ -3627,6 +3649,8 @@ struct PointerPairHash
   // the bottom of the setup.
   __weak HLLabelButtonNode *victoryButtonWeak = victoryButton;
   __weak HLGestureTargetSpriteNode *dismissNodeWeak = dismissNode;
+  __weak HLScrollNode *goalsOverlayWeak = goalsOverlay;
+
   if (victoryButton) {
     [victoryButton setGestureTargetDelegateStrong:[[HLGestureTargetTapDelegate alloc] initWithHandleGestureBlock:^(UIGestureRecognizer *gestureRecognizer){
       if (self->_tutorialState.tutorialActive) {
@@ -3634,6 +3658,7 @@ struct PointerPairHash
       }
       [self unregisterDescendant:victoryButtonWeak];
       [self unregisterDescendant:dismissNodeWeak];
+      [self unregisterDescendant:goalsOverlayWeak];
       // noob: Retain a strong reference to block owner when dismissing the modal node; nobody else
       // is retaining the victoryButton, but we'd like to finish running this block before getting
       // deallocated.  The weak reference is copied with the block at copy time; now this strong
@@ -3658,16 +3683,24 @@ struct PointerPairHash
     [self registerDescendant:victoryButton withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
   }
 
-  [dismissNode setGestureTargetDelegateStrong:[[HLGestureTargetTapDelegate alloc] initWithHandleGestureBlock:^(UIGestureRecognizer *gestureRecognizer){
+  HLGestureTargetTapDelegate *dismissTapDelegate = [[HLGestureTargetTapDelegate alloc] initWithHandleGestureBlock:^(UIGestureRecognizer *gestureRecognizer){
     if (self->_tutorialState.tutorialActive) {
       [self FL_tutorialRecognizedAction:FLTutorialActionGoalsDismissed withArguments:nil];
     }
     [self unregisterDescendant:victoryButtonWeak];
     [self unregisterDescendant:dismissNodeWeak];
+    [self unregisterDescendant:goalsOverlayWeak];
     __unused HLGestureTargetSpriteNode *dismissNodeStrongAgain = dismissNodeWeak;
     [self dismissModalNodeAnimation:HLScenePresentationAnimationFade];
-  }]];
+  }];
+  // note: Gesture transparency required so that pan and pinch can fall through to the goalsOverlay
+  // (for scrolling and scaling).
+  dismissTapDelegate.gestureTransparent = YES;
+  [dismissNode setGestureTargetDelegateStrong:dismissTapDelegate];
   [self registerDescendant:dismissNode withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
+
+  goalsOverlay.gestureTargetDelegateWeak = goalsOverlay;
+  [self registerDescendant:goalsOverlay withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
 
   [self presentModalNode:goalsOverlay animation:HLScenePresentationAnimationFade];
 }
