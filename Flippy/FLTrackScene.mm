@@ -257,6 +257,12 @@ struct FLLabelState
   NSArray *segmentNodesToBeLabeled;
 };
 
+struct FLGoalsState
+{
+  FLGoalsState() : goalsOverlay(nil) {}
+  HLScrollNode *goalsOverlay;
+};
+
 typedef NS_ENUM(NSInteger, FLWorldPanType) { FLWorldPanTypeNone, FLWorldPanTypeScroll, FLWorldPanTypeTrackMove, FLWorldPanTypeLink };
 
 typedef NS_ENUM(NSInteger, FLWorldLongPressMode) { FLWorldLongPressModeNone, FLWorldLongPressModeAdd, FLWorldLongPressModeErase };
@@ -403,6 +409,7 @@ struct PointerPairHash
   FLTrackMoveState _trackMoveState;
   FLLinkEditState _linkEditState;
   FLLabelState _labelState;
+  FLGoalsState _goalsState;
 
   HLMessageNode *_messageNode;
   FLTrain *_train;
@@ -727,6 +734,7 @@ struct PointerPairHash
   [self FL_constructionToolbarUpdateGeometry];
   [self FL_simulationToolbarUpdateGeometry];
   [self FL_messageUpdateGeometry];
+  [self FL_goalsUpdateGeometry];
 }
 
 - (void)FL_createSceneContents
@@ -3062,10 +3070,13 @@ struct PointerPairHash
   // Obviously that could be tweaked for performance.
   NSMutableArray *pageToolNodes;
   NSMutableArray *pageToolTags;
-  // note: There are currently seven basic segments, and it makes sense to put them all on the
-  // first page together, even if that means scaling.  In the future that might change, and
-  // we might instead use FL_constructionToolbarPageSize.
-  const int pageSize = 9;
+  // note: There are currently seven basic segments; it makes sense to put them all on the
+  // first page together, even if that means scaling.
+  const NSUInteger FLConstructionToolbarSegmentsPageSizeMin = 9;
+  NSUInteger pageSize = [self FL_constructionToolbarPageSize];
+  if (pageSize < FLConstructionToolbarSegmentsPageSizeMin) {
+    pageSize = FLConstructionToolbarSegmentsPageSizeMin;
+  }
   [self FL_constructionToolbarSelectPageContentForNodes:toolNodes
                                                    tags:toolTags
                                                    page:page
@@ -3592,19 +3603,20 @@ struct PointerPairHash
   goalsOverlay.contentScaleMinimum = 0.0f;
   goalsOverlay.contentScaleMinimumMode = HLScrollNodeContentScaleMinimumFitLoose;
   goalsOverlay.contentScaleMaximum = 1.0f;
-  // note: Show top middle of content if bigger than screen; otherwise center.
-  CGPoint contentOffset = CGPointZero;
-  if (contentSize.height > sceneSize.height) {
-    contentOffset.y = (goalsOverlaySize.height - contentSize.height) / 2.0f;
-  }
-  goalsOverlay.contentOffset = contentOffset;
   const CGFloat FLGoalsOverlayContentScaleMin = 0.25f;
   CGFloat contentScale = (goalsOverlaySize.width / contentSize.width);
   if (contentScale < FLGoalsOverlayContentScaleMin) {
     contentScale = FLGoalsOverlayContentScaleMin;
   }
   goalsOverlay.contentScale = contentScale;
+  // note: Show top middle of content if bigger than screen; otherwise center.
+  CGPoint contentOffset = CGPointZero;
+  if (goalsOverlaySize.height * contentScale > sceneSize.height) {
+    contentOffset.y = (sceneSize.height - goalsOverlaySize.height * contentScale) / 2.0f;
+  }
+  goalsOverlay.contentOffset = contentOffset;
   goalsOverlay.contentNode = goalsContent;
+  _goalsState.goalsOverlay = goalsOverlay;
 
   // Set up interactive elements.
   //
@@ -3659,6 +3671,7 @@ struct PointerPairHash
       [self unregisterDescendant:victoryButtonWeak];
       [self unregisterDescendant:dismissNodeWeak];
       [self unregisterDescendant:goalsOverlayWeak];
+      self->_goalsState.goalsOverlay = nil;
       // noob: Retain a strong reference to block owner when dismissing the modal node; nobody else
       // is retaining the victoryButton, but we'd like to finish running this block before getting
       // deallocated.  The weak reference is copied with the block at copy time; now this strong
@@ -3690,6 +3703,7 @@ struct PointerPairHash
     [self unregisterDescendant:victoryButtonWeak];
     [self unregisterDescendant:dismissNodeWeak];
     [self unregisterDescendant:goalsOverlayWeak];
+    self->_goalsState.goalsOverlay = nil;
     __unused HLGestureTargetSpriteNode *dismissNodeStrongAgain = dismissNodeWeak;
     [self dismissModalNodeAnimation:HLScenePresentationAnimationFade];
   }];
@@ -3703,6 +3717,18 @@ struct PointerPairHash
   [self registerDescendant:goalsOverlay withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
 
   [self presentModalNode:goalsOverlay animation:HLScenePresentationAnimationFade];
+}
+
+- (void)FL_goalsUpdateGeometry
+{
+  HLScrollNode *goalsOverlay = _goalsState.goalsOverlay;
+  if (!goalsOverlay) {
+    return;
+  }
+  CGSize sceneSize = self.size;
+  CGSize contentSize = goalsOverlay.contentSize;
+  goalsOverlay.size = CGSizeMake(MIN(sceneSize.width, contentSize.width),
+                                 MIN(sceneSize.height, contentSize.height));
 }
 
 - (HLGridNode *)FL_truthTableCreate:(FLTrackTruthTable *)trackTruthTable
