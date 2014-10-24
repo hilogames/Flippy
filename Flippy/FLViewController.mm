@@ -13,6 +13,7 @@
 
 #import "DSMultilineLabelNode.h"
 #import "FLConstants.h"
+#import "FLUser.h"
 #import "FLTrackScene.h"
 
 typedef NS_ENUM(NSInteger, FLViewControllerScene) {
@@ -682,13 +683,13 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
                               NSLocalizedString(@"Level", @"Game information: followed by a level number."),
                               _gameScene.gameLevel,
                               FLChallengeLevelsInfo(_gameScene.gameLevel, FLChallengeLevelsTitle),
-                              [_gameScene segmentCount],
+                              (unsigned long)[_gameScene segmentCount],
                               NSLocalizedString(@"segments used", @"Game information: preceded by a number of segments used in a track.")];
       break;
     case FLGameTypeSandbox:
       _gameStatusNode.text = [NSString stringWithFormat:@"%@\n%ld %@",
                               FLGameTypeSandboxTitle,
-                              [_gameScene segmentCount],
+                              (unsigned long)[_gameScene segmentCount],
                               NSLocalizedString(@"segments used", @"Game information: preceded by a number of segments used in a track.")];
       break;
     default:

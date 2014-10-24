@@ -6,14 +6,22 @@ circuits.
 
 Current
 
+  . BUG: clear selection after delete
+
+  . Another record: fastest solution time (keep timer whenever in
+    foreground, I guess)
+
+  . TODO: Okay, yes, need to get goals stuff out of track scene.  It's
+    like 1000 lines.
+
+  . TODO: Make HLGestureTarget an HLGestureManager, and do it the same
+    way as HLLayoutManager.
+
   . Goals Screen
-    . Consider splitting goals screen into two tabs on a tabbed
-      component: goals information on one tab, and results+victory on
-      another.  (Make new HLTabbedNode or something.)
-    . Track piece count for solved levels; have achievements.  Would be
-      cool if there were two achievements: the fewest piece award, but
+    . Track piece count for solved levels; have records.  Would be
+      cool if there were two records: the fewest piece award, but
       also the rube goldberg award for more-than-X switched joins, and
-      "the long ride" for most traveled pieces, etc.
+      "the long ride" for most traveled pieces, etc.  Fewest joins.
     . At same time as above: victory message should say what is unlocked
       as well as what achievments were earned.  Little checklist with
       sparkler bursts: kachung! kachung! kachung!
@@ -22,11 +30,15 @@ Current
       Probably use HLScrollNode to center the action on small screens.
       Consider sparkling each output as it's checked; total duration
       constant (2 seconds, maybe) so it doesn't take forever with lots
-      of outputs.  Scroll along with the checks if necessary.  Then
+      of outputs.  Scroll along with the checks if necessary.  Ooo: maybe
+      zoom way in on them.  Then
       "Level complete!", achievements, and the button similarly appear,
       with effects, and centered if necessary.  Then:
     . Also maybe prompt user to save (and/or autosave) on victory rather
       than going straight to next level.
+    . Consider splitting goals screen into two tabs on a tabbed
+      component: goals information on one tab, and results+victory on
+      another.  (Make new HLTabbedNode or something.)
 
   . Interface help screen (explain holding down for multi-select,
     double-two-finger-click switches, hold down switch to delete it,
@@ -69,6 +81,13 @@ Current
     make the delete button be long-press.
 
 Lower Priority
+
+  . Consider showing the track edit menu on the side or top or bottom
+    of the screen (in the HUD) rather than on top of the selection (in
+    the world).  Not only would it make the code easier, but it would
+    make it easier to e.g. repeatedly-rotate a selection.  Then maybe
+    also some selection-sensitive buttons could join that menu: export
+    and duplicate, in particular.
 
   . For challenge games, show the level title in the save game slots
     when loading and saving.  (Need to encode the level number

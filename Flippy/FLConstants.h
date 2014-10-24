@@ -17,6 +17,7 @@ typedef NS_ENUM(NSInteger, FLChallengeLevelsInfoKey) {
   FLChallengeLevelsGoalLong,
   FLChallengeLevelsGoalValues,
   FLChallengeLevelsVictoryUserUnlocks,
+  FLChallengeLevelsRecordDefaults,
 };
 
 FOUNDATION_EXPORT int FLChallengeLevelsCount();
@@ -26,13 +27,6 @@ FOUNDATION_EXPORT int FLChallengeLevelsCount();
  * FLChallengeLevelsInfoKey for information available.
  */
 FOUNDATION_EXPORT id FLChallengeLevelsInfo(int gameLevel, FLChallengeLevelsInfoKey infoKey);
-
-FOUNDATION_EXPORT BOOL FLUserUnlocksUnlocked(NSString *unlockKey);
-
-FOUNDATION_EXPORT void FLUserUnlocksUnlock(NSArray *unlockKeys);
-
-FOUNDATION_EXPORT void FLUserUnlocksResetAll();
-FOUNDATION_EXPORT void FLUserUnlocksReset(NSString *unlockKey);
 
 /**
  * The standard application font.

@@ -18,6 +18,7 @@
 #import "FLPath.h"
 #import "FLSegmentNode.h"
 #include "FLTrackGrid.h"
+#import "FLUser.h"
 
 using namespace std;
 using namespace HLCommon;
@@ -69,6 +70,11 @@ static const CGFloat FLZPositionWorldOverlay = 5.0f;
 // Modal sublayers.
 static const CGFloat FLZPositionModalMin = FLZPositionModal;
 static const CGFloat FLZPositionModalMax = FLZPositionModal + 1.0f;
+// Other.
+const CGFloat FLZPositionGoalsOverlayContent = 0.0f;
+const CGFloat FLZPositionGoalsOverlayDismissNode = 1.0f;
+const CGFloat FLZPositionGoalsOverlayVictoryButton = 2.0f;
+const CGFloat FLZPositionGoalsOverlayHappyBursts = 3.0f;
 
 static const NSTimeInterval FLWorldAdjustDuration = 0.5;
 static const NSTimeInterval FLWorldAdjustDurationSlow = 1.0;
@@ -149,6 +155,11 @@ typedef NS_ENUM(NSInteger, FLUnlockItem) {
   FLUnlockCircuitHalfAdder,
   FLUnlockCircuitFullAdder,
   FLUnlockTutorialCompleted,
+};
+
+typedef NS_ENUM(NSInteger, FLRecordItem) {
+  FLRecordSegmentsFewest,
+  FLRecordJoinsFewest,
 };
 
 #pragma mark -
@@ -259,8 +270,27 @@ struct FLLabelState
 
 struct FLGoalsState
 {
-  FLGoalsState() : goalsOverlay(nil) {}
+  FLGoalsState() : goalsOverlay(nil), truthTableNode(nil), resultNode(nil), victoryButton(nil), detailsTableNode(nil) {}
+  void clear() {
+    goalsOverlay = nil;
+    truthTableNode = nil;
+    resultNode = nil;
+    victoryButton = nil;
+    detailsTableNode = nil;
+  }
   HLScrollNode *goalsOverlay;
+  HLGridNode *truthTableNode;
+  DSMultilineLabelNode *resultNode;
+  HLLabelButtonNode *victoryButton;
+  SKNode *detailsTableNode;
+};
+
+struct FLRecordState
+{
+  FLRecordState() {
+    cachedRecords = [NSMutableDictionary dictionary];
+  }
+  NSMutableDictionary *cachedRecords;
 };
 
 typedef NS_ENUM(NSInteger, FLWorldPanType) { FLWorldPanTypeNone, FLWorldPanTypeScroll, FLWorldPanTypeTrackMove, FLWorldPanTypeLink };
@@ -410,6 +440,7 @@ struct PointerPairHash
   FLLinkEditState _linkEditState;
   FLLabelState _labelState;
   FLGoalsState _goalsState;
+  FLRecordState _recordState;
 
   HLMessageNode *_messageNode;
   FLTrain *_train;
@@ -850,9 +881,41 @@ struct PointerPairHash
   }
 }
 
-- (size_t)segmentCount
+- (NSUInteger)segmentCount
 {
-  return _trackGrid->size();
+  return (NSUInteger)_trackGrid->size();
+}
+
+- (NSUInteger)regularSegmentCount
+{
+  // note: Count segments that are considered "regular" track, i.e. not readouts
+  // and not platforms.
+  NSUInteger regularSegmentCount = 0;
+  for (auto s : *_trackGrid) {
+    FLSegmentType segmentType = s.second.segmentType;
+    if (segmentType != FLSegmentTypeReadoutInput
+        && segmentType != FLSegmentTypeReadoutOutput
+        && segmentType != FLSegmentTypePlatformLeft
+        && segmentType != FLSegmentTypePlatformRight
+        && segmentType != FLSegmentTypePlatformStartLeft
+        && segmentType != FLSegmentTypePlatformStartRight) {
+      ++regularSegmentCount;
+    }
+  }
+  return regularSegmentCount;
+}
+
+- (NSUInteger)joinSegmentCount
+{
+  NSUInteger joinSegmentCount = 0;
+  for (auto s : *_trackGrid) {
+    FLSegmentType segmentType = s.second.segmentType;
+    if (segmentType == FLSegmentTypeJoinLeft
+        || segmentType == FLSegmentTypeJoinRight) {
+      ++joinSegmentCount;
+    }
+  }
+  return joinSegmentCount;
 }
 
 #pragma mark -
@@ -882,11 +945,11 @@ struct PointerPairHash
   if (gestureRecognizer.state != UIGestureRecognizerStateEnded) {
     return;
   }
-  
+
   CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
   CGPoint sceneLocation = [self convertPointFromView:viewLocation];
   CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
-  
+
   FLSegmentNode *segmentNode = [self FL_trackFindSegmentNearLocation:worldLocation];
 
   if (!segmentNode || [self FL_trackSelected:segmentNode]) {
@@ -909,7 +972,7 @@ struct PointerPairHash
   CGPoint sceneLocation = [self convertPointFromView:viewLocation];
   CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
   FLSegmentNode *segmentNode = [self FL_trackFindSegmentNearLocation:worldLocation];
-  
+
   if (segmentNode) {
     [self FL_trackSelectClear];
     NSArray *connectedSegmentNodes = trackGridGetAllConnecting(*_trackGrid, segmentNode);
@@ -1270,7 +1333,7 @@ struct PointerPairHash
         [self FL_messageShow:NSLocalizedString(@"Entering linking mode.",
                                                @"Message to user: Shown when link-mode button is pressed to enable linking mode.")];
       } else {
-        [self FL_messageShow:NSLocalizedString(@"Leaving linking mode.",
+        [self FL_messageShow:NSLocalizedString(@"Exiting linking mode.",
                                                @"Message to user: Shown when link-mode button is pressed to disable linking mode.")];
       }
     } else if ([toolTag isEqualToString:@"show-values"]) {
@@ -2011,6 +2074,7 @@ struct PointerPairHash
   [textureStore setTextureWithImageNamed:@"switch" andUIImageWithImageNamed:@"switch-nonatlas.png" forKey:@"switch" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"value-0" andUIImageWithImageNamed:@"value-0-nonatlas.png" forKey:@"value-0" filteringMode:SKTextureFilteringNearest];
   [textureStore setTextureWithImageNamed:@"value-1" andUIImageWithImageNamed:@"value-1-nonatlas.png" forKey:@"value-1" filteringMode:SKTextureFilteringNearest];
+  [textureStore setTextureWithImageNamed:@"unlock" forKey:@"unlock" filteringMode:SKTextureFilteringLinear];
 
   // Segments.
   [textureStore setTextureWithImageNamed:@"straight" andUIImageWithImageNamed:@"straight-nonatlas" forKey:@"straight" filteringMode:SKTextureFilteringNearest];
@@ -2048,6 +2112,8 @@ struct PointerPairHash
   emitterNode = [emitterStore setEmitterWithResource:@"railDestruction" forKey:@"railDestruction"];
   emitterNode.xScale = FLTrackArtScale;
   emitterNode.yScale = FLTrackArtScale;
+  
+  emitterNode = [emitterStore setEmitterWithResource:@"happyBurst" forKey:@"happyBurst"];
 
   NSLog(@"FLTrackScene loadEmitters: loaded in %0.2f seconds", [[NSDate date] timeIntervalSinceDate:startDate]);
 }
@@ -2069,6 +2135,7 @@ struct PointerPairHash
   [SKAction playSoundFileNamed:@"pop-2.caf" waitForCompletion:NO];
   [SKAction playSoundFileNamed:@"plink-1.caf" waitForCompletion:NO];
   [SKAction playSoundFileNamed:@"plink-2.caf" waitForCompletion:NO];
+  [SKAction playSoundFileNamed:@"brr-bring.caf" waitForCompletion:NO];
 
   NSLog(@"FLTrackScene loadSound: loaded in %0.2f seconds", [[NSDate date] timeIntervalSinceDate:startDate]);
 }
@@ -3470,10 +3537,18 @@ struct PointerPairHash
 
 - (void)FL_goalsShowWithSplash:(BOOL)splash
 {
-  const CGFloat FLZPositionGoalsOverlayContent = 0.0f;
-  const CGFloat FLZPositionGoalsOverlayDismissNode = 1.0f;
-  const CGFloat FLZPositionGoalsOverlayVictoryButton = 2.0f;
+  // DELETEME
+  FLUserRecordsResetAll();
+
+  const CGFloat FLLayoutNodeSpacerVertical = 10.0f;
+  const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
+
   CGSize sceneSize = self.size;
+  // note: Show multiline text in a square that won't have to change size if the interface
+  // rotates to a narrower horizontal dimension.
+  CGFloat edgeSizeMax = MIN(MIN(sceneSize.width - FLLayoutNodeSpacerHorizontal * 2.0f,
+                                sceneSize.height - FLLayoutNodeSpacerVertical * 2.0f),
+                            FLDSMultelineLabelParagraphWidthReadableMax);
 
   // Always show results if this goals screen is being shown by a command from the
   // user.  Otherwise, only show results if this is an old (loaded or application
@@ -3481,19 +3556,19 @@ struct PointerPairHash
   BOOL showResults = !splash || !_gameIsNew;
 
   NSMutableArray *layoutNodes = [NSMutableArray array];
-
-  // note: Show in a square that won't have to change size if the interface rotates.
-  CGFloat edgeSizeMax = MIN(MIN(sceneSize.width, sceneSize.height), FLDSMultelineLabelParagraphWidthReadableMax);
+  vector<CGSize> layoutNodeSizes;
+  
+  // Create "intro" text node (always).
   DSMultilineLabelNode *introNode = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
   introNode.zPosition = FLZPositionGoalsOverlayContent;
   introNode.fontSize = 18.0f;
   introNode.fontColor = [SKColor whiteColor];
   if (_gameType == FLGameTypeChallenge) {
     introNode.text = [NSString stringWithFormat:@"%@ %d:\n“%@”\n\n%@:\n%@\n\n%@",
-                      NSLocalizedString(@"Level", @"Game information: followed by a level number."),
+                      NSLocalizedString(@"Level", @"Goals screen followed by a level number."),
                       _gameLevel,
                       FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsTitle),
-                      NSLocalizedString(@"Goals", @"Game information: the header over the description of goals for the current level."),
+                      NSLocalizedString(@"Goals", @"Goals screen: the header over the description of goals for the current level."),
                       FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsGoalShort),
                       FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsGoalLong)];
   } else {
@@ -3502,92 +3577,135 @@ struct PointerPairHash
   if (showResults) {
     introNode.text = [NSString stringWithFormat:@"%@\n\n%@:",
                       introNode.text,
-                      NSLocalizedString(@"Current Results", @"Game information: on the goals screen, the header over the displayed results of the current level solution."0)];
+                      NSLocalizedString(@"Current Results",
+                                        @"Goals screen: on the goals screen, the header over the displayed results of the current level solution."0)];
   }
   introNode.paragraphWidth = edgeSizeMax - FLDSMultilineLabelParagraphWidthBugWorkaroundPad;
   [layoutNodes addObject:introNode];
+  layoutNodeSizes.emplace_back(introNode.size);
 
-  HLLabelButtonNode *victoryButton = nil;
+  // Create truth table and "result" text node (if appropriate).
+  HLGridNode *truthTableNode = nil;
+  DSMultilineLabelNode *resultNode = nil;
+  BOOL victory = NO;
   if (showResults) {
-    BOOL victory = NO;
     NSString *resultText = nil;
     SKColor *resultColor = nil;
-    // note: Would be cool to animate truth table results as they are calculated.  If in the
-    // future the truth table is generated synchronously with this display, that might be a
-    // good time to implement some nice animation as the results arrive.
     FLTrackTruthTable *trackTruthTable = trackGridGenerateTruthTable(*_trackGrid, _links, true);
     if ([trackTruthTable.platformStartSegmentNodes count] != 1) {
       resultText = NSLocalizedString(@"(Results can only be shown when track contains exactly one Starting Platform.)",
-                                     @"Game information: note explaining that results (including truth table) can't be shown until the track meets certain conditions.");
+                                     @"Goals screen: note explaining that results (including truth table) can't be shown until the track meets certain conditions.");
       resultColor = FLInterfaceColorBad();
     } else if (trackTruthTable.state == FLTrackTruthTableStateMissingSegments) {
       resultText = NSLocalizedString(@"(Results can only be shown when track contains at least one Input Value and one Output Value.)",
-                                     @"Game information: note explaining that results (including truth table) can't be shown until the track meets certain conditions.");
+                                     @"Goals screen: note explaining that results (including truth table) can't be shown until the track meets certain conditions.");
       resultColor = FLInterfaceColorBad();
     } else {
       NSArray *goalValues = nil;
       if (_gameType == FLGameTypeChallenge) {
         goalValues = FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsGoalValues);
       }
-      HLGridNode *truthTable = [self FL_truthTableCreate:trackTruthTable index:0 correctValues:goalValues correct:&victory];
-      truthTable.zPosition = FLZPositionGoalsOverlayContent;
-      [layoutNodes addObject:truthTable];
+      truthTableNode = [self FL_truthTableCreateForTable:trackTruthTable index:0 correctValues:goalValues correct:&victory];
       if (_gameType == FLGameTypeChallenge && victory) {
         if (_gameLevel + 1 >= FLChallengeLevelsCount()) {
           resultText = NSLocalizedString(@"Last Level Complete!",
-                                         @"Game information: displayed when current level solution is correct according to goals and current level is the last level.");
+                                         @"Goals screen: displayed when current level solution is correct according to goals and current level is the last level.");
         } else {
           resultText = NSLocalizedString(@"Level Complete!",
-                                         @"Game information: displayed when current level solution is correct according to goals.");
+                                         @"Goals screen: displayed when current level solution is correct according to goals.");
         }
         resultColor = FLInterfaceColorGood();
       } else if (trackTruthTable.state == FLTrackTruthTableStateInfiniteLoopDetected) {
         resultText = NSLocalizedString(@"Loop detected: The results simulation halted after finding a loop in the track.",
-                                       @"Game information: displayed on the goals screen when a loop in the track is detected.");
+                                       @"Goals screen: displayed when a loop in the track is detected.");
         resultColor = FLInterfaceColorBad();
       }
+      // note: ...else no result text to display.
+    }
+    if (truthTableNode) {
+      truthTableNode.zPosition = FLZPositionGoalsOverlayContent;
+      [layoutNodes addObject:truthTableNode];
+      layoutNodeSizes.emplace_back(truthTableNode.size);
     }
     if (resultText) {
-      DSMultilineLabelNode *resultNode = [[DSMultilineLabelNode alloc] initWithFontNamed:FLInterfaceFontName];
+      resultNode = [[DSMultilineLabelNode alloc] initWithFontNamed:FLInterfaceFontName];
       resultNode.zPosition = FLZPositionGoalsOverlayContent;
       resultNode.fontSize = 18.0f;
       resultNode.fontColor = resultColor;
       resultNode.text = resultText;
       resultNode.paragraphWidth = edgeSizeMax - FLDSMultilineLabelParagraphWidthBugWorkaroundPad;
       [layoutNodes addObject:resultNode];
-    }
-    if (_gameType == FLGameTypeChallenge && victory) {
-      NSArray *victoryUserUnlocks = FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsVictoryUserUnlocks);
-      [self runAction:[SKAction playSoundFileNamed:@"train-whistle-tune-1.caf" waitForCompletion:NO]];
-      FLUserUnlocksUnlock(victoryUserUnlocks);
-      if (_gameLevel + 1 < FLChallengeLevelsCount()) {
-        victoryButton = FLInterfaceLabelButton();
-        victoryButton.zPosition = FLZPositionGoalsOverlayVictoryButton;
-        victoryButton.text = NSLocalizedString(@"Next Level",
-                                               @"Button: takes you to the next level of a challenge game.");
-        [layoutNodes addObject:victoryButton];
-      }
+      layoutNodeSizes.emplace_back(resultNode.size);
     }
   }
 
-  // Layout main components (not counting dismissNode).
+  // Create "next level" victory button (if appropriate).
+  HLLabelButtonNode *victoryButton = nil;
+  if (_gameType == FLGameTypeChallenge && victory) {
+    if (_gameLevel + 1 < FLChallengeLevelsCount()) {
+      victoryButton = FLInterfaceLabelButton();
+      victoryButton.zPosition = FLZPositionGoalsOverlayVictoryButton;
+      victoryButton.text = NSLocalizedString(@"Next Level",
+                                             @"Goals screen: button that takes you to the next level of a challenge game.");
+      [layoutNodes addObject:victoryButton];
+      layoutNodeSizes.emplace_back(victoryButton.size);
+    }
+  }
+  
+  SKNode *detailsTableNode = nil;
+  if (_gameType == FLGameTypeChallenge && victory) {
+    detailsTableNode = [SKNode node];
+
+    // Create details "unlock" nodes (if any).
+    NSArray *victoryUserUnlocks = FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsVictoryUserUnlocks);
+    FLUserUnlocksUnlock(victoryUserUnlocks);
+    [self FL_goalsCreateUnlocks:victoryUserUnlocks parent:detailsTableNode];
+  
+    // Create details "user record" nodes (if any).
+    NSArray *recordTexts;
+    NSArray *newValues;
+    NSArray *oldValues;
+    [self FL_recordSubmitAll:@[ @(FLRecordSegmentsFewest), @(FLRecordJoinsFewest) ]
+                 recordTexts:&recordTexts
+                   newValues:&newValues
+                   oldValues:&oldValues];
+    [self FL_goalsCreateRecords:recordTexts newValues:newValues oldValues:oldValues parent:detailsTableNode];
+
+    // Layout details in a table.
+    if ([detailsTableNode.children count] > 0) {
+      HLTableLayoutManager *layoutManager = [[HLTableLayoutManager alloc] initWithColumnCount:4
+                                                                                 columnWidths:@[ @(20.0f), @(0.0f) ]
+                                                                           columnAnchorPoints:@[ [NSValue valueWithCGPoint:CGPointMake(0.5f, 0.5f)],
+                                                                                                 [NSValue valueWithCGPoint:CGPointMake(0.0f, 0.25f)],
+                                                                                                 [NSValue valueWithCGPoint:CGPointMake(1.0f, 0.25f)] ]
+                                                                                   rowHeights:@[ @(20.0f) ]];
+      layoutManager.columnSeparator = 8.0f;
+      [detailsTableNode setHLLayoutManager:layoutManager];
+      [detailsTableNode hlLayoutChildren];
+      detailsTableNode.zPosition = FLZPositionGoalsOverlayContent;
+      [layoutNodes addObject:detailsTableNode];
+      layoutNodeSizes.emplace_back(layoutManager.size);
+    }
+  }
+
+  // Layout nodes in goals (not counting dismissNode).
   SKNode *goalsContent = [SKNode node];
   CGSize contentSize = CGSizeZero;
-  for (id layoutNode in layoutNodes) {
-    CGSize layoutNodeSize = [layoutNode size];
+  for (NSUInteger i = 0; i < [layoutNodes count]; ++i) {
+    CGSize layoutNodeSize = layoutNodeSizes[i];
     if (layoutNodeSize.width > contentSize.width) {
       contentSize.width = layoutNodeSize.width;
     }
     contentSize.height += layoutNodeSize.height;
   }
-  const CGFloat FLLayoutNodeSpacer = 10.0f;
-  contentSize.width += 2.0f * FLLayoutNodeSpacer;
-  contentSize.height += ([layoutNodes count] + 1) * FLLayoutNodeSpacer;
-  CGFloat layoutNodeY = contentSize.height / 2.0f - FLLayoutNodeSpacer;
-  for (id layoutNode in layoutNodes) {
-    CGSize layoutNodeSize = [layoutNode size];
+  contentSize.width += 2.0f * FLLayoutNodeSpacerHorizontal;
+  contentSize.height += ([layoutNodes count] + 1) * FLLayoutNodeSpacerVertical;
+  CGFloat layoutNodeY = contentSize.height / 2.0f - FLLayoutNodeSpacerVertical;
+  for (NSUInteger i = 0; i < [layoutNodes count]; ++i) {
+    id layoutNode = layoutNodes[i];
+    CGSize layoutNodeSize = layoutNodeSizes[i];
     [layoutNode setPosition:CGPointMake(0.0f, layoutNodeY - layoutNodeSize.height / 2.0f)];
-    layoutNodeY -= (layoutNodeSize.height + FLLayoutNodeSpacer);
+    layoutNodeY -= (layoutNodeSize.height + FLLayoutNodeSpacerVertical);
     [goalsContent addChild:layoutNode];
   }
 
@@ -3602,27 +3720,38 @@ struct PointerPairHash
   HLScrollNode *goalsOverlay = [[HLScrollNode alloc] initWithSize:goalsOverlaySize contentSize:contentSize];
   goalsOverlay.contentScaleMinimum = 0.0f;
   goalsOverlay.contentScaleMinimumMode = HLScrollNodeContentScaleMinimumFitLoose;
-  goalsOverlay.contentScaleMaximum = 1.0f;
-  const CGFloat FLGoalsOverlayContentScaleMin = 0.25f;
-  CGFloat contentScale = (goalsOverlaySize.width / contentSize.width);
-  if (contentScale < FLGoalsOverlayContentScaleMin) {
-    contentScale = FLGoalsOverlayContentScaleMin;
+  const CGFloat FLGoalsOverlayInitialContentScaleMin = 0.25f;
+  CGFloat initialContentScaleX = goalsOverlaySize.width / contentSize.width;
+  CGFloat initialContentScaleY = goalsOverlaySize.height / contentSize.height;
+  CGFloat initialContentScale = MIN(initialContentScaleX, initialContentScaleY);
+  // note: Zoom out to show content initially, but only so far.  Also, prioritize fitting
+  // the X dimension, since scrolling up and down seems more natural.  But if fitting
+  // everything means zooming out only a tiny bit, then just fit everything and don't
+  // allow zooming back in, because it's silly.
+  CGFloat contentScaleMaximum = 1.0f;
+  if (initialContentScale > 1.0f) {
+    initialContentScale = 1.0f;
+  } else if (initialContentScale > 0.95f) {
+    contentScaleMaximum = initialContentScale;
+  } else {
+    initialContentScale = MAX(initialContentScaleX, FLGoalsOverlayInitialContentScaleMin);
   }
-  goalsOverlay.contentScale = contentScale;
-  // note: Show center if content fits vertically; otherwise show top.  But if
-  // victory, then animate a scroll down to the bottom.  (TODO: This will be
-  // replaced by something fancier once we have achievements.)
+  goalsOverlay.contentScaleMaximum = contentScaleMaximum;
+  goalsOverlay.contentScale = initialContentScale;
+  // note: Show center if content fits vertically; otherwise show top.
   CGPoint contentOffset = CGPointZero;
-  if (contentSize.height * contentScale > sceneSize.height) {
-    contentOffset.y = (sceneSize.height - contentSize.height * contentScale) / 2.0f;
+  if (contentSize.height * initialContentScale > sceneSize.height) {
+    contentOffset.y = (sceneSize.height - contentSize.height * initialContentScale) / 2.0f;
   }
   goalsOverlay.contentOffset = contentOffset;
   goalsOverlay.contentNode = goalsContent;
-  if (contentSize.height * contentScale > sceneSize.height) {
-    const NSTimeInterval FLGoalsScrollDuration = 1.0;
-    [goalsOverlay setContentOffset:CGPointMake(contentOffset.x, -contentOffset.y) animatedDuration:FLGoalsScrollDuration completion:nil];
-  }
+  
+  // Remember some global state for use elsewhere.
   _goalsState.goalsOverlay = goalsOverlay;
+  _goalsState.truthTableNode = truthTableNode;
+  _goalsState.resultNode = resultNode;
+  _goalsState.victoryButton = victoryButton;
+  _goalsState.detailsTableNode = detailsTableNode;
 
   // Set up interactive elements.
   //
@@ -3677,7 +3806,7 @@ struct PointerPairHash
       [self unregisterDescendant:victoryButtonWeak];
       [self unregisterDescendant:dismissNodeWeak];
       [self unregisterDescendant:goalsOverlayWeak];
-      self->_goalsState.goalsOverlay = nil;
+      self->_goalsState.clear();
       // noob: Retain a strong reference to block owner when dismissing the modal node; nobody else
       // is retaining the victoryButton, but we'd like to finish running this block before getting
       // deallocated.  The weak reference is copied with the block at copy time; now this strong
@@ -3709,7 +3838,7 @@ struct PointerPairHash
     [self unregisterDescendant:victoryButtonWeak];
     [self unregisterDescendant:dismissNodeWeak];
     [self unregisterDescendant:goalsOverlayWeak];
-    self->_goalsState.goalsOverlay = nil;
+    self->_goalsState.clear();
     __unused HLGestureTargetSpriteNode *dismissNodeStrongAgain = dismissNodeWeak;
     [self dismissModalNodeAnimation:HLScenePresentationAnimationFade];
   }];
@@ -3721,6 +3850,11 @@ struct PointerPairHash
 
   goalsOverlay.gestureTargetDelegateWeak = goalsOverlay;
   [self registerDescendant:goalsOverlay withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
+
+  // Do some special animation for victory.
+  if (victory && !splash) {
+    [self FL_goalsRevealCorrect];
+  }
 
   [self presentModalNode:goalsOverlay animation:HLScenePresentationAnimationFade];
 }
@@ -3737,13 +3871,316 @@ struct PointerPairHash
                                  MIN(sceneSize.height, contentSize.height));
 }
 
-- (HLGridNode *)FL_truthTableCreate:(FLTrackTruthTable *)trackTruthTable
-                              index:(int)truthTableIndex
-                      correctValues:(NSArray *)correctValues
-                            correct:(BOOL *)correct
+- (void)FL_goalsCreateUnlocks:(NSArray *)unlockKeys
+                       parent:(SKNode *)parent
 {
-  FLTruthTable& truthTable = trackTruthTable.truthTables[static_cast<NSUInteger>(truthTableIndex)];
+  BOOL firstOne = YES;
+  for (NSString *unlockKey in unlockKeys) {
+    NSString *unlockText = [self FL_unlockText:unlockKey];
+    if (!unlockText) {
+      continue;
+    }
 
+    if (firstOne) {
+      [parent addChild:[SKNode node]];
+      SKLabelNode *headerNode = [SKLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
+      headerNode.horizontalAlignmentMode = SKLabelHorizontalAlignmentModeLeft;
+      headerNode.verticalAlignmentMode = SKLabelVerticalAlignmentModeBaseline;
+      headerNode.fontSize = 14.0f;
+      headerNode.fontColor = FLInterfaceColorMaybe();
+      headerNode.text = NSLocalizedString(@"Unlocked!",
+                                          @"Goals screen: header displayed over a table of game features unlocked by level victory.");
+      [parent addChild:headerNode];
+      [parent addChild:[SKNode node]];
+      [parent addChild:[SKNode node]];
+      firstOne = NO;
+    }
+
+    SKSpriteNode *iconNode = [SKSpriteNode spriteNodeWithTexture:[[HLTextureStore sharedStore] textureForKey:@"unlock"]
+                                                            size:CGSizeMake(25.0f, 25.0f)];
+    iconNode.zRotation = (CGFloat)M_PI_2;
+    [parent addChild:iconNode];
+
+    SKLabelNode *labelNode = [SKLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
+    labelNode.horizontalAlignmentMode = SKLabelHorizontalAlignmentModeLeft;
+    labelNode.verticalAlignmentMode = SKLabelVerticalAlignmentModeBaseline;
+    labelNode.fontSize = 14.0f;
+    labelNode.fontColor = FLInterfaceColorLight();
+    labelNode.text = unlockText;
+    [parent addChild:labelNode];
+
+    [parent addChild:[SKNode node]];
+
+    [parent addChild:[SKNode node]];
+  }
+}
+
+- (void)FL_goalsCreateRecords:(NSArray *)recordTexts
+                    newValues:(NSArray *)newValues
+                    oldValues:(NSArray *)oldValues
+                       parent:(SKNode *)parent
+{
+  BOOL firstOne = YES;
+  for (NSUInteger r = 0; r < [recordTexts count]; ++r) {
+
+    if (firstOne) {
+      [parent addChild:[SKNode node]];
+      SKLabelNode *headerNode = [SKLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
+      headerNode.horizontalAlignmentMode = SKLabelHorizontalAlignmentModeLeft;
+      headerNode.verticalAlignmentMode = SKLabelVerticalAlignmentModeBaseline;
+      headerNode.fontSize = 14.0f;
+      headerNode.fontColor = FLInterfaceColorMaybe();
+      headerNode.text = NSLocalizedString(@"New Records!",
+                                          @"Goals screen: header displayed over a table of new records after level victory.");
+      [parent addChild:headerNode];
+      [parent addChild:[SKNode node]];
+      [parent addChild:[SKNode node]];
+      firstOne = NO;
+    }
+
+    SKSpriteNode *iconNode = [SKSpriteNode spriteNodeWithTexture:[[HLTextureStore sharedStore] textureForKey:@"goals"]
+                                                            size:CGSizeMake(22.0f, 22.0f)];
+    iconNode.zRotation = (CGFloat)M_PI_2;
+    [parent addChild:iconNode];
+
+    SKLabelNode *labelNode = [SKLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
+    labelNode.horizontalAlignmentMode = SKLabelHorizontalAlignmentModeLeft;
+    labelNode.verticalAlignmentMode = SKLabelVerticalAlignmentModeBaseline;
+    labelNode.fontSize = 14.0f;
+    labelNode.fontColor = FLInterfaceColorLight();
+    labelNode.text = recordTexts[r];
+    [parent addChild:labelNode];
+    
+    SKLabelNode *newValueNode = [SKLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
+    newValueNode.horizontalAlignmentMode = SKLabelHorizontalAlignmentModeRight;
+    newValueNode.verticalAlignmentMode = SKLabelVerticalAlignmentModeBaseline;
+    newValueNode.fontSize = 14.0f;
+    newValueNode.fontColor = FLInterfaceColorGood();
+    newValueNode.text = [NSString stringWithFormat:NSLocalizedString(@"%@",
+                                                                     @"Goals screen: displayed in a column of level results to show the {new record value} for a gameplay record."),
+                         [newValues[r] stringValue]];
+    [parent addChild:newValueNode];
+
+    SKLabelNode *oldValueNode = [SKLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
+    oldValueNode.horizontalAlignmentMode = SKLabelHorizontalAlignmentModeRight;
+    oldValueNode.verticalAlignmentMode = SKLabelVerticalAlignmentModeBaseline;
+    oldValueNode.fontSize = 14.0f;
+    oldValueNode.fontColor = FLInterfaceColorLight();
+    oldValueNode.text = [NSString stringWithFormat:NSLocalizedString(@"(was %@)",
+                                                                     @"Goals screen: displayed in a column of level results to show the {old record value} for a gameplay record."),
+                         [oldValues[r] stringValue]];
+    [parent addChild:oldValueNode];
+  }
+}
+
+- (void)FL_goalsRevealCorrect
+{
+  HLScrollNode *goalsOverlay = _goalsState.goalsOverlay;
+
+  CGPoint originalContentOffset = goalsOverlay.contentOffset;
+  CGFloat originalContentScale = goalsOverlay.contentScale;
+  CGFloat originalContentScaleMaximum = goalsOverlay.contentScaleMaximum;
+  HLScrollNodeContentScaleMinimumMode originalContentScaleMinimumMode = goalsOverlay.contentScaleMinimumMode;
+
+  const CGFloat FLTruthTableRevealTruthTableFlyUpScale = originalContentScale * 0.8f;
+  const CGFloat FLTruthTableRevealTruthTableFlyDownScale = 1.3f;
+  const NSTimeInterval FLTruthTableRevealZoomInDuration = 0.8;
+  const NSTimeInterval FLTruthTableRevealDramaticPauseDuration = 0.5;
+  const NSTimeInterval FLTruthTableRevealResultsStepDuration = 0.5;
+  const NSTimeInterval FLTruthTableRevealResultsMaxDuration = 3.0;
+  const NSTimeInterval FLTruthTableRevealOtherDuration = 0.8;
+  const NSTimeInterval FLTruthTableRevealZoomOutDuration = 0.5;
+
+  NSMutableArray *revealActions = [NSMutableArray array];
+
+  SKEmitterNode *happyBurst = [[HLEmitterStore sharedStore] emitterCopyForKey:@"happyBurst"];
+  happyBurst.zPosition = FLZPositionGoalsOverlayHappyBursts;
+  // noob: Good practice to remove emitter node once it's finished?
+  NSTimeInterval particleLifetimeMax = happyBurst.particleLifetime;
+  if (happyBurst.particleLifetimeRange > 0.001f) {
+    particleLifetimeMax += (happyBurst.particleLifetimeRange / 2.0f);
+  }
+  SKAction *removeHappyBurstAfterWait = [SKAction sequence:@[ [SKAction waitForDuration:particleLifetimeMax],
+                                                              [SKAction removeFromParent] ]];
+
+  // Hide results checkmarks, and create actions to re-add them one at a time.
+  HLGridNode *truthTableNode = _goalsState.truthTableNode;
+  if (truthTableNode) {
+    int gridWidth = truthTableNode.gridWidth;
+    int gridHeight = truthTableNode.gridHeight;
+    NSTimeInterval resultsStepDuration = FLTruthTableRevealResultsMaxDuration / gridHeight;
+    if (resultsStepDuration > FLTruthTableRevealResultsStepDuration) {
+      resultsStepDuration = FLTruthTableRevealResultsStepDuration;
+    }
+    for (int row = 1; row < gridHeight; ++row) {
+      int squareIndex = (row + 1) * gridWidth - 1;
+      SKSpriteNode *squareNode = [truthTableNode squareNodeForSquare:squareIndex];
+      SKLabelNode *resultNode = (SKLabelNode *)[truthTableNode contentForSquare:squareIndex];
+      [truthTableNode setContent:nil forSquare:squareIndex];
+      
+      CGPoint resultContentLocation = [goalsOverlay.contentNode convertPoint:resultNode.position fromNode:squareNode];
+      if (row == 1) {
+        [revealActions addObject:[SKAction runBlock:^{
+          goalsOverlay.contentScaleMinimumMode = HLScrollNodeContentScaleMinimumAsConfigured;
+          SKAction *flyUpAction = [goalsOverlay actionForSetContentScale:FLTruthTableRevealTruthTableFlyUpScale
+                                                        animatedDuration:(FLTruthTableRevealZoomInDuration * 0.6f)];
+          flyUpAction.timingMode = SKActionTimingEaseOut;
+          [goalsOverlay runAction:flyUpAction];
+        }]];
+        [revealActions addObject:[SKAction waitForDuration:(FLTruthTableRevealZoomInDuration * 0.6f)]];
+        [revealActions addObject:[SKAction runBlock:^{
+          goalsOverlay.contentScaleMaximum = FLTruthTableRevealTruthTableFlyDownScale;
+          SKAction *flyDownAction = [goalsOverlay actionForScrollContentLocation:resultContentLocation
+                                                                  toNodeLocation:CGPointZero
+                                                              andSetContentScale:FLTruthTableRevealTruthTableFlyDownScale
+                                                                animatedDuration:(FLTruthTableRevealZoomInDuration * 0.4f)];
+          flyDownAction.timingMode = SKActionTimingEaseIn;
+          [goalsOverlay runAction:flyDownAction];
+        }]];
+        [revealActions addObject:[SKAction waitForDuration:(FLTruthTableRevealZoomInDuration * 0.4f)]];
+        [revealActions addObject:[SKAction waitForDuration:FLTruthTableRevealDramaticPauseDuration]];
+      } else {
+        [revealActions addObject:[SKAction runBlock:^{
+          [goalsOverlay scrollContentLocation:resultContentLocation
+                               toNodeLocation:CGPointZero
+                             animatedDuration:(resultsStepDuration * 0.33f)
+                                   completion:nil];
+        }]];
+        [revealActions addObject:[SKAction waitForDuration:(resultsStepDuration * 0.33f)]];
+      }
+
+      [revealActions addObject:[SKAction playSoundFileNamed:@"pop-2.caf" waitForCompletion:NO]];
+      [revealActions addObject:[SKAction runBlock:^{
+        [truthTableNode setContent:resultNode forSquare:squareIndex];
+        SKEmitterNode *happyBurstCopy = [happyBurst copy];
+        happyBurstCopy.position = resultContentLocation;
+        happyBurstCopy.particlePositionRange = CGVectorMake(squareNode.size.width, squareNode.size.height);
+        [goalsOverlay.contentNode addChild:happyBurstCopy];
+        [happyBurstCopy runAction:removeHappyBurstAfterWait];
+      }]];
+      [revealActions addObject:[SKAction waitForDuration:(resultsStepDuration * 0.66f)]];
+    }
+  }
+
+  // Hide result (label) node, and create an action to show it.
+  DSMultilineLabelNode *resultNode = _goalsState.resultNode;
+  if (resultNode) {
+    CGPoint resultContentLocation = resultNode.position;
+    [resultNode removeFromParent];
+    [revealActions addObject:[SKAction runBlock:^{
+      [goalsOverlay scrollContentLocation:resultContentLocation
+                           toNodeLocation:CGPointZero
+                         animatedDuration:(FLTruthTableRevealOtherDuration * 0.33f)
+                               completion:nil];
+    }]];
+    [revealActions addObject:[SKAction waitForDuration:(FLTruthTableRevealOtherDuration * 0.33f)]];
+    [revealActions addObject:[SKAction playSoundFileNamed:@"pop-2.caf" waitForCompletion:NO]];
+    [revealActions addObject:[SKAction runBlock:^{
+      [goalsOverlay.contentNode addChild:resultNode];
+      SKEmitterNode *happyBurstCopy = [happyBurst copy];
+      happyBurstCopy.position = resultContentLocation;
+      happyBurstCopy.particlePositionRange = CGVectorMake(resultNode.size.width, resultNode.size.height);
+      [goalsOverlay.contentNode addChild:happyBurstCopy];
+      [happyBurstCopy runAction:removeHappyBurstAfterWait];
+    }]];
+    [revealActions addObject:[SKAction waitForDuration:(FLTruthTableRevealOtherDuration * 0.66f)]];
+  }
+  
+  // Hide victory button, and create an action to show it.
+  HLLabelButtonNode *victoryButton = _goalsState.victoryButton;
+  if (victoryButton) {
+    CGPoint victoryContentLocation = victoryButton.position;
+    [victoryButton removeFromParent];
+    [revealActions addObject:[SKAction runBlock:^{
+      [goalsOverlay scrollContentLocation:victoryContentLocation
+                           toNodeLocation:CGPointZero
+                         animatedDuration:(FLTruthTableRevealOtherDuration * 0.33f)
+                               completion:nil];
+    }]];
+    [revealActions addObject:[SKAction waitForDuration:(FLTruthTableRevealOtherDuration * 0.33f)]];
+    [revealActions addObject:[SKAction playSoundFileNamed:@"pop-2.caf" waitForCompletion:NO]];
+    [revealActions addObject:[SKAction runBlock:^{
+      [goalsOverlay.contentNode addChild:victoryButton];
+      SKEmitterNode *happyBurstCopy = [happyBurst copy];
+      happyBurstCopy.position = victoryContentLocation;
+      happyBurstCopy.particlePositionRange = CGVectorMake(victoryButton.size.width, victoryButton.size.height);
+      [goalsOverlay.contentNode addChild:happyBurstCopy];
+      [happyBurstCopy runAction:removeHappyBurstAfterWait];
+    }]];
+    [revealActions addObject:[SKAction waitForDuration:(FLTruthTableRevealOtherDuration * 0.66f)]];
+  }
+
+  // Hide details (unlocks and records), and create actions to show them.
+  SKNode *detailsTableNode = _goalsState.detailsTableNode;
+  if (detailsTableNode) {
+    HLTableLayoutManager *layoutManager = [detailsTableNode hlLayoutManager];
+    NSUInteger columnCount = layoutManager.columnCount;
+    NSArray *detailsNodes = detailsTableNode.children;
+    NSUInteger detailsNodesCount = [detailsNodes count];
+    NSMutableArray *replaceNodes = [NSMutableArray array];
+    for (NSUInteger rowStartIndex = 0; rowStartIndex + columnCount - 1 < detailsNodesCount; rowStartIndex += columnCount) {
+      BOOL isHeaderRow = ![detailsNodes[rowStartIndex] isKindOfClass:[SKSpriteNode class]];
+      CGPoint rowContentLocation;
+      if (!isHeaderRow) {
+        SKNode *iconNode = detailsNodes[rowStartIndex];
+        rowContentLocation = [goalsOverlay.contentNode convertPoint:iconNode.position fromNode:detailsTableNode];
+        rowContentLocation.x = 0.0f;
+      }
+      for (NSUInteger column = 0; column < columnCount; ++column) {
+        SKNode *node = detailsNodes[rowStartIndex + column];
+        [node removeFromParent];
+        [replaceNodes addObject:node];
+      }
+      if (!isHeaderRow) {
+        [revealActions addObject:[SKAction runBlock:^{
+          [goalsOverlay scrollContentLocation:rowContentLocation
+                               toNodeLocation:CGPointZero
+                             animatedDuration:(FLTruthTableRevealOtherDuration * 0.33f)
+                                   completion:nil];
+        }]];
+        [revealActions addObject:[SKAction waitForDuration:(FLTruthTableRevealOtherDuration * 0.33f)]];
+        [revealActions addObject:[SKAction playSoundFileNamed:@"brr-bring.caf" waitForCompletion:NO]];
+        [revealActions addObject:[SKAction runBlock:^{
+          for (SKNode *node in replaceNodes) {
+            [detailsTableNode addChild:node];
+          }
+          SKEmitterNode *happyBurstCopy = [happyBurst copy];
+          happyBurstCopy.position = rowContentLocation;
+          happyBurstCopy.particlePositionRange = CGVectorMake(layoutManager.size.width, 20.0f);
+          [goalsOverlay.contentNode addChild:happyBurstCopy];
+          [happyBurstCopy runAction:removeHappyBurstAfterWait];
+        }]];
+        [revealActions addObject:[SKAction waitForDuration:(FLTruthTableRevealOtherDuration * 0.66f)]];
+        replaceNodes = [NSMutableArray array];
+      }
+    }
+  }
+
+  [revealActions addObject:[SKAction playSoundFileNamed:@"train-whistle-tune-1.caf" waitForCompletion:NO]];
+  
+  [revealActions addObject:[SKAction runBlock:^{
+    [goalsOverlay setContentOffset:originalContentOffset
+                      contentScale:originalContentScale
+                  animatedDuration:FLTruthTableRevealZoomOutDuration
+                        completion:nil];
+  }]];
+  [revealActions addObject:[SKAction waitForDuration:FLTruthTableRevealZoomOutDuration]];
+
+  [revealActions addObject:[SKAction runBlock:^{
+    goalsOverlay.contentScaleMaximum = originalContentScaleMaximum;
+    goalsOverlay.contentScaleMinimumMode = originalContentScaleMinimumMode;
+  }]];
+  
+  [goalsOverlay runAction:[SKAction sequence:revealActions]];
+}
+
+- (HLGridNode *)FL_truthTableCreateForTable:(FLTrackTruthTable *)trackTruthTable
+                                      index:(NSUInteger)truthTableIndex
+                              correctValues:(NSArray *)correctValues
+                                    correct:(BOOL *)correct
+{
+  FLTruthTable& truthTable = trackTruthTable.truthTables[truthTableIndex];
+  
   int inputSize = truthTable.getInputSize();
   int outputSize = truthTable.getOutputSize();
   NSMutableArray *contentTexts = [NSMutableArray array];
@@ -3768,7 +4205,9 @@ struct PointerPairHash
   }
 
   // Specify content for value rows.
-  *correct = YES;
+  if (correctValues) {
+    *correct = YES;
+  }
   vector<int> inputValues = truthTable.inputValuesFirst();
   NSUInteger cv = 0;
   do {
@@ -3911,7 +4350,7 @@ struct PointerPairHash
 {
   // note: This works pretty well as a first pass at implementation.  Perhaps it
   // will be improved in the future.
-  
+
   NSArray *nodesAtPoint = [_trackNode nodesAtPoint:worldLocation];
   for (SKNode *nodeAtPoint in nodesAtPoint) {
     if (![nodeAtPoint isKindOfClass:[FLSegmentNode class]]) {
@@ -5265,7 +5704,7 @@ struct PointerPairHash
     [_trackNode addChild:railDestruction];
     // noob: I read it is recommended to remove emitter nodes when they aren't visible.  I'm not sure if that applies
     // to emitter nodes that have reached their numParticlesToEmit maximum, but it certainly seems like a best practice.
-    SKAction *removeAfterWait = [SKAction sequence:@[ [SKAction waitForDuration:(sleeperDestruction.particleLifetime * 1.0)],
+    SKAction *removeAfterWait = [SKAction sequence:@[ [SKAction waitForDuration:sleeperDestruction.particleLifetime],
                                                       [SKAction removeFromParent] ]];
     [sleeperDestruction runAction:removeAfterWait];
     [railDestruction runAction:removeAfterWait];
@@ -5333,6 +5772,130 @@ struct PointerPairHash
     }
   }
   return NO;
+}
+
+- (NSString *)FL_unlockText:(NSString *)unlockKey
+{
+  if ([unlockKey hasPrefix:@"FLUserUnlockLevel"]) {
+    // commented out: This unlock isn't generally worth telling the user about.  Return nil instead.
+    //NSString *gameLevel = [unlockKey substringFromIndex:17];
+    //return [NSString stringWithFormat:NSLocalizedString(@"Unlocked: Level %@",
+    //                                                    @"Game information: displayed when a new challenge level (with {level number}) is unlocked by successfully completing a level."),
+    //        gameLevel];
+    return nil;
+  } else if ([unlockKey isEqualToString:@"FLUserUnlockGateNot"]) {
+    return NSLocalizedString(@"NOT Gate",
+                             @"Game information: displayed when the NOT gate is unlocked by successfully completing a level.");
+  } else if ([unlockKey isEqualToString:@"FLUserUnlockGateAnd"]) {
+    return NSLocalizedString(@"AND Gate",
+                             @"Game information: displayed when the AND gate is unlocked by successfully completing a level.");
+  } else if ([unlockKey isEqualToString:@"FLUserUnlockGateOr"]) {
+    return NSLocalizedString(@"OR Gate",
+                             @"Game information: displayed when the OR gate is unlocked by successfully completing a level.");
+  } else if ([unlockKey isEqualToString:@"FLUserUnlockGateNot"]) {
+    return NSLocalizedString(@"XOR Gate",
+                             @"Game information: displayed when the XOR gate is unlocked by successfully completing a level.");
+  } else if ([unlockKey isEqualToString:@"FLUserUnlockGateHalfAdder"]) {
+    return NSLocalizedString(@"Half Adder Circuit",
+                             @"Game information: displayed when the half adder circuit is unlocked by successfully completing a level.");
+  } else if ([unlockKey isEqualToString:@"FLUserUnlockGateFullAdder"]) {
+    return NSLocalizedString(@"Full Adder Circuit",
+                             @"Game information: displayed when the full adder circuit is unlocked by successfully completing a level.");
+  } else if ([unlockKey isEqualToString:@"FLUserUnlockTutorialCompleted"]) {
+    return nil;
+  }
+  [NSException raise:@"FLUnlockTextUnknownUnlockKey" format:@"Missing unlock text for unlock key '%@'.", unlockKey];
+  return nil;
+}
+
+- (void)FL_recordSubmitAll:(NSArray *)recordItems
+               recordTexts:(NSArray * __autoreleasing *)recordTexts
+                 newValues:(NSArray * __autoreleasing *)newValues
+                 oldValues:(NSArray * __autoreleasing *)oldValues
+{
+  NSMutableArray *mutableRecordTexts = [NSMutableArray array];
+  NSMutableArray *mutableNewValues = [NSMutableArray array];
+  NSMutableArray *mutableOldValues = [NSMutableArray array];
+  for (NSNumber *ri in recordItems) {
+    FLRecordItem recordItem = (FLRecordItem)[ri integerValue];
+    NSString *recordText;
+    NSInteger newValue;
+    NSInteger oldValue;
+    if ([self FL_recordSubmit:recordItem text:&recordText newValue:&newValue oldValue:&oldValue]) {
+      [mutableRecordTexts addObject:recordText];
+      [mutableNewValues addObject:@(newValue)];
+      [mutableOldValues addObject:@(oldValue)];
+    }
+  }
+  *recordTexts = mutableRecordTexts;
+  *newValues = mutableNewValues;
+  *oldValues = mutableOldValues;
+}
+
+- (BOOL)FL_recordSubmit:(FLRecordItem)recordItem text:(NSString * __autoreleasing *)recordText newValue:(NSInteger *)newValue oldValue:(NSInteger *)oldValue
+{
+  BOOL returnValue = NO;
+  
+  NSString *recordKey = nil;
+  switch (recordItem) {
+    case FLRecordSegmentsFewest:
+      recordKey = @"FLUserRecordSegmentsFewest";
+      *newValue = (NSInteger)self.regularSegmentCount;
+      *recordText = NSLocalizedString(@"Fewest Segments:",
+                                      @"Game information: description of the record for solving a level using the fewest segments.");
+      break;
+    case FLRecordJoinsFewest:
+      recordKey = @"FLUserRecordJoinsFewest";
+      *newValue = (NSInteger)self.joinSegmentCount;
+      *recordText = NSLocalizedString(@"Fewest Joins:",
+                                      @"Game information: description of the record for solving a level using the fewest join segments.");
+      break;
+    default:
+      [NSException raise:@"FLRecordSubmitUnknownItem" format:@"Unknown record item %ld.", (long)recordItem];
+  }
+
+  // Get current record (used in a couple places below).
+  NSNumber *currentRecord = (NSNumber *)FLUserRecordsLevelGet(recordKey, _gameLevel);
+
+  // Get the old record value, or use a default if no record has been set.
+  //
+  // note: If we beat the record, then we'll submit it as the new record.
+  // However, until the user goes to the next level, we'd still like to
+  // keep reporting the same "you beat the old record" value.  So cache
+  // the original record and keep re-using it.
+  NSNumber *cachedRecord = _recordState.cachedRecords[@(recordItem)];
+  if (cachedRecord) {
+    *oldValue = [cachedRecord integerValue];
+  } else if (currentRecord) {
+    *oldValue = [currentRecord integerValue];
+    _recordState.cachedRecords[@(recordItem)] = currentRecord;
+  } else {
+    NSDictionary *recordDefaults = FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsRecordDefaults);
+    NSNumber *defaultRecord = recordDefaults[recordKey];
+    if (!defaultRecord) {
+      [NSException raise:@"FLRecordSubmitMissingDefaultRecord" format:@"Missing default record for %@ on game level %d.", recordKey, _gameLevel];
+    }
+    *oldValue = [defaultRecord integerValue];
+    _recordState.cachedRecords[@(recordItem)] = defaultRecord;
+  }
+
+  // Test new record against old.
+  if (*newValue < *oldValue) {
+    returnValue = YES;
+  }
+
+  // Submit new record.
+  //
+  // note: Depending on how things are implemented, it's possible that another
+  // game will have submitted a better record during the time we've cached an
+  // old record.  So check before subitting, so that we don't accidentally
+  // overwrite a better record.
+  if (!currentRecord || *newValue < [currentRecord integerValue]) {
+    NSNumber *newRecord = [NSNumber numberWithInteger:*newValue];
+    FLUserRecordsLevelSet(recordKey, _gameLevel, newRecord);
+  }
+
+  return returnValue;
 }
 
 - (BOOL)FL_gameTypeChallengeCanEraseSegment:(FLSegmentNode *)segmentNode

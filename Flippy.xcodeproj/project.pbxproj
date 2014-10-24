@@ -18,6 +18,7 @@
 		CB1D39E319F05A3900D829CB /* platform-right-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB1D39DF19F05A3900D829CB /* platform-right-nonatlas.png */; };
 		CB1D39E419F05A3900D829CB /* platform-start-left-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB1D39E019F05A3900D829CB /* platform-start-left-nonatlas.png */; };
 		CB1D39E519F05A3900D829CB /* platform-start-right-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB1D39E119F05A3900D829CB /* platform-start-right-nonatlas.png */; };
+		CB230D791A003E6A00F4CA44 /* unlock.png in Resources */ = {isa = PBXBuildFile; fileRef = CB230D781A003E6A00F4CA44 /* unlock.png */; };
 		CB2ED87419D9AB8C0021CF86 /* grass.jpg in Resources */ = {isa = PBXBuildFile; fileRef = CB2ED87319D9AB8C0021CF86 /* grass.jpg */; };
 		CB3FBDCD1889860A00CE5BBD /* QuadTree.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */; };
 		CB485D88196ECE2B00E8646B /* ChallengeLevels.plist in Resources */ = {isa = PBXBuildFile; fileRef = CB485D87196ECE2B00E8646B /* ChallengeLevels.plist */; };
@@ -25,6 +26,9 @@
 		CB485D95196EE0CC00E8646B /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = CB485D93196EE0CC00E8646B /* Localizable.strings */; };
 		CB50C21718BF8F140072DA30 /* FLTrackGrid.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB50C21518BF8F140072DA30 /* FLTrackGrid.mm */; };
 		CB6C2F39196DCFA1000976A5 /* DSMultilineLabelNode.m in Sources */ = {isa = PBXBuildFile; fileRef = CB6C2F38196DCFA1000976A5 /* DSMultilineLabelNode.m */; };
+		CB6F6E801A03DAAB003112D8 /* happyBurst.sks in Resources */ = {isa = PBXBuildFile; fileRef = CB6F6E7E1A03DAAB003112D8 /* happyBurst.sks */; };
+		CB6F6E811A03DAAB003112D8 /* happyBurst.png in Resources */ = {isa = PBXBuildFile; fileRef = CB6F6E7F1A03DAAB003112D8 /* happyBurst.png */; };
+		CB6F6E831A03E9A9003112D8 /* brr-bring.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB6F6E821A03E8E2003112D8 /* brr-bring.caf */; };
 		CB7B494C18D39E1C00FACEF4 /* FLLinks.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB7B494A18D39E1C00FACEF4 /* FLLinks.mm */; };
 		CB929EAE18B93AE200543F25 /* FLSegmentNode.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB929EAD18B93AE200543F25 /* FLSegmentNode.mm */; };
 		CB960300196B86FF00569870 /* engine.png in Resources */ = {isa = PBXBuildFile; fileRef = CB9602EC196B86FF00569870 /* engine.png */; };
@@ -66,6 +70,7 @@
 		CBB4B82E183C00E1003C3444 /* FlippyTests.m in Sources */ = {isa = PBXBuildFile; fileRef = CBB4B82D183C00E1003C3444 /* FlippyTests.m */; };
 		CBBB184B19C736F30088D345 /* train-whistle-2.caf in Resources */ = {isa = PBXBuildFile; fileRef = CBBB184A19C736F30088D345 /* train-whistle-2.caf */; };
 		CBBB185219C739EF0088D345 /* train-stop-hiss.caf in Resources */ = {isa = PBXBuildFile; fileRef = CBBB184F19C739EF0088D345 /* train-stop-hiss.caf */; };
+		CBC28EC819F9580D00DA248E /* FLUser.m in Sources */ = {isa = PBXBuildFile; fileRef = CBC28EC719F9580D00DA248E /* FLUser.m */; };
 		CBD65A1319CB4FCF00F488B2 /* plink-1.caf in Resources */ = {isa = PBXBuildFile; fileRef = CBD65A1119CB4FCF00F488B2 /* plink-1.caf */; };
 		CBD65A1419CB4FCF00F488B2 /* plink-2.caf in Resources */ = {isa = PBXBuildFile; fileRef = CBD65A1219CB4FCF00F488B2 /* plink-2.caf */; };
 		CBD707C418AD0EE00041B170 /* FLTrain.mm in Sources */ = {isa = PBXBuildFile; fileRef = CBD707C318AD0EE00041B170 /* FLTrain.mm */; };
@@ -118,6 +123,7 @@
 		CB1D39DF19F05A3900D829CB /* platform-right-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "platform-right-nonatlas.png"; sourceTree = "<group>"; };
 		CB1D39E019F05A3900D829CB /* platform-start-left-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "platform-start-left-nonatlas.png"; sourceTree = "<group>"; };
 		CB1D39E119F05A3900D829CB /* platform-start-right-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "platform-start-right-nonatlas.png"; sourceTree = "<group>"; };
+		CB230D781A003E6A00F4CA44 /* unlock.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = unlock.png; sourceTree = "<group>"; };
 		CB2E3250198BF31000720EAA /* fnv.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fnv.h; sourceTree = "<group>"; };
 		CB2ED87319D9AB8C0021CF86 /* grass.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = grass.jpg; sourceTree = "<group>"; };
 		CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = QuadTree.cpp; sourceTree = "<group>"; };
@@ -131,6 +137,9 @@
 		CB50C21618BF8F140072DA30 /* FLTrackGrid.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTrackGrid.h; sourceTree = "<group>"; };
 		CB6C2F37196DCFA1000976A5 /* DSMultilineLabelNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DSMultilineLabelNode.h; sourceTree = "<group>"; };
 		CB6C2F38196DCFA1000976A5 /* DSMultilineLabelNode.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DSMultilineLabelNode.m; sourceTree = "<group>"; };
+		CB6F6E7E1A03DAAB003112D8 /* happyBurst.sks */ = {isa = PBXFileReference; lastKnownFileType = file.sks; path = happyBurst.sks; sourceTree = "<group>"; };
+		CB6F6E7F1A03DAAB003112D8 /* happyBurst.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = happyBurst.png; sourceTree = "<group>"; };
+		CB6F6E821A03E8E2003112D8 /* brr-bring.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "brr-bring.caf"; sourceTree = "<group>"; };
 		CB7B494A18D39E1C00FACEF4 /* FLLinks.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLLinks.mm; sourceTree = "<group>"; };
 		CB7B494B18D39E1C00FACEF4 /* FLLinks.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLLinks.h; sourceTree = "<group>"; };
 		CB929EAC18B93AE200543F25 /* FLSegmentNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLSegmentNode.h; sourceTree = "<group>"; };
@@ -180,6 +189,8 @@
 		CBB4B82D183C00E1003C3444 /* FlippyTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FlippyTests.m; sourceTree = "<group>"; };
 		CBBB184A19C736F30088D345 /* train-whistle-2.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "train-whistle-2.caf"; sourceTree = "<group>"; };
 		CBBB184F19C739EF0088D345 /* train-stop-hiss.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "train-stop-hiss.caf"; sourceTree = "<group>"; };
+		CBC28EC619F9580D00DA248E /* FLUser.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLUser.h; sourceTree = "<group>"; };
+		CBC28EC719F9580D00DA248E /* FLUser.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FLUser.m; sourceTree = "<group>"; };
 		CBD65A1119CB4FCF00F488B2 /* plink-1.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "plink-1.caf"; sourceTree = "<group>"; };
 		CBD65A1219CB4FCF00F488B2 /* plink-2.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "plink-2.caf"; sourceTree = "<group>"; };
 		CBD707C218AD0EE00041B170 /* FLTrain.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTrain.h; sourceTree = "<group>"; };
@@ -232,6 +243,7 @@
 				CB96032B196B88AD00569870 /* curve-nonatlas.png */,
 				CB9602EC196B86FF00569870 /* engine.png */,
 				CB2ED87319D9AB8C0021CF86 /* grass.jpg */,
+				CB6F6E7F1A03DAAB003112D8 /* happyBurst.png */,
 				CB96032C196B88AD00569870 /* jog-left-nonatlas.png */,
 				CB96032D196B88AD00569870 /* jog-right-nonatlas.png */,
 				CB96032E196B88AD00569870 /* join-left-nonatlas.png */,
@@ -245,6 +257,7 @@
 				CB9602F5196B86FF00569870 /* sleeper.png */,
 				CB960331196B88AD00569870 /* straight-nonatlas.png */,
 				CB960332196B88AD00569870 /* switch-nonatlas.png */,
+				CB230D781A003E6A00F4CA44 /* unlock.png */,
 				CB960333196B88AD00569870 /* value-0-nonatlas.png */,
 				CB960334196B88AD00569870 /* value-1-nonatlas.png */,
 			);
@@ -254,6 +267,7 @@
 		CB960312196B878F00569870 /* Audio */ = {
 			isa = PBXGroup;
 			children = (
+				CB6F6E821A03E8E2003112D8 /* brr-bring.caf */,
 				CB17FD7919C8A7B800DECE5E /* ka-chick.caf */,
 				CBD65A1119CB4FCF00F488B2 /* plink-1.caf */,
 				CBD65A1219CB4FCF00F488B2 /* plink-2.caf */,
@@ -274,6 +288,7 @@
 			children = (
 				CB05B3AF196B353A00FF58A5 /* sleeperDestruction.sks */,
 				CB05B3AE196B353A00FF58A5 /* railDestruction.sks */,
+				CB6F6E7E1A03DAAB003112D8 /* happyBurst.sks */,
 			);
 			name = Emitters;
 			sourceTree = "<group>";
@@ -346,6 +361,8 @@
 				CBB4B816183C00E1003C3444 /* FLTrackScene.mm */,
 				CBD707C218AD0EE00041B170 /* FLTrain.h */,
 				CBD707C318AD0EE00041B170 /* FLTrain.mm */,
+				CBC28EC619F9580D00DA248E /* FLUser.h */,
+				CBC28EC719F9580D00DA248E /* FLUser.m */,
 				CBB4B812183C00E1003C3444 /* FLViewController.h */,
 				CBB4B813183C00E1003C3444 /* FLViewController.mm */,
 				CB2E3250198BF31000720EAA /* fnv.h */,
@@ -505,6 +522,7 @@
 			files = (
 				CB960306196B86FF00569870 /* menu-button.png in Resources */,
 				CBA5ED541907007800DBF36E /* circuits in Resources */,
+				CB6F6E831A03E9A9003112D8 /* brr-bring.caf in Resources */,
 				CB96033E196B88AD00569870 /* value-0-nonatlas.png in Resources */,
 				CB960343196B892E00569870 /* tools.atlas in Resources */,
 				CB96030E196B86FF00569870 /* wooden-clatter-1.caf in Resources */,
@@ -522,6 +540,7 @@
 				CB1D39E419F05A3900D829CB /* platform-start-left-nonatlas.png in Resources */,
 				CB960337196B88AD00569870 /* jog-left-nonatlas.png in Resources */,
 				CB05B3B5196B358800FF58A5 /* levels in Resources */,
+				CB230D791A003E6A00F4CA44 /* unlock.png in Resources */,
 				CB05B3B1196B353A00FF58A5 /* sleeperDestruction.sks in Resources */,
 				CB96033C196B88AD00569870 /* straight-nonatlas.png in Resources */,
 				CBA5ED521906FECD00DBF36E /* gates in Resources */,
@@ -535,6 +554,8 @@
 				CB960336196B88AD00569870 /* curve-nonatlas.png in Resources */,
 				CB96033F196B88AD00569870 /* value-1-nonatlas.png in Resources */,
 				CB960309196B86FF00569870 /* sleeper.png in Resources */,
+				CB6F6E811A03DAAB003112D8 /* happyBurst.png in Resources */,
+				CB6F6E801A03DAAB003112D8 /* happyBurst.sks in Resources */,
 				CBBB185219C739EF0088D345 /* train-stop-hiss.caf in Resources */,
 				CB1D39E519F05A3900D829CB /* platform-start-right-nonatlas.png in Resources */,
 				CB485D88196ECE2B00E8646B /* ChallengeLevels.plist in Resources */,
@@ -573,6 +594,7 @@
 				CBB4B807183C00E1003C3444 /* main.m in Sources */,
 				CBB4B814183C00E1003C3444 /* FLViewController.mm in Sources */,
 				CB7B494C18D39E1C00FACEF4 /* FLLinks.mm in Sources */,
+				CBC28EC819F9580D00DA248E /* FLUser.m in Sources */,
 				CB6C2F39196DCFA1000976A5 /* DSMultilineLabelNode.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

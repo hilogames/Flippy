@@ -39,7 +39,9 @@ FOUNDATION_EXPORT NSString * const FLGameTypeSandboxTitle;
 // declaration.
 - (instancetype)initWithCoder:(NSCoder *)aDecoder NS_DESIGNATED_INITIALIZER;
 
-- (size_t)segmentCount;
+- (NSUInteger)segmentCount;
+- (NSUInteger)regularSegmentCount;
+- (NSUInteger)joinSegmentCount;
 
 @end
 
