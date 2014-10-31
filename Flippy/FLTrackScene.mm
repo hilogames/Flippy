@@ -4451,6 +4451,11 @@ struct PointerPairHash
   if ([_trackSelectState.selectedSegmentPointers count] == 0) {
     _trackSelectState.selectedSegments = nil;
     _trackSelectState.selectedSegmentPointers = nil;
+    NSEnumerator *selectionSquareEnumerator = [_trackSelectState.visualSquareNodes objectEnumerator];
+    SKSpriteNode *selectionSquare;
+    while ((selectionSquare = [selectionSquareEnumerator nextObject])) {
+      [selectionSquare removeFromParent];
+    }
     _trackSelectState.visualSquareNodes = nil;
   } else {
     // note: This might get nasty for large selections.  But the selected segments are mutable, which makes

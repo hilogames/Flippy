@@ -6,13 +6,11 @@ circuits.
 
 Current
 
-  . BUG: clear selection after delete
+  . TODO: Okay, yes, need to get goals stuff out of track scene.  It's
+    like 1000 lines.
 
   . Another record: fastest solution time (keep timer whenever in
     foreground, I guess)
-
-  . TODO: Okay, yes, need to get goals stuff out of track scene.  It's
-    like 1000 lines.
 
   . TODO: Make HLGestureTarget an HLGestureManager, and do it the same
     way as HLLayoutManager.
