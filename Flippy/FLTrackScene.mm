@@ -3519,7 +3519,7 @@ struct PointerPairHash
   // restored) game.
   BOOL showResults = !splash || !_gameIsNew;
 
-  _goalsNode = [[FLGoalsNode alloc] initWithScene:self sceneSize:self.size gameType:_gameType gameLevel:_gameLevel];
+  _goalsNode = [[FLGoalsNode alloc] initWithSceneSize:self.size gameType:_gameType gameLevel:_gameLevel];
   _goalsNode.delegate = self;
   
   [_goalsNode createIntro];

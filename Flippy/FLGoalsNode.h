@@ -11,7 +11,6 @@
 #import "FLConstants.h"
 
 @class FLTrackTruthTable;
-@class HLScene;
 @protocol FLGoalsNodeDelegate;
 
 @interface FLGoalsNode : HLScrollNode
@@ -20,10 +19,9 @@
 
 @property (nonatomic, assign) CGSize sceneSize;
 
-- (instancetype)initWithScene:(HLScene *)scene
-                    sceneSize:(CGSize)sceneSize
-                     gameType:(FLGameType)gameType
-                    gameLevel:(int)gameLevel;
+- (instancetype)initWithSceneSize:(CGSize)sceneSize
+                         gameType:(FLGameType)gameType
+                        gameLevel:(int)gameLevel;
 
 - (void)createIntro;
 

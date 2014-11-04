@@ -9,9 +9,6 @@ Current
   . TODO: Make HLGestureTarget an HLGestureManager, and do it the same
     way as HLLayoutManager.
 
-  . TODO: In FLGoalsScreen: don't register new gesture targets; just
-    implement our own handler in FLGoalsScreen.
-
   . Another record: fastest solution time (keep timer whenever in
     foreground, I guess)
 

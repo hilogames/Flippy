@@ -12,22 +12,18 @@
 #import "FLGoalsNode.h"
 #include "FLTrackGrid.h"
 #import "FLUser.h"
-#import <HLSpriteKit/HLScene.h>
 
 using namespace std;
 
-static const CGFloat FLZPositionGoalsOverlayContent = 0.0f;
-static const CGFloat FLZPositionGoalsOverlayDismissNode = 1.0f;
-static const CGFloat FLZPositionGoalsOverlayVictoryButton = 2.0f;
-static const CGFloat FLZPositionGoalsOverlayHappyBursts = 3.0f;
+static const CGFloat FLZPositionContent = 0.0f;
+static const CGFloat FLZPositionHappyBursts = 1.0f;
+static const CGFloat FLZPositionCoverAll = 2.0f;
 
 static const CGFloat FLLayoutNodeSpacerVertical = 10.0f;
 static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
 
 @implementation FLGoalsNode
 {
-  __weak HLScene *_scene;
-
   FLGameType _gameType;
   int _gameLevel;
 
@@ -37,14 +33,12 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
   DSMultilineLabelNode *_truthFooterNode;
   HLLabelButtonNode *_victoryButton;
   SKNode *_victoryDetailsNode;
-  HLGestureTargetSpriteNode *_dismissNode;
 }
 
-- (instancetype)initWithScene:(HLScene *)scene sceneSize:(CGSize)sceneSize gameType:(FLGameType)gameType gameLevel:(int)gameLevel
+- (instancetype)initWithSceneSize:(CGSize)sceneSize gameType:(FLGameType)gameType gameLevel:(int)gameLevel
 {
   self = [super init];
   if (self) {
-    _scene = scene;
     _sceneSize = sceneSize;
     _gameType = gameType;
     _gameLevel = gameLevel;
@@ -61,7 +55,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
 - (void)createIntro
 {
   _introNode = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
-  _introNode.zPosition = FLZPositionGoalsOverlayContent;
+  _introNode.zPosition = FLZPositionContent;
   _introNode.fontSize = 18.0f;
   _introNode.fontColor = [SKColor whiteColor];
   if (_gameType == FLGameTypeChallenge) {
@@ -83,7 +77,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
 
   // Header.
   _truthHeaderNode = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
-  _truthHeaderNode.zPosition = FLZPositionGoalsOverlayContent;
+  _truthHeaderNode.zPosition = FLZPositionContent;
   _truthHeaderNode.fontSize = 18.0f;
   _truthHeaderNode.fontColor = [SKColor whiteColor];
   _truthHeaderNode.text = NSLocalizedString(@"Current Results:",
@@ -106,7 +100,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
       goalValues = FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsGoalValues);
     }
     _truthTableNode = [self FL_truthTableCreateForTable:trackTruthTable index:0 correctValues:goalValues correct:&victory];
-    _truthTableNode.zPosition = FLZPositionGoalsOverlayContent;
+    _truthTableNode.zPosition = FLZPositionContent;
     if (_gameType == FLGameTypeChallenge && victory) {
       if (_gameLevel + 1 >= FLChallengeLevelsCount()) {
         truthFooterText = NSLocalizedString(@"Last Level Complete!",
@@ -125,7 +119,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
   }
   if (truthFooterText) {
     _truthFooterNode = [[DSMultilineLabelNode alloc] initWithFontNamed:FLInterfaceFontName];
-    _truthFooterNode.zPosition = FLZPositionGoalsOverlayContent;
+    _truthFooterNode.zPosition = FLZPositionContent;
     _truthFooterNode.fontSize = 18.0f;
     _truthFooterNode.fontColor = truthFooterColor;
     _truthFooterNode.text = truthFooterText;
@@ -146,18 +140,9 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
   // Victory button.
   if (_gameLevel + 1 < FLChallengeLevelsCount()) {
     _victoryButton = FLInterfaceLabelButton();
-    _victoryButton.zPosition = FLZPositionGoalsOverlayVictoryButton;
+    _victoryButton.zPosition = FLZPositionContent;
     _victoryButton.text = NSLocalizedString(@"Next Level",
                                             @"Goals screen: button that takes you to the next level of a challenge game.");
-    [_victoryButton setGestureTargetDelegateStrong:[[HLGestureTargetTapDelegate alloc] initWithHandleGestureBlock:^(UIGestureRecognizer *gestureRecognizer){
-      [self FL_dismissWithNextLevel:YES];
-    }]];
-    // TODO: Rather than register stuff with the scene as gesture targets, should override the gesture
-    // target methods here, and take either forward to super or else send to victory button and dismiss
-    // node as appropriate.  Then define a proper delegate interface for the dismiss callback, and then
-    // we're good.
-    HLScene *sceneStrong = _scene;
-    [sceneStrong registerDescendant:_victoryButton withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
   }
 
   // "Details": unlocks and records.
@@ -174,15 +159,13 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
     layoutManager.columnSeparator = 8.0f;
     [victoryDetailsNode setHLLayoutManager:layoutManager];
     [victoryDetailsNode hlLayoutChildren];
-    victoryDetailsNode.zPosition = FLZPositionGoalsOverlayContent;
+    victoryDetailsNode.zPosition = FLZPositionContent;
     _victoryDetailsNode = victoryDetailsNode;
   }
 }
 
 - (void)layout
 {
-  HLScene *sceneStrong = _scene;
-
   NSMutableArray *layoutNodes = [NSMutableArray array];
   vector<CGSize> layoutNodeSizes;
   
@@ -254,22 +237,18 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
     }
   }
   
-  CGSize dismissSize = CGSizeMake(MAX(_sceneSize.width, contentSize.width),
-                                  MAX(_sceneSize.height, contentSize.height));
-  if (_dismissNode) {
-    [sceneStrong unregisterDescendant:_dismissNode];
-  }
-  _dismissNode = [HLGestureTargetSpriteNode spriteNodeWithColor:[SKColor clearColor] size:dismissSize];
-  _dismissNode.zPosition = FLZPositionGoalsOverlayDismissNode;
-  [contentNode addChild:_dismissNode];
-  HLGestureTargetTapDelegate *dismissTapDelegate = [[HLGestureTargetTapDelegate alloc] initWithHandleGestureBlock:^(UIGestureRecognizer *gestureRecognizer){
-    [self FL_dismissWithNextLevel:NO];
-  }];
-  // note: Gesture transparency required so that pan and pinch can fall through to HLScrollNode
-  // gesture target (for scrolling and scaling).
-  dismissTapDelegate.gestureTransparent = YES;
-  [_dismissNode setGestureTargetDelegateStrong:dismissTapDelegate];
-  [sceneStrong registerDescendant:_dismissNode withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
+  // noob: Need to catch gestures outside of the HLScrollNode so that tapping anywhere uninteresting
+  // dismisses the goals node.  If the modal presentation code in HLScene did this for us, then we
+  // wouldn't have to bother.  Or, if the FLTrackScene did this for us, then we wouldn't have to
+  // bother.  But there's an argument for doing it for ourselves: In goals node, we want all pan and
+  // pinch actions to be passed along to the HLScrollNode, even if they happen outside the HLScrollNode's
+  // area.  (That could also be an argument for using HLScrollNode's insets more effectively, and having
+  // it crop to its scroll area.)
+  CGSize coverAllNodeSize = CGSizeMake(MAX(_sceneSize.width, contentSize.width),
+                                       MAX(_sceneSize.height, contentSize.height));
+  SKSpriteNode *coverAllNode = [SKSpriteNode spriteNodeWithColor:[SKColor clearColor] size:coverAllNodeSize];
+  coverAllNode.zPosition = FLZPositionCoverAll;
+  [contentNode addChild:coverAllNode];
   
   CGSize scrollNodeSize = CGSizeMake(MIN(_sceneSize.width, contentSize.width),
                                      MIN(_sceneSize.height, contentSize.height));
@@ -323,7 +302,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
   NSMutableArray *revealActions = [NSMutableArray array];
   
   SKEmitterNode *happyBurst = [[HLEmitterStore sharedStore] emitterCopyForKey:@"happyBurst"];
-  happyBurst.zPosition = FLZPositionGoalsOverlayHappyBursts;
+  happyBurst.zPosition = FLZPositionHappyBursts;
   // noob: Good practice to remove emitter node once it's finished?
   NSTimeInterval particleLifetimeMax = happyBurst.particleLifetime;
   if (happyBurst.particleLifetimeRange > 0.001f) {
@@ -497,6 +476,39 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
   }]];
   
   [self runAction:[SKAction sequence:revealActions]];
+}
+
+#pragma mark -
+#pragma mark HLGestureTargetDelegate
+
+- (BOOL)addToGesture:(UIGestureRecognizer *)gestureRecognizer firstTouch:(UITouch *)touch isInside:(BOOL *)isInside
+{
+  // note: The coverAllNode is designed to catch *all* gestures on the device, so naturally,
+  // any gesture is "inside".
+  if ([gestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]]
+      || [gestureRecognizer isKindOfClass:[UIPinchGestureRecognizer class]]) {
+    return [super addToGesture:gestureRecognizer firstTouch:touch isInside:isInside];
+  } else {
+    *isInside = YES;
+    if ([gestureRecognizer isKindOfClass:[UITapGestureRecognizer class]]) {
+      [gestureRecognizer addTarget:self action:@selector(handleTap:)];
+      return YES;
+    }
+  }
+  return NO;
+}
+
+- (void)handleTap:(UITapGestureRecognizer *)gestureRecognizer
+{
+  CGPoint viewLocation = [gestureRecognizer locationInView:self.scene.view];
+  CGPoint sceneLocation = [self.scene convertPointFromView:viewLocation];
+  CGPoint contentNodeLocation = [self.contentNode convertPoint:sceneLocation fromNode:self.scene];
+  
+  if (_victoryButton && [_victoryButton containsPoint:contentNodeLocation]) {
+    [self FL_dismissWithNextLevel:YES];
+  } else {
+    [self FL_dismissWithNextLevel:NO];
+  }
 }
 
 #pragma mark -
@@ -716,11 +728,6 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
 
 - (void)FL_dismissWithNextLevel:(BOOL)nextLevel
 {
-  HLScene *sceneStrong = _scene;
-  if (sceneStrong) {
-    [sceneStrong unregisterDescendant:_victoryButton];
-    [sceneStrong unregisterDescendant:_dismissNode];
-  }
   id <FLGoalsNodeDelegate> delegate = _delegate;
   if (delegate) {
     // noob: This will typically deallocate this goals node, which means there might be
