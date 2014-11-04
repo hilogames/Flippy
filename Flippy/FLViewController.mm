@@ -688,7 +688,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
       break;
     case FLGameTypeSandbox:
       _gameStatusNode.text = [NSString stringWithFormat:@"%@\n%ld %@",
-                              FLGameTypeSandboxTitle,
+                              FLGameTypeSandboxTitle(),
                               (unsigned long)[_gameScene segmentCount],
                               NSLocalizedString(@"segments used", @"Game information: preceded by a number of segments used in a track.")];
       break;
@@ -805,10 +805,10 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   NSString *gameTypeSaveTitle;
   switch (gameType) {
     case FLGameTypeChallenge:
-      gameTypeSaveTitle = FLGameTypeChallengeTitle;
+      gameTypeSaveTitle = FLGameTypeChallengeTitle();
       break;
     case FLGameTypeSandbox:
-      gameTypeSaveTitle = FLGameTypeSandboxTitle;
+      gameTypeSaveTitle = FLGameTypeSandboxTitle();
       break;
     default:
       [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %ld.", (long)gameType];

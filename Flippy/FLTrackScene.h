@@ -10,21 +10,13 @@
 #import <HLSpriteKit/HLScene.h>
 #import <SpriteKit/SpriteKit.h>
 
+#import "FLConstants.h"
+#import "FLGoalsNode.h"
 #import "FLTrain.h"
-
-typedef NS_ENUM(NSInteger, FLGameType) {
-  FLGameTypeChallenge,
-  FLGameTypeSandbox,
-};
-
-FOUNDATION_EXPORT NSString * const FLGameTypeChallengeTag;
-FOUNDATION_EXPORT NSString * const FLGameTypeChallengeTitle;
-FOUNDATION_EXPORT NSString * const FLGameTypeSandboxTag;
-FOUNDATION_EXPORT NSString * const FLGameTypeSandboxTitle;
 
 @protocol FLTrackSceneDelegate;
 
-@interface FLTrackScene : HLScene <NSCoding, UIAlertViewDelegate, UIGestureRecognizerDelegate, FLTrainDelegate>
+@interface FLTrackScene : HLScene <NSCoding, UIAlertViewDelegate, UIGestureRecognizerDelegate, FLTrainDelegate, FLGoalsNodeDelegate>
 
 @property (nonatomic, weak) id<FLTrackSceneDelegate> delegate;
 

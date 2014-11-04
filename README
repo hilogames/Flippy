@@ -6,32 +6,16 @@ circuits.
 
 Current
 
-  . TODO: Okay, yes, need to get goals stuff out of track scene.  It's
-    like 1000 lines.
+  . TODO: Make HLGestureTarget an HLGestureManager, and do it the same
+    way as HLLayoutManager.
+
+  . TODO: In FLGoalsScreen: don't register new gesture targets; just
+    implement our own handler in FLGoalsScreen.
 
   . Another record: fastest solution time (keep timer whenever in
     foreground, I guess)
 
-  . TODO: Make HLGestureTarget an HLGestureManager, and do it the same
-    way as HLLayoutManager.
-
   . Goals Screen
-    . Track piece count for solved levels; have records.  Would be
-      cool if there were two records: the fewest piece award, but
-      also the rube goldberg award for more-than-X switched joins, and
-      "the long ride" for most traveled pieces, etc.  Fewest joins.
-    . At same time as above: victory message should say what is unlocked
-      as well as what achievments were earned.  Little checklist with
-      sparkler bursts: kachung! kachung! kachung!
-        . goal accomplished: ka-chick?
-        . achievement: brr-bring
-      Probably use HLScrollNode to center the action on small screens.
-      Consider sparkling each output as it's checked; total duration
-      constant (2 seconds, maybe) so it doesn't take forever with lots
-      of outputs.  Scroll along with the checks if necessary.  Ooo: maybe
-      zoom way in on them.  Then
-      "Level complete!", achievements, and the button similarly appear,
-      with effects, and centered if necessary.  Then:
     . Also maybe prompt user to save (and/or autosave) on victory rather
       than going straight to next level.
     . Consider splitting goals screen into two tabs on a tabbed

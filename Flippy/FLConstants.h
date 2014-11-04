@@ -53,3 +53,25 @@ FOUNDATION_EXPORT SKColor *FLInterfaceColorBad();
  * want the full package.
  */
 FOUNDATION_EXPORT HLLabelButtonNode *FLInterfaceLabelButton();
+
+/**
+ * Interface standards for dealing with DSMultilineLabelNodes.
+ */
+FOUNDATION_EXPORT const CGFloat FLDSMultilineLabelParagraphWidthReadableMax;
+// note: I've seen strings display wider than the paragraph width specified;
+// so pad it a little.
+FOUNDATION_EXPORT const CGFloat FLDSMultilineLabelParagraphWidthBugWorkaroundPad;
+
+/**
+ * Game information.
+ */
+
+typedef NS_ENUM(NSInteger, FLGameType) {
+  FLGameTypeChallenge,
+  FLGameTypeSandbox,
+};
+
+FOUNDATION_EXPORT NSString * const FLGameTypeChallengeTag;
+FOUNDATION_EXPORT NSString *FLGameTypeChallengeTitle();
+FOUNDATION_EXPORT NSString * const FLGameTypeSandboxTag;
+FOUNDATION_EXPORT NSString *FLGameTypeSandboxTitle();

@@ -30,6 +30,7 @@
 		CB6F6E811A03DAAB003112D8 /* happyBurst.png in Resources */ = {isa = PBXBuildFile; fileRef = CB6F6E7F1A03DAAB003112D8 /* happyBurst.png */; };
 		CB6F6E831A03E9A9003112D8 /* brr-bring.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB6F6E821A03E8E2003112D8 /* brr-bring.caf */; };
 		CB7B494C18D39E1C00FACEF4 /* FLLinks.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB7B494A18D39E1C00FACEF4 /* FLLinks.mm */; };
+		CB82BA311A04612E00B2E503 /* FLGoalsNode.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB82BA301A04612E00B2E503 /* FLGoalsNode.mm */; };
 		CB929EAE18B93AE200543F25 /* FLSegmentNode.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB929EAD18B93AE200543F25 /* FLSegmentNode.mm */; };
 		CB960300196B86FF00569870 /* engine.png in Resources */ = {isa = PBXBuildFile; fileRef = CB9602EC196B86FF00569870 /* engine.png */; };
 		CB960306196B86FF00569870 /* menu-button.png in Resources */ = {isa = PBXBuildFile; fileRef = CB9602F2196B86FF00569870 /* menu-button.png */; };
@@ -142,6 +143,8 @@
 		CB6F6E821A03E8E2003112D8 /* brr-bring.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "brr-bring.caf"; sourceTree = "<group>"; };
 		CB7B494A18D39E1C00FACEF4 /* FLLinks.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLLinks.mm; sourceTree = "<group>"; };
 		CB7B494B18D39E1C00FACEF4 /* FLLinks.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLLinks.h; sourceTree = "<group>"; };
+		CB82BA2F1A04612E00B2E503 /* FLGoalsNode.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; path = FLGoalsNode.h; sourceTree = "<group>"; };
+		CB82BA301A04612E00B2E503 /* FLGoalsNode.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLGoalsNode.mm; sourceTree = "<group>"; };
 		CB929EAC18B93AE200543F25 /* FLSegmentNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLSegmentNode.h; sourceTree = "<group>"; };
 		CB929EAD18B93AE200543F25 /* FLSegmentNode.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLSegmentNode.mm; sourceTree = "<group>"; };
 		CB9602EC196B86FF00569870 /* engine.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = engine.png; sourceTree = "<group>"; };
@@ -349,6 +352,8 @@
 				CB485D90196ED4D900E8646B /* FLConstants.h */,
 				CB485D91196ED4D900E8646B /* FLConstants.m */,
 				CBF959E418A1913F005F01A6 /* FLGestureTarget.h */,
+				CB82BA2F1A04612E00B2E503 /* FLGoalsNode.h */,
+				CB82BA301A04612E00B2E503 /* FLGoalsNode.mm */,
 				CB7B494B18D39E1C00FACEF4 /* FLLinks.h */,
 				CB7B494A18D39E1C00FACEF4 /* FLLinks.mm */,
 				CB0DA5A518B7D8CE00E43D34 /* FLPath.h */,
@@ -583,6 +588,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CB82BA311A04612E00B2E503 /* FLGoalsNode.mm in Sources */,
 				CBB4B817183C00E1003C3444 /* FLTrackScene.mm in Sources */,
 				CB50C21718BF8F140072DA30 /* FLTrackGrid.mm in Sources */,
 				CBB4B80B183C00E1003C3444 /* FLAppDelegate.mm in Sources */,

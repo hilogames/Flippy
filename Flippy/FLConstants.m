@@ -133,3 +133,30 @@ FLInterfaceLabelButton()
   labelButton.fontColor = [UIColor whiteColor];
   return labelButton;
 }
+
+const CGFloat FLDSMultilineLabelParagraphWidthReadableMax = 480.0f;
+const CGFloat FLDSMultilineLabelParagraphWidthBugWorkaroundPad = 10.0f;
+
+NSString * const FLGameTypeChallengeTag = @"challenge";
+
+NSString *
+FLGameTypeChallengeTitle()
+{
+  static NSString *title = nil;
+  if (!title) {
+    title = NSLocalizedString(@"Game", @"Game information: the label used for a challenge game.");
+  }
+  return title;
+}
+
+NSString * const FLGameTypeSandboxTag = @"sandbox";
+
+NSString *
+FLGameTypeSandboxTitle()
+{
+  static NSString *title = nil;
+  if (!title) {
+    title = NSLocalizedString(@"Sandbox", @"Game information: the label used for a sandbox game.");
+  }
+  return title;
+}
