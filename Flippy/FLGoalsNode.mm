@@ -157,7 +157,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
                                                                                                [NSValue valueWithCGPoint:CGPointMake(1.0f, 0.25f)] ]
                                                                                  rowHeights:@[ @(20.0f) ]];
     layoutManager.columnSeparator = 8.0f;
-    [victoryDetailsNode setHLLayoutManager:layoutManager];
+    [victoryDetailsNode hlSetLayoutManager:layoutManager];
     [victoryDetailsNode hlLayoutChildren];
     victoryDetailsNode.zPosition = FLZPositionContent;
     _victoryDetailsNode = victoryDetailsNode;
@@ -479,7 +479,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
 }
 
 #pragma mark -
-#pragma mark HLGestureTargetDelegate
+#pragma mark HLGestureTarget
 
 - (BOOL)addToGesture:(UIGestureRecognizer *)gestureRecognizer firstTouch:(UITouch *)touch isInside:(BOOL *)isInside
 {

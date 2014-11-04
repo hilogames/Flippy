@@ -6,9 +6,6 @@ circuits.
 
 Current
 
-  . TODO: Make HLGestureTarget an HLGestureManager, and do it the same
-    way as HLLayoutManager.
-
   . Another record: fastest solution time (keep timer whenever in
     foreground, I guess)
 

@@ -3556,7 +3556,7 @@ struct PointerPairHash
 
   [_goalsNode layout];
 
-  [_goalsNode setGestureTargetDelegateWeak:_goalsNode];
+  [_goalsNode hlSetGestureTarget:_goalsNode];
   [self registerDescendant:_goalsNode withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
 
   [self presentModalNode:_goalsNode animation:HLScenePresentationAnimationFade];
@@ -4703,7 +4703,7 @@ struct PointerPairHash
                                                          squareSize:CGSizeMake(squareEdgeSize, squareEdgeSize)
                                                backgroundBorderSize:5.0f
                                                 squareSeparatorSize:1.0f];
-    [_labelState.labelPicker setGestureTargetDelegateWeak:_labelState.labelPicker];
+    [_labelState.labelPicker hlSetGestureTarget:_labelState.labelPicker];
     _labelState.labelPicker.backgroundColor = FLInterfaceColorDark();
     _labelState.labelPicker.squareColor = FLInterfaceColorMedium();
     _labelState.labelPicker.highlightColor = FLInterfaceColorLight();

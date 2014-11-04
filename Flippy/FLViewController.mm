@@ -484,7 +484,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
 - (HLMenuNode *)FL_commonMenuNodeCreate
 {
   HLMenuNode *menuNode = [[HLMenuNode alloc] init];
-  [menuNode setGestureTargetDelegateWeak:menuNode];
+  [menuNode hlSetGestureTarget:menuNode];
   menuNode.delegate = self;
   menuNode.position = CGPointMake(0.0f, 48.0f);
   menuNode.itemAnimation = HLMenuNodeAnimationSlideLeft;
