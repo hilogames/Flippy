@@ -25,6 +25,8 @@
 			<integer>6</integer>
 			<key>FLUserRecordJoinsFewest</key>
 			<integer>2</integer>
+			<key>FLUserRecordSolutionFastest</key>
+			<integer>30</integer>
 		</dict>
 	</dict>
 	<dict>
@@ -52,6 +54,8 @@
 			<integer>8</integer>
 			<key>FLUserRecordJoinsFewest</key>
 			<integer>4</integer>
+			<key>FLUserRecordSolutionFastest</key>
+			<integer>60</integer>
 		</dict>
 	</dict>
 	<dict>
@@ -79,6 +83,8 @@
 			<integer>99</integer>
 			<key>FLUserRecordJoinsFewest</key>
 			<integer>99</integer>
+			<key>FLUserRecordSolutionFastest</key>
+			<integer>86400</integer>
 		</dict>
 	</dict>
 	<dict>
@@ -107,6 +113,8 @@
 			<integer>99</integer>
 			<key>FLUserRecordJoinsFewest</key>
 			<integer>99</integer>
+			<key>FLUserRecordSolutionFastest</key>
+			<integer>604800</integer>
 		</dict>
 	</dict>
 	<dict>
@@ -139,6 +147,8 @@
 			<integer>99</integer>
 			<key>FLUserRecordJoinsFewest</key>
 			<integer>99</integer>
+			<key>FLUserRecordSolutionFastest</key>
+			<integer>2592000</integer>
 		</dict>
 	</dict>
 </array>

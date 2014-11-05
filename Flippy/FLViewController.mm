@@ -91,8 +91,22 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   self = [super init];
   if (self) {
     self.restorationIdentifier = @"FLViewController";
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(applicationDidBecomeActive)
+                                                 name:UIApplicationDidBecomeActiveNotification
+                                               object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(applicationWillResignActive)
+                                                 name:UIApplicationWillResignActiveNotification
+                                               object:nil];
   }
   return self;
+}
+
+- (void)dealloc
+{
+  [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
 - (void)encodeRestorableStateWithCoder:(NSCoder *)coder
@@ -294,6 +308,23 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
 }
 
 #pragma mark -
+#pragma mark Notifications
+
+- (void)applicationDidBecomeActive
+{
+  if (_gameScene) {
+    [_gameScene timerResume];
+  }
+}
+
+- (void)applicationWillResignActive
+{
+  if (_gameScene) {
+    [_gameScene timerPause];
+  }
+}
+
+#pragma mark -
 #pragma mark HLMenuNodeDelegate
 
 - (BOOL)menuNode:(HLMenuNode *)menuNode shouldTapMenuItem:(HLMenuItem *)menuItem itemIndex:(NSUInteger)itemIndex
@@ -393,6 +424,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
 
     if ([menuItem.text isEqualToString:FLGameMenuResume]) {
       [_gameScene dismissModalNodeAnimation:HLScenePresentationAnimationFade];
+      [_gameScene timerResume];
     } else if ([menuItem.text isEqualToString:FLGameMenuRestart]) {
       [self FL_restartFromGameMenuConfirm];
     } else if ([menuItemParent.text isEqualToString:FLGameMenuSave]) {
@@ -417,6 +449,8 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   if (!_gameOverlay) {
     [self FL_gameOverlayCreate];
   }
+
+  [_gameScene timerPause];
 
   [self FL_gameStatusUpdateText];
   [self FL_gameOverlayUpdateGeometry];

@@ -35,6 +35,10 @@
 - (NSUInteger)regularSegmentCount;
 - (NSUInteger)joinSegmentCount;
 
+- (void)timerPause;
+- (void)timerResume;
+- (NSTimeInterval)timerGet;
+
 @end
 
 @protocol FLTrackSceneDelegate <NSObject>

@@ -132,6 +132,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
                          recordTexts:(NSArray *)recordTexts
                      recordNewValues:(NSArray *)recordNewValues
                      recordOldValues:(NSArray *)recordOldValues
+                  recordValueFormats:(NSArray *)recordValueFormats
 {
   if (_gameType != FLGameTypeChallenge) {
     return;
@@ -148,7 +149,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
   // "Details": unlocks and records.
   SKNode *victoryDetailsNode = [SKNode node];
   [self FL_createUnlocks:unlockTexts parent:victoryDetailsNode];
-  [self FL_createRecords:recordTexts newValues:recordNewValues oldValues:recordOldValues parent:victoryDetailsNode];
+  [self FL_createRecords:recordTexts newValues:recordNewValues oldValues:recordOldValues valueFormats:recordValueFormats parent:victoryDetailsNode];
   if ([victoryDetailsNode.children count] > 0) {
     HLTableLayoutManager *layoutManager = [[HLTableLayoutManager alloc] initWithColumnCount:4
                                                                                columnWidths:@[ @(20.0f), @(0.0f) ]
@@ -285,7 +286,6 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
 
 - (void)reveal
 {
-  CGPoint originalContentOffset = self.contentOffset;
   CGFloat originalContentScale = self.contentScale;
   CGFloat originalContentScaleMaximum = self.contentScaleMaximum;
   HLScrollNodeContentScaleMinimumMode originalContentScaleMinimumMode = self.contentScaleMinimumMode;
@@ -296,8 +296,8 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
   const NSTimeInterval FLTruthTableRevealDramaticPauseDuration = 0.5;
   const NSTimeInterval FLTruthTableRevealCorrectStepDuration = 0.5;
   const NSTimeInterval FLTruthTableRevealCorrectMaxDuration = 3.0;
-  const NSTimeInterval FLTruthTableRevealOtherDuration = 0.8;
-  const NSTimeInterval FLTruthTableRevealZoomOutDuration = 0.5;
+  const NSTimeInterval FLTruthTableRevealOtherDuration = 0.5;
+  const NSTimeInterval FLTruthTableRevealZoomOutDuration = 0.3;
   
   NSMutableArray *revealActions = [NSMutableArray array];
   
@@ -367,6 +367,16 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
       }]];
       [revealActions addObject:[SKAction waitForDuration:(correctStepDuration * 0.66f)]];
     }
+    [revealActions addObject:[SKAction runBlock:^{
+      [self setContentScale:originalContentScale
+           animatedDuration:FLTruthTableRevealZoomOutDuration
+                 completion:nil];
+    }]];
+    [revealActions addObject:[SKAction waitForDuration:FLTruthTableRevealZoomOutDuration]];
+    [revealActions addObject:[SKAction runBlock:^{
+      self.contentScaleMaximum = originalContentScaleMaximum;
+      self.contentScaleMinimumMode = originalContentScaleMinimumMode;
+    }]];
   }
   
   // Hide truth footer node, and create an action to show it.
@@ -462,19 +472,6 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
   
   [revealActions addObject:[SKAction playSoundFileNamed:@"train-whistle-tune-1.caf" waitForCompletion:NO]];
   
-  [revealActions addObject:[SKAction runBlock:^{
-    [self setContentOffset:originalContentOffset
-              contentScale:originalContentScale
-          animatedDuration:FLTruthTableRevealZoomOutDuration
-                completion:nil];
-  }]];
-  [revealActions addObject:[SKAction waitForDuration:FLTruthTableRevealZoomOutDuration]];
-  
-  [revealActions addObject:[SKAction runBlock:^{
-    self.contentScaleMaximum = originalContentScaleMaximum;
-    self.contentScaleMinimumMode = originalContentScaleMinimumMode;
-  }]];
-  
   [self runAction:[SKAction sequence:revealActions]];
 }
 
@@ -483,12 +480,12 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
 
 - (BOOL)addToGesture:(UIGestureRecognizer *)gestureRecognizer firstTouch:(UITouch *)touch isInside:(BOOL *)isInside
 {
-  // note: The coverAllNode is designed to catch *all* gestures on the device, so naturally,
-  // any gesture is "inside".
   if ([gestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]]
       || [gestureRecognizer isKindOfClass:[UIPinchGestureRecognizer class]]) {
     return [super addToGesture:gestureRecognizer firstTouch:touch isInside:isInside];
   } else {
+    // note: The coverAllNode is designed to catch *all* gestures on the device, so naturally,
+    // any gesture is "inside".
     *isInside = YES;
     if ([gestureRecognizer isKindOfClass:[UITapGestureRecognizer class]]) {
       [gestureRecognizer addTarget:self action:@selector(handleTap:)];
@@ -671,6 +668,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
 - (void)FL_createRecords:(NSArray *)recordTexts
                newValues:(NSArray *)newValues
                oldValues:(NSArray *)oldValues
+            valueFormats:(NSArray *)valueFormats
                   parent:(SKNode *)parent
 {
   BOOL firstOne = YES;
@@ -709,20 +707,48 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
     newValueNode.verticalAlignmentMode = SKLabelVerticalAlignmentModeBaseline;
     newValueNode.fontSize = 14.0f;
     newValueNode.fontColor = FLInterfaceColorGood();
+    NSString *formattedNewValue = [self FL_formatRecordValue:[newValues[r] integerValue] withFormat:(FLGoalsNodeRecordFormat)[valueFormats[r] integerValue]];
     newValueNode.text = [NSString stringWithFormat:NSLocalizedString(@"%@",
                                                                      @"Goals screen: displayed in a column of level results to show the {new record value} for a gameplay record."),
-                         [newValues[r] stringValue]];
+                         formattedNewValue];
     [parent addChild:newValueNode];
     
-    SKLabelNode *oldValueNode = [SKLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
-    oldValueNode.horizontalAlignmentMode = SKLabelHorizontalAlignmentModeRight;
-    oldValueNode.verticalAlignmentMode = SKLabelVerticalAlignmentModeBaseline;
-    oldValueNode.fontSize = 14.0f;
-    oldValueNode.fontColor = FLInterfaceColorLight();
-    oldValueNode.text = [NSString stringWithFormat:NSLocalizedString(@"(was %@)",
-                                                                     @"Goals screen: displayed in a column of level results to show the {old record value} for a gameplay record."),
-                         [oldValues[r] stringValue]];
-    [parent addChild:oldValueNode];
+    if (oldValues[r] == [NSNull null]) {
+      [parent addChild:[SKNode node]];
+    } else {
+      SKLabelNode *oldValueNode = [SKLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
+      oldValueNode.horizontalAlignmentMode = SKLabelHorizontalAlignmentModeRight;
+      oldValueNode.verticalAlignmentMode = SKLabelVerticalAlignmentModeBaseline;
+      oldValueNode.fontSize = 14.0f;
+      oldValueNode.fontColor = FLInterfaceColorLight();
+      NSString *formattedOldValue = [self FL_formatRecordValue:[oldValues[r] integerValue] withFormat:(FLGoalsNodeRecordFormat)[valueFormats[r] integerValue]];
+      oldValueNode.text = [NSString stringWithFormat:NSLocalizedString(@"(was %@)",
+                                                                       @"Goals screen: displayed in a column of level results to show the {old record value} for a gameplay record."),
+                           formattedOldValue];
+      [parent addChild:oldValueNode];
+    }
+  }
+}
+
+- (NSString *)FL_formatRecordValue:(NSInteger)value withFormat:(FLGoalsNodeRecordFormat)format
+{
+  switch (format) {
+    case FLGoalsNodeRecordFormatInteger:
+      return [NSString stringWithFormat:@"%ld", (long)value];
+    case FLGoalsNodeRecordFormatHourMinuteSecond: {
+      // note: Localization can be accomplished with something like this:
+      //    https://github.com/WDUK/WDCountdownFormatter
+      NSInteger seconds = value % 60;
+      value = value / 60;
+      NSInteger minutes = value % 60;
+      value = value / 60;
+      NSInteger hours = value;
+      if (hours == 0) {
+        return [NSString stringWithFormat:@"%ld:%02ld", (long)minutes, long(seconds)];
+      } else {
+        return [NSString stringWithFormat:@"%ld:%02ld:%02ld", (long)hours, (long)minutes, (long)seconds];
+      }
+    }
   }
 }
 

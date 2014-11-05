@@ -10,6 +10,11 @@
 
 #import "FLConstants.h"
 
+typedef NS_ENUM(NSInteger, FLGoalsNodeRecordFormat) {
+  FLGoalsNodeRecordFormatInteger,
+  FLGoalsNodeRecordFormatHourMinuteSecond,
+};
+
 @class FLTrackTruthTable;
 @protocol FLGoalsNodeDelegate;
 
@@ -30,7 +35,8 @@
 - (void)createVictoryWithUnlockTexts:(NSArray *)unlockTexts
                          recordTexts:(NSArray *)recordTexts
                      recordNewValues:(NSArray *)recordNewValues
-                     recordOldValues:(NSArray *)recordOldValues;
+                     recordOldValues:(NSArray *)recordOldValues
+                  recordValueFormats:(NSArray *)recordValueFormats;
 
 - (void)layout;
 

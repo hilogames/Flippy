@@ -143,6 +143,7 @@ typedef NS_ENUM(NSInteger, FLUnlockItem) {
 typedef NS_ENUM(NSInteger, FLRecordItem) {
   FLRecordSegmentsFewest,
   FLRecordJoinsFewest,
+  FLRecordSolutionFastest,
 };
 
 #pragma mark -
@@ -384,6 +385,8 @@ struct PointerPairHash
   BOOL _simulationRunning;
   int _simulationSpeed;
   CFTimeInterval _updateLastTime;
+  NSDate *_timerResumed;
+  NSTimeInterval _timerAccumulated;
 
   BOOL _linksVisible;
   BOOL _labelsVisible;
@@ -485,6 +488,7 @@ struct PointerPairHash
     // make sure they are decoded before the simulation toolbar is created.
     _simulationRunning = [aDecoder decodeBoolForKey:@"simulationRunning"];
     _simulationSpeed = [aDecoder decodeIntForKey:@"simulationSpeed"];
+    _timerAccumulated = [aDecoder decodeDoubleForKey:@"timerAccumulated"];
     // note: These settings affect the state of the construction toolbar at creation;
     // make sure they are decoded before the construction toolbar is created.
     _linksVisible = [aDecoder decodeBoolForKey:@"linksVisible"];
@@ -631,6 +635,7 @@ struct PointerPairHash
   [aCoder encodeInteger:_cameraMode forKey:@"cameraMode"];
   [aCoder encodeBool:_simulationRunning forKey:@"simulationRunning"];
   [aCoder encodeInt:_simulationSpeed forKey:@"simulationSpeed"];
+  [aCoder encodeDouble:_timerAccumulated forKey:@"timerAccumulated"];
   [aCoder encodeObject:_train forKey:@"train"];
   [aCoder encodeObject:_trackSelectState.selectedSegments forKey:@"trackSelectStateSelectedSegments"];
   [aCoder encodeBool:_trackEditMenuState.showing forKey:@"trackEditMenuStateShowing"];
@@ -720,6 +725,14 @@ struct PointerPairHash
       [self FL_goalsShowWithSplash:YES];
     }
   }
+  
+  [self timerResume];
+}
+
+- (void)willMoveFromView:(SKView *)view
+{
+  [self timerPause];
+  [super willMoveFromView:view];
 }
 
 - (void)didChangeSize:(CGSize)oldSize
@@ -882,6 +895,30 @@ struct PointerPairHash
     }
   }
   return joinSegmentCount;
+}
+
+- (void)timerPause
+{
+  if (_timerResumed) {
+    _timerAccumulated -= [_timerResumed timeIntervalSinceNow];
+    _timerResumed = nil;
+  }
+}
+
+- (void)timerResume
+{
+  if (!_timerResumed) {
+    _timerResumed = [NSDate date];
+  }
+}
+
+- (NSTimeInterval)timerGet
+{
+  if (_timerResumed) {
+    return (_timerAccumulated - [_timerResumed timeIntervalSinceNow]);
+  } else {
+    return _timerAccumulated;
+  }
 }
 
 #pragma mark -
@@ -3511,8 +3548,7 @@ struct PointerPairHash
 
 - (void)FL_goalsShowWithSplash:(BOOL)splash
 {
-  // DELETEME
-  FLUserRecordsResetAll();
+  [self timerPause];
 
   // Always show results if this goals screen is being shown by a command from the
   // user.  Otherwise, only show results if this is an old (loaded or application
@@ -3543,14 +3579,17 @@ struct PointerPairHash
       NSArray *recordTexts;
       NSArray *recordNewValues;
       NSArray *recordOldValues;
-      [self FL_recordSubmitAll:@[ @(FLRecordSegmentsFewest), @(FLRecordJoinsFewest) ]
+      NSArray *recordValueFormats;
+      [self FL_recordSubmitAll:@[ @(FLRecordSegmentsFewest), @(FLRecordJoinsFewest), @(FLRecordSolutionFastest) ]
                    recordTexts:&recordTexts
                      newValues:&recordNewValues
-                     oldValues:&recordOldValues];
+                     oldValues:&recordOldValues
+                  valueFormats:&recordValueFormats];
       [_goalsNode createVictoryWithUnlockTexts:unlockTexts
                                    recordTexts:recordTexts
                                recordNewValues:recordNewValues
-                               recordOldValues:recordOldValues];
+                               recordOldValues:recordOldValues
+                            recordValueFormats:recordValueFormats];
     }
   }
 
@@ -3584,6 +3623,7 @@ struct PointerPairHash
   if (self->_tutorialState.tutorialActive) {
     [self FL_tutorialRecognizedAction:FLTutorialActionGoalsDismissed withArguments:nil];
   }
+  [self timerResume];
   [self unregisterDescendant:_goalsNode];
   [self dismissModalNodeAnimation:HLScenePresentationAnimationNone];
   if (nextLevel) {
@@ -5126,27 +5166,40 @@ struct PointerPairHash
                recordTexts:(NSArray * __autoreleasing *)recordTexts
                  newValues:(NSArray * __autoreleasing *)newValues
                  oldValues:(NSArray * __autoreleasing *)oldValues
+              valueFormats:(NSArray * __autoreleasing *)valueFormats
 {
   NSMutableArray *mutableRecordTexts = [NSMutableArray array];
   NSMutableArray *mutableNewValues = [NSMutableArray array];
   NSMutableArray *mutableOldValues = [NSMutableArray array];
+  NSMutableArray *mutableValueFormats = [NSMutableArray array];
   for (NSNumber *ri in recordItems) {
     FLRecordItem recordItem = (FLRecordItem)[ri integerValue];
     NSString *recordText;
     NSInteger newValue;
-    NSInteger oldValue;
-    if ([self FL_recordSubmit:recordItem text:&recordText newValue:&newValue oldValue:&oldValue]) {
+    NSNumber *oldValue;
+    FLGoalsNodeRecordFormat valueFormat;
+    if ([self FL_recordSubmit:recordItem text:&recordText newValue:&newValue oldValue:&oldValue valueFormat:&valueFormat]) {
       [mutableRecordTexts addObject:recordText];
       [mutableNewValues addObject:@(newValue)];
-      [mutableOldValues addObject:@(oldValue)];
+      if (oldValue) {
+        [mutableOldValues addObject:oldValue];
+      } else {
+        [mutableOldValues addObject:[NSNull null]];
+      }
+      [mutableValueFormats addObject:@(valueFormat)];
     }
   }
   *recordTexts = mutableRecordTexts;
   *newValues = mutableNewValues;
   *oldValues = mutableOldValues;
+  *valueFormats = mutableValueFormats;
 }
 
-- (BOOL)FL_recordSubmit:(FLRecordItem)recordItem text:(NSString * __autoreleasing *)recordText newValue:(NSInteger *)newValue oldValue:(NSInteger *)oldValue
+- (BOOL)FL_recordSubmit:(FLRecordItem)recordItem
+                   text:(NSString * __autoreleasing *)recordText
+               newValue:(NSInteger *)newValue
+               oldValue:(NSNumber * __autoreleasing *)oldValue
+            valueFormat:(FLGoalsNodeRecordFormat *)valueFormat
 {
   BOOL returnValue = NO;
   
@@ -5157,12 +5210,21 @@ struct PointerPairHash
       *newValue = (NSInteger)self.regularSegmentCount;
       *recordText = NSLocalizedString(@"Fewest Segments:",
                                       @"Game information: description of the record for solving a level using the fewest segments.");
+      *valueFormat = FLGoalsNodeRecordFormatInteger;
       break;
     case FLRecordJoinsFewest:
       recordKey = @"FLUserRecordJoinsFewest";
       *newValue = (NSInteger)self.joinSegmentCount;
       *recordText = NSLocalizedString(@"Fewest Joins:",
                                       @"Game information: description of the record for solving a level using the fewest join segments.");
+      *valueFormat = FLGoalsNodeRecordFormatInteger;
+      break;
+    case FLRecordSolutionFastest:
+      recordKey = @"FLUserRecordSolutionFastest";
+      *newValue = (NSInteger)[self timerGet];
+      *recordText = NSLocalizedString(@"Fastest Solution:",
+                                      @"Game information: description of the record for solving a level in the least amount of time.");
+      *valueFormat = FLGoalsNodeRecordFormatHourMinuteSecond;
       break;
     default:
       [NSException raise:@"FLRecordSubmitUnknownItem" format:@"Unknown record item %ld.", (long)recordItem];
@@ -5171,30 +5233,42 @@ struct PointerPairHash
   // Get current record (used in a couple places below).
   NSNumber *currentRecord = (NSNumber *)FLUserRecordsLevelGet(recordKey, _gameLevel);
 
-  // Get the old record value, or use a default if no record has been set.
+  // Get the old record value, if any.
   //
   // note: If we beat the record, then we'll submit it as the new record.
   // However, until the user goes to the next level, we'd still like to
   // keep reporting the same "you beat the old record" value.  So cache
-  // the original record and keep re-using it.
+  // the original record -- or cache the fact that there was no record --
+  // and keep re-using it.
   NSNumber *cachedRecord = _recordState.cachedRecords[@(recordItem)];
+  id testRecord;
   if (cachedRecord) {
-    *oldValue = [cachedRecord integerValue];
+    testRecord = cachedRecord;
   } else if (currentRecord) {
-    *oldValue = [currentRecord integerValue];
+    testRecord = currentRecord;
     _recordState.cachedRecords[@(recordItem)] = currentRecord;
+  } else {
+    testRecord = [NSNull null];
+    _recordState.cachedRecords[@(recordItem)] = [NSNull null];
+  }
+  // note: If no old record, then load a default (which weeds out the records
+  // that are not so impressive).
+  NSInteger testValue;
+  if (testRecord != [NSNull null]) {
+    testValue = [testRecord integerValue];
+    *oldValue = testRecord;
   } else {
     NSDictionary *recordDefaults = FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsRecordDefaults);
     NSNumber *defaultRecord = recordDefaults[recordKey];
     if (!defaultRecord) {
       [NSException raise:@"FLRecordSubmitMissingDefaultRecord" format:@"Missing default record for %@ on game level %d.", recordKey, _gameLevel];
     }
-    *oldValue = [defaultRecord integerValue];
-    _recordState.cachedRecords[@(recordItem)] = defaultRecord;
+    testValue = [defaultRecord integerValue];
+    *oldValue = nil;
   }
 
-  // Test new record against old.
-  if (*newValue < *oldValue) {
+  // Test new record.
+  if (*newValue < testValue) {
     returnValue = YES;
   }
 

@@ -6,15 +6,9 @@ circuits.
 
 Current
 
-  . Another record: fastest solution time (keep timer whenever in
-    foreground, I guess)
-
   . Goals Screen
     . Also maybe prompt user to save (and/or autosave) on victory rather
       than going straight to next level.
-    . Consider splitting goals screen into two tabs on a tabbed
-      component: goals information on one tab, and results+victory on
-      another.  (Make new HLTabbedNode or something.)
 
   . Interface help screen (explain holding down for multi-select,
     double-two-finger-click switches, hold down switch to delete it,
@@ -119,3 +113,12 @@ Lower Priority
 
   . "Advanced" interface mode where most messages and tutorial are
     suppressed.
+
+How To
+
+  . Create a new level: Create the level in sandbox, and then
+
+      plutil -convert xml1 in.archive out.xml
+
+    and edit for the following properties: gameLevel, gameType, and
+    timerElapsed.
