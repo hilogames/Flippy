@@ -93,6 +93,16 @@ FLInterfaceColorLight()
 }
 
 SKColor *
+FLInterfaceColorSunny()
+{
+  static SKColor *color = nil;
+  if (!color) {
+    color = [SKColor colorWithRed:1.0f green:0.9f blue:0.5f alpha:1.0f];
+  }
+  return color;
+}
+
+SKColor *
 FLInterfaceColorGood()
 {
   static SKColor *color = nil;

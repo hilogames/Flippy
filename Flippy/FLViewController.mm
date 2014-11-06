@@ -28,6 +28,8 @@ typedef NS_ENUM(NSInteger, FLViewControllerScene) {
 static const CGFloat FLZPositionTitleBackground = 1.0f;
 static const CGFloat FLZPositionTitleMenu = 2.0f;
 static const CGFloat FLZPositionTitleMessage = 3.0f;
+static const CGFloat FLZPositionTitleModalPresentationMin = 4.0f;
+static const CGFloat FLZPositionTitleModalPresentationMax = 5.0f;
 
 static const CGFloat FLZPositionGameOverlayStatus = 1.0f;
 static const CGFloat FLZPositionGameOverlayMenu = 2.0f;
@@ -86,6 +88,9 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   HLMessageNode *_nextLevelMessageNode;
 
   HLScrollNode *_helpOverlay;
+
+  HLScrollNode *_aboutOverlay;
+  CGFloat _aboutItemsHeight;
 
   UIAlertView *_saveConfirmAlert;
   NSString *_saveConfirmPath;
@@ -310,6 +315,11 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
       [self FL_helpOverlayUpdateGeometry];
     }
   }
+  if (_titleScene && [_titleScene modalNodePresented]) {
+    if (_aboutOverlay) {
+      [self FL_aboutOverlayUpdateGeometry];
+    }
+  }
 }
 
 - (SKView *)skView
@@ -435,6 +445,8 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
                                                        @"Menu prompt: displayed over a list of saved game slots.")];
     } else if ([menuItemParent.text isEqualToString:FLTitleMenuSandbox]) {
       [self FL_loadFromTitleMenu:FLGameTypeSandbox menuItem:menuItem itemIndex:itemIndex];
+    } else if ([menuItem.text isEqualToString:FLTitleMenuAbout]) {
+      [self FL_aboutFromTitleMenu];
     } else if ([menuItem.text isEqualToString:FLTitleMenuResetApp]) {
       [self FL_resetAppFromTitleMenuConfirm];
     } else if ([menuItem.text isEqualToString:FLTitleMenuResetTutorial]) {
@@ -518,9 +530,9 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   if (!_nextLevelOverlay) {
     [self FL_nextLevelOverlayCreate];
   }
-  
+
   [self FL_nextLevelOverlayUpdateGeometry];
-  
+
   HLMenu *saveMenu = [[HLMenu alloc] init];
   [self FL_commonMenuUpdateSaves:saveMenu forGameType:_gameScene.gameType includeNewButton:NO includeBackButton:NO];
   HLMenuItem *skipMenuItem = [HLMenuItem menuItemWithText:FLNextLevelMenuSkip];
@@ -880,7 +892,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   if (includeBackButton) {
     [saveMenu addItem:[HLMenuBackItem menuItemWithText:FLCommonMenuBack]];
   }
-  
+
   return saveCount;
 }
 
@@ -1143,9 +1155,9 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
 
 - (void)FL_helpOverlayUpdateGeometry
 {
-  const CGFloat FLHelpTextPad = 8.0f;
-  const CGFloat FLHelpTextSpacer = 9.0f;
-  
+  const CGFloat FLHelpTextPad = 10.0f;
+  const CGFloat FLHelpTextSpacer = 8.0f;
+
   // note: Using content node for two purposes: 1) to organize help text; 2) to serve
   // as a node that covers everything and handles tap to dismiss the modal presentation.
   SKSpriteNode *helpContentNode = (SKSpriteNode *)_helpOverlay.contentNode;
@@ -1160,9 +1172,9 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
     helpItemNode.paragraphWidth = paragraphWidth - FLDSMultilineLabelParagraphWidthBugWorkaroundPad;
     helpItemTotalHeight += helpItemNode.size.height;
   }
-  helpItemTotalHeight += FLHelpTextSpacer * ([helpContentNode.children count] + 1);
+  helpItemTotalHeight += FLHelpTextSpacer * ([helpContentNode.children count] - 1) + FLHelpTextPad * 2.0f;
   CGFloat helpItemPositionX = -paragraphWidth / 2.0f + FLHelpTextPad;
-  CGFloat helpItemPositionY = helpItemTotalHeight / 2.0f - FLHelpTextSpacer;
+  CGFloat helpItemPositionY = helpItemTotalHeight / 2.0f - FLHelpTextPad;
   for (DSMultilineLabelNode *helpItemNode in helpContentNode.children) {
     helpItemNode.position = CGPointMake(helpItemPositionX, helpItemPositionY);
     helpItemPositionY -= helpItemNode.size.height + FLHelpTextSpacer;
@@ -1188,6 +1200,107 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   [_gameScene registerDescendant:_helpOverlay withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
   [_gameScene registerDescendant:_helpOverlay.contentNode withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
   [_gameScene presentModalNode:_helpOverlay animation:HLScenePresentationAnimationFade];
+}
+
+- (void)FL_aboutOverlayCreate
+{
+  const CGFloat FLAboutItemPad = 15.0f;
+  const CGFloat FLAboutItemSpacer = 10.0f;
+
+  _aboutOverlay = [[HLScrollNode alloc] init];
+  // note: Using content node for two purposes: 1) to organize about text; 2) to serve
+  // as a node that covers everything and handles tap to dismiss the modal presentation.
+  SKSpriteNode *aboutContentNode = [SKSpriteNode spriteNodeWithColor:[SKColor colorWithWhite:0.0f alpha:0.8f] size:CGSizeZero];
+  _aboutOverlay.contentNode = aboutContentNode;
+
+  // note: Show multiline text in a square that won't have to change size if the interface
+  // rotates to a narrower horizontal dimension.
+  CGFloat edgeSizeMax = MIN(MIN(_titleScene.size.width, _titleScene.size.height) - FLAboutItemPad * 2.0f,
+                            FLDSMultilineLabelParagraphWidthReadableMax);
+
+  NSMutableArray *aboutItems = [NSMutableArray array];
+
+  SKSpriteNode *companyImage = [SKSpriteNode spriteNodeWithImageNamed:@"hilo-icon-128-background.png"];
+  [aboutItems addObject:companyImage];
+  
+  DSMultilineLabelNode *companyLabel = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
+  companyLabel.fontSize = 18.0f;
+  companyLabel.fontColor = [SKColor whiteColor];
+  companyLabel.text = @"Hilo Games";
+  companyLabel.paragraphWidth = edgeSizeMax - FLDSMultilineLabelParagraphWidthBugWorkaroundPad;
+  [aboutItems addObject:companyLabel];
+  
+  DSMultilineLabelNode *contactLabel = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
+  contactLabel.fontSize = 14.0f;
+  contactLabel.fontColor = FLInterfaceColorLight();
+  contactLabel.text = @"Karl Voskuil\nkarl@hilogames.com";
+  contactLabel.paragraphWidth = edgeSizeMax - FLDSMultilineLabelParagraphWidthBugWorkaroundPad;
+  [aboutItems addObject:contactLabel];
+  
+  DSMultilineLabelNode *creditsLabel = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
+  creditsLabel.fontSize = 12.0f;
+  creditsLabel.fontColor = FLInterfaceColorSunny();
+  creditsLabel.text = @"Grass texture from www.goodtextures.com, thank you thank you!"
+  "\nMulti-line label node (DSMultilineLabelNode) from Downright Simple (github.com/downrightsimple)."
+  "\nEverything else Karl Voskuil / hilogames.com.";
+  creditsLabel.paragraphWidth = edgeSizeMax - FLDSMultilineLabelParagraphWidthBugWorkaroundPad;
+  [aboutItems addObject:creditsLabel];
+  
+  DSMultilineLabelNode *sourceCodeLabel = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
+  sourceCodeLabel.fontSize = 12.0f;
+  sourceCodeLabel.fontColor = [SKColor whiteColor];
+  sourceCodeLabel.text = @"Source code for Flippy the Train is available under MIT license from github.com/hilogames.";
+  sourceCodeLabel.paragraphWidth = edgeSizeMax - FLDSMultilineLabelParagraphWidthBugWorkaroundPad;
+  [aboutItems addObject:sourceCodeLabel];
+  
+  _aboutItemsHeight = FLAboutItemPad * 2.0f;
+  for (id aboutItem in aboutItems) {
+    CGSize aboutItemSize = [aboutItem size];
+    _aboutItemsHeight += aboutItemSize.height + FLAboutItemPad;
+  }
+  CGFloat aboutItemPositionY = _aboutItemsHeight / 2.0f - FLAboutItemPad;
+  for (id aboutItem in aboutItems) {
+    [aboutItem setAnchorPoint:CGPointMake(0.5f, 1.0f)];
+    [aboutItem setPosition:CGPointMake(0.0f, aboutItemPositionY)];
+    [aboutContentNode addChild:aboutItem];
+    CGSize aboutItemSize = [aboutItem size];
+    aboutItemPositionY -= (aboutItemSize.height + FLAboutItemSpacer);
+  }
+
+  [_aboutOverlay hlSetGestureTarget:_aboutOverlay];
+  HLTapGestureTarget *aboutContentGestureTarget = [HLTapGestureTarget tapGestureTargetWithHandleGestureBlock:^(UIGestureRecognizer *gestureRecognizer){
+    [self->_titleScene unregisterDescendant:self->_aboutOverlay];
+    [self->_titleScene unregisterDescendant:self->_aboutOverlay.contentNode];
+    [self->_titleScene dismissModalNodeAnimation:HLScenePresentationAnimationFade];
+  }];
+  aboutContentGestureTarget.gestureTransparent = YES;
+  [_aboutOverlay.contentNode hlSetGestureTarget:aboutContentGestureTarget];
+}
+
+- (void)FL_aboutOverlayUpdateGeometry
+{
+  SKSpriteNode *aboutContentNode = (SKSpriteNode *)_aboutOverlay.contentNode;
+
+  _aboutOverlay.size = _titleScene.size;
+  CGSize contentSize = CGSizeMake(_titleScene.size.width,
+                                  MAX(_titleScene.size.height, _aboutItemsHeight));
+  _aboutOverlay.contentSize = contentSize;
+  aboutContentNode.size = contentSize;
+
+  if (_titleScene.size.height < aboutContentNode.size.height) {
+    _aboutOverlay.contentOffset = CGPointMake(0.0f, -aboutContentNode.size.height / 2.0f);
+  }
+}
+
+- (void)FL_aboutFromTitleMenu
+{
+  if (!_aboutOverlay) {
+    [self FL_aboutOverlayCreate];
+    [self FL_aboutOverlayUpdateGeometry];
+  }
+  [_titleScene registerDescendant:_aboutOverlay withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
+  [_titleScene registerDescendant:_aboutOverlay.contentNode withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
+  [_titleScene presentModalNode:_aboutOverlay animation:HLScenePresentationAnimationFade zPositionMin:FLZPositionTitleModalPresentationMin zPositionMax:FLZPositionTitleModalPresentationMax];
 }
 
 - (void)FL_exitFromGameMenuConfirm

@@ -19,6 +19,7 @@
 		CB1D39E419F05A3900D829CB /* platform-start-left-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB1D39E019F05A3900D829CB /* platform-start-left-nonatlas.png */; };
 		CB1D39E519F05A3900D829CB /* platform-start-right-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB1D39E119F05A3900D829CB /* platform-start-right-nonatlas.png */; };
 		CB230D791A003E6A00F4CA44 /* unlock.png in Resources */ = {isa = PBXBuildFile; fileRef = CB230D781A003E6A00F4CA44 /* unlock.png */; };
+		CB2587B91A0D668A003542AC /* hilo-icon-128-background.png in Resources */ = {isa = PBXBuildFile; fileRef = CB2587B81A0D668A003542AC /* hilo-icon-128-background.png */; };
 		CB2ED87419D9AB8C0021CF86 /* grass.jpg in Resources */ = {isa = PBXBuildFile; fileRef = CB2ED87319D9AB8C0021CF86 /* grass.jpg */; };
 		CB3FBDCD1889860A00CE5BBD /* QuadTree.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */; };
 		CB485D88196ECE2B00E8646B /* ChallengeLevels.plist in Resources */ = {isa = PBXBuildFile; fileRef = CB485D87196ECE2B00E8646B /* ChallengeLevels.plist */; };
@@ -126,6 +127,7 @@
 		CB1D39E019F05A3900D829CB /* platform-start-left-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "platform-start-left-nonatlas.png"; sourceTree = "<group>"; };
 		CB1D39E119F05A3900D829CB /* platform-start-right-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "platform-start-right-nonatlas.png"; sourceTree = "<group>"; };
 		CB230D781A003E6A00F4CA44 /* unlock.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = unlock.png; sourceTree = "<group>"; };
+		CB2587B81A0D668A003542AC /* hilo-icon-128-background.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "hilo-icon-128-background.png"; path = "../../hilo/hilo-icon-128-background.png"; sourceTree = "<group>"; };
 		CB2E3250198BF31000720EAA /* fnv.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fnv.h; sourceTree = "<group>"; };
 		CB2ED87319D9AB8C0021CF86 /* grass.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = grass.jpg; sourceTree = "<group>"; };
 		CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = QuadTree.cpp; sourceTree = "<group>"; };
@@ -248,6 +250,7 @@
 				CB9602EC196B86FF00569870 /* engine.png */,
 				CB2ED87319D9AB8C0021CF86 /* grass.jpg */,
 				CB6F6E7F1A03DAAB003112D8 /* happyBurst.png */,
+				CB2587B81A0D668A003542AC /* hilo-icon-128-background.png */,
 				CB96032C196B88AD00569870 /* jog-left-nonatlas.png */,
 				CB96032D196B88AD00569870 /* jog-right-nonatlas.png */,
 				CB96032E196B88AD00569870 /* join-left-nonatlas.png */,
@@ -561,6 +564,7 @@
 				CB960336196B88AD00569870 /* curve-nonatlas.png in Resources */,
 				CB96033F196B88AD00569870 /* value-1-nonatlas.png in Resources */,
 				CB960309196B86FF00569870 /* sleeper.png in Resources */,
+				CB2587B91A0D668A003542AC /* hilo-icon-128-background.png in Resources */,
 				CB6F6E811A03DAAB003112D8 /* happyBurst.png in Resources */,
 				CB6F6E801A03DAAB003112D8 /* happyBurst.sks in Resources */,
 				CBBB185219C739EF0088D345 /* train-stop-hiss.caf in Resources */,

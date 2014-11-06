@@ -39,6 +39,7 @@ FOUNDATION_EXPORT NSString *FLInterfaceFontName;
 FOUNDATION_EXPORT SKColor *FLInterfaceColorDark();
 FOUNDATION_EXPORT SKColor *FLInterfaceColorMedium();
 FOUNDATION_EXPORT SKColor *FLInterfaceColorLight();
+FOUNDATION_EXPORT SKColor *FLInterfaceColorSunny();
 FOUNDATION_EXPORT SKColor *FLInterfaceColorGood();
 FOUNDATION_EXPORT SKColor *FLInterfaceColorMaybe();
 FOUNDATION_EXPORT SKColor *FLInterfaceColorBad();

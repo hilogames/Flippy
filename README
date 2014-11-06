@@ -1,20 +1,18 @@
 README
 
-Flippy the Train is a train simulation that can be used to model logic
+Flippy the Train is a toy train simulation that can model logic
 circuits.
 
 
 Current
 
-  . "About" screen with name.  Choose production company.  Reserve
-    website?  Include feedback email address?  Credits: grass texture
-    (goodtextures.com); DSMultilineButton.
+  . Split off HLSpriteKit as a CocoaPod; re-create project.
 
-  . Split off HLSpriteKit as a CocoaPod; re-create project.  Upload to
-    github.  Put open source link into the About screen.
+  . Upload to github/hilogames.  Put open source link into the About screen.
+    "One or more textures in this game have been created with images from Goodtextures.com. These images may not be redistributed by default. Please visit www.goodtextures.com for more information."
 
   . Replace DSMultilineLabelNode with SuperSpriteKit / SSKMultiLineLabelNode.h?
-  . Use SSKTileableNode in SuperSpriteKit?
+    . if so, then change credit in About screen
 
   . Memory analysis
     . Low memory warning.  (Test in debugger.)
@@ -33,9 +31,6 @@ Current
       do random patches of squares in earth tones, procedurally
       generated like Minecraft.
 
-  . Localize the saved circuit/gate names, perhaps in a plist like the
-    challenge level information.
-
   . Maybe at the same time as doing icons and splash screens: Check
     SKScene dimensions for each device; is anything being scaled that
     shouldn't be?  c.f. nativeScale documentation on UIScreen.
@@ -43,11 +38,23 @@ Current
   . Either implement a simple undo stack to undo deletions, or else
     make the delete button be long-press.
 
+  . Different output options: Segments that turn solid black or white
+    when 1 or 0; segments that move/rotate other segments when 1.
+
+    - challenge level is dark, and you must light the light in
+      order to complete?
+
+    - robots: put the circuit on a platform, and different outputs
+      activate movement in a different direction.
+
 Build
 
   . genstrings
 
 Lower Priority
+
+  . Localize the saved circuit/gate names, perhaps in a plist like the
+    challenge level information.
 
   . Consider showing the track edit menu on the side or top or bottom
     of the screen (in the HUD) rather than on top of the selection (in
