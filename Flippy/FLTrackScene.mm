@@ -4655,7 +4655,7 @@ struct PointerPairHash
   // here.  Note that the visual dimensions of a track segment is FLTrackSegmentSize on
   // each side, which seems like a good standard unit of closeness; from there, the
   // multiplying factor is just based on my experimentation and personal preference.
-  const CGFloat FLLinkSwitchFindDistanceMax = FLTrackSegmentSize * 1.1f;
+  const CGFloat FLLinkSwitchFindDistanceMax = FLTrackSegmentSize * 0.9f;
   if (!closestSegmentNode || closestDistanceSquared > FLLinkSwitchFindDistanceMax * FLLinkSwitchFindDistanceMax) {
     return nil;
   } else {

@@ -76,6 +76,7 @@
 		CBD65A1419CB4FCF00F488B2 /* plink-2.caf in Resources */ = {isa = PBXBuildFile; fileRef = CBD65A1219CB4FCF00F488B2 /* plink-2.caf */; };
 		CBD707C418AD0EE00041B170 /* FLTrain.mm in Sources */ = {isa = PBXBuildFile; fileRef = CBD707C318AD0EE00041B170 /* FLTrain.mm */; };
 		CBD9E93B19142C29002533DF /* libHLSpriteKit.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CBD9E93619142B03002533DF /* libHLSpriteKit.a */; };
+		CBE687AB1A0BC5AB00072EB0 /* Help.plist in Resources */ = {isa = PBXBuildFile; fileRef = CBE687AA1A0BC5AB00072EB0 /* Help.plist */; };
 		CBEE13F018C4DBA400D1D42B /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CB0464A318AA6F7F00ABCA03 /* AVFoundation.framework */; };
 /* End PBXBuildFile section */
 
@@ -199,6 +200,7 @@
 		CBD707C218AD0EE00041B170 /* FLTrain.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTrain.h; sourceTree = "<group>"; };
 		CBD707C318AD0EE00041B170 /* FLTrain.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLTrain.mm; sourceTree = "<group>"; };
 		CBD9E93019142B03002533DF /* HLSpriteKit.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = HLSpriteKit.xcodeproj; path = ../common/HLSpriteKit/HLSpriteKit.xcodeproj; sourceTree = "<group>"; };
+		CBE687AA1A0BC5AB00072EB0 /* Help.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Help.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -385,6 +387,7 @@
 				CB485D87196ECE2B00E8646B /* ChallengeLevels.plist */,
 				CBB4B802183C00E1003C3444 /* Flippy-Info.plist */,
 				CBB4B808183C00E1003C3444 /* Flippy-Prefix.pch */,
+				CBE687AA1A0BC5AB00072EB0 /* Help.plist */,
 				CBB4B803183C00E1003C3444 /* InfoPlist.strings */,
 				CB485D93196EE0CC00E8646B /* Localizable.strings */,
 				CBB4B806183C00E1003C3444 /* main.m */,
@@ -554,6 +557,7 @@
 				CB960310196B86FF00569870 /* wooden-click-2.caf in Resources */,
 				CB960335196B88AD00569870 /* cross-nonatlas.png in Resources */,
 				CB960344196B892E00569870 /* track.atlas in Resources */,
+				CBE687AB1A0BC5AB00072EB0 /* Help.plist in Resources */,
 				CB960336196B88AD00569870 /* curve-nonatlas.png in Resources */,
 				CB96033F196B88AD00569870 /* value-1-nonatlas.png in Resources */,
 				CB960309196B86FF00569870 /* sleeper.png in Resources */,

@@ -9,7 +9,10 @@
 #import "FLViewController.h"
 
 #import <HLSpriteKit/HLError.h>
+#import <HLSpriteKit/HLGestureTarget.h>
+#import <HLSpriteKit/HLScrollNode.h>
 #import <HLSpriteKit/HLTiledNode.h>
+#import <HLSpriteKit/SKNode+HLGestureTarget.h>
 
 #import "DSMultilineLabelNode.h"
 #import "FLConstants.h"
@@ -57,6 +60,7 @@ static NSString * const FLTitleMenuResetTutorial = NSLocalizedString(@"Reset Tut
 static NSString * const FLGameMenuResume = NSLocalizedString(@"Resume", @"Menu item: continue the current game.");
 static NSString * const FLGameMenuSave = NSLocalizedString(@"Save", @"Menu item: save the current game.");
 static NSString * const FLGameMenuRestart = NSLocalizedString(@"Restart", @"Menu item: restart current level.");
+static NSString * const FLGameMenuHelp = NSLocalizedString(@"Help", @"Menu item: show help screen.");
 static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item: exit current game, returning to title screen.");
 
 static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save", @"Menu item: choose not to save the current game in any of the presented slots.");
@@ -80,6 +84,8 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   SKNode *_nextLevelOverlay;
   HLMenuNode *_nextLevelMenuNode;
   HLMessageNode *_nextLevelMessageNode;
+
+  HLScrollNode *_helpOverlay;
 
   UIAlertView *_saveConfirmAlert;
   NSString *_saveConfirmPath;
@@ -300,6 +306,9 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
     if (_nextLevelOverlay) {
       [self FL_nextLevelOverlayUpdateGeometry];
     }
+    if (_helpOverlay) {
+      [self FL_helpOverlayUpdateGeometry];
+    }
   }
 }
 
@@ -452,6 +461,8 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
                                                             @"Menu prompt: displayed when a game has been saved.")];
         }];
       }
+    } else if ([menuItem.text isEqualToString:FLGameMenuHelp]) {
+      [self FL_helpFromGameMenu];
     } else if ([menuItem.text isEqualToString:FLGameMenuExit]) {
       [self FL_exitFromGameMenuConfirm];
     }
@@ -566,7 +577,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   menuNode.itemAnimationDuration = FLOffscreenSlideDuration;
   menuNode.itemButtonPrototype = [FLViewController FL_sharedMenuButtonPrototypeBasic];
   menuNode.backItemButtonPrototype = [FLViewController FL_sharedMenuButtonPrototypeBack];
-  menuNode.itemSpacing = 48.0f;
+  menuNode.itemSpacing = 44.0f;
   menuNode.itemSoundFile = @"wooden-click-1.caf";
   return menuNode;
 }
@@ -712,6 +723,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   // note: Create empty save menu for now; update later with FL_commonMenuUpdateSaves.
   [menu addItem:[HLMenu menuWithText:FLGameMenuSave items:@[]]];
   [menu addItem:[HLMenuItem menuItemWithText:FLGameMenuRestart]];
+  [menu addItem:[HLMenuItem menuItemWithText:FLGameMenuHelp]];
   [menu addItem:[HLMenuItem menuItemWithText:FLGameMenuExit]];
   [_gameMenuNode setMenu:menu animation:HLMenuNodeAnimationNone];
 
@@ -728,7 +740,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   const CGFloat FLStatusSeperator = _gameMenuNode.itemSpacing - FLMessageNodeHeight;
   const CGFloat FLStatusLabelPad = 5.0f;
   SKSpriteNode *statusBackgroundNode = (SKSpriteNode *)_gameStatusNode.parent;
-  _gameStatusNode.paragraphWidth = _gameScene.size.width - 2.0f * FLStatusLabelPad;
+  _gameStatusNode.paragraphWidth = _gameScene.size.width - 2.0f * FLStatusLabelPad - FLDSMultilineLabelParagraphWidthBugWorkaroundPad;
   statusBackgroundNode.size = CGSizeMake(_gameScene.size.width, _gameStatusNode.size.height + 2.0f * FLStatusLabelPad);
   statusBackgroundNode.position = CGPointMake(0.0f, (_gameScene.size.height - statusBackgroundNode.size.height) / 2.0f - FLStatusSeperator);
 }
@@ -1093,6 +1105,89 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
 - (void)FL_restartFromGameMenu
 {
   [self FL_load:_gameScene.gameType gameLevel:_gameScene.gameLevel isNew:YES otherwiseSaveNumber:0];
+}
+
+- (void)FL_helpOverlayCreate
+{
+  _helpOverlay = [[HLScrollNode alloc] init];
+  _helpOverlay.contentNode = [SKSpriteNode spriteNodeWithColor:[SKColor clearColor] size:CGSizeZero];
+
+  NSString *path = [[NSBundle mainBundle] pathForResource:@"Help" ofType:@"plist"];
+  NSData *data = [[NSFileManager defaultManager] contentsAtPath:path];
+  NSArray *helpItems = (NSArray *)[NSPropertyListSerialization propertyListFromData:data
+                                                                   mutabilityOption:NSPropertyListImmutable
+                                                                             format:NULL
+                                                                   errorDescription:NULL];
+  for (NSString *helpItem in helpItems) {
+    DSMultilineLabelNode *helpItemNode = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
+    helpItemNode.fontSize = 14.0f;
+    helpItemNode.fontColor = [SKColor whiteColor];
+    if ([helpItem length] > 0) {
+      helpItemNode.text = helpItem;
+    } else {
+      // note: DSMultilineLabelNode doesn't like having empty text.
+      helpItemNode.text = @" ";
+    }
+    [_helpOverlay.contentNode addChild:helpItemNode];
+  }
+
+  [_helpOverlay hlSetGestureTarget:_helpOverlay];
+  HLTapGestureTarget *helpContentGestureTarget = [HLTapGestureTarget tapGestureTargetWithHandleGestureBlock:^(UIGestureRecognizer *gestureRecognizer){
+    [self->_gameScene unregisterDescendant:self->_helpOverlay];
+    [self->_gameScene unregisterDescendant:self->_helpOverlay.contentNode];
+    [self->_gameScene dismissModalNodeAnimation:HLScenePresentationAnimationFade];
+  }];
+  helpContentGestureTarget.gestureTransparent = YES;
+  [_helpOverlay.contentNode hlSetGestureTarget:helpContentGestureTarget];
+}
+
+- (void)FL_helpOverlayUpdateGeometry
+{
+  const CGFloat FLHelpTextPad = 8.0f;
+  const CGFloat FLHelpTextSpacer = 9.0f;
+  
+  // note: Using content node for two purposes: 1) to organize help text; 2) to serve
+  // as a node that covers everything and handles tap to dismiss the modal presentation.
+  SKSpriteNode *helpContentNode = (SKSpriteNode *)_helpOverlay.contentNode;
+
+  CGFloat paragraphWidth = MIN(_gameScene.size.width - FLHelpTextPad * 2.0f,
+                               FLDSMultilineLabelParagraphWidthReadableMax);
+
+  CGFloat helpItemTotalHeight = 0.0f;
+  for (DSMultilineLabelNode *helpItemNode in helpContentNode.children) {
+    helpItemNode.horizontalAlignmentMode = SKLabelHorizontalAlignmentModeLeft;
+    helpItemNode.anchorPoint = CGPointMake(0.0f, 1.0f);
+    helpItemNode.paragraphWidth = paragraphWidth - FLDSMultilineLabelParagraphWidthBugWorkaroundPad;
+    helpItemTotalHeight += helpItemNode.size.height;
+  }
+  helpItemTotalHeight += FLHelpTextSpacer * ([helpContentNode.children count] + 1);
+  CGFloat helpItemPositionX = -paragraphWidth / 2.0f + FLHelpTextPad;
+  CGFloat helpItemPositionY = helpItemTotalHeight / 2.0f - FLHelpTextSpacer;
+  for (DSMultilineLabelNode *helpItemNode in helpContentNode.children) {
+    helpItemNode.position = CGPointMake(helpItemPositionX, helpItemPositionY);
+    helpItemPositionY -= helpItemNode.size.height + FLHelpTextSpacer;
+  }
+
+  CGSize contentSize = CGSizeMake(_gameScene.size.width,
+                                  MAX(_gameScene.size.height, helpItemTotalHeight));
+  _helpOverlay.size = _gameScene.size;
+  _helpOverlay.contentSize = contentSize;
+  helpContentNode.size = contentSize;
+  if (_gameScene.size.height < helpItemTotalHeight) {
+    _helpOverlay.contentOffset = CGPointMake(0.0f, -contentSize.height / 2.0f);
+  }
+}
+
+- (void)FL_helpFromGameMenu
+{
+  [_gameScene dismissModalNodeAnimation:HLScenePresentationAnimationFade];
+  if (!_helpOverlay) {
+    [self FL_helpOverlayCreate];
+    [self FL_helpOverlayUpdateGeometry];
+  }
+  [_gameScene registerDescendant:_helpOverlay withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
+  [_gameScene registerDescendant:_helpOverlay.contentNode withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
+  [_gameScene presentModalNode:_helpOverlay animation:HLScenePresentationAnimationFade];
 }
 
 - (void)FL_exitFromGameMenuConfirm

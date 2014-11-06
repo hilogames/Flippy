@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<array>
+	<string>SELECTION</string>
+	<string>Double-tap on a track segment to select it and everything connected to it.</string>
+	<string>When multiple track segments are selected, use long-press to add to or subtract from the selection.</string>
+	<string></string>
+	<string>SWITCHES</string>
+	<string>Double-tap with two fingers on segments to toggle switches.</string>
+	<string>The switch button in the track selection popup menu can toggle switches. Also, a long-press on the button will remove the switch completely.</string>
+	<string></string>
+	<string>TRACK EDITING</string>
+	<string>The rotate gesture can be used to rotate selected track segments.</string>
+	<string></string>
+	<string>WORLD NAVIGATION</string>
+	<string>Tap the four-arrows button (in the top toolbar) to find and follow the train.</string>
+	<string>Drag anywhere to stop following the train.</string>
+	<string>The four-arrows button may be also be long-pressed to reset the world zoom.</string>
+</array>
+</plist>

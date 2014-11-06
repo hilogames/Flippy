@@ -6,11 +6,6 @@ circuits.
 
 Current
 
-  . Interface help screen (explain holding down for multi-select,
-    double-two-finger-click switches, hold down switch to delete it,
-    center button to find and follow train, hold center button to
-    reset zoom, rotate gesture, double-tap to select connected).
-
   . "About" screen with name.  Choose production company.  Reserve
     website?  Include feedback email address?  Credits: grass texture
     (goodtextures.com); DSMultilineButton.
@@ -21,7 +16,9 @@ Current
   . Replace DSMultilineLabelNode with SuperSpriteKit / SSKMultiLineLabelNode.h?
   . Use SSKTileableNode in SuperSpriteKit?
 
-  . Low memory warning.  (Test in debugger.)
+  . Memory analysis
+    . Low memory warning.  (Test in debugger.)
+    . release various overlays in FLViewController to save memory?
 
   . Infinite grid and real quadtree.
 
@@ -45,6 +42,10 @@ Current
 
   . Either implement a simple undo stack to undo deletions, or else
     make the delete button be long-press.
+
+Build
+
+  . genstrings
 
 Lower Priority
 

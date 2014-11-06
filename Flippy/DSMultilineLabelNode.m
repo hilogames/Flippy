@@ -118,7 +118,8 @@
     selfNode.texture = newTexture;
     
     //Resetting the texture also reset the anchorPoint.  Let's recenter it.
-    selfNode.anchorPoint = CGPointMake(0.5, 0.5);
+  // note karl: The caller should control the anchor point.
+  //selfNode.anchorPoint = CGPointMake(0.5, 0.5);
 
 }
 
