@@ -6,10 +6,6 @@ circuits.
 
 Current
 
-  . Goals Screen
-    . Also maybe prompt user to save (and/or autosave) on victory rather
-      than going straight to next level.
-
   . Interface help screen (explain holding down for multi-select,
     double-two-finger-click switches, hold down switch to delete it,
     center button to find and follow train, hold center button to

@@ -30,6 +30,9 @@ static const CGFloat FLZPositionGameOverlayStatus = 1.0f;
 static const CGFloat FLZPositionGameOverlayMenu = 2.0f;
 static const CGFloat FLZPositionGameOverlayMessage = 3.0f;
 
+static const CGFloat FLZPositionNextLevelOverlayMenu = 1.0f;
+static const CGFloat FLZPositionNextLevelOverlayMessage = 2.0f;
+
 static NSString * const FLExtraStateName = @"extra-application-state";
 static NSString * FLExtraStatePath;
 
@@ -56,6 +59,8 @@ static NSString * const FLGameMenuSave = NSLocalizedString(@"Save", @"Menu item:
 static NSString * const FLGameMenuRestart = NSLocalizedString(@"Restart", @"Menu item: restart current level.");
 static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item: exit current game, returning to title screen.");
 
+static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save", @"Menu item: choose not to save the current game in any of the presented slots.");
+
 @implementation FLViewController
 {
   __weak SKScene *_currentScene;
@@ -72,8 +77,13 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   DSMultilineLabelNode *_gameStatusNode;
   BOOL _savedInGameOverlay;
 
+  SKNode *_nextLevelOverlay;
+  HLMenuNode *_nextLevelMenuNode;
+  HLMessageNode *_nextLevelMessageNode;
+
   UIAlertView *_saveConfirmAlert;
   NSString *_saveConfirmPath;
+  void (^_saveConfirmCompletion)(void);
   UIAlertView *_restartConfirmAlert;
   UIAlertView *_exitConfirmAlert;
   UIAlertView *_resetAppConfirmAlert;
@@ -91,7 +101,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   self = [super init];
   if (self) {
     self.restorationIdentifier = @"FLViewController";
-    
+
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(applicationDidBecomeActive)
                                                  name:UIApplicationDidBecomeActiveNotification
@@ -283,8 +293,13 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
 
 - (void)viewDidLayoutSubviews
 {
-  if (_gameScene && _gameOverlay && [_gameScene modalNodePresented]) {
-    [self FL_gameOverlayUpdateGeometry];
+  if (_gameScene && [_gameScene modalNodePresented]) {
+    if (_gameOverlay) {
+      [self FL_gameOverlayUpdateGeometry];
+    }
+    if (_nextLevelOverlay) {
+      [self FL_nextLevelOverlayUpdateGeometry];
+    }
   }
 }
 
@@ -334,7 +349,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   if (menuNode == _titleMenuNode) {
 
     if ([menuItem.text isEqualToString:FLTitleMenuSandbox]) {
-      NSUInteger saveCount = [self FL_commonMenuUpdateSaves:(HLMenu *)menuItem forGameType:FLGameTypeSandbox includeNewButton:YES];
+      NSUInteger saveCount = [self FL_commonMenuUpdateSaves:(HLMenu *)menuItem forGameType:FLGameTypeSandbox includeNewButton:YES includeBackButton:YES];
       // note: The important thing is the update of the menu, above.  But as a bonus, go straight
       // to new game if there are no saves.
       if (saveCount == 0) {
@@ -342,7 +357,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
         return NO;
       }
     } else if ([menuItem.text isEqualToString:FLTitleMenuChallenge]) {
-      NSUInteger saveCount = [self FL_commonMenuUpdateSaves:(HLMenu *)menuItem forGameType:FLGameTypeChallenge includeNewButton:YES];
+      NSUInteger saveCount = [self FL_commonMenuUpdateSaves:(HLMenu *)menuItem forGameType:FLGameTypeChallenge includeNewButton:YES includeBackButton:YES];
       // note: The important thing is the update of the menu, above.  But as a bonus, go straight
       // to new menu if there are no saves, and to a new game if there are no special new-game options.
       if (saveCount == 0) {
@@ -374,7 +389,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   if (menuNode == _gameMenuNode) {
 
     if ([menuItem.text isEqualToString:FLGameMenuSave]) {
-      [self FL_commonMenuUpdateSaves:(HLMenu *)menuItem forGameType:_gameScene.gameType includeNewButton:NO];
+      [self FL_commonMenuUpdateSaves:(HLMenu *)menuItem forGameType:_gameScene.gameType includeNewButton:NO includeBackButton:YES];
       [self FL_gameOverlayShowMessage:NSLocalizedString(@"Choose save slot.",
                                                         @"Menu prompt: displayed over a list of game slots for saving.")];
     }
@@ -431,10 +446,28 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
       if (![menuItem isKindOfClass:[HLMenuBackItem class]]) {
         _savedInGameOverlay = YES;
         NSString *savePath = [self FL_savePathForGameType:_gameScene.gameType saveNumber:itemIndex];
-        [self FL_saveFromGameMenuConfirm:savePath];
+        [self FL_saveFromCommonMenuConfirm:savePath completion:^{
+          [self->_gameMenuNode navigateToTopMenuAnimation:HLMenuNodeAnimationNone];
+          [self FL_gameOverlayShowMessage:NSLocalizedString(@"Game saved.",
+                                                            @"Menu prompt: displayed when a game has been saved.")];
+        }];
       }
     } else if ([menuItem.text isEqualToString:FLGameMenuExit]) {
       [self FL_exitFromGameMenuConfirm];
+    }
+
+    return;
+  }
+
+  if (menuNode == _nextLevelMenuNode) {
+
+    if ([menuItem.text isEqualToString:FLNextLevelMenuSkip]) {
+      [self FL_nextLevel];
+    } else {
+      NSString *savePath = [self FL_savePathForGameType:_gameScene.gameType saveNumber:itemIndex];
+      [self FL_saveFromCommonMenuConfirm:savePath completion:^{
+        [self FL_nextLevel];
+      }];
     }
 
     return;
@@ -471,17 +504,25 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
 
 - (void)trackSceneDidTapNextLevelButton:(FLTrackScene *)trackScene
 {
-  int levelCount = FLChallengeLevelsCount();
-  FLGameType gameType = _gameScene.gameType;
-  int nextLevel = _gameScene.gameLevel + 1;
-  if (nextLevel < levelCount) {
-    // noob: So this method is called by a block (in the scene) which may or may
-    // not contain the correct kind of references to the objects it needs to finish.
-    // But it seems to be working for now, even though I delete its scene out from
-    // under it.  More noobish notes are in FLTrackScene at the block invocation
-    // site.
-    [self FL_load:gameType gameLevel:nextLevel isNew:YES otherwiseSaveNumber:0];
+  if (!_nextLevelOverlay) {
+    [self FL_nextLevelOverlayCreate];
   }
+  
+  [self FL_nextLevelOverlayUpdateGeometry];
+  
+  HLMenu *saveMenu = [[HLMenu alloc] init];
+  [self FL_commonMenuUpdateSaves:saveMenu forGameType:_gameScene.gameType includeNewButton:NO includeBackButton:NO];
+  HLMenuItem *skipMenuItem = [HLMenuItem menuItemWithText:FLNextLevelMenuSkip];
+  skipMenuItem.buttonPrototype = [FLViewController FL_sharedMenuButtonPrototypeBack];
+  [saveMenu addItem:skipMenuItem];
+  [_nextLevelMenuNode setMenu:saveMenu animation:HLMenuNodeAnimationNone];
+
+  // note: Register (or re-register) the menu node for gesture handling.  See note
+  // in trackSceneDidTapMenuButton:; this is sloppy, but it doesn't matter.
+  [_gameScene registerDescendant:_nextLevelMenuNode withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
+  [_gameScene presentModalNode:_nextLevelOverlay animation:HLScenePresentationAnimationFade];
+  [self FL_nextLevelOverlayShowMessage:NSLocalizedString(@"Choose save slot.",
+                                                         @"Menu prompt: displayed over a list of game slots for saving.")];
 }
 
 #pragma mark -
@@ -491,7 +532,7 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
 {
   if (alertView == _saveConfirmAlert) {
     if (buttonIndex == 1) {
-      [self FL_saveFromGameMenu:_saveConfirmPath];
+      [self FL_saveFromCommonMenu:_saveConfirmPath completion:_saveConfirmCompletion];
     }
   } else if (alertView == _restartConfirmAlert) {
     if (buttonIndex == 1) {
@@ -666,7 +707,13 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   _gameMenuNode.zPosition = FLZPositionGameOverlayMenu;
   [_gameOverlay addChild:_gameMenuNode];
 
-  [self FL_gameMenuCreate];
+  HLMenu *menu = [[HLMenu alloc] init];
+  [menu addItem:[HLMenuItem menuItemWithText:FLGameMenuResume]];
+  // note: Create empty save menu for now; update later with FL_commonMenuUpdateSaves.
+  [menu addItem:[HLMenu menuWithText:FLGameMenuSave items:@[]]];
+  [menu addItem:[HLMenuItem menuItemWithText:FLGameMenuRestart]];
+  [menu addItem:[HLMenuItem menuItemWithText:FLGameMenuExit]];
+  [_gameMenuNode setMenu:menu animation:HLMenuNodeAnimationNone];
 
   _gameMessageNode = [self FL_commonMessageNodeCreate];
   _gameMessageNode.zPosition = FLZPositionGameOverlayMessage;
@@ -691,17 +738,6 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   [_gameMessageNode showMessage:message parent:_gameOverlay];
 }
 
-- (void)FL_gameMenuCreate
-{
-  HLMenu *menu = [[HLMenu alloc] init];
-  [menu addItem:[HLMenuItem menuItemWithText:FLGameMenuResume]];
-  // note: Create empty save menu for now; update later with FL_menuUpdateSaves.
-  [menu addItem:[HLMenu menuWithText:FLGameMenuSave items:@[]]];
-  [menu addItem:[HLMenuItem menuItemWithText:FLGameMenuRestart]];
-  [menu addItem:[HLMenuItem menuItemWithText:FLGameMenuExit]];
-  [_gameMenuNode setMenu:menu animation:HLMenuNodeAnimationNone];
-}
-
 - (void)FL_gameStatusUpdateText
 {
   // note: Caller will probably need to call FL_gameOverlayUpdateGeometry after this.
@@ -717,18 +753,46 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
                               NSLocalizedString(@"Level", @"Game information: followed by a level number."),
                               _gameScene.gameLevel,
                               FLChallengeLevelsInfo(_gameScene.gameLevel, FLChallengeLevelsTitle),
-                              (unsigned long)[_gameScene segmentCount],
+                              (unsigned long)[_gameScene regularSegmentCount],
                               NSLocalizedString(@"segments used", @"Game information: preceded by a number of segments used in a track.")];
       break;
     case FLGameTypeSandbox:
       _gameStatusNode.text = [NSString stringWithFormat:@"%@\n%ld %@",
                               FLGameTypeSandboxTitle(),
-                              (unsigned long)[_gameScene segmentCount],
+                              (unsigned long)[_gameScene regularSegmentCount],
                               NSLocalizedString(@"segments used", @"Game information: preceded by a number of segments used in a track.")];
       break;
     default:
       [NSException raise:@"FLViewControllerGameTypeUnknown" format:@"Unknown game type %ld.", (long)_gameScene.gameType];
   }
+}
+
+- (void)FL_nextLevelOverlayCreate
+{
+  _nextLevelOverlay = [SKNode node];
+
+  _nextLevelMenuNode = [self FL_commonMenuNodeCreate];
+  _nextLevelMenuNode.zPosition = FLZPositionNextLevelOverlayMenu;
+  [_nextLevelOverlay addChild:_nextLevelMenuNode];
+
+  // note: Create empty menu for now; update later with FL_commonMenuUpdateSaves.
+  HLMenu *menu = [[HLMenu alloc] init];
+  [_nextLevelMenuNode setMenu:menu animation:HLMenuNodeAnimationNone];
+
+  _nextLevelMessageNode = [self FL_commonMessageNodeCreate];
+  _nextLevelMessageNode.zPosition = FLZPositionNextLevelOverlayMessage;
+}
+
+- (void)FL_nextLevelOverlayUpdateGeometry
+{
+  const CGFloat FLMessageSeparator = _nextLevelMenuNode.itemSpacing;
+  _nextLevelMessageNode.position = CGPointMake(0.0f, _nextLevelMenuNode.position.y + FLMessageSeparator);
+  _nextLevelMessageNode.size = CGSizeMake(_gameScene.size.width, FLMessageNodeHeight);
+}
+
+- (void)FL_nextLevelOverlayShowMessage:(NSString *)message
+{
+  [_nextLevelMessageNode showMessage:message parent:_nextLevelOverlay];
 }
 
 + (HLLabelButtonNode *)FL_sharedMenuButtonPrototypeBasic
@@ -774,7 +838,10 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   return buttonPrototype;
 }
 
-- (NSUInteger)FL_commonMenuUpdateSaves:(HLMenu *)saveMenu forGameType:(FLGameType)gameType includeNewButton:(BOOL)includeNewButton
+- (NSUInteger)FL_commonMenuUpdateSaves:(HLMenu *)saveMenu
+                           forGameType:(FLGameType)gameType
+                      includeNewButton:(BOOL)includeNewButton
+                     includeBackButton:(BOOL)includeBackButton
 {
   [saveMenu removeAllItems];
 
@@ -798,7 +865,10 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
     [saveMenu addItem:saveGameMenuItem];
   }
 
-  [saveMenu addItem:[HLMenuBackItem menuItemWithText:FLCommonMenuBack]];
+  if (includeBackButton) {
+    [saveMenu addItem:[HLMenuBackItem menuItemWithText:FLCommonMenuBack]];
+  }
+  
   return saveCount;
 }
 
@@ -872,10 +942,10 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
           stringByAppendingPathComponent:[fileName stringByAppendingPathExtension:@"archive"]];
 }
 
-- (void)FL_saveFromGameMenuConfirm:(NSString *)savePath
+- (void)FL_saveFromCommonMenuConfirm:(NSString *)savePath completion:(void(^)(void))completion
 {
   if (![[NSFileManager defaultManager] fileExistsAtPath:savePath]) {
-    [self FL_saveFromGameMenu:savePath];
+    [self FL_saveFromCommonMenu:savePath completion:completion];
     return;
   }
 
@@ -889,13 +959,15 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
   [confirmAlert show];
   _saveConfirmAlert = confirmAlert;
   _saveConfirmPath = savePath;
+  _saveConfirmCompletion = completion;
 }
 
-- (void)FL_saveFromGameMenu:(NSString *)savePath
+- (void)FL_saveFromCommonMenu:(NSString *)savePath completion:(void(^)(void))completion
 {
   [NSKeyedArchiver archiveRootObject:_gameScene toFile:savePath];
-  [_gameMenuNode navigateToTopMenuAnimation:HLMenuNodeAnimationNone];
-  [self FL_gameOverlayShowMessage:@"Game saved."];
+  if (completion) {
+    completion();
+  }
 }
 
 - (void)FL_loadFromTitleMenu:(FLGameType)gameType menuItem:(HLMenuItem *)menuItem itemIndex:(NSUInteger)itemIndex
@@ -1097,6 +1169,21 @@ static NSString * const FLGameMenuExit = NSLocalizedString(@"Exit", @"Menu item:
 - (void)FL_resetTutorialFromTitleMenu
 {
   FLUserUnlocksReset(@"FLUserUnlockTutorialCompleted");
+}
+
+- (void)FL_nextLevel
+{
+  int levelCount = FLChallengeLevelsCount();
+  FLGameType gameType = _gameScene.gameType;
+  int nextLevel = _gameScene.gameLevel + 1;
+  if (nextLevel < levelCount) {
+    // noob: So this method is called by a block (in the scene) which may or may
+    // not contain the correct kind of references to the objects it needs to finish.
+    // But it seems to be working for now, even though I delete its scene out from
+    // under it.  More noobish notes are in FLTrackScene at the block invocation
+    // site.
+    [self FL_load:gameType gameLevel:nextLevel isNew:YES otherwiseSaveNumber:0];
+  }
 }
 
 @end

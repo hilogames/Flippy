@@ -3631,6 +3631,7 @@ struct PointerPairHash
     if (delegate) {
       // noob: So is this dangerous?  The delegate is probably going to delete this scene.
       // Need to dispatch_async?
+      // Got a EXC_BAD_ACCESS here after clicking Next Level button, 11/5/2014.
       [delegate performSelector:@selector(trackSceneDidTapNextLevelButton:) withObject:self];
     }
   }
