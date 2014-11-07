@@ -3,7 +3,7 @@
 //  Flippy
 //
 //  Created by Karl Voskuil on 2/21/14.
-//  Copyright (c) 2014 Hilo. All rights reserved.
+//  Copyright (c) 2014 Hilo Games. All rights reserved.
 //
 
 #include <memory>

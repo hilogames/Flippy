@@ -469,7 +469,7 @@
 			attributes = {
 				CLASSPREFIX = FL;
 				LastUpgradeCheck = 0510;
-				ORGANIZATIONNAME = Hilo;
+				ORGANIZATIONNAME = "Hilo Games";
 				TargetAttributes = {
 					CBB4B7F4183C00E1003C3444 = {
 						DevelopmentTeam = L2559SMXTM;

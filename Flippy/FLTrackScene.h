@@ -3,7 +3,7 @@
 //  Flippy
 //
 //  Created by Karl Voskuil on 11/19/13.
-//  Copyright (c) 2013 Hilo. All rights reserved.
+//  Copyright (c) 2013 Hilo Games. All rights reserved.
 //
 
 #import <HLSpriteKit/HLGestureTarget.h>
