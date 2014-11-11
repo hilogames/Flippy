@@ -8,7 +8,7 @@
 
 #import "FLTrackScene.h"
 
-#import <HLSpriteKit/HLSpriteKit.h>
+#import "HLSpriteKit.h"
 #include <memory>
 #include <tgmath.h>
 

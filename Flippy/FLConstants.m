@@ -8,7 +8,7 @@
 
 #import "FLConstants.h"
 
-#import <HLSpriteKit/HLLabelButtonNode.h>
+#import "HLLabelButtonNode.h"
 
 static NSArray *_challengeLevels = nil;
 

@@ -9,7 +9,7 @@
 #import "FLSegmentNode.h"
 
 #include <tgmath.h>
-#import <HLSpriteKit/HLTextureStore.h>
+#import "HLTextureStore.h"
 
 #import "FLPath.h"
 

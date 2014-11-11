@@ -6,10 +6,11 @@
 //  Copyright (c) 2013 Hilo Games. All rights reserved.
 //
 
-#import <HLSpriteKit/HLSpriteKit.h>
 #import <SpriteKit/SpriteKit.h>
 #import <UIKit/UIKit.h>
+
 #import "FLTrackScene.h"
+#import "HLSpriteKit.h"
 
 @interface FLViewController : UIViewController <HLMenuNodeDelegate, FLTrackSceneDelegate>
 

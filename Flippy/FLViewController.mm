@@ -8,11 +8,11 @@
 
 #import "FLViewController.h"
 
-#import <HLSpriteKit/HLError.h>
-#import <HLSpriteKit/HLGestureTarget.h>
-#import <HLSpriteKit/HLScrollNode.h>
-#import <HLSpriteKit/HLTiledNode.h>
-#import <HLSpriteKit/SKNode+HLGestureTarget.h>
+#import "HLError.h"
+#import "HLGestureTarget.h"
+#import "HLScrollNode.h"
+#import "HLTiledNode.h"
+#import "SKNode+HLGestureTarget.h"
 
 #import "DSMultilineLabelNode.h"
 #import "FLConstants.h"

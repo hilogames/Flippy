@@ -8,7 +8,7 @@
 
 #import "FLTrain.h"
 
-#import <HLSpriteKit/HLError.h>
+#import "HLError.h"
 
 #import "FLPath.h"
 #include "FLTrackGrid.h"

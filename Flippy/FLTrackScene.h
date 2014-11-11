@@ -6,8 +6,8 @@
 //  Copyright (c) 2013 Hilo Games. All rights reserved.
 //
 
-#import <HLSpriteKit/HLGestureTarget.h>
-#import <HLSpriteKit/HLScene.h>
+#import "HLGestureTarget.h"
+#import "HLScene.h"
 #import <SpriteKit/SpriteKit.h>
 
 #import "FLConstants.h"

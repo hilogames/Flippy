@@ -71,34 +71,9 @@
 		CBD65A1319CB4FCF00F488B2 /* plink-1.caf in Resources */ = {isa = PBXBuildFile; fileRef = CBD65A1119CB4FCF00F488B2 /* plink-1.caf */; };
 		CBD65A1419CB4FCF00F488B2 /* plink-2.caf in Resources */ = {isa = PBXBuildFile; fileRef = CBD65A1219CB4FCF00F488B2 /* plink-2.caf */; };
 		CBD707C418AD0EE00041B170 /* FLTrain.mm in Sources */ = {isa = PBXBuildFile; fileRef = CBD707C318AD0EE00041B170 /* FLTrain.mm */; };
-		CBD9E93B19142C29002533DF /* libHLSpriteKit.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CBD9E93619142B03002533DF /* libHLSpriteKit.a */; };
 		CBE687AB1A0BC5AB00072EB0 /* Help.plist in Resources */ = {isa = PBXBuildFile; fileRef = CBE687AA1A0BC5AB00072EB0 /* Help.plist */; };
 		CBEE13F018C4DBA400D1D42B /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CB0464A318AA6F7F00ABCA03 /* AVFoundation.framework */; };
 /* End PBXBuildFile section */
-
-/* Begin PBXContainerItemProxy section */
-		CBD9E93519142B03002533DF /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = CBD9E93019142B03002533DF /* HLSpriteKit.xcodeproj */;
-			proxyType = 2;
-			remoteGlobalIDString = CB923F901914230E00419AD1;
-			remoteInfo = HLSpriteKit;
-		};
-		CBD9E93719142B03002533DF /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = CBD9E93019142B03002533DF /* HLSpriteKit.xcodeproj */;
-			proxyType = 2;
-			remoteGlobalIDString = CB923FA01914230E00419AD1;
-			remoteInfo = HLSpriteKitTests;
-		};
-		CBD9E93919142C06002533DF /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = CBD9E93019142B03002533DF /* HLSpriteKit.xcodeproj */;
-			proxyType = 1;
-			remoteGlobalIDString = CB923F8F1914230E00419AD1;
-			remoteInfo = HLSpriteKit;
-		};
-/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		CB0464A318AA6F7F00ABCA03 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
@@ -184,7 +159,6 @@
 		CBD65A1219CB4FCF00F488B2 /* plink-2.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "plink-2.caf"; sourceTree = "<group>"; };
 		CBD707C218AD0EE00041B170 /* FLTrain.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTrain.h; sourceTree = "<group>"; };
 		CBD707C318AD0EE00041B170 /* FLTrain.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLTrain.mm; sourceTree = "<group>"; };
-		CBD9E93019142B03002533DF /* HLSpriteKit.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = HLSpriteKit.xcodeproj; path = ../common/HLSpriteKit/HLSpriteKit.xcodeproj; sourceTree = "<group>"; };
 		CBE687AA1A0BC5AB00072EB0 /* Help.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Help.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -193,7 +167,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CBD9E93B19142C29002533DF /* libHLSpriteKit.a in Frameworks */,
 				CBEE13F018C4DBA400D1D42B /* AVFoundation.framework in Frameworks */,
 				CBB4B7FB183C00E1003C3444 /* CoreGraphics.framework in Frameworks */,
 				CBB4B7FD183C00E1003C3444 /* UIKit.framework in Frameworks */,
@@ -286,7 +259,6 @@
 			isa = PBXGroup;
 			children = (
 				CB4E6A49197CAEA600385300 /* HLProject.xcconfig */,
-				CBD9E93019142B03002533DF /* HLSpriteKit.xcodeproj */,
 				CBB4B800183C00E1003C3444 /* Flippy */,
 				CBB4B7F7183C00E1003C3444 /* Frameworks */,
 				CBB4B7F6183C00E1003C3444 /* Products */,
@@ -368,15 +340,6 @@
 			name = "Supporting Files";
 			sourceTree = "<group>";
 		};
-		CBD9E93119142B03002533DF /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				CBD9E93619142B03002533DF /* libHLSpriteKit.a */,
-				CBD9E93819142B03002533DF /* HLSpriteKitTests.xctest */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -391,7 +354,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				CBD9E93A19142C06002533DF /* PBXTargetDependency */,
 			);
 			name = Flippy;
 			productName = Flippy;
@@ -424,35 +386,12 @@
 			mainGroup = CBB4B7EC183C00E1003C3444;
 			productRefGroup = CBB4B7F6183C00E1003C3444 /* Products */;
 			projectDirPath = "";
-			projectReferences = (
-				{
-					ProductGroup = CBD9E93119142B03002533DF /* Products */;
-					ProjectRef = CBD9E93019142B03002533DF /* HLSpriteKit.xcodeproj */;
-				},
-			);
 			projectRoot = "";
 			targets = (
 				CBB4B7F4183C00E1003C3444 /* Flippy */,
 			);
 		};
 /* End PBXProject section */
-
-/* Begin PBXReferenceProxy section */
-		CBD9E93619142B03002533DF /* libHLSpriteKit.a */ = {
-			isa = PBXReferenceProxy;
-			fileType = archive.ar;
-			path = libHLSpriteKit.a;
-			remoteRef = CBD9E93519142B03002533DF /* PBXContainerItemProxy */;
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
-		CBD9E93819142B03002533DF /* HLSpriteKitTests.xctest */ = {
-			isa = PBXReferenceProxy;
-			fileType = wrapper.cfbundle;
-			path = HLSpriteKitTests.xctest;
-			remoteRef = CBD9E93719142B03002533DF /* PBXContainerItemProxy */;
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
-/* End PBXReferenceProxy section */
 
 /* Begin PBXResourcesBuildPhase section */
 		CBB4B7F3183C00E1003C3444 /* Resources */ = {
@@ -534,14 +473,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
-
-/* Begin PBXTargetDependency section */
-		CBD9E93A19142C06002533DF /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			name = HLSpriteKit;
-			targetProxy = CBD9E93919142C06002533DF /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		CB485D93196EE0CC00E8646B /* Localizable.strings */ = {
