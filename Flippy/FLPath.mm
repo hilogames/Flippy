@@ -6,7 +6,7 @@
 //  Copyright (c) 2014 Hilo Games. All rights reserved.
 //
 
-#include "FLPath.h"
+#import "FLPath.h"
 
 #include <tgmath.h>
 
