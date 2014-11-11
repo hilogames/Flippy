@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7EC55D6AFCDDCB27F3B0024E /* libPods-Flippy.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E38BB7A8F21EE422D9E05726 /* libPods-Flippy.a */; };
 		CB05B3B0196B353A00FF58A5 /* railDestruction.sks in Resources */ = {isa = PBXBuildFile; fileRef = CB05B3AE196B353A00FF58A5 /* railDestruction.sks */; };
 		CB05B3B1196B353A00FF58A5 /* sleeperDestruction.sks in Resources */ = {isa = PBXBuildFile; fileRef = CB05B3AF196B353A00FF58A5 /* sleeperDestruction.sks */; };
 		CB05B3B5196B358800FF58A5 /* levels in Resources */ = {isa = PBXBuildFile; fileRef = CB05B3B4196B358800FF58A5 /* levels */; };
@@ -76,6 +77,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		0E26A1CC5842D2D6A69C2939 /* Pods-Flippy.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Flippy.release.xcconfig"; path = "Pods/Target Support Files/Pods-Flippy/Pods-Flippy.release.xcconfig"; sourceTree = "<group>"; };
 		CB0464A318AA6F7F00ABCA03 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		CB05B3AE196B353A00FF58A5 /* railDestruction.sks */ = {isa = PBXFileReference; lastKnownFileType = file.sks; path = railDestruction.sks; sourceTree = "<group>"; };
 		CB05B3AF196B353A00FF58A5 /* sleeperDestruction.sks */ = {isa = PBXFileReference; lastKnownFileType = file.sks; path = sleeperDestruction.sks; sourceTree = "<group>"; };
@@ -160,6 +162,8 @@
 		CBD707C218AD0EE00041B170 /* FLTrain.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTrain.h; sourceTree = "<group>"; };
 		CBD707C318AD0EE00041B170 /* FLTrain.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLTrain.mm; sourceTree = "<group>"; };
 		CBE687AA1A0BC5AB00072EB0 /* Help.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Help.plist; sourceTree = "<group>"; };
+		D8D553652305AF6F8063F695 /* Pods-Flippy.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Flippy.debug.xcconfig"; path = "Pods/Target Support Files/Pods-Flippy/Pods-Flippy.debug.xcconfig"; sourceTree = "<group>"; };
+		E38BB7A8F21EE422D9E05726 /* libPods-Flippy.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Flippy.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -172,12 +176,22 @@
 				CBB4B7FD183C00E1003C3444 /* UIKit.framework in Frameworks */,
 				CBB4B7FF183C00E1003C3444 /* SpriteKit.framework in Frameworks */,
 				CBB4B7F9183C00E1003C3444 /* Foundation.framework in Frameworks */,
+				7EC55D6AFCDDCB27F3B0024E /* libPods-Flippy.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		4ED7E1C4DCA5F97D4E71C794 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				D8D553652305AF6F8063F695 /* Pods-Flippy.debug.xcconfig */,
+				0E26A1CC5842D2D6A69C2939 /* Pods-Flippy.release.xcconfig */,
+			);
+			name = Pods;
+			sourceTree = "<group>";
+		};
 		CB05B3B6196B35A200FF58A5 /* Saves */ = {
 			isa = PBXGroup;
 			children = (
@@ -262,6 +276,7 @@
 				CBB4B800183C00E1003C3444 /* Flippy */,
 				CBB4B7F7183C00E1003C3444 /* Frameworks */,
 				CBB4B7F6183C00E1003C3444 /* Products */,
+				4ED7E1C4DCA5F97D4E71C794 /* Pods */,
 			);
 			sourceTree = "<group>";
 		};
@@ -281,6 +296,7 @@
 				CBB4B7FA183C00E1003C3444 /* CoreGraphics.framework */,
 				CBB4B7FC183C00E1003C3444 /* UIKit.framework */,
 				CBB4B7FE183C00E1003C3444 /* SpriteKit.framework */,
+				E38BB7A8F21EE422D9E05726 /* libPods-Flippy.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -299,6 +315,7 @@
 				CB485D91196ED4D900E8646B /* FLConstants.m */,
 				CB82BA2F1A04612E00B2E503 /* FLGoalsNode.h */,
 				CB82BA301A04612E00B2E503 /* FLGoalsNode.mm */,
+				CBB4B808183C00E1003C3444 /* Flippy-Prefix.pch */,
 				CB7B494B18D39E1C00FACEF4 /* FLLinks.h */,
 				CB7B494A18D39E1C00FACEF4 /* FLLinks.mm */,
 				CB0DA5A518B7D8CE00E43D34 /* FLPath.h */,
@@ -331,7 +348,6 @@
 			children = (
 				CB485D87196ECE2B00E8646B /* ChallengeLevels.plist */,
 				CBB4B802183C00E1003C3444 /* Flippy-Info.plist */,
-				CBB4B808183C00E1003C3444 /* Flippy-Prefix.pch */,
 				CBE687AA1A0BC5AB00072EB0 /* Help.plist */,
 				CBB4B803183C00E1003C3444 /* InfoPlist.strings */,
 				CB485D93196EE0CC00E8646B /* Localizable.strings */,
@@ -347,9 +363,11 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = CBB4B831183C00E1003C3444 /* Build configuration list for PBXNativeTarget "Flippy" */;
 			buildPhases = (
+				692B5FB16969F57485BBD241 /* Check Pods Manifest.lock */,
 				CBB4B7F1183C00E1003C3444 /* Sources */,
 				CBB4B7F2183C00E1003C3444 /* Frameworks */,
 				CBB4B7F3183C00E1003C3444 /* Resources */,
+				1C15A9F32EFDB8C3A4ED2969 /* Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -450,6 +468,39 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		1C15A9F32EFDB8C3A4ED2969 /* Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Copy Pods Resources";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${SRCROOT}/Pods/Target Support Files/Pods-Flippy/Pods-Flippy-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		692B5FB16969F57485BBD241 /* Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Check Pods Manifest.lock";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_ROOT}/../Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [[ $? != 0 ]] ; then\n    cat << EOM\nerror: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\nEOM\n    exit 1\nfi\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		CBB4B7F1183C00E1003C3444 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -496,6 +547,7 @@
 /* Begin XCBuildConfiguration section */
 		CBB4B82F183C00E1003C3444 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = CB4E6A49197CAEA600385300 /* HLProject.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
@@ -530,6 +582,7 @@
 		};
 		CBB4B830183C00E1003C3444 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = CB4E6A49197CAEA600385300 /* HLProject.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
@@ -558,6 +611,7 @@
 		};
 		CBB4B832183C00E1003C3444 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = D8D553652305AF6F8063F695 /* Pods-Flippy.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
@@ -601,6 +655,7 @@
 		};
 		CBB4B833183C00E1003C3444 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0E26A1CC5842D2D6A69C2939 /* Pods-Flippy.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
