@@ -496,7 +496,6 @@
 /* Begin XCBuildConfiguration section */
 		CBB4B82F183C00E1003C3444 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = CB4E6A49197CAEA600385300 /* HLProject.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
@@ -531,7 +530,6 @@
 		};
 		CBB4B830183C00E1003C3444 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = CB4E6A49197CAEA600385300 /* HLProject.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
