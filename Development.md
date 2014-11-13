@@ -1,0 +1,123 @@
+
+## Release Checklist
+
+- genstrings
+
+- analyze code
+
+- build using release scheme
+
+
+## Current Tasks
+
+- Replace DSMultilineLabelNode with SuperSpriteKit / SSKMultiLineLabelNode.h?
+  - if so, then change credit in About screen
+
+- Do some unit tests just to prove I can, especially in HLSpriteKit.
+  Use Travis?  See notes in CocoaPods and github.
+
+- Memory analysis
+  - Low memory warning.  (Test in debugger.)
+  - release various overlays in FLViewController to save memory?
+
+- Infinite grid and real quadtree.
+
+    - QuadTree and SKNode hierarchy should be coordinated, and load/unload
+      cells/areas/tiles at the same time.
+
+    - Maybe best to try and find implementations of this, and adapt
+      one for our use.
+
+    - Perhaps at the same time generate terrain in a way that is less
+      uniform than just a tiled image.  At one point I had an idea to
+      do random patches of squares in earth tones, procedurally
+      generated like Minecraft.
+
+- Maybe at the same time as doing icons and splash screens: Check
+  SKScene dimensions for each device; is anything being scaled that
+  shouldn't be?  c.f. nativeScale documentation on UIScreen.
+
+- Either implement a simple undo stack to undo deletions, or else make
+  the delete button be long-press.
+
+- Different output options: Segments that turn solid black or white
+  when 1 or 0; segments that move/rotate other segments when 1.
+
+    - challenge level is dark, and you must light the light in
+      order to complete?
+
+    - robots: put the circuit on a platform, and different outputs
+      activate movement in a different direction.
+
+- Upload Flippy to github.
+
+- Add a forum to hilogames.com, with development and game topics.  If
+  so, add a link to the README.md.
+
+- Put app store link in README.md.
+
+
+## Future Tasks
+
+- Localize the saved circuit/gate names, perhaps in a plist like the
+  challenge level information.
+
+- Consider showing the track edit menu on the side or top or bottom of
+  the screen (in the HUD) rather than on top of the selection (in the
+  world).  Not only would it make the code easier, but it would make
+  it easier to e.g. repeatedly-rotate a selection.  Then maybe also
+  some selection-sensitive buttons could join that menu: export and
+  duplicate, in particular.
+
+- For challenge games, show the level title in the save game slots
+  when loading and saving.  (Need to encode the level number
+  separately from the track scene, I think, so that the track scene
+  doesn't have to be unencoded just to get some meta information.  I
+  think it is possible to encode it at the top level of the archive,
+  and then open the archive and only decode the meta-information keys,
+  without decoding the track scene.  Although: Does prepping an
+  NSKeyedUnarchiver with binary XML data, and then scanning through
+  it, require too much time even without encoding the track scene
+  within?)
+
+- Track destruction of readout and platform should not show the
+  same particle emitters as normal segments.
+
+- Prettier links.  Maybe quadratic Bezier curves for link nodes.
+  Maybe different coloring.
+
+- Long press on saved games deletes them.
+
+- For import thumbnails: Trace out CG lines for track segment paths
+  rather than shrinking down images.  The result might be better.
+  (And wouldn't need UIImages anymore in HLTextureStore.)
+
+- For multisegment rotation: In case of conflict, search for nearby
+  pivot that would work without conflicts.  Shouldn't be hard to check
+  a few anyway.
+
+- Prettier Bezier curves for links . . . well, if it does indeed look
+  better.  Control points chosen so that the links always curve a bit:
+  Perhaps usually normal to the switch dirction, in the direction of
+  the other endpoint, but then if the other endpoint has the same X or
+  Y coordinate, then bend it 45 degrees or something.
+
+- Inertia for scrolling pan motion.
+
+- Consider doing tutorial stuff for the Half Adder level: Show the
+  user how to handle gates/circuits/exports.
+
+- If multiple trains, then train edit menu for play/pause controls
+  (and an explicit way to turn train around, perhaps).
+
+- Draw a line with your finger, segments created automatically.
+  Better: A special "auto connect" path subtrack which calculates a
+  path between two specified segments and maintains the connection
+  following moves and rotations of those segments.
+
+- Undo stack.
+
+- Train acceleration.
+
+- "Advanced" interface mode where most messages and tutorial are
+  suppressed.

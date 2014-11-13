@@ -315,7 +315,6 @@
 				CB485D91196ED4D900E8646B /* FLConstants.m */,
 				CB82BA2F1A04612E00B2E503 /* FLGoalsNode.h */,
 				CB82BA301A04612E00B2E503 /* FLGoalsNode.mm */,
-				CBB4B808183C00E1003C3444 /* Flippy-Prefix.pch */,
 				CB7B494B18D39E1C00FACEF4 /* FLLinks.h */,
 				CB7B494A18D39E1C00FACEF4 /* FLLinks.mm */,
 				CB0DA5A518B7D8CE00E43D34 /* FLPath.h */,
@@ -348,6 +347,7 @@
 			children = (
 				CB485D87196ECE2B00E8646B /* ChallengeLevels.plist */,
 				CBB4B802183C00E1003C3444 /* Flippy-Info.plist */,
+				CBB4B808183C00E1003C3444 /* Flippy-Prefix.pch */,
 				CBE687AA1A0BC5AB00072EB0 /* Help.plist */,
 				CBB4B803183C00E1003C3444 /* InfoPlist.strings */,
 				CB485D93196EE0CC00E8646B /* Localizable.strings */,

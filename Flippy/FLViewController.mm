@@ -387,8 +387,8 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
         } else {
           [self FL_titleSceneShowMessage:NSLocalizedString(@"Choose starting level.",
                                                            @"Menu prompt: displayed when starting a new game over a list of challenge levels previously unlocked.")];
-          [menuNode navigateToSubmenuWithPathComponents:@[ FLTitleMenuChallenge, FLCommonMenuNew ]
-                                              animation:HLMenuNodeAnimationSlideLeft];
+          [menuNode navigateToSubmenuWithPath:@[ FLTitleMenuChallenge, FLCommonMenuNew ]
+                                    animation:HLMenuNodeAnimationSlideLeft];
         }
         return NO;
       }
@@ -1240,7 +1240,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   DSMultilineLabelNode *creditsLabel = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
   creditsLabel.fontSize = 12.0f;
   creditsLabel.fontColor = FLInterfaceColorSunny();
-  creditsLabel.text = @"Grass texture from www.goodtextures.com, thank you thank you!"
+  creditsLabel.text = @"Grass texture from www.goodtextures.com."
   "\nMulti-line label node (DSMultilineLabelNode) from Downright Simple (github.com/downrightsimple)."
   "\nEverything else Karl Voskuil / hilogames.com.";
   creditsLabel.paragraphWidth = edgeSizeMax - FLDSMultilineLabelParagraphWidthBugWorkaroundPad;
@@ -1249,7 +1249,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   DSMultilineLabelNode *sourceCodeLabel = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
   sourceCodeLabel.fontSize = 12.0f;
   sourceCodeLabel.fontColor = [SKColor whiteColor];
-  sourceCodeLabel.text = @"Source code for Flippy the Train is available under MIT license from github.com/hilogames.";
+  sourceCodeLabel.text = @"Some or all of the source code for Flippy the Train is available under MIT License from github.com/hilogames.";
   sourceCodeLabel.paragraphWidth = edgeSizeMax - FLDSMultilineLabelParagraphWidthBugWorkaroundPad;
   [aboutItems addObject:sourceCodeLabel];
   
