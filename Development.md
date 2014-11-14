@@ -10,9 +10,6 @@
 
 ## Current Tasks
 
-- Replace DSMultilineLabelNode with SuperSpriteKit / SSKMultiLineLabelNode.h?
-  - if so, then change credit in About screen
-
 - Do some unit tests just to prove I can, especially in HLSpriteKit.
   Use Travis?  See notes in CocoaPods and github.
 

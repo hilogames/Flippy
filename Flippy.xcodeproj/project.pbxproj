@@ -21,13 +21,13 @@
 		CB1D39E519F05A3900D829CB /* platform-start-right-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB1D39E119F05A3900D829CB /* platform-start-right-nonatlas.png */; };
 		CB230D791A003E6A00F4CA44 /* unlock.png in Resources */ = {isa = PBXBuildFile; fileRef = CB230D781A003E6A00F4CA44 /* unlock.png */; };
 		CB2587B91A0D668A003542AC /* hilo-icon-128-background.png in Resources */ = {isa = PBXBuildFile; fileRef = CB2587B81A0D668A003542AC /* hilo-icon-128-background.png */; };
+		CB2E91831A1552D700067053 /* DSMultilineLabelNode.m in Sources */ = {isa = PBXBuildFile; fileRef = CB2E91821A1552D700067053 /* DSMultilineLabelNode.m */; };
 		CB2ED87419D9AB8C0021CF86 /* grass.jpg in Resources */ = {isa = PBXBuildFile; fileRef = CB2ED87319D9AB8C0021CF86 /* grass.jpg */; };
 		CB3FBDCD1889860A00CE5BBD /* QuadTree.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */; };
 		CB485D88196ECE2B00E8646B /* ChallengeLevels.plist in Resources */ = {isa = PBXBuildFile; fileRef = CB485D87196ECE2B00E8646B /* ChallengeLevels.plist */; };
 		CB485D92196ED4D900E8646B /* FLConstants.m in Sources */ = {isa = PBXBuildFile; fileRef = CB485D91196ED4D900E8646B /* FLConstants.m */; };
 		CB485D95196EE0CC00E8646B /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = CB485D93196EE0CC00E8646B /* Localizable.strings */; };
 		CB50C21718BF8F140072DA30 /* FLTrackGrid.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB50C21518BF8F140072DA30 /* FLTrackGrid.mm */; };
-		CB6C2F39196DCFA1000976A5 /* DSMultilineLabelNode.m in Sources */ = {isa = PBXBuildFile; fileRef = CB6C2F38196DCFA1000976A5 /* DSMultilineLabelNode.m */; };
 		CB6F6E801A03DAAB003112D8 /* happyBurst.sks in Resources */ = {isa = PBXBuildFile; fileRef = CB6F6E7E1A03DAAB003112D8 /* happyBurst.sks */; };
 		CB6F6E811A03DAAB003112D8 /* happyBurst.png in Resources */ = {isa = PBXBuildFile; fileRef = CB6F6E7F1A03DAAB003112D8 /* happyBurst.png */; };
 		CB6F6E831A03E9A9003112D8 /* brr-bring.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB6F6E821A03E8E2003112D8 /* brr-bring.caf */; };
@@ -94,6 +94,8 @@
 		CB230D781A003E6A00F4CA44 /* unlock.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = unlock.png; sourceTree = "<group>"; };
 		CB2587B81A0D668A003542AC /* hilo-icon-128-background.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "hilo-icon-128-background.png"; path = "../../hilo/hilo-icon-128-background.png"; sourceTree = "<group>"; };
 		CB2E3250198BF31000720EAA /* fnv.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fnv.h; sourceTree = "<group>"; };
+		CB2E91811A1552D700067053 /* DSMultilineLabelNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = DSMultilineLabelNode.h; path = ../../DSMultilineLabelNode/DSMultilineLabelNode.h; sourceTree = "<group>"; };
+		CB2E91821A1552D700067053 /* DSMultilineLabelNode.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = DSMultilineLabelNode.m; path = ../../DSMultilineLabelNode/DSMultilineLabelNode.m; sourceTree = "<group>"; };
 		CB2ED87319D9AB8C0021CF86 /* grass.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = grass.jpg; sourceTree = "<group>"; };
 		CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = QuadTree.cpp; sourceTree = "<group>"; };
 		CB3FBDCC1889860A00CE5BBD /* QuadTree.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = QuadTree.h; sourceTree = "<group>"; };
@@ -104,8 +106,6 @@
 		CB4E6A49197CAEA600385300 /* HLProject.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; path = HLProject.xcconfig; sourceTree = "<group>"; };
 		CB50C21518BF8F140072DA30 /* FLTrackGrid.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLTrackGrid.mm; sourceTree = "<group>"; };
 		CB50C21618BF8F140072DA30 /* FLTrackGrid.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTrackGrid.h; sourceTree = "<group>"; };
-		CB6C2F37196DCFA1000976A5 /* DSMultilineLabelNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DSMultilineLabelNode.h; sourceTree = "<group>"; };
-		CB6C2F38196DCFA1000976A5 /* DSMultilineLabelNode.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DSMultilineLabelNode.m; sourceTree = "<group>"; };
 		CB6F6E7E1A03DAAB003112D8 /* happyBurst.sks */ = {isa = PBXFileReference; lastKnownFileType = file.sks; path = happyBurst.sks; sourceTree = "<group>"; };
 		CB6F6E7F1A03DAAB003112D8 /* happyBurst.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = happyBurst.png; sourceTree = "<group>"; };
 		CB6F6E821A03E8E2003112D8 /* brr-bring.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "brr-bring.caf"; sourceTree = "<group>"; };
@@ -272,11 +272,11 @@
 		CBB4B7EC183C00E1003C3444 = {
 			isa = PBXGroup;
 			children = (
-				CB4E6A49197CAEA600385300 /* HLProject.xcconfig */,
 				CBB4B800183C00E1003C3444 /* Flippy */,
 				CBB4B7F7183C00E1003C3444 /* Frameworks */,
-				CBB4B7F6183C00E1003C3444 /* Products */,
+				CB4E6A49197CAEA600385300 /* HLProject.xcconfig */,
 				4ED7E1C4DCA5F97D4E71C794 /* Pods */,
+				CBB4B7F6183C00E1003C3444 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
@@ -306,8 +306,8 @@
 			children = (
 				CB960340196B892300569870 /* Atlases */,
 				CB960312196B878F00569870 /* Audio */,
-				CB6C2F37196DCFA1000976A5 /* DSMultilineLabelNode.h */,
-				CB6C2F38196DCFA1000976A5 /* DSMultilineLabelNode.m */,
+				CB2E91811A1552D700067053 /* DSMultilineLabelNode.h */,
+				CB2E91821A1552D700067053 /* DSMultilineLabelNode.m */,
 				CB960313196B87AE00569870 /* Emitters */,
 				CBB4B809183C00E1003C3444 /* FLAppDelegate.h */,
 				CBB4B80A183C00E1003C3444 /* FLAppDelegate.mm */,
@@ -513,13 +513,13 @@
 				CBD707C418AD0EE00041B170 /* FLTrain.mm in Sources */,
 				CB0DA5A618B7D8CE00E43D34 /* FLPath.mm in Sources */,
 				CB929EAE18B93AE200543F25 /* FLSegmentNode.mm in Sources */,
+				CB2E91831A1552D700067053 /* DSMultilineLabelNode.m in Sources */,
 				CB3FBDCD1889860A00CE5BBD /* QuadTree.cpp in Sources */,
 				CB485D92196ED4D900E8646B /* FLConstants.m in Sources */,
 				CBB4B807183C00E1003C3444 /* main.m in Sources */,
 				CBB4B814183C00E1003C3444 /* FLViewController.mm in Sources */,
 				CB7B494C18D39E1C00FACEF4 /* FLLinks.mm in Sources */,
 				CBC28EC819F9580D00DA248E /* FLUser.m in Sources */,
-				CB6C2F39196DCFA1000976A5 /* DSMultilineLabelNode.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
