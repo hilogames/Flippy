@@ -1130,12 +1130,20 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
                                                                    mutabilityOption:NSPropertyListImmutable
                                                                              format:NULL
                                                                    errorDescription:NULL];
+  // note: Hacky: First text is a header, and every text after an empty string.
+  BOOL isHeader = YES;
   for (NSString *helpItem in helpItems) {
     DSMultilineLabelNode *helpItemNode = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
-    helpItemNode.fontSize = 14.0f;
-    helpItemNode.fontColor = [SKColor whiteColor];
+    if (isHeader) {
+      helpItemNode.fontColor = FLInterfaceColorMaybe();
+      helpItemNode.fontSize = 16.0f;
+    } else {
+      helpItemNode.fontColor = [SKColor whiteColor];
+      helpItemNode.fontSize = 14.0f;
+    }
     helpItemNode.text = helpItem;
     [_helpOverlay.contentNode addChild:helpItemNode];
+    isHeader = (!helpItem || [helpItem length] == 0);
   }
 
   [_helpOverlay hlSetGestureTarget:_helpOverlay];
