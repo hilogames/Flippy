@@ -1134,12 +1134,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
     DSMultilineLabelNode *helpItemNode = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
     helpItemNode.fontSize = 14.0f;
     helpItemNode.fontColor = [SKColor whiteColor];
-    if ([helpItem length] > 0) {
-      helpItemNode.text = helpItem;
-    } else {
-      // note: DSMultilineLabelNode doesn't like having empty text.
-      helpItemNode.text = @" ";
-    }
+    helpItemNode.text = helpItem;
     [_helpOverlay.contentNode addChild:helpItemNode];
   }
 
