@@ -13,6 +13,14 @@
 - Do some unit tests just to prove I can, especially in HLSpriteKit.
   Use Travis?  See notes in CocoaPods and github.
 
+- Do gesture recognizer for HLToolbarNode. Easy. Then update
+  HLSpriteKit demo application to use it.
+
+- BUG: Fix empty string problem in DSMultilineLabelNode, and don't do
+  the workaround in FLViewController FL_helpOverlayCreate.  See:
+
+      https://github.com/downrightsimple/DSMultilineLabelNode/issues/4
+
 - Memory analysis
   - Low memory warning.  (Test in debugger.)
   - release various overlays in FLViewController to save memory?
