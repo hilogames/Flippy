@@ -10,16 +10,8 @@
 
 ## Current Tasks
 
-- Do some unit tests just to prove I can, especially in HLSpriteKit.
-  Use Travis?  See notes in CocoaPods and github.
-
-- Do gesture recognizer for HLToolbarNode. Easy. Then update
-  HLSpriteKit demo application to use it.
-
-- BUG: Fix empty string problem in DSMultilineLabelNode, and don't do
-  the workaround in FLViewController FL_helpOverlayCreate.  See:
-
-      https://github.com/downrightsimple/DSMultilineLabelNode/issues/4
+- BUG Don't allow duplication (or import) of start platforms when in
+  challenge games.
 
 - Memory analysis
   - Low memory warning.  (Test in debugger.)
@@ -53,6 +45,8 @@
 
     - robots: put the circuit on a platform, and different outputs
       activate movement in a different direction.
+
+    - guns: fire a mortar to attack someone else's track.
 
 - Upload Flippy to github.
 

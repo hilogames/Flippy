@@ -1265,6 +1265,8 @@ struct PointerPairHash
     case UISwipeGestureRecognizerDirectionDown:
       flipDirection = FLSegmentFlipVertical;
       break;
+    default:
+      [NSException raise:@"FLTrackSceneUnknownGestureDirection" format:@"Gesture direction %ld unknown.", (long)gestureRecognizer.direction];
   }
   [self FL_trackFlipSegments:_trackSelectState.selectedSegments pointers:_trackSelectState.selectedSegmentPointers direction:flipDirection];
 }
@@ -2124,7 +2126,7 @@ struct PointerPairHash
   emitterNode.xScale = FLTrackArtScale;
   emitterNode.yScale = FLTrackArtScale;
   
-  emitterNode = [emitterStore setEmitterWithResource:@"happyBurst" forKey:@"happyBurst"];
+  [emitterStore setEmitterWithResource:@"happyBurst" forKey:@"happyBurst"];
 
   NSLog(@"FLTrackScene loadEmitters: loaded in %0.2f seconds", [[NSDate date] timeIntervalSinceDate:startDate]);
 }
@@ -2660,7 +2662,7 @@ struct PointerPairHash
     }
   }
 
-  CGPoint worldPositionNew;
+  CGPoint worldPositionNew = _worldNode.position;
   if (scrolling) {
 
     // Calculate some additional helpful scrolling-relevant metrics.

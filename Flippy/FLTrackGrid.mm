@@ -345,7 +345,8 @@ FL_getAllDirectlyConnecting(const FLTrackGrid& trackGrid, FLSegmentNode *segment
   int pathCount = [segmentNode pathCount];
   for (int pathId = 0; pathId < pathCount; ++pathId) {
 
-    for (CGFloat progress = 0.0f; progress < 1.5f; progress += 1.0f) {
+    for (NSInteger progressInt = 0; progressInt <= 1; ++progressInt) {
+      CGFloat progress = (CGFloat)progressInt;
 
       CGPoint endPoint;
       CGFloat rotation;
