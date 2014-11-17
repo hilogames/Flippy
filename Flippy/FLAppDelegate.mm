@@ -106,4 +106,11 @@
   // note: See notes in applicationWillResignActive:.
   [[AVAudioSession sharedInstance] setActive:YES error:nil];
 }
+
+- (void)applicationDidReceiveMemoryWarning:(UIApplication *)application
+{
+  // note: Handled in view controllers, view, and scenes through UIApplicationDidReceiveMemoryWarningNotification.
+  // But keeping this here as a reminder to keep thinking of other ways to free up memory.
+}
+
 @end

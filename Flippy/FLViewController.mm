@@ -121,6 +121,10 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
                                              selector:@selector(applicationWillResignActive)
                                                  name:UIApplicationWillResignActiveNotification
                                                object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(applicationDidReceiveMemoryWarning)
+                                                 name:UIApplicationDidReceiveMemoryWarningNotification
+                                               object:nil];
   }
   return self;
 }
@@ -355,6 +359,43 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
 {
   if (_gameScene) {
     [_gameScene timerPause];
+  }
+}
+
+- (void)applicationDidReceiveMemoryWarning
+{
+  SKNode *gameScenePresentedOverlay = nil;
+  if (_gameScene) {
+    gameScenePresentedOverlay = [_gameScene modalNodePresented];
+  }
+  if (gameScenePresentedOverlay != _gameOverlay) {
+    [self FL_gameOverlayRelease];
+  }
+  if (gameScenePresentedOverlay != _nextLevelOverlay) {
+    [self FL_nextLevelOverlayRelease];
+  }
+  if (gameScenePresentedOverlay != _helpOverlay) {
+    [self FL_helpOverlayRelease];
+  }
+
+  if (_gameScene && _currentScene != _gameScene) {
+    _gameScene = nil;
+  }
+
+  SKNode *titleScenePresentedOverlay = nil;
+  if (_titleScene) {
+    titleScenePresentedOverlay = [_titleScene modalNodePresented];
+  }
+  if (titleScenePresentedOverlay != _aboutOverlay) {
+    [self FL_aboutOverlayRelease];
+  }
+
+  if (_titleScene && _currentScene != _titleScene) {
+    _titleScene = nil;
+  }
+
+  if (_loadingScene && _currentScene != _loadingScene) {
+    _loadingScene = nil;
   }
 }
 
@@ -743,6 +784,14 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   _gameMessageNode.zPosition = FLZPositionGameOverlayMessage;
 }
 
+- (void)FL_gameOverlayRelease
+{
+  _gameOverlay = nil;
+  _gameStatusNode = nil;
+  _gameMenuNode = nil;
+  _gameMessageNode = nil;
+}
+
 - (void)FL_gameOverlayUpdateGeometry
 {
   const CGFloat FLMessageSeparator = _gameMenuNode.itemSpacing;
@@ -805,6 +854,13 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
 
   _nextLevelMessageNode = [self FL_commonMessageNodeCreate];
   _nextLevelMessageNode.zPosition = FLZPositionNextLevelOverlayMessage;
+}
+
+- (void)FL_nextLevelOverlayRelease
+{
+  _nextLevelOverlay = nil;
+  _nextLevelMenuNode = nil;
+  _nextLevelMessageNode = nil;
 }
 
 - (void)FL_nextLevelOverlayUpdateGeometry
@@ -1025,6 +1081,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   }
   [self FL_loadingSceneReset];
   [self.skView presentScene:_loadingScene];
+  _currentScene = _loadingScene;
 
   [FLTrackScene loadSceneAssetsWithCompletion:^{
 
@@ -1130,7 +1187,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
                                                                    mutabilityOption:NSPropertyListImmutable
                                                                              format:NULL
                                                                    errorDescription:NULL];
-  // note: Hacky: First text is a header, and every text after an empty string.
+  // note: Hacky: Headers are the first entry, and every entry after an empty entry.
   BOOL isHeader = YES;
   for (NSString *helpItem in helpItems) {
     DSMultilineLabelNode *helpItemNode = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
@@ -1154,6 +1211,11 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   }];
   helpContentGestureTarget.gestureTransparent = YES;
   [_helpOverlay.contentNode hlSetGestureTarget:helpContentGestureTarget];
+}
+
+- (void)FL_helpOverlayRelease
+{
+  _helpOverlay = nil;
 }
 
 - (void)FL_helpOverlayUpdateGeometry
@@ -1278,6 +1340,11 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   }];
   aboutContentGestureTarget.gestureTransparent = YES;
   [_aboutOverlay.contentNode hlSetGestureTarget:aboutContentGestureTarget];
+}
+
+- (void)FL_aboutOverlayRelease
+{
+  _aboutOverlay = nil;
 }
 
 - (void)FL_aboutOverlayUpdateGeometry

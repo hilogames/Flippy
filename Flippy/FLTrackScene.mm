@@ -193,6 +193,12 @@ struct FLSimulationToolbarState
 struct FLTrainMoveState
 {
   FLTrainMoveState() : cursorNode(nil) {}
+  BOOL active() {
+    return cursorNode && cursorNode.parent;
+  }
+  void release() {
+    cursorNode = nil;
+  }
   SKNode *cursorNode;
   CGFloat progressPrecision;
 };
@@ -214,7 +220,14 @@ struct FLTrackConflictState
 
 struct FLTrackMoveState
 {
-  FLTrackMoveState() : segmentNodes(nil), cursorNode(nil) {}
+  FLTrackMoveState() : segmentNodes(nil), segmentNodePointers(nil), cursorNode(nil) {}
+  BOOL active() {
+    return segmentNodes != nil;
+  }
+  void release() {
+    // note: Only cursorNode persists between moves.
+    cursorNode = nil;
+  }
   SKNode *cursorNode;
   NSArray *segmentNodes;
   NSSet *segmentNodePointers;
@@ -233,6 +246,12 @@ struct FLTrackEditMenuState
 {
   FLTrackEditMenuState() : editMenuNode(nil), showing(NO) {}
   BOOL showing;
+  BOOL active() {
+    return showing;
+  }
+  void release() {
+    editMenuNode = nil;
+  }
   HLToolbarNode *editMenuNode;
 };
 
@@ -248,6 +267,13 @@ struct FLLinkEditState
 struct FLLabelState
 {
   FLLabelState() : labelPicker(nil), segmentNodesToBeLabeled(nil) {}
+  BOOL active() {
+    return ((labelPicker && labelPicker.parent) || segmentNodesToBeLabeled);
+  }
+  void release() {
+    labelPicker = nil;
+    segmentNodesToBeLabeled = nil;
+  }
   HLGridNode *labelPicker;
   NSArray *segmentNodesToBeLabeled;
 };
@@ -720,6 +746,11 @@ struct PointerPairHash
                                         swipeLeftGestureRecognizer,
                                         swipeRightGestureRecognizer ]];
 
+  [[NSNotificationCenter defaultCenter] addObserver:self
+                                           selector:@selector(applicationDidReceiveMemoryWarning)
+                                               name:UIApplicationDidReceiveMemoryWarningNotification
+                                             object:nil];
+
   if (_gameType == FLGameTypeChallenge) {
     if ([self FL_unlocked:FLUnlockTutorialCompleted] || ![self FL_tutorialStepAnimated:_gameIsNew]) {
       [self FL_goalsShowWithSplash:YES];
@@ -732,6 +763,7 @@ struct PointerPairHash
 - (void)willMoveFromView:(SKView *)view
 {
   [self timerPause];
+  [[NSNotificationCenter defaultCenter] removeObserver:self];
   [super willMoveFromView:view];
 }
 
@@ -918,6 +950,25 @@ struct PointerPairHash
     return (_timerAccumulated - [_timerResumed timeIntervalSinceNow]);
   } else {
     return _timerAccumulated;
+  }
+}
+
+#pragma mark -
+#pragma mark Notifications
+
+- (void)applicationDidReceiveMemoryWarning
+{
+  if (!_trainMoveState.active()) {
+    _trainMoveState.release();
+  }
+  if (!_trackMoveState.active()) {
+    _trackMoveState.release();
+  }
+  if (!_trackEditMenuState.active()) {
+    _trackEditMenuState.release();
+  }
+  if (!_labelState.active()) {
+    _labelState.release();
   }
 }
 
@@ -3979,8 +4030,6 @@ struct PointerPairHash
                 format:@"Ended track move, but track move not begun."];
   }
   NSArray *placedSegmentNodes = [self FL_trackMoveEndedCommonWithLocation:worldLocation];
-  [_trackMoveState.cursorNode removeAllChildren];
-  [_trackMoveState.cursorNode removeFromParent];
   if (_trackMoveState.placed) {
     [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-clickity-2.caf" waitForCompletion:NO]];
   }
@@ -3994,8 +4043,6 @@ struct PointerPairHash
                 format:@"Cancelled track move, but track move not begun."];
   }
   NSArray *placedSegmentNodes = [self FL_trackMoveEndedCommonWithLocation:worldLocation];
-  [_trackMoveState.cursorNode removeAllChildren];
-  [_trackMoveState.cursorNode removeFromParent];
   return placedSegmentNodes;
 }
 
@@ -4027,6 +4074,9 @@ struct PointerPairHash
   if (_trackMoveState.placed) {
     placedSegmentNodes = _trackMoveState.segmentNodes;
   }
+
+  [_trackMoveState.cursorNode removeAllChildren];
+  [_trackMoveState.cursorNode removeFromParent];
 
   _trackMoveState.segmentNodes = nil;
   _trackMoveState.segmentNodePointers = nil;
