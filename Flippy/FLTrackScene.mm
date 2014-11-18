@@ -107,7 +107,7 @@ static char FLLabelPickerLabels[] = {
   'S', 'T', 'U', 'V', 'W', 'X',
   'Y', 'Z', '0', '1', '2', '3',
   '4', '5', '6', '7', '8', '9',
-  '\0'
+  FLSegmentLabelNone
 };
 static const int FLLabelPickerSize = sizeof(FLLabelPickerLabels);
 static NSString *FLLabelPickerLabelNone = NSLocalizedString(@"No Label", @"Label picker: Text representing a value of 'no label' in the picker interface.");
@@ -118,7 +118,7 @@ static int FLSquareIndexForLabelPickerLabel(char label) {
   if (label >= '0' && label <= '9') {
     return 26 + label - '0';
   }
-  if (label == '\0') {
+  if (label == FLSegmentLabelNone) {
     return 36;
   }
   return -1;
@@ -1486,8 +1486,6 @@ struct PointerPairHash
       return;
     }
 
-    _worldGestureState.panType = FLWorldPanTypeTrackMove;
-
     if (_tutorialState.tutorialActive) {
       [self FL_tutorialRecognizedAction:FLTutorialActionConstructionToolbarPanBegan withArguments:@[ toolTag ]];
     }
@@ -1514,17 +1512,42 @@ struct PointerPairHash
     } else if ([toolTag isEqualToString:@"duplicate"]) {
 
       // Copy selected segments.
-      NSArray *duplicatedSegmentNodes = [[NSArray alloc] initWithArray:_trackSelectState.selectedSegments copyItems:YES];
+      NSArray *duplicatedSegmentNodes;
+      NSArray *originalSegmentNodes;
+      if (_gameType == FLGameTypeSandbox) {
+        duplicatedSegmentNodes = [[NSArray alloc] initWithArray:_trackSelectState.selectedSegments copyItems:YES];
+        originalSegmentNodes = _trackSelectState.selectedSegments;
+      } else {
+        duplicatedSegmentNodes = [NSMutableArray array];
+        originalSegmentNodes = [NSMutableArray array];
+        for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
+          if ([self FL_gameTypeChallengeCanCreateSegment:segmentNode.segmentType]) {
+            [(NSMutableArray *)duplicatedSegmentNodes addObject:[segmentNode copy]];
+            [(NSMutableArray *)originalSegmentNodes addObject:segmentNode];
+          }
+        }
+        if ([duplicatedSegmentNodes count] == 0) {
+          _worldGestureState.panType = FLWorldPanTypeNone;
+          return;
+        }
+      }
       // note: A reasonably fast n^2?  Could put this off until segments placed, but if it's
       // fast enough it's neater to do it ahead of time.
       NSMutableArray *links = [NSMutableArray array];
-      NSUInteger segmentNodeCount = [_trackSelectState.selectedSegments count];
+      NSUInteger segmentNodeCount = [originalSegmentNodes count];
       for (NSUInteger i = 0; i < segmentNodeCount; ++i) {
         for (NSUInteger j = i + 1; j < segmentNodeCount; ++j) {
-          if (_links.get(_trackSelectState.selectedSegments[i], _trackSelectState.selectedSegments[j])) {
+          if (_links.get(originalSegmentNodes[i], originalSegmentNodes[j])) {
             [links addObject:duplicatedSegmentNodes[i]];
             [links addObject:duplicatedSegmentNodes[j]];
           }
+        }
+      }
+
+      // Configure imported segments for this world.
+      if (_gameType == FLGameTypeChallenge) {
+        for (FLSegmentNode *segmentNode in duplicatedSegmentNodes) {
+          segmentNode.label = FLSegmentLabelNone;
         }
       }
 
@@ -1570,10 +1593,31 @@ struct PointerPairHash
       NSArray *links;
       NSArray *newSegmentNodes = [self FL_importWithPath:importPath description:&description links:&links];
 
+      // Remove any disallowed segment types.
+      NSMutableSet *removedSegmentNodePointers = [NSMutableSet set];
+      if (_gameType == FLGameTypeChallenge) {
+        NSMutableArray *allowedSegmentNodes = [NSMutableArray array];
+        for (FLSegmentNode *segmentNode in newSegmentNodes) {
+          if ([self FL_gameTypeChallengeCanCreateSegment:segmentNode.segmentType]) {
+            [allowedSegmentNodes addObject:segmentNode];
+          } else {
+            [removedSegmentNodePointers addObject:[NSValue valueWithNonretainedObject:segmentNode]];
+          }
+        }
+        newSegmentNodes = allowedSegmentNodes;
+        if ([newSegmentNodes count] == 0) {
+          _worldGestureState.panType = FLWorldPanTypeNone;
+          return;
+        }
+      }
+
       // Configure imported segments for this world.
       for (FLSegmentNode *segmentNode in newSegmentNodes) {
         segmentNode.showsLabel = _labelsVisible;
         segmentNode.showsSwitchValue = _valuesVisible;
+        if (_gameType == FLGameTypeChallenge) {
+          segmentNode.label = FLSegmentLabelNone;
+        }
       }
 
       // Locate the new segments underneath the current touch.
@@ -1595,6 +1639,10 @@ struct PointerPairHash
           for (NSUInteger l = 0; l + 1 < [links count]; l += 2) {
             FLSegmentNode *a = links[l];
             FLSegmentNode *b = links[l + 1];
+            if ([removedSegmentNodePointers containsObject:[NSValue valueWithNonretainedObject:a]]
+                || [removedSegmentNodePointers containsObject:[NSValue valueWithNonretainedObject:b]]) {
+              continue;
+            }
             SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:a.switchPosition toLocation:b.switchPosition linkErase:NO];
             self->_links.insert(a, b, connectorNode);
           }
@@ -1602,6 +1650,7 @@ struct PointerPairHash
       }];
     }
 
+    _worldGestureState.panType = FLWorldPanTypeTrackMove;
     return;
   }
 
@@ -1721,7 +1770,7 @@ struct PointerPairHash
     } else {
       NSMutableArray *eraseSegments = [NSMutableArray array];
       for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
-        if ([self FL_gameTypeChallengeCanEraseSegment:segmentNode]) {
+        if ([self FL_gameTypeChallengeCanEraseSegment:segmentNode.segmentType]) {
           [eraseSegments addObject:segmentNode];
         }
       }
@@ -3153,7 +3202,7 @@ struct PointerPairHash
                                                                              @"The name of the track segment that is shaped like an X.");
   _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypeCross);
 
-  if (_gameType == FLGameTypeSandbox) {
+  if (_gameType != FLGameTypeChallenge || [self FL_gameTypeChallengeCanCreateSegment:FLSegmentTypeReadoutInput]) {
     textureKey = @"readout-input";
     [toolTags addObject:textureKey];
     [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
@@ -3163,7 +3212,7 @@ struct PointerPairHash
     _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypeReadoutInput);
   }
 
-  if (_gameType == FLGameTypeSandbox) {
+  if (_gameType != FLGameTypeChallenge || [self FL_gameTypeChallengeCanCreateSegment:FLSegmentTypeReadoutOutput]) {
     textureKey = @"readout-output";
     [toolTags addObject:textureKey];
     [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
@@ -3173,19 +3222,17 @@ struct PointerPairHash
     _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypeReadoutOutput);
   }
 
-  if (_gameType == FLGameTypeSandbox) {
-    textureKey = @"platform-left";
-    [toolTags addObject:textureKey];
-    toolNode = [self FL_createToolNodeForTextureKey:textureKey];
-    toolNode.position = CGPointMake(FLSegmentArtStraightShift, 0.0f);
-    [toolNodes addObject:toolNode];
-    _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
-    _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Platform",
-                                                                               @"The name of the (non-starting) platform track segment.");
-    _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypePlatformLeft);
-  }
+  textureKey = @"platform-left";
+  [toolTags addObject:textureKey];
+  toolNode = [self FL_createToolNodeForTextureKey:textureKey];
+  toolNode.position = CGPointMake(FLSegmentArtStraightShift, 0.0f);
+  [toolNodes addObject:toolNode];
+  _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
+  _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Platform",
+                                                                             @"The name of the (non-starting) platform track segment.");
+  _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypePlatformLeft);
 
-  if (_gameType == FLGameTypeSandbox) {
+  if (_gameType != FLGameTypeChallenge || [self FL_gameTypeChallengeCanCreateSegment:FLSegmentTypePlatformStartLeft]) {
     textureKey = @"platform-start-left";
     [toolTags addObject:textureKey];
     toolNode = [self FL_createToolNodeForTextureKey:textureKey];
@@ -4313,7 +4360,7 @@ struct PointerPairHash
     *canDeleteAny = YES;
   } else {
     for (FLSegmentNode *segmentNode in segmentNodes) {
-      if ([self FL_gameTypeChallengeCanEraseSegment:segmentNode]) {
+      if ([self FL_gameTypeChallengeCanEraseSegment:segmentNode.segmentType]) {
         *canDeleteAny = YES;
         break;
       }
@@ -5339,14 +5386,21 @@ struct PointerPairHash
   return returnValue;
 }
 
-- (BOOL)FL_gameTypeChallengeCanEraseSegment:(FLSegmentNode *)segmentNode
+- (BOOL)FL_gameTypeChallengeCanEraseSegment:(FLSegmentType)segmentType
 {
   // note: If this ends up getting specified per-level, then should put it into the
   // game information plist.  Also, game type logic is scattered around right now,
   // but could make a general system for it like FL_unlocked, where certain named
   // permissions are routed through a single FL_allowed or FL_included or
   // something method.
-  FLSegmentType segmentType = segmentNode.segmentType;
+  return (segmentType != FLSegmentTypeReadoutInput
+          && segmentType != FLSegmentTypeReadoutOutput
+          && segmentType != FLSegmentTypePlatformStartLeft
+          && segmentType != FLSegmentTypePlatformStartRight);
+}
+
+- (BOOL)FL_gameTypeChallengeCanCreateSegment:(FLSegmentType)segmentType
+{
   return (segmentType != FLSegmentTypeReadoutInput
           && segmentType != FLSegmentTypeReadoutOutput
           && segmentType != FLSegmentTypePlatformStartLeft

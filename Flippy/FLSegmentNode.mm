@@ -34,6 +34,8 @@ const CGFloat FLSegmentArtCurveShift = floorf(FLSegmentArtDrawnTrackNormalWidth 
 
 const int FLSegmentSwitchPathIdNone = -1;
 
+const char FLSegmentLabelNone = '\0';
+
 static const unsigned int FLSegmentNodePathsMax = 2;
 
 static const CGFloat FLZPositionValue = -0.3f;
@@ -505,16 +507,16 @@ using namespace std;
     return;
   }
   if (_showsLabel) {
-    if (label == '\0') {
+    if (label == FLSegmentLabelNone) {
       [self FL_deleteContentLabel];
     }
   }
   char oldLabel = _label;
   _label = label;
   if (_showsLabel) {
-    if (oldLabel == '\0') {
+    if (oldLabel == FLSegmentLabelNone) {
       [self FL_createContentLabel];
-    } else if (_label != '\0') {
+    } else if (_label != FLSegmentLabelNone) {
       [self FL_updateContentLabel];
     }
   }
@@ -526,13 +528,13 @@ using namespace std;
     return;
   }
   if (_showsLabel) {
-    if (_label != '\0') {
+    if (_label != FLSegmentLabelNone) {
       [self FL_deleteContentLabel];
     }
   }
   _showsLabel = showsLabel;
   if (_showsLabel) {
-    if (_label != '\0') {
+    if (_label != FLSegmentLabelNone) {
       [self FL_createContentLabel];
     }
   }
@@ -841,7 +843,7 @@ using namespace std;
     [self FL_createContentReadout];
   }
 
-  if (_label != '\0' && _showsLabel) {
+  if (_label != FLSegmentLabelNone && _showsLabel) {
     [self FL_createContentLabel];
   }
 
@@ -863,7 +865,7 @@ using namespace std;
     [self FL_deleteContentReadout];
   }
 
-  if (_label != '\0' && _showsLabel) {
+  if (_label != FLSegmentLabelNone && _showsLabel) {
     [self FL_deleteContentLabel];
   }
 
@@ -969,7 +971,7 @@ using namespace std;
   // note: Assume the content does not already exist.  Create content according to
   // *current* object state.
 
-  // note: Additionally, since this is a helper method, assume _label is not '\0'
+  // note: Additionally, since this is a helper method, assume _label is not FLSegmentLabelNone
   // and _showsLabel is YES.
   // (That is, the caller is responsible to short-circuit the call in cases where
   // it obviously won't do anything; this prevents duplicate checking.)
@@ -989,7 +991,7 @@ using namespace std;
 {
   // note: Assume content has been created according to *current* object state.
   
-  // note: Additionally, since this is a helper method, assume _label is not '\0'
+  // note: Additionally, since this is a helper method, assume _label is not FLSegmentLabelNone
   // and _showsLabel is YES.
   // (That is, the caller is responsible to short-circuit the call in cases where
   // it obviously won't do anything; this prevents duplicate checking.)
@@ -1001,7 +1003,7 @@ using namespace std;
 {
   // note: Assume content has been created according to *current* object state.
 
-  // note: Additionally, since this is a helper method, assume _label is not '\0'
+  // note: Additionally, since this is a helper method, assume _label is not FLSegmentLabelNone
   // and _showsLabel is YES.
   // (That is, the caller is responsible to short-circuit the call in cases where
   // it obviously won't do anything; this prevents duplicate checking.)
@@ -1013,7 +1015,7 @@ using namespace std;
 {
   // note: Assume content has been created according to *current* object state.  After
   // deletion, the caller should change object state accordingly.  For example, we may
-  // assume that _label is not '\0', _showsLabel is YES, and that the child node "label"
+  // assume that _label is not FLSegmentLabelNone, _showsLabel is YES, and that the child node "label"
   // exists and has been added to self.
   SKNode *labelNode = [self childNodeWithName:@"label"];
   [labelNode removeFromParent];

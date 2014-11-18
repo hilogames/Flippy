@@ -10,12 +10,11 @@
 
 ## Current Tasks
 
-- BUG Don't allow duplication (or import) of start platforms when in
-  challenge games.
+- Long press to skip tutorial?
 
-- Memory analysis
-  - Low memory warning.  (Test in debugger.)
-  - release various overlays in FLViewController to save memory?
+- Maybe at the same time as doing icons and splash screens: Check
+  SKScene dimensions for each device; is anything being scaled that
+  shouldn't be?  c.f. nativeScale documentation on UIScreen.
 
 - Infinite grid and real quadtree.
 
@@ -30,12 +29,10 @@
       do random patches of squares in earth tones, procedurally
       generated like Minecraft.
 
-- Maybe at the same time as doing icons and splash screens: Check
-  SKScene dimensions for each device; is anything being scaled that
-  shouldn't be?  c.f. nativeScale documentation on UIScreen.
-
 - Either implement a simple undo stack to undo deletions, or else make
-  the delete button be long-press.
+  the delete button be long-press.  Simple undo stack: Save deletion to
+  a file, like an export.  Keep the last five around on filesystem,
+  and create a button like "duplicate" to "undo" them.
 
 - Different output options: Segments that turn solid black or white
   when 1 or 0; segments that move/rotate other segments when 1.
