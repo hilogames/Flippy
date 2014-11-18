@@ -96,6 +96,9 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   NSString *_saveConfirmPath;
   void (^_saveConfirmCompletion)(void);
   UIAlertView *_restartConfirmAlert;
+  UIAlertView *_deleteConfirmAlert;
+  NSString *_deleteConfirmPath;
+  void (^_deleteConfirmCompletion)(void);
   UIAlertView *_exitConfirmAlert;
   UIAlertView *_resetAppConfirmAlert;
   UIAlertView *_resetTutorialConfirmAlert;
@@ -538,6 +541,18 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   }
 }
 
+- (void)menuNode:(HLMenuNode *)menuNode didLongPressMenuItem:(HLMenuItem *)menuItem itemIndex:(NSUInteger)itemIndex
+{
+  if (menuNode == _titleMenuNode) {
+    HLMenu *menuItemParent = menuItem.parent;
+    if ([menuItemParent.text isEqualToString:FLTitleMenuChallenge]) {
+      [self FL_deleteFromTitleMenuConfirm:FLGameTypeChallenge menuItem:menuItem itemIndex:itemIndex];
+    } else if ([menuItemParent.text isEqualToString:FLTitleMenuSandbox]) {
+      [self FL_deleteFromTitleMenuConfirm:FLGameTypeSandbox menuItem:menuItem itemIndex:itemIndex];
+    }
+  }
+}
+
 #pragma mark -
 #pragma mark FLTrackSceneDelegate
 
@@ -596,7 +611,11 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
 {
   if (alertView == _saveConfirmAlert) {
     if (buttonIndex == 1) {
-      [self FL_saveFromCommonMenu:_saveConfirmPath completion:_saveConfirmCompletion];
+      [self FL_saveWithSavePath:_saveConfirmPath completion:_saveConfirmCompletion];
+    }
+  } else if (alertView == _deleteConfirmAlert) {
+    if (buttonIndex == 1) {
+      [self FL_deleteWithSavePath:_deleteConfirmPath completion:_deleteConfirmCompletion];
     }
   } else if (alertView == _restartConfirmAlert) {
     if (buttonIndex == 1) {
@@ -1025,7 +1044,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
 - (void)FL_saveFromCommonMenuConfirm:(NSString *)savePath completion:(void(^)(void))completion
 {
   if (![[NSFileManager defaultManager] fileExistsAtPath:savePath]) {
-    [self FL_saveFromCommonMenu:savePath completion:completion];
+    [self FL_saveWithSavePath:savePath completion:completion];
     return;
   }
 
@@ -1042,7 +1061,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   _saveConfirmCompletion = completion;
 }
 
-- (void)FL_saveFromCommonMenu:(NSString *)savePath completion:(void(^)(void))completion
+- (void)FL_saveWithSavePath:(NSString *)savePath completion:(void(^)(void))completion
 {
   [NSKeyedArchiver archiveRootObject:_gameScene toFile:savePath];
   if (completion) {
@@ -1055,6 +1074,8 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   // note: Item index: First "New" button, then saves (including empties), then "Back" button.
   // We handle it all (for now).
 
+  // note: Both challenge and sandbox have a "New" button, but the challenge one is a
+  // special submenu.
   if (itemIndex == 0 && gameType == FLGameTypeChallenge) {
     return;
   }
@@ -1070,8 +1091,9 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   }
 
   BOOL isNew = (itemIndex == 0);
-
-  [self FL_load:gameType gameLevel:0 isNew:isNew otherwiseSaveNumber:(itemIndex - 1)];
+  
+  NSUInteger saveNumber = (itemIndex - 1);
+  [self FL_load:gameType gameLevel:0 isNew:isNew otherwiseSaveNumber:saveNumber];
 }
 
 - (void)FL_load:(FLGameType)gameType gameLevel:(int)gameLevel isNew:(BOOL)isNew otherwiseSaveNumber:(NSUInteger)saveNumber
@@ -1138,6 +1160,59 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
     self->_currentScene = self->_gameScene;
 
   }];
+}
+
+- (void)FL_deleteFromTitleMenuConfirm:(FLGameType)gameType menuItem:(HLMenuItem *)menuItem itemIndex:(NSUInteger)itemIndex
+{
+  // note: Item index: First "New" button, then saves (including empties), then "Back" button.
+  // We handle it all (for now).
+
+  if (itemIndex == 0 || itemIndex > FLSaveGameSlotCount) {
+    return;
+  }
+  if ([menuItem.text isEqualToString:FLCommonMenuEmptySlot]) {
+    return;
+  }
+  
+  NSUInteger saveNumber = (itemIndex - 1);
+  NSString *savePath = [self FL_savePathForGameType:gameType saveNumber:saveNumber];
+  if (!savePath || ![[NSFileManager defaultManager] fileExistsAtPath:savePath]) {
+    return;
+  }
+
+  NSString *title = [NSString stringWithFormat:NSLocalizedString(@"Permanently delete game “%@”?",
+                                                                 @"Alert prompt: confirmation of intention to delete a {saved game}."),
+                     menuItem.text];
+  UIAlertView *confirmAlert = [[UIAlertView alloc] initWithTitle:title
+                                                         message:nil
+                                                        delegate:self
+                                               cancelButtonTitle:NSLocalizedString(@"Cancel", @"Alert button: cancel game deletion.")
+                                               otherButtonTitles:NSLocalizedString(@"Delete", @"Alert button: delete game"), nil];
+  confirmAlert.alertViewStyle = UIAlertViewStyleDefault;
+  [confirmAlert show];
+  _deleteConfirmAlert = confirmAlert;
+  _deleteConfirmPath = savePath;
+  HLMenu *menuItemParent = menuItem.parent;
+  NSArray *menuItemParentPath = menuItemParent.path;
+  __weak id selfWeak = self;
+  _deleteConfirmCompletion = ^{
+    FLViewController *selfStrongAgain = selfWeak;
+    if (selfStrongAgain) {
+      [selfStrongAgain FL_commonMenuUpdateSaves:menuItem.parent forGameType:gameType includeNewButton:YES includeBackButton:YES];
+      HLMenuNode *titleMenuNode = selfStrongAgain->_titleMenuNode;
+      [titleMenuNode navigateToSubmenuWithPath:menuItemParentPath animation:HLMenuNodeAnimationNone];
+      [selfStrongAgain FL_titleSceneShowMessage:NSLocalizedString(@"Deleted game.",
+                                                                  @"Menu prompt: displayed when a game has been deleted.")];
+    }
+  };
+}
+
+- (void)FL_deleteWithSavePath:(NSString *)savePath completion:(void(^)(void))completion
+{
+  [[NSFileManager defaultManager] removeItemAtPath:savePath error:NULL];
+  if (completion) {
+    completion();
+  }
 }
 
 - (void)FL_restartFromGameMenuConfirm

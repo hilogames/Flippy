@@ -22,9 +22,13 @@ the form of an Xcode project from GitHub (github.com):
 The project uses Cocoapods (cocoapods.org) to manage its dependencies.
 Currently, all dependencies are committed to the main git repository,
 and so don't need to need to be downloaded or installed separately.
-However, much of the reuseable code from the Flippy the Train project
-was abstracted into a standalone library called HLSpriteKit, which can
-be downloaded separately here:
+If you do want to modify the dependencies, though, use `pod update` as
+normal.
+
+Of particular note is the standalone library called `HLSpriteKit`,
+which was developed alongside Flippy the Train.  For releases of
+Flippy the Train to github, though, it should be listed as a regular
+CocoaPods dependency.  The code for `HLSpriteKit` is here:
 
   https://github.com/hilogames/HLSpriteKit
 

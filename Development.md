@@ -10,8 +10,7 @@
 
 ## Current Tasks
 
-- Clear saved games on reset app?  (And long-press to delete saved
-  games at same time?)
+- Clear saved games on reset app.
 
 - Maybe at the same time as doing icons and splash screens: Check
   SKScene dimensions for each device; is anything being scaled that
@@ -46,7 +45,8 @@
 
     - guns: fire a mortar to attack someone else's track.
 
-- Upload Flippy to github.
+- Upload Flippy to github.  Can't have HLSpriteKit be a development
+  dependency anymore, though . . . or can you?
 
 - Add a forum to hilogames.com, with development and game topics.  If
   so, add a link to the README.md.
