@@ -37,6 +37,7 @@
 
 - (void)timerPause;
 - (void)timerResume;
+- (void)timerReset;
 - (NSTimeInterval)timerGet;
 
 @end

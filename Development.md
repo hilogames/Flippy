@@ -10,7 +10,8 @@
 
 ## Current Tasks
 
-- Long press to skip tutorial?
+- Clear saved games on reset app?  (And long-press to delete saved
+  games at same time?)
 
 - Maybe at the same time as doing icons and splash screens: Check
   SKScene dimensions for each device; is anything being scaled that
@@ -55,6 +56,8 @@
 
 ## Future Tasks
 
+- Records screen (showing records for all levels).
+
 - Localize the saved circuit/gate names, perhaps in a plist like the
   challenge level information.
 
@@ -81,8 +84,6 @@
 
 - Prettier links.  Maybe quadratic Bezier curves for link nodes.
   Maybe different coloring.
-
-- Long press on saved games deletes them.
 
 - For import thumbnails: Trace out CG lines for track segment paths
   rather than shrinking down images.  The result might be better.

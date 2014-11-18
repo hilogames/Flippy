@@ -63,6 +63,9 @@ static const CGFloat FLZPositionWorldOverlay = 5.0f;
 // Modal sublayers.
 static const CGFloat FLZPositionModalMin = FLZPositionModal;
 static const CGFloat FLZPositionModalMax = FLZPositionModal + 1.0f;
+// Tutorial sublayers.
+static const CGFloat FLZPositionTutorialBackdrop = 0.0f;
+static const CGFloat FLZPositionTutorialContent = 1.0f;
 
 static const NSTimeInterval FLWorldAdjustDuration = 0.5;
 static const NSTimeInterval FLWorldAdjustDurationSlow = 1.0;
@@ -334,6 +337,7 @@ typedef NS_OPTIONS(NSUInteger, FLTutorialResults) {
   FLTutorialResultPrevious = (1 << 2),
   FLTutorialResultHideBackdropAllowInteraction = (1 << 3),
   FLTutorialResultHideBackdropDisallowInteraction = (1 << 4),
+  FLTutorialResultExit = (1 << 5),
 };
 
 struct FLTutorialCutout {
@@ -942,6 +946,12 @@ struct PointerPairHash
   if (!_timerResumed) {
     _timerResumed = [NSDate date];
   }
+}
+
+- (void)timerReset
+{
+  _timerAccumulated = 0.0;
+  _timerResumed = [NSDate date];
 }
 
 - (NSTimeInterval)timerGet
@@ -5439,7 +5449,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
   CGContextRestoreGState(context);
 }
 
-- (void)FL_tutorialCreateStepWithLabel:(NSString *)label
+- (void)FL_tutorialCreateStepWithLabel:(NSString *)label annotation:(NSString *)annotation
 {
   CGSize sceneSize = self.size;
 
@@ -5500,10 +5510,10 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
 
   SKSpriteNode *backdropNode = [SKSpriteNode spriteNodeWithTexture:[SKTexture textureWithImage:backdropImage]];
   _tutorialState.backdropNode = backdropNode;
-  backdropNode.zPosition = FLZPositionTutorial;
+  backdropNode.zPosition = FLZPositionTutorial + FLZPositionTutorialBackdrop;
 
   DSMultilineLabelNode *labelNode = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
-  labelNode.zPosition = 0.1f;
+  labelNode.zPosition = FLZPositionTutorialContent;
   labelNode.fontSize = 20.0f;
   labelNode.fontColor = [SKColor whiteColor];
   labelNode.text = label;
@@ -5564,9 +5574,25 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
     default:
       break;
   }
+
+  if (annotation) {
+    DSMultilineLabelNode *annotationNode = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
+    annotationNode.zPosition = FLZPositionTutorialContent;
+    annotationNode.fontSize = 14.0f;
+    annotationNode.fontColor = FLInterfaceColorLight();
+    annotationNode.text = annotation;
+    annotationNode.paragraphWidth = edgeSizeMax - FLDSMultilineLabelParagraphWidthBugWorkaroundPad;
+    if (_tutorialState.labelPosition == FLTutorialLabelLowerScene) {
+      annotationNode.position = CGPointMake(0.0f, (annotationNode.size.height - sceneSize.height) / 2.0f + FLTutorialLabelPad);
+    } else {
+      annotationNode.position = CGPointMake(0.0f, -self.size.height / 5.0f);
+    }
+    [backdropNode addChild:annotationNode];
+  }
 }
 
 - (void)FL_tutorialShowWithLabel:(NSString *)label
+                      annotation:(NSString *)annotation
                    firstPanWorld:(BOOL)firstPanWorld
                      panLocation:(CGPoint)panSceneLocation
                         animated:(BOOL)animated
@@ -5574,15 +5600,19 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
   void (^showBackdrop)(void) = ^{
     // note: Put the creation step in this block so that it happens after the optional firstPanWorld;
     // that ensures the scene locations of the cutouts are converted properly.
-    [self FL_tutorialCreateStepWithLabel:label];
+    [self FL_tutorialCreateStepWithLabel:label annotation:annotation];
     SKSpriteNode *backdropNode = self->_tutorialState.backdropNode;
     [self addChild:backdropNode];
     if (animated) {
-      SKNode *labelNode = [backdropNode.children objectAtIndex:0];
+      NSArray *backdropChildrenNodes = backdropNode.children;
       backdropNode.alpha = 0.0f;
-      labelNode.alpha = 0.0f;
+      [backdropChildrenNodes enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop){
+        [obj setAlpha:0.0f];
+      }];
       [backdropNode runAction:[SKAction fadeInWithDuration:FLTutorialStepFadeDuration] completion:^{
-        [labelNode runAction:[SKAction fadeInWithDuration:FLTutorialStepFadeDuration]];
+        [backdropChildrenNodes enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop){
+          [obj runAction:[SKAction fadeInWithDuration:FLTutorialStepFadeDuration]];
+        }];
       }];
     }
   };
@@ -5610,6 +5640,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
                         animated:(BOOL)animated
 {
   [self FL_tutorialShowWithLabel:label
+                      annotation:nil
                    firstPanWorld:NO
                      panLocation:CGPointZero  // ignored
                         animated:animated];
@@ -5681,11 +5712,14 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
     case 0: {
       NSString *label = NSLocalizedString(@"This is\nFlippy the Train.",
                                           @"Tutorial message.");
+      NSString *annotation = NSLocalizedString(@"Long-press to skip tutorial.",
+                                               @"Tutorial message.");
       _tutorialState.cutouts.emplace_back(_train, [[HLTextureStore sharedStore] imageForKey:@"engine"], NO);
       _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
       CGPoint panSceneLocation = [self convertPoint:_train.position fromNode:_worldNode];
-      [self FL_tutorialShowWithLabel:label firstPanWorld:YES panLocation:panSceneLocation animated:animated];
+      [self FL_tutorialShowWithLabel:label annotation:annotation firstPanWorld:YES panLocation:panSceneLocation animated:animated];
       _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropLongPress, FLTutorialResultExit);
       return YES;
     }
     case 1: {
@@ -5696,6 +5730,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
       _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
       [self FL_tutorialShowWithLabel:label animated:animated];
       _tutorialState.conditions.emplace_back(FLTutorialActionConstructionToolbarTap, FLTutorialResultContinue);
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropLongPress, FLTutorialResultExit);
       return YES;
     }
     case 2: {
@@ -5709,7 +5744,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
       // hopefully suggesting a good place to put the straight segment (to wit, extending
       // the track up from the existing join segment).
       panSceneLocation.y += FLTrackSegmentSize * 2.0f;
-      [self FL_tutorialShowWithLabel:label firstPanWorld:YES panLocation:panSceneLocation animated:YES];
+      [self FL_tutorialShowWithLabel:label annotation:nil firstPanWorld:YES panLocation:panSceneLocation animated:YES];
       _tutorialState.conditions.emplace_back(FLTutorialActionConstructionToolbarPanBegan, FLTutorialResultHideBackdropDisallowInteraction);
       _tutorialState.conditions.emplace_back(FLTutorialActionConstructionToolbarPanEnded, ^NSUInteger(NSArray *arguments){
         // note: Hacky: Peek into _trackMoveState, hopefully before it clears state.
@@ -5732,7 +5767,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
       _tutorialState.cutouts.emplace_back(squareNode, YES);
       _tutorialState.labelPosition = FLTutorialLabelBelowCutouts;
       CGPoint panSceneLocation = [self convertPoint:_train.position fromNode:_worldNode];
-      [self FL_tutorialShowWithLabel:label firstPanWorld:YES panLocation:panSceneLocation animated:animated];
+      [self FL_tutorialShowWithLabel:label annotation:nil firstPanWorld:YES panLocation:panSceneLocation animated:animated];
       _tutorialState.conditions.emplace_back(FLTutorialActionSimulationStarted, FLTutorialResultHideBackdropDisallowInteraction);
       _tutorialState.conditions.emplace_back(FLTutorialActionSimulationStopped, FLTutorialResultContinue);
       return YES;
@@ -5751,7 +5786,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
       _tutorialState.cutouts.emplace_back(segmentNode, [[HLTextureStore sharedStore] imageForKey:@"platform-start-left"], NO);
       _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
       CGPoint panSceneLocation = [self convertPoint:segmentNode.position fromNode:_trackNode];
-      [self FL_tutorialShowWithLabel:label firstPanWorld:YES panLocation:panSceneLocation animated:animated];
+      [self FL_tutorialShowWithLabel:label annotation:nil firstPanWorld:YES panLocation:panSceneLocation animated:animated];
       _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
       return YES;
     }
@@ -5764,7 +5799,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
       _tutorialState.cutouts.emplace_back(segmentNode, NO);
       _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
       CGPoint panSceneLocation = [self convertPoint:segmentNode.position fromNode:_trackNode];
-      [self FL_tutorialShowWithLabel:label firstPanWorld:YES panLocation:panSceneLocation animated:animated];
+      [self FL_tutorialShowWithLabel:label annotation:nil firstPanWorld:YES panLocation:panSceneLocation animated:animated];
       _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
       return YES;
     }
@@ -5785,7 +5820,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
       _tutorialState.cutouts.emplace_back(segmentNode, NO);
       _tutorialState.labelPosition = FLTutorialLabelBelowCutouts;
       CGPoint panSceneLocation = [self convertPoint:segmentNode.position fromNode:_trackNode];
-      [self FL_tutorialShowWithLabel:label firstPanWorld:YES panLocation:panSceneLocation animated:animated];
+      [self FL_tutorialShowWithLabel:label annotation:nil firstPanWorld:YES panLocation:panSceneLocation animated:animated];
       _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
       return YES;
     }
@@ -5801,10 +5836,12 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
     }
     case 10: {
       [self FL_train:_train setSpeed:_simulationSpeed];
-      NSString *label = NSLocalizedString(@"The switch flips as Flippy travels over it. (Tap to continue, or press-and-hold to watch again.)",
+      NSString *label = NSLocalizedString(@"The switch flips as Flippy travels over it.",
                                           @"Tutorial message.");
+      NSString *annotation = NSLocalizedString(@"Tap to continue, or long-press to watch again.",
+                                               @"Tutorial message.");
       _tutorialState.labelPosition = FLTutorialLabelLowerScene;
-      [self FL_tutorialShowWithLabel:label animated:animated];
+      [self FL_tutorialShowWithLabel:label annotation:annotation firstPanWorld:NO panLocation:CGPointZero animated:animated];
       _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
       _tutorialState.conditions.emplace_back(FLTutorialActionBackdropLongPress, FLTutorialResultPrevious);
       return YES;
@@ -5843,6 +5880,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
                                           @"Tutorial message.");
       [self FL_tutorialShowWithLabel:label animated:animated];
       _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
+      [self timerReset];
       return YES;
     }
     default:
@@ -5856,8 +5894,11 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
     case 0: {
       NSString *label = NSLocalizedString(@"This level starts with no existing track.",
                                           @"Tutorial message.");
-      [self FL_tutorialShowWithLabel:label animated:animated];
+      NSString *annotation = NSLocalizedString(@"Long-press to skip tutorial.",
+                                               @"Tutorial message.");
+      [self FL_tutorialShowWithLabel:label annotation:annotation firstPanWorld:NO panLocation:CGPointZero animated:animated];
       _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropLongPress, FLTutorialResultExit);
       return YES;
     }
     case 1: {
@@ -5872,8 +5913,9 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
       CGPoint input2SceneLocation = [self convertPoint:input2SegmentNode.position fromNode:input2SegmentNode.parent];
       CGPoint panSceneLocation = CGPointMake((input1SceneLocation.x + input2SceneLocation.x) / 2.0f,
                                              (input1SceneLocation.y + input2SceneLocation.y) / 2.0f);
-      [self FL_tutorialShowWithLabel:label firstPanWorld:YES panLocation:panSceneLocation animated:animated];
+      [self FL_tutorialShowWithLabel:label annotation:nil firstPanWorld:YES panLocation:panSceneLocation animated:animated];
       _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropLongPress, FLTutorialResultExit);
       return YES;
     }
     case 2: {
@@ -5917,7 +5959,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
       _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
       CGPoint panSceneLocation = [self convertPoint:segmentNode.position fromNode:_trackNode];
       panSceneLocation.x += FLTrackSegmentSize;
-      [self FL_tutorialShowWithLabel:label firstPanWorld:YES panLocation:panSceneLocation animated:animated];
+      [self FL_tutorialShowWithLabel:label annotation:nil firstPanWorld:YES panLocation:panSceneLocation animated:animated];
       _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
       return YES;
     }
@@ -5962,6 +6004,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
                                           @"Tutorial message.");
       [self FL_tutorialShowWithLabel:label animated:animated];
       _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
+      [self timerReset];
       return YES;
     }
     default:
@@ -5986,6 +6029,17 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
   // noob: Seems better to me to let the interface actions complete on the main thread
   // before triggering a complete new tutorial step.  But I'm not sure if this is necessary
   // or desirable.
+
+  if ((results & FLTutorialResultExit) != 0) {
+    FLUserUnlocksUnlock(@[ @"FLUserUnlockTutorialCompleted" ]);
+    [self timerReset];
+    dispatch_async(dispatch_get_main_queue(), ^{
+      // note: Must advance step to the end of the tutorial, in case someone resets the
+      // tutorial; we can't resume tutorial in this level once things have been moved around.
+      self->_tutorialState.step = INT_MAX;
+      [self FL_tutorialStepAnimated:YES];
+    });
+  }
 
   if ((results & FLTutorialResultPrevious) != 0) {
     dispatch_async(dispatch_get_main_queue(), ^{

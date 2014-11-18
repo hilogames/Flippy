@@ -4,7 +4,7 @@
 <array>
 	<string>SELECTION</string>
 	<string>Double-tap on a track segment to select it and everything connected to it.</string>
-	<string>When multiple track segments are selected, use long-press to add to or subtract from the selection.</string>
+	<string>When multiple track segments are selected, use press-and-hold to add to or subtract from the selection.</string>
 	<string></string>
 	<string>SWITCHES</string>
 	<string>Double-tap with two fingers on segments to toggle switches.</string>
