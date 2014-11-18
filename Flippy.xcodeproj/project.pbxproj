@@ -74,6 +74,7 @@
 		CBD707C418AD0EE00041B170 /* FLTrain.mm in Sources */ = {isa = PBXBuildFile; fileRef = CBD707C318AD0EE00041B170 /* FLTrain.mm */; };
 		CBE687AB1A0BC5AB00072EB0 /* Help.plist in Resources */ = {isa = PBXBuildFile; fileRef = CBE687AA1A0BC5AB00072EB0 /* Help.plist */; };
 		CBEE13F018C4DBA400D1D42B /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CB0464A318AA6F7F00ABCA03 /* AVFoundation.framework */; };
+		CBFCCE611A1BDB6600A598E5 /* FLApplication.m in Sources */ = {isa = PBXBuildFile; fileRef = CBFCCE601A1BDB6600A598E5 /* FLApplication.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -162,6 +163,8 @@
 		CBD707C218AD0EE00041B170 /* FLTrain.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTrain.h; sourceTree = "<group>"; };
 		CBD707C318AD0EE00041B170 /* FLTrain.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLTrain.mm; sourceTree = "<group>"; };
 		CBE687AA1A0BC5AB00072EB0 /* Help.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Help.plist; sourceTree = "<group>"; };
+		CBFCCE5F1A1BDB6600A598E5 /* FLApplication.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLApplication.h; sourceTree = "<group>"; };
+		CBFCCE601A1BDB6600A598E5 /* FLApplication.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FLApplication.m; sourceTree = "<group>"; };
 		D8D553652305AF6F8063F695 /* Pods-Flippy.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Flippy.debug.xcconfig"; path = "Pods/Target Support Files/Pods-Flippy/Pods-Flippy.debug.xcconfig"; sourceTree = "<group>"; };
 		E38BB7A8F21EE422D9E05726 /* libPods-Flippy.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Flippy.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -311,6 +314,8 @@
 				CB960313196B87AE00569870 /* Emitters */,
 				CBB4B809183C00E1003C3444 /* FLAppDelegate.h */,
 				CBB4B80A183C00E1003C3444 /* FLAppDelegate.mm */,
+				CBFCCE5F1A1BDB6600A598E5 /* FLApplication.h */,
+				CBFCCE601A1BDB6600A598E5 /* FLApplication.m */,
 				CB485D90196ED4D900E8646B /* FLConstants.h */,
 				CB485D91196ED4D900E8646B /* FLConstants.m */,
 				CB82BA2F1A04612E00B2E503 /* FLGoalsNode.h */,
@@ -506,6 +511,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CBFCCE611A1BDB6600A598E5 /* FLApplication.m in Sources */,
 				CB82BA311A04612E00B2E503 /* FLGoalsNode.mm in Sources */,
 				CBB4B817183C00E1003C3444 /* FLTrackScene.mm in Sources */,
 				CB50C21718BF8F140072DA30 /* FLTrackGrid.mm in Sources */,

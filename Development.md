@@ -10,8 +10,6 @@
 
 ## Current Tasks
 
-- Clear saved games on reset app.
-
 - Maybe at the same time as doing icons and splash screens: Check
   SKScene dimensions for each device; is anything being scaled that
   shouldn't be?  c.f. nativeScale documentation on UIScreen.
