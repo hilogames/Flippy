@@ -43,6 +43,8 @@
 
     - guns: fire a mortar to attack someone else's track.
 
+- https://developer.apple.com/library/ios/documentation/IDEs/Conceptual/AppDistributionGuide/ConfiguringYourApp/ConfiguringYourApp.html#//apple_ref/doc/uid/TP40012582-CH28-SW4
+
 - Upload Flippy to github.  Can't have HLSpriteKit be a development
   dependency anymore, though . . . or can you?
 

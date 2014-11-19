@@ -1268,10 +1268,10 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
 
   NSString *path = [[NSBundle mainBundle] pathForResource:@"Help" ofType:@"plist"];
   NSData *data = [[NSFileManager defaultManager] contentsAtPath:path];
-  NSArray *helpItems = (NSArray *)[NSPropertyListSerialization propertyListFromData:data
-                                                                   mutabilityOption:NSPropertyListImmutable
+  NSArray *helpItems = (NSArray *)[NSPropertyListSerialization propertyListWithData:data
+                                                                            options:NSPropertyListImmutable
                                                                              format:NULL
-                                                                   errorDescription:NULL];
+                                                                              error:NULL];
   // note: Hacky: Headers are the first entry, and every entry after an empty entry.
   BOOL isHeader = YES;
   for (NSString *helpItem in helpItems) {

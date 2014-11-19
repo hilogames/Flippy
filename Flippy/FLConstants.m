@@ -26,10 +26,10 @@ FLChallangeLevelsInit()
 {
   NSString *path = [[NSBundle mainBundle] pathForResource:@"ChallengeLevels" ofType:@"plist"];
   NSData *data = [[NSFileManager defaultManager] contentsAtPath:path];
-  _challengeLevels = (NSArray *)[NSPropertyListSerialization propertyListFromData:data
-                                                                 mutabilityOption:NSPropertyListImmutable
+  _challengeLevels = (NSArray *)[NSPropertyListSerialization propertyListWithData:data
+                                                                          options:NSPropertyListImmutable
                                                                            format:NULL
-                                                                 errorDescription:NULL];
+                                                                            error:NULL];
 }
 
 int
