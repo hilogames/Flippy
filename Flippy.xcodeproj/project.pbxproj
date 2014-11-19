@@ -56,6 +56,8 @@
 		CB960344196B892E00569870 /* track.atlas in Resources */ = {isa = PBXBuildFile; fileRef = CB960342196B892E00569870 /* track.atlas */; };
 		CBA5ED521906FECD00DBF36E /* gates in Resources */ = {isa = PBXBuildFile; fileRef = CBA5ED511906FECD00DBF36E /* gates */; };
 		CBA5ED541907007800DBF36E /* circuits in Resources */ = {isa = PBXBuildFile; fileRef = CBA5ED531907007800DBF36E /* circuits */; };
+		CBAA13371A1D1ECD00FD90F8 /* LaunchScreen.xib in Resources */ = {isa = PBXBuildFile; fileRef = CBAA13361A1D1ECD00FD90F8 /* LaunchScreen.xib */; };
+		CBAA13391A1D2C0300FD90F8 /* launch-image.jpg in Resources */ = {isa = PBXBuildFile; fileRef = CBAA13381A1D2C0300FD90F8 /* launch-image.jpg */; };
 		CBB4B7F9183C00E1003C3444 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B7F8183C00E1003C3444 /* Foundation.framework */; };
 		CBB4B7FB183C00E1003C3444 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B7FA183C00E1003C3444 /* CoreGraphics.framework */; };
 		CBB4B7FD183C00E1003C3444 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B7FC183C00E1003C3444 /* UIKit.framework */; };
@@ -138,6 +140,8 @@
 		CB960342196B892E00569870 /* track.atlas */ = {isa = PBXFileReference; lastKnownFileType = folder.skatlas; path = track.atlas; sourceTree = "<group>"; };
 		CBA5ED511906FECD00DBF36E /* gates */ = {isa = PBXFileReference; lastKnownFileType = folder; path = gates; sourceTree = "<group>"; };
 		CBA5ED531907007800DBF36E /* circuits */ = {isa = PBXFileReference; lastKnownFileType = folder; path = circuits; sourceTree = "<group>"; };
+		CBAA13361A1D1ECD00FD90F8 /* LaunchScreen.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = LaunchScreen.xib; sourceTree = "<group>"; };
+		CBAA13381A1D2C0300FD90F8 /* launch-image.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "launch-image.jpg"; sourceTree = "<group>"; };
 		CBB4B7F5183C00E1003C3444 /* Flippy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Flippy.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CBB4B7F8183C00E1003C3444 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		CBB4B7FA183C00E1003C3444 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
@@ -355,6 +359,8 @@
 				CBB4B808183C00E1003C3444 /* Flippy-Prefix.pch */,
 				CBE687AA1A0BC5AB00072EB0 /* Help.plist */,
 				CBB4B803183C00E1003C3444 /* InfoPlist.strings */,
+				CBAA13381A1D2C0300FD90F8 /* launch-image.jpg */,
+				CBAA13361A1D1ECD00FD90F8 /* LaunchScreen.xib */,
 				CB485D93196EE0CC00E8646B /* Localizable.strings */,
 				CBB4B806183C00E1003C3444 /* main.m */,
 			);
@@ -449,6 +455,8 @@
 				CB960308196B86FF00569870 /* rail.png in Resources */,
 				CB1D39E219F05A3900D829CB /* platform-left-nonatlas.png in Resources */,
 				CBBB184B19C736F30088D345 /* train-whistle-2.caf in Resources */,
+				CBAA13391A1D2C0300FD90F8 /* launch-image.jpg in Resources */,
+				CBAA13371A1D1ECD00FD90F8 /* LaunchScreen.xib in Resources */,
 				CB960310196B86FF00569870 /* wooden-click-2.caf in Resources */,
 				CB960335196B88AD00569870 /* cross-nonatlas.png in Resources */,
 				CB960344196B892E00569870 /* track.atlas in Resources */,
