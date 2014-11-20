@@ -13,6 +13,9 @@
 - BUG: application crash (on state restore?) when re-running
   application without xcode attached.
 
+  A conflict between Launch Screen and application state restoration,
+  apparently: if I remove either one, then no crash.
+
   http://stackoverflow.com/questions/25952409/app-crashes-at-gpus-returnnotpermittedkillclient
   http://stackoverflow.com/questions/25919665/mysterious-crash-on-ios-8
 
@@ -62,6 +65,11 @@
   Create tools@2x.atlas and tools@3x atlast.
   Re-create grass textures for 1x 2x and 3x from original 2048 image.
   Re-create loading screen to match.
+
+  - That would meaning providing a 2208x2208 tiled grass image to the
+    Launch Screen (so that it matches the 3x retina display on iPhone
+    6+).  That might cause troubles; perhaps should switch to using a
+    plain green launch screen rather than the tiled grass image.
 
 - Records screen (showing records for all levels).
 

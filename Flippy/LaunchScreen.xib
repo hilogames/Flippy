@@ -8,11 +8,11 @@
         <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner"/>
         <placeholder placeholderIdentifier="IBFirstResponder" id="-2" customClass="UIResponder"/>
         <view contentMode="scaleToFill" id="iN0-l3-epB">
-            <rect key="frame" x="0.0" y="0.0" width="480" height="480"/>
+            <rect key="frame" x="0.0" y="0.0" width="600" height="600"/>
             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
             <subviews>
                 <imageView userInteractionEnabled="NO" contentMode="bottomLeft" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="launch-image.jpg" translatesAutoresizingMaskIntoConstraints="NO" id="Boa-PP-qwV">
-                    <rect key="frame" x="0.0" y="0.0" width="480" height="480"/>
+                    <rect key="frame" x="0.0" y="0.0" width="600" height="600"/>
                 </imageView>
             </subviews>
             <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="calibratedWhite"/>
@@ -23,11 +23,10 @@
                 <constraint firstItem="Boa-PP-qwV" firstAttribute="leading" secondItem="iN0-l3-epB" secondAttribute="leading" id="ifQ-Ic-Qmw"/>
             </constraints>
             <nil key="simulatedStatusBarMetrics"/>
-            <freeformSimulatedSizeMetrics key="simulatedDestinationMetrics"/>
             <point key="canvasLocation" x="404" y="445"/>
         </view>
     </objects>
     <resources>
-        <image name="launch-image.jpg" width="2208" height="2208"/>
+        <image name="launch-image.jpg" width="1024" height="1024"/>
     </resources>
 </document>
