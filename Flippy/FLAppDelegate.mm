@@ -71,7 +71,8 @@
   //   http://stackoverflow.com/questions/18976813/sprite-kit-playing-sound-leads-to-app-termination/19283721
   //
   // (Though I have not yet seen a crash.)
-  [[AVAudioSession sharedInstance] setActive:NO error:nil];
+  // commented out: After iOS8, getting errors from this.
+  //[[AVAudioSession sharedInstance] setActive:NO error:nil];
 
   // Pause SpriteKit scene.  Suggested by:
   //
@@ -96,13 +97,15 @@
 - (void)applicationDidEnterBackground:(UIApplication *)application
 {
   // note: See notes in applicationWillResignActive:.
-  [[AVAudioSession sharedInstance] setActive:NO error:nil];
+  // commented out: After iOS8, getting errors from this.
+  //[[AVAudioSession sharedInstance] setActive:NO error:nil];
 }
 
 - (void)applicationWillEnterForeground:(UIApplication *)application
 {
   // note: See notes in applicationWillResignActive:.
-  [[AVAudioSession sharedInstance] setActive:YES error:nil];
+  // commented out: After iOS8, getting errors from this.
+  //[[AVAudioSession sharedInstance] setActive:YES error:nil];
 }
 
 - (void)applicationDidReceiveMemoryWarning:(UIApplication *)application
