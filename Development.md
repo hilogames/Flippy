@@ -10,9 +10,10 @@
 
 ## Current Tasks
 
-- Maybe at the same time as doing icons and splash screens: Check
-  SKScene dimensions for each device; is anything being scaled that
-  shouldn't be?  c.f. nativeScale documentation on UIScreen.
+- Draw Retina assets for non-pixelated artwork (e.g. toolbar buttons).
+  Create tools@2x.atlas and tools@3x atlast.
+  Re-create grass textures for 1x 2x and 3x from original 2048 image.
+  Re-create loading screen to match.
 
 - Infinite grid and real quadtree.
 

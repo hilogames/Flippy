@@ -49,3 +49,23 @@ In the example below, substitute your level number wherever you see
         plutil -convert binary1 level-challenge-99.xml -o level-challenge-99.archive
 
 4. Edit `ChallengeLevels.plist` to include information for your level.
+
+## Creating a New Icon
+
+The basis for the icon art on the first draft was the
+intentionally-pixellated track art, at an original resolution of
+54x54, with the track occupying 43x43 of those pixels.  For icon size
+29 I resampled (bicubic sharp) to half the size (and then padded out
+to 29 in the background); for icon size 40 I resampled (bicubic sharp)
+to two-thirds the size (and then padded out in the background).  Icon
+sizes 50, 57, 58, 60, 72, 76, 80, and 87 I just padded the background
+of the original image (without resizing the track).  Then for all
+larger icon sizes I scaled one of those base images an even multiple
+using nearest-neighbor sampling:
+
+    convert icon-50.png -filter point -resize 100x100 icon-100.png
+    convert icon-57.png -filter point -resize 114x114 icon-114.png
+    convert icon-60.png -filter point -resize 120x120 icon-120.png
+    convert icon-72.png -filter point -resize 144x144 icon-144.png
+    convert icon-76.png -filter point -resize 152x152 icon-152.png
+    convert icon-60.png -filter point -resize 180x180 icon-180.png
