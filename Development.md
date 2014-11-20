@@ -16,11 +16,6 @@
   http://stackoverflow.com/questions/25952409/app-crashes-at-gpus-returnnotpermittedkillclient
   http://stackoverflow.com/questions/25919665/mysterious-crash-on-ios-8
 
-- Draw Retina assets for non-pixelated artwork (e.g. toolbar buttons).
-  Create tools@2x.atlas and tools@3x atlast.
-  Re-create grass textures for 1x 2x and 3x from original 2048 image.
-  Re-create loading screen to match.
-
 - Infinite grid and real quadtree.
 
     - QuadTree and SKNode hierarchy should be coordinated, and load/unload
@@ -62,6 +57,11 @@
 
 
 ## Future Tasks
+
+- Draw Retina assets for non-pixelated artwork (e.g. toolbar buttons).
+  Create tools@2x.atlas and tools@3x atlast.
+  Re-create grass textures for 1x 2x and 3x from original 2048 image.
+  Re-create loading screen to match.
 
 - Records screen (showing records for all levels).
 
