@@ -10,15 +10,6 @@
 
 ## Current Tasks
 
-- BUG: application crash (on state restore?) when re-running
-  application without xcode attached.
-
-  A conflict between Launch Screen and application state restoration,
-  apparently: if I remove either one, then no crash.
-
-  http://stackoverflow.com/questions/25952409/app-crashes-at-gpus-returnnotpermittedkillclient
-  http://stackoverflow.com/questions/25919665/mysterious-crash-on-ios-8
-
 - Infinite grid and real quadtree.
 
     - QuadTree and SKNode hierarchy should be coordinated, and load/unload
