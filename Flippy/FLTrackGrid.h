@@ -13,90 +13,79 @@
 #include <tgmath.h>
 
 #import "FLSegmentNode.h"
-#include "QuadTree.h"
+#include "DenseSectorTable.h"
 
 class FLLinks;
 
 /**
- * Represents square segments that occupy a two-dimensional world.
- * The track grid deals in integer grid coordinates, and, given a
- * segment edge size, floating point world coordinates.  (The grid and
- * world share the same origin.)
+ * Represents square segments that occupy a two-dimensional world.  The track grid deals
+ * in integer grid coordinates, and, given a segment edge size, floating point world
+ * coordinates.  (The grid and world share the same origin.)
  *
- * note: Consider a generic implementation that in place of "track"
- * and "segment" and "world" uses terms like "field" or "square" or
- * "cell".
+ * note: Consider a generic implementation that in place of "track" and "segment" and
+ * "world" uses terms like "field" or "square" or "cell".
  *
  * Alternate Implementation
  *
- * The current implementation models a track composed of square
- * pieces.  In particular, it's good for an interface where you place
- * square track pieces into the grid, and then rotate them around as
- * necessary so that their corners hook together.
+ * The current implementation models a track composed of square pieces.  In particular,
+ * it's good for an interface where you place square track pieces into the grid, and then
+ * rotate them around as necessary so that their corners hook together.
  *
- * An alternate model would support the actual mechanics and
- * computations a little better -- though it might lead to a different
- * interface paradigm, also, and so might involve a pretty serious
- * rewrite.  Like this:
+ * An alternate model would support the actual mechanics and computations a little better
+ * -- though it might lead to a different interface paradigm, also, and so might involve a
+ * pretty serious rewrite.  Like this:
  *
- *  . The model tracks vertices/intersections in a quadtree square
- *    grid.  (Or on a hex field, or whatever.)
+ *  . The model tracks vertices/intersections in a square grid.  (Or on a hex field, or
+ *    whatever.)
  *
- *  . Each vertex contains a few edges which link the vertex to any of
- *    the eight surrounding vertices.  (Or to any arbitrary vertex on
- *    the grid, though I have a feeling it will always be better to do
- *    it in little pieces.)  The edge is linked from the other vertex,
- *    too.
+ *  . Each vertex contains a few edges which link the vertex to any of the eight
+ *    surrounding vertices.  (Or to any arbitrary vertex on the grid, though I have a
+ *    feeling it will always be better to do it in little pieces.)  The edge is linked
+ *    from the other vertex, too.
  *
- *  . The edge knows its end point vertices (either pointers back to
- *    the two vertices, or grid coordinates, or perhaps even a single
- *    vertex plus a direction).  For each end point it also knows the
- *    tangent -- probably just in four or eight or twelve discrete
- *    compass points, so probably stored as an integer direction
- *    (e.g. rotationQuarters).
+ *  . The edge knows its end point vertices (either pointers back to the two vertices, or
+ *    grid coordinates, or perhaps even a single vertex plus a direction).  For each end
+ *    point it also knows the tangent -- probably just in four or eight or twelve discrete
+ *    compass points, so probably stored as an integer direction (e.g. rotationQuarters).
  *
- *  . When adding a new edge to a vertex, then, it would be pretty
- *    easy to detect if any other existing edges had the same tangent,
- *    which would mean they (as a group) would need a switch; and it
- *    would be easy to detect if any other existing edges had an
+ *  . When adding a new edge to a vertex, then, it would be pretty easy to detect if any
+ *    other existing edges had the same tangent, which would mean they (as a group) would
+ *    need a switch; and it would be easy to detect if any other existing edges had an
  *    opposite tangent, which would mean they connect.
  *
- *  . Furthermore, it would be easy to lookup/generate the
- *    corresponding cubic Bezier curve to use as a continuous path for
- *    the edge, since the first and fourth control points would be the
- *    vertices, and the middle control points could be easily
- *    generated to produce the correct tangents.  If the number of
- *    connectable vertices and discrete tangents were limited, then
- *    these paths would be fairly easily enumerable: straight, curve,
- *    S-curve, question mark curve, etc.
+ *  . Furthermore, it would be easy to lookup/generate the corresponding cubic Bezier
+ *    curve to use as a continuous path for the edge, since the first and fourth control
+ *    points would be the vertices, and the middle control points could be easily
+ *    generated to produce the correct tangents.  If the number of connectable vertices
+ *    and discrete tangents were limited, then these paths would be fairly easily
+ *    enumerable: straight, curve, S-curve, question mark curve, etc.
  *
- *  . For the graphics, each path would have a graphic, and then a
- *    switch could be positioned dynamically where needed, and certain
- *    path combinations would be replaced by a compound graphic -- or
- *    maybe the intersection would be drawn over top of the two paths
- *    in the right location and rotation, either a right angle
- *    intersection, 45 degree intersection, or whatever.
+ *  . For the graphics, each path would have a graphic, and then a switch could be
+ *    positioned dynamically where needed, and certain path combinations would be replaced
+ *    by a compound graphic -- or maybe the intersection would be drawn over top of the
+ *    two paths in the right location and rotation, either a right angle intersection, 45
+ *    degree intersection, or whatever.
  *
- *  . In the interface, track would be added by drawing connections
- *    between vertices.  Connections in the middle of the drawing
- *    would have their tangents determined by the outer connections.
- *    Endpoints of the drawn line would not necessarily know how to
- *    shape themselves, but could be patched up by selection edits.
- *    Track edges/curves/unions (i.e. pieces of track) could be
- *    selected and dragged around, possibly by using SpriteKits hit
- *    test abilities (since the determination of edge selection has
- *    more to do with its visible sprite than its grid position).
+ *  . In the interface, track would be added by drawing connections between vertices.
+ *    Connections in the middle of the drawing would have their tangents determined by the
+ *    outer connections.  Endpoints of the drawn line would not necessarily know how to
+ *    shape themselves, but could be patched up by selection edits.  Track
+ *    edges/curves/unions (i.e. pieces of track) could be selected and dragged around,
+ *    possibly by using SpriteKits hit test abilities (since the determination of edge
+ *    selection has more to do with its visible sprite than its grid position).
  *
- * Anyway, I think I'm going to pass on this for now, even though it
- * would be pretty clearly awesome.
+ * Anyway, I think I'm going to pass on this for now, even though it would be pretty
+ * clearly awesome.
  */
-
 class FLTrackGrid
 {
 public:
 
-  typedef HLCommon::QuadTree<FLSegmentNode *>::iterator iterator;
-  typedef HLCommon::QuadTree<FLSegmentNode *>::const_iterator const_iterator;
+  static const int FLTrackGridSectorSize = 16;
+  static const int FLTrackGridSectorCount = 64;
+
+  typedef HLCommon::DenseSectorTable<FLSegmentNode *>::iterator iterator;
+  typedef HLCommon::DenseSectorTable<FLSegmentNode *>::const_iterator const_iterator;
 
   inline static void convert(CGPoint worldLocation, CGFloat segmentSize, int *gridX, int *gridY) {
     *gridX = int(floor(worldLocation.x / segmentSize + 0.5f));
@@ -107,21 +96,21 @@ public:
     return CGPointMake(gridX * segmentSize, gridY * segmentSize);
   }
 
-  FLTrackGrid(CGFloat segmentSize) : segmentSize_(segmentSize) {}
+  FLTrackGrid(CGFloat segmentSize) : segmentSize_(segmentSize), grid_(FLTrackGridSectorSize, FLTrackGridSectorCount, nil) {}
 
-  FLSegmentNode *get(int gridX, int gridY) const { return grid_.get(gridX, gridY, nil); }
+  FLSegmentNode *get(int gridX, int gridY) const { return grid_.getPoint(gridX, gridY); }
 
-  iterator begin() { return grid_.begin(); }
-  const_iterator begin() const { return grid_.begin(); }
+  iterator begin() { return grid_.beginPoint(); }
+  const_iterator begin() const { return grid_.beginPoint(); }
 
-  iterator end() { return grid_.end(); }
-  const_iterator end() const { return grid_.end(); }
+  iterator end() { return grid_.endPoint(); }
+  const_iterator end() const { return grid_.endPoint(); }
 
-  size_t size() const { return grid_.size(); }
+  size_t size() const { return grid_.pointCount(); }
 
-  void set(int gridX, int gridY, FLSegmentNode *segmentNode) { grid_[{ gridX, gridY }] = segmentNode; }
+  void set(int gridX, int gridY, FLSegmentNode *segmentNode) { grid_.setPoint(gridX, gridY, segmentNode); }
 
-  void erase(int gridX, int gridY) { grid_.erase(gridX, gridY); }
+  void erase(int gridX, int gridY) { grid_.erasePoint(gridX, gridY); }
 
   CGFloat segmentSize() const { return segmentSize_; }
 
@@ -137,7 +126,7 @@ public:
 
 private:
 
-  HLCommon::QuadTree<FLSegmentNode *> grid_;
+  HLCommon::DenseSectorTable<FLSegmentNode *> grid_;
   CGFloat segmentSize_;
 };
 

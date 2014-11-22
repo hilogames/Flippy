@@ -30,7 +30,7 @@ FLTrackGrid::import(SKNode *parentNode)
     int gridX;
     int gridY;
     FLTrackGrid::convert(childNode.position, segmentSize_, &gridX, &gridY);
-    grid_[{ gridX, gridY }] = (FLSegmentNode *)childNode;
+    grid_.setPoint(gridX, gridY, (FLSegmentNode *)childNode);
   }
 }
 

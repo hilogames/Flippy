@@ -13,6 +13,7 @@
 		CB05B3B1196B353A00FF58A5 /* sleeperDestruction.sks in Resources */ = {isa = PBXBuildFile; fileRef = CB05B3AF196B353A00FF58A5 /* sleeperDestruction.sks */; };
 		CB05B3B5196B358800FF58A5 /* levels in Resources */ = {isa = PBXBuildFile; fileRef = CB05B3B4196B358800FF58A5 /* levels */; };
 		CB0DA5A618B7D8CE00E43D34 /* FLPath.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB0DA5A418B7D8CE00E43D34 /* FLPath.mm */; };
+		CB0FBEF31A23944C0024CFBD /* DenseSectorTable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CB0FBEF11A23944C0024CFBD /* DenseSectorTable.cpp */; };
 		CB17FD7819C8A69000DECE5E /* train-whistle-tune-1.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB17FD7719C8A69000DECE5E /* train-whistle-tune-1.caf */; };
 		CB17FD7A19C8A7B800DECE5E /* ka-chick.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB17FD7919C8A7B800DECE5E /* ka-chick.caf */; };
 		CB17FD7C19C8AAD100DECE5E /* pop-2.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB17FD7B19C8AAD100DECE5E /* pop-2.caf */; };
@@ -24,7 +25,6 @@
 		CB2587B91A0D668A003542AC /* hilo-icon-128-background.png in Resources */ = {isa = PBXBuildFile; fileRef = CB2587B81A0D668A003542AC /* hilo-icon-128-background.png */; };
 		CB2E91831A1552D700067053 /* DSMultilineLabelNode.m in Sources */ = {isa = PBXBuildFile; fileRef = CB2E91821A1552D700067053 /* DSMultilineLabelNode.m */; };
 		CB2ED87419D9AB8C0021CF86 /* grass.jpg in Resources */ = {isa = PBXBuildFile; fileRef = CB2ED87319D9AB8C0021CF86 /* grass.jpg */; };
-		CB3FBDCD1889860A00CE5BBD /* QuadTree.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */; };
 		CB485D88196ECE2B00E8646B /* ChallengeLevels.plist in Resources */ = {isa = PBXBuildFile; fileRef = CB485D87196ECE2B00E8646B /* ChallengeLevels.plist */; };
 		CB485D92196ED4D900E8646B /* FLConstants.m in Sources */ = {isa = PBXBuildFile; fileRef = CB485D91196ED4D900E8646B /* FLConstants.m */; };
 		CB485D95196EE0CC00E8646B /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = CB485D93196EE0CC00E8646B /* Localizable.strings */; };
@@ -34,6 +34,7 @@
 		CB6F6E831A03E9A9003112D8 /* brr-bring.caf in Resources */ = {isa = PBXBuildFile; fileRef = CB6F6E821A03E8E2003112D8 /* brr-bring.caf */; };
 		CB7B494C18D39E1C00FACEF4 /* FLLinks.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB7B494A18D39E1C00FACEF4 /* FLLinks.mm */; };
 		CB82BA311A04612E00B2E503 /* FLGoalsNode.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB82BA301A04612E00B2E503 /* FLGoalsNode.mm */; };
+		CB8E4CBC1A2503F600330611 /* DenseSectorTableTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB8E4CBB1A2503F600330611 /* DenseSectorTableTests.mm */; };
 		CB929EAE18B93AE200543F25 /* FLSegmentNode.mm in Sources */ = {isa = PBXBuildFile; fileRef = CB929EAD18B93AE200543F25 /* FLSegmentNode.mm */; };
 		CB960300196B86FF00569870 /* engine.png in Resources */ = {isa = PBXBuildFile; fileRef = CB9602EC196B86FF00569870 /* engine.png */; };
 		CB960306196B86FF00569870 /* menu-button.png in Resources */ = {isa = PBXBuildFile; fileRef = CB9602F2196B86FF00569870 /* menu-button.png */; };
@@ -79,6 +80,16 @@
 		CBFCCE611A1BDB6600A598E5 /* FLApplication.m in Sources */ = {isa = PBXBuildFile; fileRef = CBFCCE601A1BDB6600A598E5 /* FLApplication.m */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		CB8E4CB61A2503BA00330611 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CBB4B7ED183C00E1003C3444 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CBB4B7F4183C00E1003C3444;
+			remoteInfo = Flippy;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		0E26A1CC5842D2D6A69C2939 /* Pods-Flippy.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Flippy.release.xcconfig"; path = "Pods/Target Support Files/Pods-Flippy/Pods-Flippy.release.xcconfig"; sourceTree = "<group>"; };
 		CB0464A318AA6F7F00ABCA03 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
@@ -88,6 +99,8 @@
 		CB05B3B4196B358800FF58A5 /* levels */ = {isa = PBXFileReference; lastKnownFileType = folder; path = levels; sourceTree = "<group>"; };
 		CB0DA5A418B7D8CE00E43D34 /* FLPath.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLPath.mm; sourceTree = "<group>"; };
 		CB0DA5A518B7D8CE00E43D34 /* FLPath.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLPath.h; sourceTree = "<group>"; };
+		CB0FBEF11A23944C0024CFBD /* DenseSectorTable.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = DenseSectorTable.cpp; sourceTree = "<group>"; };
+		CB0FBEF21A23944C0024CFBD /* DenseSectorTable.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; fileEncoding = 4; path = DenseSectorTable.h; sourceTree = "<group>"; };
 		CB17FD7719C8A69000DECE5E /* train-whistle-tune-1.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "train-whistle-tune-1.caf"; sourceTree = "<group>"; };
 		CB17FD7919C8A7B800DECE5E /* ka-chick.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ka-chick.caf"; sourceTree = "<group>"; };
 		CB17FD7B19C8AAD100DECE5E /* pop-2.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "pop-2.caf"; sourceTree = "<group>"; };
@@ -101,8 +114,6 @@
 		CB2E91811A1552D700067053 /* DSMultilineLabelNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = DSMultilineLabelNode.h; path = ../../DSMultilineLabelNode/DSMultilineLabelNode.h; sourceTree = "<group>"; };
 		CB2E91821A1552D700067053 /* DSMultilineLabelNode.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = DSMultilineLabelNode.m; path = ../../DSMultilineLabelNode/DSMultilineLabelNode.m; sourceTree = "<group>"; };
 		CB2ED87319D9AB8C0021CF86 /* grass.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = grass.jpg; sourceTree = "<group>"; };
-		CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = QuadTree.cpp; sourceTree = "<group>"; };
-		CB3FBDCC1889860A00CE5BBD /* QuadTree.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = QuadTree.h; sourceTree = "<group>"; };
 		CB485D87196ECE2B00E8646B /* ChallengeLevels.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = ChallengeLevels.plist; sourceTree = "<group>"; };
 		CB485D90196ED4D900E8646B /* FLConstants.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLConstants.h; sourceTree = "<group>"; };
 		CB485D91196ED4D900E8646B /* FLConstants.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FLConstants.m; sourceTree = "<group>"; };
@@ -117,6 +128,9 @@
 		CB7B494B18D39E1C00FACEF4 /* FLLinks.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLLinks.h; sourceTree = "<group>"; };
 		CB82BA2F1A04612E00B2E503 /* FLGoalsNode.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; path = FLGoalsNode.h; sourceTree = "<group>"; };
 		CB82BA301A04612E00B2E503 /* FLGoalsNode.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLGoalsNode.mm; sourceTree = "<group>"; };
+		CB8E4CB01A2503BA00330611 /* Flippy Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Flippy Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		CB8E4CB31A2503BA00330611 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		CB8E4CBB1A2503F600330611 /* DenseSectorTableTests.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = DenseSectorTableTests.mm; path = "Flippy Tests/DenseSectorTableTests.mm"; sourceTree = SOURCE_ROOT; };
 		CB929EAC18B93AE200543F25 /* FLSegmentNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLSegmentNode.h; sourceTree = "<group>"; };
 		CB929EAD18B93AE200543F25 /* FLSegmentNode.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLSegmentNode.mm; sourceTree = "<group>"; };
 		CB9602EC196B86FF00569870 /* engine.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = engine.png; sourceTree = "<group>"; };
@@ -174,6 +188,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		CB8E4CAD1A2503BA00330611 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		CBB4B7F2183C00E1003C3444 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -207,6 +228,23 @@
 				CBA5ED511906FECD00DBF36E /* gates */,
 			);
 			name = Saves;
+			sourceTree = "<group>";
+		};
+		CB8E4CB11A2503BA00330611 /* Flippy Tests */ = {
+			isa = PBXGroup;
+			children = (
+				CB8E4CBB1A2503F600330611 /* DenseSectorTableTests.mm */,
+				CB8E4CB21A2503BA00330611 /* Supporting Files */,
+			);
+			path = "Flippy Tests";
+			sourceTree = "<group>";
+		};
+		CB8E4CB21A2503BA00330611 /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				CB8E4CB31A2503BA00330611 /* Info.plist */,
+			);
+			name = "Supporting Files";
 			sourceTree = "<group>";
 		};
 		CB9602E9196B86B000569870 /* Images */ = {
@@ -280,6 +318,7 @@
 			isa = PBXGroup;
 			children = (
 				CBB4B800183C00E1003C3444 /* Flippy */,
+				CB8E4CB11A2503BA00330611 /* Flippy Tests */,
 				CBB4B7F7183C00E1003C3444 /* Frameworks */,
 				CB4E6A49197CAEA600385300 /* HLProject.xcconfig */,
 				4ED7E1C4DCA5F97D4E71C794 /* Pods */,
@@ -291,6 +330,7 @@
 			isa = PBXGroup;
 			children = (
 				CBB4B7F5183C00E1003C3444 /* Flippy.app */,
+				CB8E4CB01A2503BA00330611 /* Flippy Tests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -313,6 +353,8 @@
 			children = (
 				CB960340196B892300569870 /* Atlases */,
 				CB960312196B878F00569870 /* Audio */,
+				CB0FBEF11A23944C0024CFBD /* DenseSectorTable.cpp */,
+				CB0FBEF21A23944C0024CFBD /* DenseSectorTable.h */,
 				CB2E91811A1552D700067053 /* DSMultilineLabelNode.h */,
 				CB2E91821A1552D700067053 /* DSMultilineLabelNode.m */,
 				CB960313196B87AE00569870 /* Emitters */,
@@ -343,8 +385,6 @@
 				CB2E3250198BF31000720EAA /* fnv.h */,
 				CB9602E9196B86B000569870 /* Images */,
 				CBB4B81A183C00E1003C3444 /* Images.xcassets */,
-				CB3FBDCB1889860A00CE5BBD /* QuadTree.cpp */,
-				CB3FBDCC1889860A00CE5BBD /* QuadTree.h */,
 				CB05B3B6196B35A200FF58A5 /* Saves */,
 				CBB4B801183C00E1003C3444 /* Supporting Files */,
 			);
@@ -370,6 +410,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		CB8E4CAF1A2503BA00330611 /* Flippy Tests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CB8E4CBA1A2503BA00330611 /* Build configuration list for PBXNativeTarget "Flippy Tests" */;
+			buildPhases = (
+				CB8E4CAC1A2503BA00330611 /* Sources */,
+				CB8E4CAD1A2503BA00330611 /* Frameworks */,
+				CB8E4CAE1A2503BA00330611 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				CB8E4CB71A2503BA00330611 /* PBXTargetDependency */,
+			);
+			name = "Flippy Tests";
+			productName = "Flippy Tests";
+			productReference = CB8E4CB01A2503BA00330611 /* Flippy Tests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		CBB4B7F4183C00E1003C3444 /* Flippy */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = CBB4B831183C00E1003C3444 /* Build configuration list for PBXNativeTarget "Flippy" */;
@@ -399,6 +457,10 @@
 				LastUpgradeCheck = 0510;
 				ORGANIZATIONNAME = "Hilo Games";
 				TargetAttributes = {
+					CB8E4CAF1A2503BA00330611 = {
+						CreatedOnToolsVersion = 6.1;
+						TestTargetID = CBB4B7F4183C00E1003C3444;
+					};
 					CBB4B7F4183C00E1003C3444 = {
 						DevelopmentTeam = L2559SMXTM;
 					};
@@ -418,11 +480,19 @@
 			projectRoot = "";
 			targets = (
 				CBB4B7F4183C00E1003C3444 /* Flippy */,
+				CB8E4CAF1A2503BA00330611 /* Flippy Tests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		CB8E4CAE1A2503BA00330611 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		CBB4B7F3183C00E1003C3444 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -515,12 +585,21 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		CB8E4CAC1A2503BA00330611 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CB8E4CBC1A2503F600330611 /* DenseSectorTableTests.mm in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		CBB4B7F1183C00E1003C3444 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				CBFCCE611A1BDB6600A598E5 /* FLApplication.m in Sources */,
 				CB82BA311A04612E00B2E503 /* FLGoalsNode.mm in Sources */,
+				CB0FBEF31A23944C0024CFBD /* DenseSectorTable.cpp in Sources */,
 				CBB4B817183C00E1003C3444 /* FLTrackScene.mm in Sources */,
 				CB50C21718BF8F140072DA30 /* FLTrackGrid.mm in Sources */,
 				CBB4B80B183C00E1003C3444 /* FLAppDelegate.mm in Sources */,
@@ -528,7 +607,6 @@
 				CB0DA5A618B7D8CE00E43D34 /* FLPath.mm in Sources */,
 				CB929EAE18B93AE200543F25 /* FLSegmentNode.mm in Sources */,
 				CB2E91831A1552D700067053 /* DSMultilineLabelNode.m in Sources */,
-				CB3FBDCD1889860A00CE5BBD /* QuadTree.cpp in Sources */,
 				CB485D92196ED4D900E8646B /* FLConstants.m in Sources */,
 				CBB4B807183C00E1003C3444 /* main.m in Sources */,
 				CBB4B814183C00E1003C3444 /* FLViewController.mm in Sources */,
@@ -538,6 +616,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		CB8E4CB71A2503BA00330611 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CBB4B7F4183C00E1003C3444 /* Flippy */;
+			targetProxy = CB8E4CB61A2503BA00330611 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		CB485D93196EE0CC00E8646B /* Localizable.strings */ = {
@@ -559,6 +645,60 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
+		CB8E4CB81A2503BA00330611 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(SDKROOT)/Developer/Library/Frameworks",
+					"$(inherited)",
+				);
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_FILE = "Flippy Tests/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 8.1;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				MTL_ENABLE_DEBUG_INFO = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Flippy.app/Flippy";
+			};
+			name = Debug;
+		};
+		CB8E4CB91A2503BA00330611 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(SDKROOT)/Developer/Library/Frameworks",
+					"$(inherited)",
+				);
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_FILE = "Flippy Tests/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 8.1;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				MTL_ENABLE_DEBUG_INFO = NO;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Flippy.app/Flippy";
+			};
+			name = Release;
+		};
 		CBB4B82F183C00E1003C3444 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = CB4E6A49197CAEA600385300 /* HLProject.xcconfig */;
@@ -715,6 +855,14 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		CB8E4CBA1A2503BA00330611 /* Build configuration list for PBXNativeTarget "Flippy Tests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CB8E4CB81A2503BA00330611 /* Debug */,
+				CB8E4CB91A2503BA00330611 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+		};
 		CBB4B7F0183C00E1003C3444 /* Build configuration list for PBXProject "Flippy" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

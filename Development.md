@@ -10,18 +10,14 @@
 
 ## Current Tasks
 
-- Infinite grid and real quadtree.
+- BUG: Long-press scroll is bouncing back weirdly on release (to
+  include first thing pressed, as if it were part of the selection?).
 
-    - QuadTree and SKNode hierarchy should be coordinated, and load/unload
-      cells/areas/tiles at the same time.
+- BUG: track edit menu not usable at top row of world.
 
-    - Maybe best to try and find implementations of this, and adapt
-      one for our use.
+- BUG: "New Records!" should be singular if only one record.
 
-    - Perhaps at the same time generate terrain in a way that is less
-      uniform than just a tiled image.  At one point I had an idea to
-      do random patches of squares in earth tones, procedurally
-      generated like Minecraft.
+- Color "Level X:" and "Goals:" headers in Goals screen.
 
 - Either implement a simple undo stack to undo deletions, or else make
   the delete button be long-press.  Simple undo stack: Save deletion to
@@ -39,7 +35,13 @@
 
     - guns: fire a mortar to attack someone else's track.
 
-- https://developer.apple.com/library/ios/documentation/IDEs/Conceptual/AppDistributionGuide/ConfiguringYourApp/ConfiguringYourApp.html#//apple_ref/doc/uid/TP40012582-CH28-SW4
+- Check all sources of user input: try to overflow buffers.
+
+- Submit app to store.
+
+https://developer.apple.com/library/ios/documentation/IDEs/Conceptual/AppDistributionGuide/ConfiguringYourApp/ConfiguringYourApp.html#//apple_ref/doc/uid/TP40012582-CH28-SW4
+
+- Put app store link in README.md.
 
 - Upload Flippy to github.  Can't have HLSpriteKit be a development
   dependency anymore, though . . . or can you?
@@ -47,10 +49,19 @@
 - Add a forum to hilogames.com, with development and game topics.  If
   so, add a link to the README.md.
 
-- Put app store link in README.md.
-
 
 ## Future Tasks
+
+- Infinite grid.  Restrict minimum zoom, but have no world size.
+  Display unused sectors in gray or something, to make it easier to
+  find your way back to used sectors.  Or: scroll only to the edge of
+  current content plus 10 segments, or something, which then enlarges
+  as more segments are added (or even dragged through).  Consider some
+  other kind of world navigation tool for navigation between far flung
+  sectors (e.g. an overlay which shows a map of all used sectors on a
+  grid, and you can tap the sector to which you want to navigate).
+  Persist distant sectors to disk and load on demand.  Remove their
+  FLSegmentNodes from the SKScene node tree, and re-add as needed.
 
 - Draw Retina assets for non-pixelated artwork (e.g. toolbar buttons).
   Create tools@2x.atlas and tools@3x atlast.
@@ -84,6 +95,10 @@
   NSKeyedUnarchiver with binary XML data, and then scanning through
   it, require too much time even without encoding the track scene
   within?)
+
+- Generate terrain in a way that is less uniform than just a tiled
+  image?  At one point I had an idea to do clustered patches of
+  squares in earth tones, procedurally generated.
 
 - Track destruction of readout and platform should not show the
   same particle emitters as normal segments.
