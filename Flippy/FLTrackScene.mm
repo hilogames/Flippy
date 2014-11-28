@@ -45,7 +45,9 @@ static const CGFloat FLWorldXMin = -FLWorldSize.width / 2.0f;
 static const CGFloat FLWorldXMax = FLWorldXMin + FLWorldSize.width;
 static const CGFloat FLWorldYMin = -FLWorldSize.height / 2.0f;
 static const CGFloat FLWorldYMax = FLWorldYMin + FLWorldSize.height;
-static const CGFloat FLOffWorldScreenMargin = 30.0f;
+// note: This needs to be large enough on the top edge of the world to allow the track edit
+// menu to be accessible from under the simulation toolbar.
+static const CGFloat FLOffWorldScreenMargin = 75.0f;
 
 // Main layers.
 static const CGFloat FLZPositionWorld = 0.0f;

@@ -10,8 +10,6 @@
 
 ## Current Tasks
 
-- BUG: track edit menu not usable at top row of world.
-
 - BUG: "New Records!" should be singular if only one record.
 
 - Color "Level X:" and "Goals:" headers in Goals screen.
