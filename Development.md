@@ -10,8 +10,6 @@
 
 ## Current Tasks
 
-- BUG: "New Records!" should be singular if only one record.
-
 - Color "Level X:" and "Goals:" headers in Goals screen.
 
 - Either implement a simple undo stack to undo deletions, or else make

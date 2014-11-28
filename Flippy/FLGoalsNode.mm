@@ -672,7 +672,8 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
                   parent:(SKNode *)parent
 {
   BOOL firstOne = YES;
-  for (NSUInteger r = 0; r < [recordTexts count]; ++r) {
+  NSUInteger recordTextsCount = [recordTexts count];
+  for (NSUInteger r = 0; r < recordTextsCount; ++r) {
     
     if (firstOne) {
       [parent addChild:[SKNode node]];
@@ -681,8 +682,13 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
       headerNode.verticalAlignmentMode = SKLabelVerticalAlignmentModeBaseline;
       headerNode.fontSize = 14.0f;
       headerNode.fontColor = FLInterfaceColorMaybe();
-      headerNode.text = NSLocalizedString(@"New Records!",
-                                          @"Goals screen: header displayed over a table of new records after level victory.");
+      if (recordTextsCount == 1) {
+        headerNode.text = NSLocalizedString(@"New Record!",
+                                            @"Goals screen: header displayed over (exactly one) new record after level victory.");
+      } else {
+        headerNode.text = NSLocalizedString(@"New Records!",
+                                            @"Goals screen: header displayed over a table of (more than one) new records after level victory.");
+      }
       [parent addChild:headerNode];
       [parent addChild:[SKNode node]];
       [parent addChild:[SKNode node]];
