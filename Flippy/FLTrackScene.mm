@@ -1094,11 +1094,22 @@ struct PointerPairHash
 
   } else if (gestureRecognizer.state == UIGestureRecognizerStateEnded) {
     [self FL_worldAutoScrollDisable];
-    [self FL_worldFitSegments:_trackSelectState.selectedSegments scaling:YES scrolling:YES includeTrackEditMenu:YES animated:YES];
+    // note: Long press can be used not for selection but just for auto-scroll; in that case,
+    // we don't want to bounce back to the old selection.  In fact, if the user gets too accustomed
+    // to auto-scroll this way, she might not want world-fit even when doing selection painting.
+    // Maybe slightly better than this would be to not world-fit when the selection does not change
+    // from the beginning of the gesture.
+    if (_worldGestureState.longPressMode != FLWorldLongPressModeNone
+        && [self FL_trackSelectedCount] > 1) {
+      [self FL_worldFitSegments:_trackSelectState.selectedSegments scaling:YES scrolling:YES includeTrackEditMenu:YES animated:YES];
+    }
     [self FL_trackEditMenuUpdateAnimated:YES];
   } else if (gestureRecognizer.state == UIGestureRecognizerStateCancelled) {
     [self FL_worldAutoScrollDisable];
-    [self FL_worldFitSegments:_trackSelectState.selectedSegments scaling:YES scrolling:YES includeTrackEditMenu:YES animated:YES];
+    if (_worldGestureState.longPressMode != FLWorldLongPressModeNone
+        && [self FL_trackSelectedCount] > 1) {
+      [self FL_worldFitSegments:_trackSelectState.selectedSegments scaling:YES scrolling:YES includeTrackEditMenu:YES animated:YES];
+    }
     [self FL_trackEditMenuUpdateAnimated:YES];
   }
 }

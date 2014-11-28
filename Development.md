@@ -10,9 +10,6 @@
 
 ## Current Tasks
 
-- BUG: Long-press scroll is bouncing back weirdly on release (to
-  include first thing pressed, as if it were part of the selection?).
-
 - BUG: track edit menu not usable at top row of world.
 
 - BUG: "New Records!" should be singular if only one record.
