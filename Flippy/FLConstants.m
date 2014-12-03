@@ -61,6 +61,7 @@ FLChallengeLevelsInfo(int gameLevel, FLChallengeLevelsInfoKey infoKey)
 }
 
 NSString *FLInterfaceFontName = @"Courier";
+NSString *FLInterfaceBoldFontName = @"Courier-Bold";
 
 SKColor *
 FLInterfaceColorDark()

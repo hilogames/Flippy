@@ -34,6 +34,11 @@ FOUNDATION_EXPORT id FLChallengeLevelsInfo(int gameLevel, FLChallengeLevelsInfoK
 FOUNDATION_EXPORT NSString *FLInterfaceFontName;
 
 /**
+ * The bold application font.
+ */
+FOUNDATION_EXPORT NSString *FLInterfaceBoldFontName;
+
+/**
  * Standard application colors.
  */
 FOUNDATION_EXPORT SKColor *FLInterfaceColorDark();

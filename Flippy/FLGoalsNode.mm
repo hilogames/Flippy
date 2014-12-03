@@ -19,16 +19,22 @@ static const CGFloat FLZPositionContent = 0.0f;
 static const CGFloat FLZPositionHappyBursts = 1.0f;
 static const CGFloat FLZPositionCoverAll = 2.0f;
 
-static const CGFloat FLLayoutNodeSpacerVertical = 10.0f;
+static const CGFloat FLLayoutNodeSpacerVertical = 12.0f;
 static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
+static const CGFloat FLLayoutNodeLabelPad = 3.0f;
+static const CGFloat FLLayoutNodeComponentPad = 7.0f;
 
 @implementation FLGoalsNode
 {
   FLGameType _gameType;
   int _gameLevel;
 
-  DSMultilineLabelNode *_introNode;
-  DSMultilineLabelNode *_truthHeaderNode;
+  SKLabelNode *_introLevelHeaderNode;
+  SKLabelNode *_introLevelTitleNode;
+  SKLabelNode *_introGoalsHeaderNode;
+  SKLabelNode *_introGoalsShortNode;
+  DSMultilineLabelNode *_introGoalsLongNode;
+  SKLabelNode *_truthHeaderNode;
   HLGridNode *_truthTableNode;
   DSMultilineLabelNode *_truthFooterNode;
   HLLabelButtonNode *_victoryButton;
@@ -54,20 +60,52 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
 
 - (void)createIntro
 {
-  _introNode = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
-  _introNode.zPosition = FLZPositionContent;
-  _introNode.fontSize = 18.0f;
-  _introNode.fontColor = [SKColor whiteColor];
+
   if (_gameType == FLGameTypeChallenge) {
-    _introNode.text = [NSString stringWithFormat:@"%@ %d:\n“%@”\n\n%@:\n%@\n\n%@",
-                       NSLocalizedString(@"Level", @"Goals screen: followed by a level number."),
-                       _gameLevel,
-                       FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsTitle),
-                       NSLocalizedString(@"Goals", @"Goals screen: the header over the description of goals for the current level."),
-                       FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsGoalShort),
-                       FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsGoalLong)];
+    _introLevelHeaderNode = [SKLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
+    _introLevelHeaderNode.zPosition = FLZPositionContent;
+    _introLevelHeaderNode.fontSize = 18.0f;
+    _introLevelHeaderNode.fontColor = FLInterfaceColorMaybe();
+    _introLevelHeaderNode.text = [NSString stringWithFormat:NSLocalizedString(@"Level %d",
+                                                                              @"Goals screen: a header for the current challenge level with {level number}."),
+                                  _gameLevel];
+  }
+
+  _introLevelTitleNode = [SKLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
+  _introLevelTitleNode.zPosition = FLZPositionContent;
+  _introLevelTitleNode.fontSize = 18.0f;
+  _introLevelTitleNode.fontColor = [SKColor whiteColor];
+  if (_gameType == FLGameTypeChallenge) {
+    _introLevelTitleNode.text = [NSString stringWithFormat:NSLocalizedString(@"“%@”",
+                                                                             @"Goals screen: a way of presenting the current challenge level title."),
+                                 FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsTitle)];
   } else {
-    _introNode.text = FLGameTypeSandboxTitle();
+    _introLevelTitleNode.text = FLGameTypeSandboxTitle();
+  }
+
+  if (_gameType == FLGameTypeChallenge) {
+    _introGoalsHeaderNode = [SKLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
+    _introGoalsHeaderNode.zPosition = FLZPositionContent;
+    _introGoalsHeaderNode.fontSize = 18.0f;
+    _introGoalsHeaderNode.fontColor = FLInterfaceColorMaybe();
+    _introGoalsHeaderNode.text = NSLocalizedString(@"Goals",
+                                                   @"Goals screen: a title for the goals of the current challenge level.");
+  }
+
+  if (_gameType == FLGameTypeChallenge) {
+    _introGoalsShortNode = [SKLabelNode labelNodeWithFontNamed:FLInterfaceBoldFontName];
+    _introGoalsShortNode.zPosition = FLZPositionContent;
+    _introGoalsShortNode.fontSize = 18.0f;
+    _introGoalsShortNode.fontColor = FLInterfaceColorLight();
+    _introGoalsShortNode.text = FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsGoalShort);
+  }
+
+  if (_gameType == FLGameTypeChallenge) {
+    _introGoalsLongNode = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
+    _introGoalsLongNode.zPosition = FLZPositionContent;
+    _introGoalsLongNode.fontSize = 18.0f;
+    _introGoalsLongNode.fontColor = [SKColor whiteColor];
+    _introGoalsLongNode.text = FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsGoalLong);
   }
 }
 
@@ -76,11 +114,11 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
   BOOL victory = NO;
 
   // Header.
-  _truthHeaderNode = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
+  _truthHeaderNode = [SKLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
   _truthHeaderNode.zPosition = FLZPositionContent;
   _truthHeaderNode.fontSize = 18.0f;
-  _truthHeaderNode.fontColor = [SKColor whiteColor];
-  _truthHeaderNode.text = NSLocalizedString(@"Current Results:",
+  _truthHeaderNode.fontColor = FLInterfaceColorMaybe();
+  _truthHeaderNode.text = NSLocalizedString(@"Current Results",
                                             @"Goals screen: the header over the displayed results of the current level solution.");
 
   // Truth table (if possible) and footer.
@@ -124,7 +162,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
     _truthFooterNode.fontColor = truthFooterColor;
     _truthFooterNode.text = truthFooterText;
   }
-  
+
   return victory;
 }
 
@@ -142,6 +180,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
   if (_gameLevel + 1 < FLChallengeLevelsCount()) {
     _victoryButton = FLInterfaceLabelButton();
     _victoryButton.zPosition = FLZPositionContent;
+    _victoryButton.anchorPoint = CGPointMake(0.5f, 1.0f);
     _victoryButton.text = NSLocalizedString(@"Next Level",
                                             @"Goals screen: button that takes you to the next level of a challenge game.");
   }
@@ -157,6 +196,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
                                                                                                [NSValue valueWithCGPoint:CGPointMake(0.0f, 0.25f)],
                                                                                                [NSValue valueWithCGPoint:CGPointMake(1.0f, 0.25f)] ]
                                                                                  rowHeights:@[ @(20.0f) ]];
+    layoutManager.anchorPoint = CGPointMake(0.5f, 1.0f);
     layoutManager.columnSeparator = 8.0f;
     [victoryDetailsNode hlSetLayoutManager:layoutManager];
     [victoryDetailsNode hlLayoutChildren];
@@ -168,8 +208,11 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
 - (void)layout
 {
   NSMutableArray *layoutNodes = [NSMutableArray array];
-  vector<CGSize> layoutNodeSizes;
-  
+  vector<CGFloat> layoutNodeWidths;
+  layoutNodeWidths.reserve(20);
+  vector<CGFloat> layoutNodeHeights;
+  layoutNodeHeights.reserve(20);
+
   // note: If a call to layout happens during reveal, then we should layout all nodes, but
   // don't add to parent any nodes that aren't currently added to parent.
   NSArray *previouslyAddedToParent = nil;
@@ -186,58 +229,97 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
   CGFloat edgeSizeMax = MIN(MIN(_sceneSize.width - FLLayoutNodeSpacerHorizontal * 2.0f,
                                 _sceneSize.height - FLLayoutNodeSpacerVertical * 2.0f),
                             FLDSMultilineLabelParagraphWidthReadableMax);
-  
-  if (_introNode) {
-    [layoutNodes addObject:_introNode];
-    _introNode.paragraphWidth = edgeSizeMax - FLDSMultilineLabelParagraphWidthBugWorkaroundPad;
-    layoutNodeSizes.emplace_back(_introNode.size);
+
+  if (_introLevelHeaderNode) {
+    [layoutNodes addObject:_introLevelHeaderNode];
+    _introLevelHeaderNode.verticalAlignmentMode = SKLabelVerticalAlignmentModeTop;
+    layoutNodeWidths.emplace_back(_introLevelHeaderNode.frame.size.width);
+    layoutNodeHeights.emplace_back(_introLevelHeaderNode.frame.size.height + FLLayoutNodeLabelPad);
+  }
+  if (_introLevelTitleNode) {
+    [layoutNodes addObject:_introLevelTitleNode];
+    _introLevelTitleNode.verticalAlignmentMode = SKLabelVerticalAlignmentModeTop;
+    layoutNodeWidths.emplace_back(_introLevelTitleNode.frame.size.width);
+    layoutNodeHeights.emplace_back(_introLevelTitleNode.frame.size.height + FLLayoutNodeSpacerVertical);
+  }
+  if (_introGoalsHeaderNode) {
+    [layoutNodes addObject:_introGoalsHeaderNode];
+    _introGoalsHeaderNode.verticalAlignmentMode = SKLabelVerticalAlignmentModeTop;
+    layoutNodeWidths.emplace_back(_introGoalsHeaderNode.frame.size.width);
+    layoutNodeHeights.emplace_back(_introGoalsHeaderNode.frame.size.height + FLLayoutNodeLabelPad);
+  }
+  if (_introGoalsShortNode) {
+    [layoutNodes addObject:_introGoalsShortNode];
+    _introGoalsShortNode.verticalAlignmentMode = SKLabelVerticalAlignmentModeTop;
+    layoutNodeWidths.emplace_back(_introGoalsShortNode.frame.size.width);
+    layoutNodeHeights.emplace_back(_introGoalsShortNode.frame.size.height + FLLayoutNodeLabelPad);
+  }
+  if (_introGoalsLongNode) {
+    [layoutNodes addObject:_introGoalsLongNode];
+    _introGoalsLongNode.anchorPoint = CGPointMake(0.5f, 1.0f);
+    _introGoalsLongNode.paragraphWidth = edgeSizeMax - FLDSMultilineLabelParagraphWidthBugWorkaroundPad;
+    layoutNodeWidths.emplace_back(_introGoalsLongNode.size.width);
+    layoutNodeHeights.emplace_back(_introGoalsLongNode.size.height + FLLayoutNodeSpacerVertical);
   }
   if (_truthHeaderNode) {
     [layoutNodes addObject:_truthHeaderNode];
-    _truthHeaderNode.paragraphWidth = edgeSizeMax - FLDSMultilineLabelParagraphWidthBugWorkaroundPad;
-    layoutNodeSizes.emplace_back(_truthHeaderNode.size);
+    _truthHeaderNode.verticalAlignmentMode = SKLabelVerticalAlignmentModeTop;
+    layoutNodeWidths.emplace_back(_truthHeaderNode.frame.size.width);
+    layoutNodeHeights.emplace_back(_truthHeaderNode.frame.size.height + FLLayoutNodeComponentPad);
   }
   if (_truthTableNode) {
     [layoutNodes addObject:_truthTableNode];
-    layoutNodeSizes.emplace_back(_truthTableNode.size);
+    layoutNodeWidths.emplace_back(_truthTableNode.size.width);
+    layoutNodeHeights.emplace_back(_truthTableNode.size.height + FLLayoutNodeComponentPad);
   }
   if (_truthFooterNode) {
     [layoutNodes addObject:_truthFooterNode];
+    _truthFooterNode.anchorPoint = CGPointMake(0.5f, 1.0f);
     _truthFooterNode.paragraphWidth = edgeSizeMax - FLDSMultilineLabelParagraphWidthBugWorkaroundPad;
-    layoutNodeSizes.emplace_back(_truthFooterNode.size);
+    layoutNodeWidths.emplace_back(_truthFooterNode.size.width);
+    layoutNodeHeights.emplace_back(_truthFooterNode.size.height + FLLayoutNodeSpacerVertical);
   }
   if (_victoryButton) {
     [layoutNodes addObject:_victoryButton];
-    layoutNodeSizes.emplace_back(_victoryButton.size);
+    layoutNodeWidths.emplace_back(_victoryButton.size.width);
+    layoutNodeHeights.emplace_back(_victoryButton.size.height + FLLayoutNodeSpacerVertical);
   }
   if (_victoryDetailsNode) {
     [layoutNodes addObject:_victoryDetailsNode];
     HLTableLayoutManager *layoutManager = (HLTableLayoutManager *)_victoryDetailsNode.hlLayoutManager;
-    layoutNodeSizes.emplace_back(layoutManager.size);
+    layoutNodeWidths.emplace_back(layoutManager.size.width);
+    layoutNodeHeights.emplace_back(layoutManager.size.height);
   }
-  
+
   SKNode *contentNode = [SKNode node];
   CGSize contentSize = CGSizeZero;
-  for (NSUInteger i = 0; i < [layoutNodes count]; ++i) {
-    CGSize layoutNodeSize = layoutNodeSizes[i];
-    if (layoutNodeSize.width > contentSize.width) {
-      contentSize.width = layoutNodeSize.width;
+  for (CGFloat width : layoutNodeWidths) {
+    if (width > contentSize.width) {
+      contentSize.width = width;
     }
-    contentSize.height += layoutNodeSize.height;
+  }
+  for (CGFloat height : layoutNodeHeights) {
+    contentSize.height += height;
   }
   contentSize.width += 2.0f * FLLayoutNodeSpacerHorizontal;
-  contentSize.height += ([layoutNodes count] + 1) * FLLayoutNodeSpacerVertical;
+  contentSize.height += 2.0f * FLLayoutNodeSpacerVertical;
   CGFloat layoutNodeY = contentSize.height / 2.0f - FLLayoutNodeSpacerVertical;
   for (NSUInteger i = 0; i < [layoutNodes count]; ++i) {
     id layoutNode = layoutNodes[i];
-    CGSize layoutNodeSize = layoutNodeSizes[i];
-    [layoutNode setPosition:CGPointMake(0.0f, layoutNodeY - layoutNodeSize.height / 2.0f)];
-    layoutNodeY -= (layoutNodeSize.height + FLLayoutNodeSpacerVertical);
+    CGFloat height = layoutNodeHeights[i];
+    [layoutNode setPosition:CGPointMake(0.0f, layoutNodeY)];
     if (!previouslyAddedToParent || [previouslyAddedToParent containsObject:layoutNode]) {
       [contentNode addChild:layoutNode];
+      // commented out: But useful for debugging layout issues.
+      //SKSpriteNode *blocky = [SKSpriteNode spriteNodeWithColor:[SKColor blueColor] size:CGSizeMake(layoutNodeWidths[i], height)];
+      //blocky.zPosition = FLZPositionContent - 0.01f;
+      //blocky.anchorPoint = CGPointMake(0.5f, 1.0f);
+      //blocky.position = CGPointMake(0.0f, layoutNodeY);
+      //[contentNode addChild:blocky];
     }
+    layoutNodeY -= height;
   }
-  
+
   // noob: Need to catch gestures outside of the HLScrollNode so that tapping anywhere uninteresting
   // dismisses the goals node.  If the modal presentation code in HLScene did this for us, then we
   // wouldn't have to bother.  Or, if the FLTrackScene did this for us, then we wouldn't have to
@@ -250,7 +332,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
   SKSpriteNode *coverAllNode = [SKSpriteNode spriteNodeWithColor:[SKColor clearColor] size:coverAllNodeSize];
   coverAllNode.zPosition = FLZPositionCoverAll;
   [contentNode addChild:coverAllNode];
-  
+
   CGSize scrollNodeSize = CGSizeMake(MIN(_sceneSize.width, contentSize.width),
                                      MIN(_sceneSize.height, contentSize.height));
   self.size = scrollNodeSize;
@@ -289,7 +371,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
   CGFloat originalContentScale = self.contentScale;
   CGFloat originalContentScaleMaximum = self.contentScaleMaximum;
   HLScrollNodeContentScaleMinimumMode originalContentScaleMinimumMode = self.contentScaleMinimumMode;
-  
+
   const CGFloat FLTruthTableRevealTruthTableFlyUpScale = originalContentScale * 0.8f;
   const CGFloat FLTruthTableRevealTruthTableFlyDownScale = 1.3f;
   const NSTimeInterval FLTruthTableRevealZoomInDuration = 0.8;
@@ -298,9 +380,9 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
   const NSTimeInterval FLTruthTableRevealCorrectMaxDuration = 3.0;
   const NSTimeInterval FLTruthTableRevealOtherDuration = 0.5;
   const NSTimeInterval FLTruthTableRevealZoomOutDuration = 0.3;
-  
+
   NSMutableArray *revealActions = [NSMutableArray array];
-  
+
   SKEmitterNode *happyBurst = [[HLEmitterStore sharedStore] emitterCopyForKey:@"happyBurst"];
   happyBurst.zPosition = FLZPositionHappyBursts;
   // noob: Good practice to remove emitter node once it's finished?
@@ -310,7 +392,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
   }
   SKAction *removeHappyBurstAfterWait = [SKAction sequence:@[ [SKAction waitForDuration:particleLifetimeMax],
                                                               [SKAction removeFromParent] ]];
-  
+
   // Hide truth table correct column, and create actions to re-add them one at a time.
   if (_truthTableNode) {
     int gridWidth = _truthTableNode.gridWidth;
@@ -324,7 +406,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
       SKSpriteNode *squareNode = [_truthTableNode squareNodeForSquare:squareIndex];
       SKLabelNode *resultNode = (SKLabelNode *)[_truthTableNode contentForSquare:squareIndex];
       [_truthTableNode setContent:nil forSquare:squareIndex];
-      
+
       CGPoint resultContentLocation = [self.contentNode convertPoint:resultNode.position fromNode:squareNode];
       if (row == 1) {
         [revealActions addObject:[SKAction runBlock:^{
@@ -355,7 +437,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
         }]];
         [revealActions addObject:[SKAction waitForDuration:(correctStepDuration * 0.33f)]];
       }
-      
+
       [revealActions addObject:[SKAction playSoundFileNamed:@"pop-2.caf" waitForCompletion:NO]];
       [revealActions addObject:[SKAction runBlock:^{
         [self->_truthTableNode setContent:resultNode forSquare:squareIndex];
@@ -378,7 +460,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
       self.contentScaleMinimumMode = originalContentScaleMinimumMode;
     }]];
   }
-  
+
   // Hide truth footer node, and create an action to show it.
   if (_truthFooterNode) {
     CGPoint footerContentLocation = _truthFooterNode.position;
@@ -401,7 +483,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
     }]];
     [revealActions addObject:[SKAction waitForDuration:(FLTruthTableRevealOtherDuration * 0.66f)]];
   }
-  
+
   // Hide victory button, and create an action to show it.
   if (_victoryButton) {
     CGPoint victoryContentLocation = _victoryButton.position;
@@ -424,7 +506,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
     }]];
     [revealActions addObject:[SKAction waitForDuration:(FLTruthTableRevealOtherDuration * 0.66f)]];
   }
-  
+
   // Hide details (unlocks and records), and create actions to show them.
   if (_victoryDetailsNode) {
     HLTableLayoutManager *layoutManager = (HLTableLayoutManager *)[_victoryDetailsNode hlLayoutManager];
@@ -469,9 +551,9 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
       }
     }
   }
-  
+
   [revealActions addObject:[SKAction playSoundFileNamed:@"train-whistle-tune-1.caf" waitForCompletion:NO]];
-  
+
   [self runAction:[SKAction sequence:revealActions]];
 }
 
@@ -500,7 +582,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
   CGPoint viewLocation = [gestureRecognizer locationInView:self.scene.view];
   CGPoint sceneLocation = [self.scene convertPointFromView:viewLocation];
   CGPoint contentNodeLocation = [self.contentNode convertPoint:sceneLocation fromNode:self.scene];
-  
+
   if (_victoryButton && [_victoryButton containsPoint:contentNodeLocation]) {
     [self FL_dismissWithNextLevel:YES];
   } else {
@@ -517,7 +599,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
                                     correct:(BOOL *)correct
 {
   FLTruthTable& truthTable = trackTruthTable.truthTables[truthTableIndex];
-  
+
   int inputSize = truthTable.getInputSize();
   int outputSize = truthTable.getOutputSize();
   NSMutableArray *contentTexts = [NSMutableArray array];
@@ -526,7 +608,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
   if (correctValues) {
     ++gridWidth;
   }
-  
+
   // Specify content for header row.
   for (FLSegmentNode *inputSegmentNode in trackTruthTable.inputSegmentNodes) {
     [contentTexts addObject:[NSString stringWithFormat:@"%c", inputSegmentNode.label]];
@@ -540,7 +622,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
     [contentTexts addObject:@""];
     [contentColors addObject:[SKColor blackColor]];
   }
-  
+
   // Specify content for value rows.
   if (correctValues) {
     *correct = YES;
@@ -579,7 +661,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
       }
     }
   } while (truthTable.inputValuesSuccessor(inputValues));
-  
+
   // Create all content nodes for the grid.
   CGFloat labelWidthMax = 0.0f;
   CGFloat labelHeightMax = 0.0f;
@@ -599,11 +681,12 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
     labelNode.verticalAlignmentMode = SKLabelVerticalAlignmentModeCenter;
     [contentNodes addObject:labelNode];
   }
-  
+
   // Create grid.
   int squareCount = gridWidth * (truthTable.getRowCount() + 1);
   HLGridNode *gridNode = [[HLGridNode alloc] initWithGridWidth:gridWidth
                                                    squareCount:squareCount
+                                                   anchorPoint:CGPointMake(0.5f, 1.0f)
                                                     layoutMode:HLGridNodeLayoutModeAlignLeft
                                                     squareSize:CGSizeMake(labelWidthMax + 6.0f, labelHeightMax + 6.0f)
                                           backgroundBorderSize:1.0f
@@ -621,7 +704,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
   //      [gridNode setHighlight:YES forSquare:s];
   //    }
   //  }
-  
+
   return gridNode;
 }
 
@@ -645,12 +728,12 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
       [parent addChild:[SKNode node]];
       firstOne = NO;
     }
-    
+
     SKSpriteNode *iconNode = [SKSpriteNode spriteNodeWithTexture:[[HLTextureStore sharedStore] textureForKey:@"unlock"]
                                                             size:CGSizeMake(25.0f, 25.0f)];
     iconNode.zRotation = (CGFloat)M_PI_2;
     [parent addChild:iconNode];
-    
+
     SKLabelNode *labelNode = [SKLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
     labelNode.horizontalAlignmentMode = SKLabelHorizontalAlignmentModeLeft;
     labelNode.verticalAlignmentMode = SKLabelVerticalAlignmentModeBaseline;
@@ -658,9 +741,9 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
     labelNode.fontColor = FLInterfaceColorLight();
     labelNode.text = unlockText;
     [parent addChild:labelNode];
-    
+
     [parent addChild:[SKNode node]];
-    
+
     [parent addChild:[SKNode node]];
   }
 }
@@ -674,7 +757,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
   BOOL firstOne = YES;
   NSUInteger recordTextsCount = [recordTexts count];
   for (NSUInteger r = 0; r < recordTextsCount; ++r) {
-    
+
     if (firstOne) {
       [parent addChild:[SKNode node]];
       SKLabelNode *headerNode = [SKLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
@@ -694,12 +777,12 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
       [parent addChild:[SKNode node]];
       firstOne = NO;
     }
-    
+
     SKSpriteNode *iconNode = [SKSpriteNode spriteNodeWithTexture:[[HLTextureStore sharedStore] textureForKey:@"goals"]
                                                             size:CGSizeMake(22.0f, 22.0f)];
     iconNode.zRotation = (CGFloat)M_PI_2;
     [parent addChild:iconNode];
-    
+
     SKLabelNode *labelNode = [SKLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
     labelNode.horizontalAlignmentMode = SKLabelHorizontalAlignmentModeLeft;
     labelNode.verticalAlignmentMode = SKLabelVerticalAlignmentModeBaseline;
@@ -707,7 +790,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
     labelNode.fontColor = FLInterfaceColorLight();
     labelNode.text = recordTexts[r];
     [parent addChild:labelNode];
-    
+
     SKLabelNode *newValueNode = [SKLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
     newValueNode.horizontalAlignmentMode = SKLabelHorizontalAlignmentModeRight;
     newValueNode.verticalAlignmentMode = SKLabelVerticalAlignmentModeBaseline;
@@ -718,7 +801,7 @@ static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
                                                                      @"Goals screen: displayed in a column of level results to show the {new record value} for a gameplay record."),
                          formattedNewValue];
     [parent addChild:newValueNode];
-    
+
     if (oldValues[r] == [NSNull null]) {
       [parent addChild:[SKNode node]];
     } else {

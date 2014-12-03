@@ -10,8 +10,6 @@
 
 ## Current Tasks
 
-- Color "Level X:" and "Goals:" headers in Goals screen.
-
 - Either implement a simple undo stack to undo deletions, or else make
   the delete button be long-press.  Simple undo stack: Save deletion to
   a file, like an export.  Keep the last five around on filesystem,

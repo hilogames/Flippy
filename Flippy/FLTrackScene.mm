@@ -4862,6 +4862,7 @@ struct PointerPairHash
     CGFloat squareEdgeSize = MAX(letterWidthMax, letterHeightMax) + 2.0f;
     _labelState.labelPicker = [[HLGridNode alloc] initWithGridWidth:FLLabelPickerWidth
                                                         squareCount:FLLabelPickerSize
+                                                        anchorPoint:CGPointMake(0.5f, 0.5f)
                                                          layoutMode:HLGridNodeLayoutModeFill
                                                          squareSize:CGSizeMake(squareEdgeSize, squareEdgeSize)
                                                backgroundBorderSize:5.0f
