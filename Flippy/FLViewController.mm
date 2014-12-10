@@ -618,30 +618,41 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
     if (buttonIndex == 1) {
       [self FL_saveWithSavePath:_saveConfirmPath completion:_saveConfirmCompletion];
     }
+    _saveConfirmAlert = nil;
+    _saveConfirmPath = nil;
+    _saveConfirmCompletion = nil;
   } else if (alertView == _deleteConfirmAlert) {
     if (buttonIndex == 1) {
       [self FL_deleteWithSavePath:_deleteConfirmPath completion:_deleteConfirmCompletion];
     }
+    _deleteConfirmAlert = nil;
+    _deleteConfirmPath = nil;
+    _deleteConfirmCompletion = nil;
   } else if (alertView == _restartConfirmAlert) {
     if (buttonIndex == 1) {
       [self FL_restart];
     }
+    _restartConfirmAlert = nil;
   } else if (alertView == _exitConfirmAlert) {
     if (buttonIndex == 1) {
       [self FL_exitFromGameMenu];
     }
+    _exitConfirmAlert = nil;
   } else if (alertView == _resetAppConfirmAlert) {
     if (buttonIndex == 1) {
       [self FL_resetAppFromTitleMenu];
     }
+    _resetAppConfirmAlert = nil;
   } else if (alertView == _resetUnlocksConfirmAlert) {
     if (buttonIndex == 1) {
       [self FL_resetUnlocksFromTitleMenu];
     }
+    _resetUnlocksConfirmAlert = nil;
   } else if (alertView == _resetTutorialConfirmAlert) {
     if (buttonIndex == 1) {
       [self FL_resetTutorialFromTitleMenu];
     }
+    _resetTutorialConfirmAlert = nil;
   }
 }
 

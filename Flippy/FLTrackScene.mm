@@ -92,6 +92,7 @@ static const CGFloat FLTrackEditMenuSegmentPad = 20.0f;
 static NSString *FLGatesDirectoryPath;
 static NSString *FLCircuitsDirectoryPath;
 static NSString *FLExportsDirectoryPath;
+static NSString *FLDeletionsDirectoryPath;
 
 static SKColor *FLSceneBackgroundColor = [SKColor blackColor];
 
@@ -157,12 +158,6 @@ typedef NS_ENUM(NSInteger, FLRecordItem) {
 // States are functional components of the scene; the data is encapsulated in
 // a simple public struct, and the associated functionality is implemented in
 // private methods of the scene.
-
-struct FLExportState
-{
-  FLExportState() : descriptionInputAlert(nil) {}
-  UIAlertView *descriptionInputAlert;
-};
 
 typedef NS_ENUM(NSInteger, FLToolbarToolType) {
   FLToolbarToolTypeNone,
@@ -267,6 +262,18 @@ struct FLLinkEditState
   SKShapeNode *connectorNode;
   SKNode *beginHighlightNode;
   SKNode *endHighlightNode;
+};
+
+struct FLExportState
+{
+  FLExportState() : descriptionInputAlert(nil) {}
+  UIAlertView *descriptionInputAlert;
+};
+
+struct FLDeleteState
+{
+  FLDeleteState() : dirtyTextures(NO) {}
+  BOOL dirtyTextures;
 };
 
 struct FLLabelState
@@ -428,7 +435,6 @@ struct PointerPairHash
   FLLinks _links;
 
   FLTutorialState _tutorialState;
-  FLExportState _exportState;
   FLWorldGestureState _worldGestureState;
   FLWorldAutoScrollState _worldAutoScrollState;
   FLConstructionToolbarState _constructionToolbarState;
@@ -439,6 +445,8 @@ struct PointerPairHash
   FLTrackConflictState _trackConflictState;
   FLTrackMoveState _trackMoveState;
   FLLinkEditState _linkEditState;
+  FLExportState _exportState;
+  FLDeleteState _deleteState;
   FLLabelState _labelState;
   FLRecordState _recordState;
 
@@ -454,6 +462,7 @@ struct PointerPairHash
   FLCircuitsDirectoryPath = [bundleDirectory stringByAppendingPathComponent:@"circuits"];
   NSString *documentsDirectory = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES)[0];
   FLExportsDirectoryPath = [documentsDirectory stringByAppendingPathComponent:@"exports"];
+  FLDeletionsDirectoryPath = [documentsDirectory stringByAppendingPathComponent:@"deletions"];
 }
 
 + (void)loadSceneAssets
@@ -1400,9 +1409,16 @@ struct PointerPairHash
     _constructionToolbarState.currentPage = newPage;
     [self FL_constructionToolbarUpdateToolsAnimation:animation];
 
-    if ([newNavigation isEqualToString:@"exports"] && _constructionToolbarState.toolbarNode.toolCount == 1) {
-      [self FL_messageShow:NSLocalizedString(@"No exports found.",
-                                             @"Message to user: Shown when navigating to exports submenu, but no exports are found.")];
+    if ([newNavigation isEqualToString:@"exports"]) {
+      if (_constructionToolbarState.toolbarNode.toolCount == 1) {
+        [self FL_messageShow:NSLocalizedString(@"No exports found.",
+                                               @"Message to user: Shown when navigating to exports toolbar, but no exports are found.")];
+      }
+    } else if ([newNavigation isEqualToString:@"deletions"]) {
+      if (_constructionToolbarState.toolbarNode.toolCount == 1) {
+        [self FL_messageShow:NSLocalizedString(@"No deletions found.",
+                                               @"Message to user: Shown when navigating to deletions toolbar, but no deletion files are found.")];
+      }
     }
 
   } else if (toolType == FLToolbarToolTypeActionTap) {
@@ -1551,6 +1567,8 @@ struct PointerPairHash
         }
         if ([duplicatedSegmentNodes count] == 0) {
           _worldGestureState.panType = FLWorldPanTypeNone;
+          [self FL_messageShow:NSLocalizedString(@"These segments can’t be duplicated.",
+                                                 @"Message to user: Shown after unsuccessful duplication of track selection.")];
           return;
         }
       }
@@ -1608,13 +1626,15 @@ struct PointerPairHash
         importDirectory = FLCircuitsDirectoryPath;
       } else if ([_constructionToolbarState.currentNavigation isEqualToString:@"exports"]) {
         importDirectory = FLExportsDirectoryPath;
+      } else if ([_constructionToolbarState.currentNavigation isEqualToString:@"deletions"]) {
+        importDirectory = FLDeletionsDirectoryPath;
       } else {
         [NSException raise:@"FLConstructionToolbarInvalidNavigation" format:@"Unrecognized navigation '%@'.", _constructionToolbarState.currentNavigation];
       }
       NSString *importPath = [importDirectory stringByAppendingPathComponent:[toolTag stringByAppendingPathExtension:@"archive"]];
       NSString *description;
       NSArray *links;
-      NSArray *newSegmentNodes = [self FL_importWithPath:importPath description:&description links:&links];
+      NSArray *newSegmentNodes = [self FL_segmentsReadArchiveWithPath:importPath description:&description links:&links];
 
       // Remove any disallowed segment types.
       NSMutableSet *removedSegmentNodePointers = [NSMutableSet set];
@@ -1630,6 +1650,8 @@ struct PointerPairHash
         newSegmentNodes = allowedSegmentNodes;
         if ([newSegmentNodes count] == 0) {
           _worldGestureState.panType = FLWorldPanTypeNone;
+          [self FL_messageShow:NSLocalizedString(@"These segments can’t be imported.",
+                                                 @"Message to user: Shown after unsuccessful import.")];
           return;
         }
       }
@@ -1786,26 +1808,7 @@ struct PointerPairHash
   } else if ([buttonTag isEqualToString:@"set-label"]) {
     [self FL_labelPickForSegments:_trackSelectState.selectedSegments];
   } else if ([buttonTag isEqualToString:@"delete"]) {
-    if (_gameType == FLGameTypeSandbox) {
-      [self FL_trackEraseSegments:_trackSelectState.selectedSegments animated:YES];
-      [self FL_trackSelectClear];
-      [self FL_trackEditMenuHideAnimated:YES];
-    } else {
-      NSMutableArray *eraseSegments = [NSMutableArray array];
-      for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
-        if ([self FL_gameTypeChallengeCanEraseSegment:segmentNode.segmentType]) {
-          [eraseSegments addObject:segmentNode];
-        }
-      }
-      if ([eraseSegments count] > 0) {
-        [self FL_trackEraseSegments:eraseSegments animated:YES];
-        [self FL_trackSelectEraseSegments:eraseSegments];
-        [self FL_trackEditMenuUpdateAnimated:YES];
-      } else {
-        [self FL_messageShow:NSLocalizedString(@"Cannot delete in this level.",
-                                               @"Message to user: Shown when user tries to delete special track segments in challenge mode.")];
-      }
-    }
+    [self FL_delete];
   }
 }
 
@@ -2200,6 +2203,7 @@ struct PointerPairHash
   [textureStore setTextureWithImageNamed:@"gates" forKey:@"gates" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"circuits" forKey:@"circuits" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"exports" forKey:@"exports" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"deletions" forKey:@"deletions" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"link" forKey:@"link" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"show-labels" forKey:@"show-labels" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"show-values" forKey:@"show-values" filteringMode:SKTextureFilteringLinear];
@@ -2276,102 +2280,6 @@ struct PointerPairHash
   NSLog(@"FLTrackScene loadSound: loaded in %0.2f seconds", [[NSDate date] timeIntervalSinceDate:startDate]);
 }
 
-- (void)FL_export
-{
-  if ([self FL_trackSelectedNone]) {
-    return;
-  }
-
-  UIAlertView *inputView = [[UIAlertView alloc] initWithTitle:@"Exported Track Name"
-                                                      message:nil
-                                                     delegate:self
-                                            cancelButtonTitle:@"Cancel"
-                                            otherButtonTitles:@"Export", nil];
-  inputView.alertViewStyle = UIAlertViewStylePlainTextInput;
-  _exportState.descriptionInputAlert = inputView;
-  [inputView show];
-}
-
-- (BOOL)FL_exportWithDescription:(NSString *)trackDescription
-{
-  CFUUIDRef uuid = CFUUIDCreate(kCFAllocatorDefault);
-  CFStringRef uuidString = CFUUIDCreateString(kCFAllocatorDefault, uuid);
-  NSString *exportName = (__bridge_transfer NSString *)uuidString;
-  CFRelease(uuid);
-
-  NSFileManager *fileManager = [NSFileManager defaultManager];
-  if (![fileManager fileExistsAtPath:FLExportsDirectoryPath]) {
-    [fileManager createDirectoryAtPath:FLExportsDirectoryPath withIntermediateDirectories:NO attributes:nil error:NULL];
-  }
-  NSString *exportPath = [FLExportsDirectoryPath stringByAppendingPathComponent:[exportName stringByAppendingPathExtension:@"archive"]];
-
-  // note: Could configure nodes in a standard way for export: e.g. no labels or values
-  // showing and with the lower-leftmost segment (of the export) starting at position (0,0).
-  // But these things are configured on import, and there seems to be no value in having the
-  // raw data standardized.  A possible reason: Reducing nodes to their essentials makes the
-  // data files more predictable (e.g. good for diffing).  Nah.  Not compelling.
-
-  NSMutableData *archiveData = [NSMutableData data];
-  NSKeyedArchiver *aCoder = [[NSKeyedArchiver alloc] initForWritingWithMutableData:archiveData];
-
-  [aCoder encodeObject:trackDescription forKey:@"trackDescription"];
-  [aCoder encodeObject:_trackSelectState.selectedSegments forKey:@"segmentNodes"];
-  NSArray *links = linksIntersect(_links, _trackSelectState.selectedSegmentPointers);
-  [aCoder encodeObject:links forKey:@"links"];
-  [aCoder finishEncoding];
-  [archiveData writeToFile:exportPath atomically:NO];
-
-  [self FL_messageShow:[NSString stringWithFormat:NSLocalizedString(@"Exported “%@”.",
-                                                                    @"Message to user: Shown after a successful export of {export name}."),
-                        trackDescription]];
-
-  return YES;
-}
-
-- (void)FL_exportDelete:(NSString *)exportName description:(NSString *)trackDescription
-{
-  NSFileManager *fileManager = [NSFileManager defaultManager];
-  NSString *exportPath = [FLExportsDirectoryPath stringByAppendingPathComponent:[exportName stringByAppendingPathExtension:@"archive"]];
-  [fileManager removeItemAtPath:exportPath error:nil];
-
-  [self FL_messageShow:[NSString stringWithFormat:NSLocalizedString(@"Deleted “%@”.",
-                                                                    @"Message to user: Shown after a successful deletion of {export name}."),
-                        trackDescription]];
-  if ([_constructionToolbarState.currentNavigation isEqualToString:@"exports"]) {
-    // note: Page might be too large as a result of the deletion.
-    int pageMax = [self FL_constructionToolbarImportsPageMax:FLExportsDirectoryPath];
-    if (_constructionToolbarState.currentPage > pageMax) {
-      _constructionToolbarState.currentPage = pageMax;
-    }
-    [self FL_constructionToolbarShowExports:_constructionToolbarState.currentPage animation:HLToolbarNodeAnimationNone];
-  }
-}
-
-- (NSArray *)FL_importWithPath:(NSString *)path description:(NSString * __autoreleasing *)trackDescription links:(NSArray * __autoreleasing *)links
-{
-  if (![[NSFileManager defaultManager] fileExistsAtPath:path]) {
-    [NSException raise:@"FLImportPathInvalid" format:@"Invalid import path %@.", path];
-  }
-
-  NSData *archiveData = [NSData dataWithContentsOfFile:path];
-  NSKeyedUnarchiver *aDecoder = [[NSKeyedUnarchiver alloc] initForReadingWithData:archiveData];
-
-  NSArray *segmentNodes = [aDecoder decodeObjectForKey:@"segmentNodes"];
-  if (trackDescription) {
-    *trackDescription = [aDecoder decodeObjectForKey:@"trackDescription"];
-    if (!*trackDescription) {
-      *trackDescription = @"Unknown Description";
-    }
-  }
-  if (links) {
-    *links = [aDecoder decodeObjectForKey:@"links"];
-  }
-
-  [aDecoder finishDecoding];
-
-  return segmentNodes;
-}
-
 - (FLSegmentNode *)FL_createSegmentWithSegmentType:(FLSegmentType)segmentType
 {
   FLSegmentNode *segmentNode = [[FLSegmentNode alloc] initWithSegmentType:segmentType];
@@ -2385,6 +2293,56 @@ struct PointerPairHash
   SKSpriteNode *toolNode = [SKSpriteNode spriteNodeWithTexture:texture];
   toolNode.zRotation = (CGFloat)M_PI_2;
   return toolNode;
+}
+
+- (NSArray *)FL_segmentsReadArchiveWithPath:(NSString *)path
+                                description:(NSString * __autoreleasing *)trackDescription
+                                      links:(NSArray * __autoreleasing *)links
+{
+  if (![[NSFileManager defaultManager] fileExistsAtPath:path]) {
+    [NSException raise:@"FLReadPathInvalid" format:@"Invalid read path %@.", path];
+  }
+  
+  NSData *archiveData = [NSData dataWithContentsOfFile:path];
+  NSKeyedUnarchiver *aDecoder = [[NSKeyedUnarchiver alloc] initForReadingWithData:archiveData];
+  
+  NSArray *segmentNodes = [aDecoder decodeObjectForKey:@"segmentNodes"];
+  if (trackDescription) {
+    *trackDescription = [aDecoder decodeObjectForKey:@"trackDescription"];
+    if (!*trackDescription) {
+      *trackDescription = @"Unknown Description";
+    }
+  }
+  if (links) {
+    *links = [aDecoder decodeObjectForKey:@"links"];
+  }
+  
+  [aDecoder finishDecoding];
+  
+  return segmentNodes;
+}
+
+- (void)FL_segments:(NSArray *)segmentNodes
+writeArchiveWithPath:(NSString *)path
+    segmentPointers:(NSSet *)segmentPointers
+        description:(NSString *)trackDescription
+{
+  // note: Could configure nodes in a standard way for write: e.g. no labels or values
+  // showing and with the lower-leftmost segment (of the export) starting at position (0,0).
+  // But these things are configured on read, and there seems to be no value in having the
+  // raw data standardized.  A possible reason: Reducing nodes to their essentials makes the
+  // data files more predictable (e.g. good for diffing).  Nah.  Not compelling.
+  
+  NSMutableData *archiveData = [NSMutableData data];
+  NSKeyedArchiver *aCoder = [[NSKeyedArchiver alloc] initForWritingWithMutableData:archiveData];
+  
+  [aCoder encodeObject:trackDescription forKey:@"trackDescription"];
+  [aCoder encodeObject:segmentNodes forKey:@"segmentNodes"];
+  NSArray *links = linksIntersect(_links, segmentPointers);
+  [aCoder encodeObject:links forKey:@"links"];
+  [aCoder finishEncoding];
+
+  [archiveData writeToFile:path atomically:NO];
 }
 
 - (void)FL_segments:(NSArray *)segmentNodes getExtremesLeft:(CGFloat *)left right:(CGFloat *)right top:(CGFloat *)top bottom:(CGFloat *)bottom
@@ -3061,11 +3019,13 @@ struct PointerPairHash
   // note: Page might be too large as a result of additional toolbar width made possible by the new geometry.
   int pageMax = _constructionToolbarState.currentPage;
   if ([_constructionToolbarState.currentNavigation isEqualToString:@"gates"]) {
-    pageMax = [self FL_constructionToolbarImportsPageMax:FLGatesDirectoryPath];
+    pageMax = [self FL_constructionToolbarArchivesPageMax:FLGatesDirectoryPath];
   } else if ([_constructionToolbarState.currentNavigation isEqualToString:@"circuits"]) {
-    pageMax = [self FL_constructionToolbarImportsPageMax:FLCircuitsDirectoryPath];
+    pageMax = [self FL_constructionToolbarArchivesPageMax:FLCircuitsDirectoryPath];
   } else if ([_constructionToolbarState.currentNavigation isEqualToString:@"exports"]) {
-    pageMax = [self FL_constructionToolbarImportsPageMax:FLExportsDirectoryPath];
+    pageMax = [self FL_constructionToolbarArchivesPageMax:FLExportsDirectoryPath];
+  } else if ([_constructionToolbarState.currentNavigation isEqualToString:@"deletions"]) {
+    pageMax = [self FL_constructionToolbarArchivesPageMax:FLDeletionsDirectoryPath];
   }
   if (_constructionToolbarState.currentPage > pageMax) {
     _constructionToolbarState.currentPage = pageMax;
@@ -3086,6 +3046,8 @@ struct PointerPairHash
     [self FL_constructionToolbarShowCircuits:_constructionToolbarState.currentPage animation:animation];
   } else if ([_constructionToolbarState.currentNavigation isEqualToString:@"exports"]) {
     [self FL_constructionToolbarShowExports:_constructionToolbarState.currentPage animation:animation];
+  } else if ([_constructionToolbarState.currentNavigation isEqualToString:@"deletions"]) {
+    [self FL_constructionToolbarShowDeletions:_constructionToolbarState.currentPage animation:animation];
   } else {
     [NSException raise:@"FLConstructionToolbarInvalidNavigation" format:@"Unrecognized navigation '%@'.", _constructionToolbarState.currentNavigation];
   }
@@ -3120,7 +3082,12 @@ struct PointerPairHash
   [toolTags addObject:textureKey];
   [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
-
+  
+  textureKey = @"deletions";
+  [toolTags addObject:textureKey];
+  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+  _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
+  
   textureKey = @"link";
   [toolTags addObject:textureKey];
   [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
@@ -3299,7 +3266,7 @@ struct PointerPairHash
     FLUnlockGateXor1,
     FLUnlockGateXor2,
   };
-  [self FL_constructionToolbarShowImports:FLGatesDirectoryPath unlockItems:&unlockItems page:page animation:animation];
+  [self FL_constructionToolbarShowArchives:FLGatesDirectoryPath sortByDate:NO unlockItems:&unlockItems page:page recreateTextures:NO animation:animation];
 }
 
 - (void)FL_constructionToolbarShowCircuits:(int)page animation:(HLToolbarNodeAnimation)animation
@@ -3309,27 +3276,35 @@ struct PointerPairHash
     FLUnlockCircuitHalfAdder,
     FLUnlockCircuitFullAdder,
   };
-  [self FL_constructionToolbarShowImports:FLCircuitsDirectoryPath unlockItems:&unlockItems page:page animation:animation];
+  [self FL_constructionToolbarShowArchives:FLCircuitsDirectoryPath sortByDate:NO unlockItems:&unlockItems page:page recreateTextures:NO animation:animation];
 }
 
 - (void)FL_constructionToolbarShowExports:(int)page animation:(HLToolbarNodeAnimation)animation
 {
-  [self FL_constructionToolbarShowImports:FLExportsDirectoryPath unlockItems:nullptr page:page animation:animation];
+  [self FL_constructionToolbarShowArchives:FLExportsDirectoryPath sortByDate:YES unlockItems:nullptr page:page recreateTextures:NO animation:animation];
 }
 
-- (void)FL_constructionToolbarShowImports:(NSString *)importDirectory
-                              unlockItems:(vector<FLUnlockItem> *)unlockItems
-                                     page:(int)page
-                                animation:(HLToolbarNodeAnimation)animation
+- (void)FL_constructionToolbarShowDeletions:(int)page animation:(HLToolbarNodeAnimation)animation
 {
-  // Get a list of all imports (sorted appropriately).
+  BOOL recreateTextures = _deleteState.dirtyTextures;
+  [self FL_constructionToolbarShowArchives:FLDeletionsDirectoryPath sortByDate:YES unlockItems:nullptr page:page recreateTextures:recreateTextures animation:animation];
+  _deleteState.dirtyTextures = NO;
+}
+
+- (void)FL_constructionToolbarShowArchives:(NSString *)archiveDirectory
+                                sortByDate:(BOOL)sortByDate
+                               unlockItems:(vector<FLUnlockItem> *)unlockItems
+                                      page:(int)page
+                          recreateTextures:(BOOL)recreateTextures
+                                 animation:(HLToolbarNodeAnimation)animation
+{
+  // Get a list of all archives (sorted appropriately).
   NSFileManager *fileManager = [NSFileManager defaultManager];
-  NSArray *importFiles;
-  if ([importDirectory isEqualToString:FLExportsDirectoryPath]) {
-    // note: For user-exported files, sort by descending creation date.
-    NSURL *importURL = [NSURL fileURLWithPath:importDirectory isDirectory:NO];
-    NSArray *importFileURLs = [fileManager contentsOfDirectoryAtURL:importURL includingPropertiesForKeys:@[ NSURLCreationDateKey ] options:0 error:nil];
-    NSArray *sortedImportFileURLs = [importFileURLs sortedArrayUsingComparator:^NSComparisonResult(id obj1, id obj2){
+  NSArray *archiveFiles;
+  if (sortByDate) {
+    NSURL *archiveURL = [NSURL fileURLWithPath:archiveDirectory isDirectory:NO];
+    NSArray *archiveFileURLs = [fileManager contentsOfDirectoryAtURL:archiveURL includingPropertiesForKeys:@[ NSURLCreationDateKey ] options:0 error:nil];
+    NSArray *sortedArchiveFileURLs = [archiveFileURLs sortedArrayUsingComparator:^NSComparisonResult(id obj1, id obj2){
       NSDate *date1;
       [obj1 getResourceValue:&date1 forKey:NSURLCreationDateKey error:nil];
       NSDate *date2;
@@ -3343,37 +3318,37 @@ struct PointerPairHash
         return NSOrderedSame;
       }
     }];
-    NSMutableArray *mutableImportFiles = [NSMutableArray array];
-    for (NSURL *url in sortedImportFileURLs) {
+    NSMutableArray *mutableArchiveFiles = [NSMutableArray array];
+    for (NSURL *url in sortedArchiveFileURLs) {
       NSDate *date = nil;
       [url getResourceValue:&date forKey:NSURLCreationDateKey error:nil];
-      [mutableImportFiles addObject:[url lastPathComponent]];
+      [mutableArchiveFiles addObject:[url lastPathComponent]];
     }
-    importFiles = mutableImportFiles;
+    archiveFiles = mutableArchiveFiles;
   } else {
-    // note: For segments and gates, alphabetize; the preloaded gates and circuits take
+    // note: "Normal" sorting is alphabetical; the preloaded gates and circuits take
     // advantage of this by naming their files in the desired order for the interface.
-    importFiles = [fileManager contentsOfDirectoryAtPath:importDirectory error:nil];
-    importFiles = [importFiles sortedArrayUsingSelector:@selector(compare:)];
+    archiveFiles = [fileManager contentsOfDirectoryAtPath:archiveDirectory error:nil];
+    archiveFiles = [archiveFiles sortedArrayUsingSelector:@selector(compare:)];
   }
 
-  // Create textures for each import (if they don't already exist in shared store).
+  // Get textures for each unlocked archive (creating new textures where appropriate).
   size_t unlockItemIndex = 0;
-  NSMutableArray *importTextureKeys = [NSMutableArray array];
-  for (NSString *importFile in importFiles) {
-    NSString *importName = [importFile stringByDeletingPathExtension];
-    SKTexture *texture = [[HLTextureStore sharedStore] textureForKey:importName];
-    if (!texture) {
-      NSString *importPath = [importDirectory stringByAppendingPathComponent:importFile];
-      NSString *importDescription = nil;
-      NSArray *segmentNodes = [self FL_importWithPath:importPath description:&importDescription links:NULL];
-      UIImage *importImage = [self FL_segments:segmentNodes createImageWithSize:FLMainToolbarToolArtSize];
-      [[HLTextureStore sharedStore] setTextureWithImage:importImage forKey:importName filteringMode:SKTextureFilteringNearest];
-      _constructionToolbarState.toolTypes[importName] = @(FLToolbarToolTypeActionPan);
-      _constructionToolbarState.toolDescriptions[importName] = importDescription;
-    }
+  NSMutableArray *archiveTextureKeys = [NSMutableArray array];
+  for (NSString *archiveFile in archiveFiles) {
     if (!unlockItems || unlockItemIndex >= unlockItems->size() || [self FL_unlocked:(*unlockItems)[unlockItemIndex]]) {
-      [importTextureKeys addObject:importName];
+      NSString *archiveName = [archiveFile stringByDeletingPathExtension];
+      SKTexture *texture = [[HLTextureStore sharedStore] textureForKey:archiveName];
+      if (recreateTextures || !texture) {
+        NSString *archivePath = [archiveDirectory stringByAppendingPathComponent:archiveFile];
+        NSString *archiveDescription = nil;
+        NSArray *segmentNodes = [self FL_segmentsReadArchiveWithPath:archivePath description:&archiveDescription links:NULL];
+        UIImage *archiveImage = [self FL_segments:segmentNodes createImageWithSize:FLMainToolbarToolArtSize];
+        [[HLTextureStore sharedStore] setTextureWithImage:archiveImage forKey:archiveName filteringMode:SKTextureFilteringNearest];
+        _constructionToolbarState.toolTypes[archiveName] = @(FLToolbarToolTypeActionPan);
+        _constructionToolbarState.toolDescriptions[archiveName] = archiveDescription;
+      }
+      [archiveTextureKeys addObject:archiveName];
     }
     ++unlockItemIndex;
   }
@@ -3381,11 +3356,11 @@ struct PointerPairHash
   // Calculate indexes that will be included in page.
   //
   // note: [begin,end)
-  NSUInteger importTextureKeysCount = [importTextureKeys count];
+  NSUInteger archiveTextureKeysCount = [archiveTextureKeys count];
   NSUInteger pageSize = [self FL_constructionToolbarPageSize];
   NSUInteger beginIndex;
   NSUInteger endIndex;
-  [self FL_toolbarGetPageContentBeginIndex:&beginIndex endIndex:&endIndex forPage:page contentCount:importTextureKeysCount pageSize:pageSize];
+  [self FL_toolbarGetPageContentBeginIndex:&beginIndex endIndex:&endIndex forPage:page contentCount:archiveTextureKeysCount pageSize:pageSize];
 
   // Select tools for specified page.
   NSMutableArray *toolNodes = [NSMutableArray array];
@@ -3402,15 +3377,15 @@ struct PointerPairHash
     [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
     _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
   }
-  // note: The page might end up with no imports if the requested page is too
+  // note: The page might end up with no tools if the requested page is too
   // large.  Caller beware.
   for (NSUInteger i = beginIndex; i < endIndex; ++i) {
-    textureKey = importTextureKeys[i];
+    textureKey = archiveTextureKeys[i];
     [toolTags addObject:textureKey];
     [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
     _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
   }
-  if (endIndex < importTextureKeysCount) {
+  if (endIndex < archiveTextureKeysCount) {
     textureKey = @"next";
     [toolTags addObject:textureKey];
     [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
@@ -3421,17 +3396,17 @@ struct PointerPairHash
   [_constructionToolbarState.toolbarNode setTools:toolNodes tags:toolTags animation:animation];
 }
 
-- (int)FL_constructionToolbarImportsPageMax:(NSString *)importDirectory
+- (int)FL_constructionToolbarArchivesPageMax:(NSString *)archiveDirectory
 {
   NSFileManager *fileManager = [NSFileManager defaultManager];
-  NSArray *importFiles = [fileManager contentsOfDirectoryAtPath:importDirectory error:nil];
+  NSArray *archiveFiles = [fileManager contentsOfDirectoryAtPath:archiveDirectory error:nil];
   NSUInteger pageSize = [self FL_constructionToolbarPageSize];
-  NSUInteger importFilesCount = [importFiles count];
-  // note: Basic number of imports that can fit on a page is (pageSize - 3), leaving room for a main button,
+  NSUInteger archiveFilesCount = [archiveFiles count];
+  // note: Basic number of archives that can fit on a page is (pageSize - 3), leaving room for a main button,
   // a previous button, and a next button.  But subtract one from the total because first page gets an
-  // extra import button (because no need for previous); subtract one more for the last page (no next);
+  // extra archive button (because no need for previous); subtract one more for the last page (no next);
   // and subtract one more so the integer math gives a zero-indexed result.
-  return int((importFilesCount - 3) / (pageSize - 3));
+  return int((archiveFilesCount - 3) / (pageSize - 3));
 }
 
 - (NSUInteger)FL_constructionToolbarPageSize
@@ -3504,14 +3479,14 @@ struct PointerPairHash
 {
   // note: [begin,end)
   const NSUInteger contentPerMiddlePage = pageSize - 3;
-  // note: First page has room for an extra import, so add one to index.
+  // note: First page has room for an extra tool, so add one to index.
   // (Subtract it out below if we're on the first page.)
   *beginIndex = contentPerMiddlePage * (NSUInteger)page + 1;
   *endIndex = *beginIndex + contentPerMiddlePage;
   if (page == 0) {
     --(*beginIndex);
   }
-  // note: Last page has room for an extra import, so add one if we're
+  // note: Last page has room for an extra tool, so add one if we're
   // indexed at the next-to-last; also, stay in bounds for partial last
   // page.
   if (*endIndex + 1 >= contentCount) {
@@ -3839,6 +3814,145 @@ struct PointerPairHash
   }
 
   return trackGridConvertGet(*_trackGrid, worldLocation);
+}
+
+- (void)FL_export
+{
+  if ([self FL_trackSelectedNone]) {
+    return;
+  }
+  
+  UIAlertView *inputView = [[UIAlertView alloc] initWithTitle:@"Exported Track Name"
+                                                      message:nil
+                                                     delegate:self
+                                            cancelButtonTitle:@"Cancel"
+                                            otherButtonTitles:@"Export", nil];
+  inputView.alertViewStyle = UIAlertViewStylePlainTextInput;
+  _exportState.descriptionInputAlert = inputView;
+  [inputView show];
+}
+
+- (void)FL_exportWithDescription:(NSString *)trackDescription
+{
+  CFUUIDRef uuid = CFUUIDCreate(kCFAllocatorDefault);
+  CFStringRef uuidString = CFUUIDCreateString(kCFAllocatorDefault, uuid);
+  NSString *exportName = (__bridge_transfer NSString *)uuidString;
+  CFRelease(uuid);
+  
+  NSFileManager *fileManager = [NSFileManager defaultManager];
+  if (![fileManager fileExistsAtPath:FLExportsDirectoryPath]) {
+    [fileManager createDirectoryAtPath:FLExportsDirectoryPath withIntermediateDirectories:NO attributes:nil error:NULL];
+  }
+  NSString *exportPath = [FLExportsDirectoryPath stringByAppendingPathComponent:[exportName stringByAppendingPathExtension:@"archive"]];
+  
+  [self FL_segments:_trackSelectState.selectedSegments
+writeArchiveWithPath:exportPath
+    segmentPointers:_trackSelectState.selectedSegmentPointers
+        description:trackDescription];
+  
+  [self FL_messageShow:[NSString stringWithFormat:NSLocalizedString(@"Exported “%@”.",
+                                                                    @"Message to user: Shown after a successful export of {export name}."),
+                        trackDescription]];
+}
+
+- (void)FL_exportDelete:(NSString *)exportName description:(NSString *)trackDescription
+{
+  NSFileManager *fileManager = [NSFileManager defaultManager];
+  NSString *exportPath = [FLExportsDirectoryPath stringByAppendingPathComponent:[exportName stringByAppendingPathExtension:@"archive"]];
+  [fileManager removeItemAtPath:exportPath error:nil];
+  
+  [self FL_messageShow:[NSString stringWithFormat:NSLocalizedString(@"Deleted “%@”.",
+                                                                    @"Message to user: Shown after a successful deletion of {export name}."),
+                        trackDescription]];
+  if ([_constructionToolbarState.currentNavigation isEqualToString:@"exports"]) {
+    // note: Page might be too large as a result of the deletion.
+    int pageMax = [self FL_constructionToolbarArchivesPageMax:FLExportsDirectoryPath];
+    if (_constructionToolbarState.currentPage > pageMax) {
+      _constructionToolbarState.currentPage = pageMax;
+    }
+    [self FL_constructionToolbarShowExports:_constructionToolbarState.currentPage animation:HLToolbarNodeAnimationNone];
+  }
+}
+
+- (void)FL_delete
+{
+  NSMutableArray *eraseSegments;
+  NSMutableSet *eraseSegmentPointers;
+  NSMutableArray *doNotEraseSegments;
+  if (_gameType == FLGameTypeSandbox) {
+    eraseSegments = _trackSelectState.selectedSegments;
+    eraseSegmentPointers = _trackSelectState.selectedSegmentPointers;
+  } else {
+    eraseSegments = [NSMutableArray array];
+    eraseSegmentPointers = [NSMutableSet set];
+    doNotEraseSegments = [NSMutableArray array];
+    for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
+      if ([self FL_gameTypeChallengeCanEraseSegment:segmentNode.segmentType]) {
+        [eraseSegments addObject:segmentNode];
+        [eraseSegmentPointers addObject:[NSValue valueWithPointer:(void *)segmentNode]];
+      } else {
+        [doNotEraseSegments addObject:segmentNode];
+      }
+    }
+    if ([eraseSegments count] == 0) {
+      [self FL_messageShow:NSLocalizedString(@"Cannot delete special segments.",
+                                             @"Message to user: Shown when user tries to delete special track segments in challenge mode.")];
+      return;
+    }
+  }
+  
+  if ([eraseSegments count] > 1) {
+    [self FL_deletionsWriteSegments:eraseSegments segmentPointers:eraseSegmentPointers];
+    _deleteState.dirtyTextures = YES;
+  }
+  
+  [self FL_trackEraseSegments:eraseSegments animated:YES];
+  [self FL_trackSelectClear];
+  if (doNotEraseSegments && [doNotEraseSegments count] > 0) {
+    [self FL_trackSelect:doNotEraseSegments];
+    [self FL_trackEditMenuShowAnimated:YES];
+  } else {
+    [self FL_trackEditMenuHideAnimated:YES];
+  }
+}
+
+- (void)FL_deletionsWriteSegments:(NSArray *)segmentNodes segmentPointers:(NSSet *)segmentPointers
+{
+  const int FLDeletionsSlotCount = 5;
+  
+  NSFileManager *fileManager = [NSFileManager defaultManager];
+  if (![fileManager fileExistsAtPath:FLDeletionsDirectoryPath]) {
+    [fileManager createDirectoryAtPath:FLDeletionsDirectoryPath withIntermediateDirectories:NO attributes:nil error:NULL];
+  }
+  
+  int useDeletionSlot = 0;
+  for (int d = 0; d <= FLDeletionsSlotCount; ++d) {
+    NSString *deletionSlotName = [NSString stringWithFormat:@"track-erase-%d", d];
+    NSString *deletionSlotPath = [FLDeletionsDirectoryPath stringByAppendingPathComponent:[deletionSlotName stringByAppendingPathExtension:@"archive"]];
+    if (![fileManager fileExistsAtPath:deletionSlotPath]) {
+      useDeletionSlot = d;
+      break;
+    }
+  }
+  
+  int purgeDeletionSlot = useDeletionSlot + 1;
+  if (purgeDeletionSlot > FLDeletionsSlotCount) {
+    purgeDeletionSlot = 0;
+  }
+  NSString *purgeDeletionSlotName = [NSString stringWithFormat:@"track-erase-%d", purgeDeletionSlot];
+  NSString *purgeDeletionSlotPath = [FLDeletionsDirectoryPath stringByAppendingPathComponent:[purgeDeletionSlotName stringByAppendingPathExtension:@"archive"]];
+  [fileManager removeItemAtPath:purgeDeletionSlotPath error:NULL];
+  
+  static NSDateFormatter *dateFormatter = nil;
+  if (!dateFormatter) {
+    dateFormatter = [[NSDateFormatter alloc] init];
+    [dateFormatter setDateStyle:NSDateFormatterMediumStyle];
+    [dateFormatter setTimeStyle:NSDateFormatterNoStyle];
+  }
+  NSString *trackDescription = [dateFormatter stringFromDate:[NSDate date]];
+  NSString *useDeletionSlotName = [NSString stringWithFormat:@"track-erase-%d", useDeletionSlot];
+  NSString *useDeletionSlotPath = [FLDeletionsDirectoryPath stringByAppendingPathComponent:[useDeletionSlotName stringByAppendingPathExtension:@"archive"]];
+  [self FL_segments:segmentNodes writeArchiveWithPath:useDeletionSlotPath segmentPointers:segmentPointers description:trackDescription];
 }
 
 - (void)FL_trackSelect:(NSArray *)segmentNodes

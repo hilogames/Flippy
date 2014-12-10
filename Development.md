@@ -10,16 +10,12 @@
 
 ## Current Tasks
 
-- Either implement a simple undo stack to undo deletions, or else make
-  the delete button be long-press.  Simple undo stack: Save deletion to
-  a file, like an export.  Keep the last five around on filesystem,
-  and create a button like "duplicate" to "undo" them.
-
 - Different output options: Segments that turn solid black or white
   when 1 or 0; segments that move/rotate other segments when 1.
 
-    - challenge level is dark, and you must light the light in
-      order to complete?
+    - challenge level is dark, and you must light the light in order
+      to complete?  can only put track segments where there is light.
+      monsters come out of the dark to rip up your track?
 
     - robots: put the circuit on a platform, and different outputs
       activate movement in a different direction.
