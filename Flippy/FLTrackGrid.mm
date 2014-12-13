@@ -311,8 +311,9 @@ trackGridFindConnecting(const FLTrackGrid& trackGrid,
         continue;
       }
 
+      BOOL hasSwitch = [segmentNode canSwitch];
       int switchPathId = segmentNode.switchPathId;
-      if (switchPathIds && switchPathId != FLSegmentSwitchPathIdNone) {
+      if (switchPathIds && hasSwitch) {
         auto spi = switchPathIds->find((__bridge void *)segmentNode);
         if (spi != switchPathIds->end()) {
           switchPathId = spi->second;
@@ -325,6 +326,7 @@ trackGridFindConnecting(const FLTrackGrid& trackGrid,
                                 rotation:startRotation
                                 progress:startProgress
                                    scale:segmentSize
+                               hasSwitch:hasSwitch
                             switchPathId:switchPathId]) {
         *connectingSegmentNode = segmentNode;
         return true;
@@ -375,8 +377,7 @@ FL_getAllDirectlyConnecting(const FLTrackGrid& trackGrid, FLSegmentNode *segment
           if ([adjacentSegmentNode hasConnectingPathForEndPoint:endPoint
                                                        rotation:rotation
                                                        progress:progress
-                                                          scale:segmentSize
-                                                   switchPathId:FLSegmentSwitchPathIdNone]) {
+                                                          scale:segmentSize]) {
             [directlyConnectingSegmentNodes addObject:adjacentSegmentNode];
           }
         }
@@ -476,7 +477,7 @@ FL_runInputsToOutputs(const FLTrackGrid& trackGrid,
     // note: Going "against" the switch, not "with" it, triggers it to change value according
     // to the path just taken.
     int currentDirection = (currentProgress > 0.5f ? FLPathDirectionIncreasing : FLPathDirectionDecreasing);
-    if (currentSegmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
+    if ([currentSegmentNode canSwitch]) {
       int goingWithSwitchDirection = [currentSegmentNode pathDirectionGoingWithSwitchForPath:currentPathId];
       if (currentDirection != goingWithSwitchDirection) {
         linksSetSwitchPathId(links, currentSegmentNode, currentPathId, &switchPathIds);
@@ -547,7 +548,7 @@ trackGridGenerateTruthTable(const FLTrackGrid& trackGrid, const FLLinks& links, 
       default:
         break;
     }
-    if (segmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
+    if ([segmentNode canSwitch]) {
       switchPathIds.emplace((__bridge void *)segmentNode, segmentNode.switchPathId);
     }
   }

@@ -32,20 +32,20 @@ const CGFloat FLSegmentArtStraightShift = (FLSegmentArtSizeFull / 2.0f) - FLSegm
 // aliasing (?).
 const CGFloat FLSegmentArtCurveShift = floorf(FLSegmentArtDrawnTrackNormalWidth / 4.0f);
 
-const int FLSegmentSwitchPathIdNone = -1;
-
 const char FLSegmentLabelNone = '\0';
 
 static const unsigned int FLSegmentNodePathsMax = 2;
 
-static const CGFloat FLZPositionValue = -0.3f;
+static const CGFloat FLZPositionBubble = -0.3f;
 static const CGFloat FLZPositionReadoutValueBottom = -0.3f;
 static const CGFloat FLZPositionReadoutValueTop = -0.2f;
-static const CGFloat FLZPositionValueOverlay = -0.1f;
+static const CGFloat FLZPositionFlashOverlay = -0.1f;
 static const CGFloat FLZPositionSwitch = 0.1f;
 static const CGFloat FLZPositionLabel = 0.2f;
 
+static const NSTimeInterval FLSwitchRotateDuration = 0.1f;
 static const NSTimeInterval FLFlashDuration = 0.5;
+static const NSTimeInterval FLColorizeDuration = 0.2f;
 
 // note: Layout of components inside the "readout" (FLSegmentTypeReadout) segment
 // are all scaled to a segment size of FLSegmentArtSizeFull x FLSegmentArtSizeFull,
@@ -71,22 +71,29 @@ static CGPoint FLReadoutInOutPosition = {
   FLReadoutValue0Position.y
 };
 
+static SKColor *FLSegmentArtPixel0Color;
+static SKColor *FLSegmentArtPixel1Color;
+
 using namespace std;
 
 @implementation FLSegmentNode
 {
-  // note: Every node is storing information about switches, whether
-  // they have a switch or not.  The obvious alternative, if space is a problem,
-  // is to derive a FLSwitchedSegmentNode from FLSegmentNode.  (The same goes for
-  // segmentType.)  Keep in mind that the derived class would be used to represent
-  // node types that CAN be switched, whether they are or not, so that, for instance,
-  // a particular join segment doesn't have to have a switch.
+  // note: Some data members are unneeded for some segment types, and so could
+  // be so could be encoded by class rather than by data members.  For now,
+  // no worries; at the least, making segment type dynamic allows changing
+  // segment type on [flip].
   int _switchPathId;
+}
+
++ (void)initialize
+{
+  FLSegmentArtPixel0Color = [SKColor colorWithWhite:0.0f alpha:0.75f];
+  FLSegmentArtPixel1Color = [SKColor colorWithWhite:1.0f alpha:0.75f];
 }
 
 - (instancetype)initWithSegmentType:(FLSegmentType)segmentType
 {
-  if (segmentType == FLSegmentTypeReadoutInput || segmentType == FLSegmentTypeReadoutOutput) {
+  if ([FLSegmentNode FL_hasDynamicTexture:segmentType]) {
     self = [super initWithColor:[SKColor clearColor] size:CGSizeMake(FLSegmentArtSizeFull, FLSegmentArtSizeFull)];
   } else {
     NSString *textureKey = [FLSegmentNode keyForSegmentType:segmentType];
@@ -95,13 +102,10 @@ using namespace std;
   }
   if (self) {
     _segmentType = segmentType;
-    if ([FLSegmentNode canHaveSwitch:segmentType]) {
-      _switchPathId = 1;
-    } else {
-      _switchPathId = FLSegmentSwitchPathIdNone;
-    }
-    _showsLabel = YES;
-    _showsSwitchValue = NO;
+    _switchPathId = 1;
+    _mayShowLabel = YES;
+    _mayShowSwitch = YES;
+    _mayShowBubble = NO;
     [self FL_createContent];
   }
   return self;
@@ -110,7 +114,7 @@ using namespace std;
 - (void)FL_setSegmentType:(FLSegmentType)segmentType
 {
   [self FL_deleteContent];
-  if (segmentType == FLSegmentTypeReadoutInput || segmentType == FLSegmentTypeReadoutOutput) {
+  if ([FLSegmentNode FL_hasDynamicTexture:segmentType]) {
     self.texture = nil;
     self.color = [SKColor clearColor];
     self.size = CGSizeMake(FLSegmentArtSizeFull, FLSegmentArtSizeFull);
@@ -119,17 +123,7 @@ using namespace std;
     SKTexture *texture = [[HLTextureStore sharedStore] textureForKey:textureKey];
     self.texture = texture;
   }
-  FLSegmentType oldSegmentType = _segmentType;
   _segmentType = segmentType;
-  if ([FLSegmentNode canHaveSwitch:segmentType]) {
-    if (![FLSegmentNode canHaveSwitch:oldSegmentType]) {
-      _switchPathId = 1;
-    }
-  } else {
-    if ([FLSegmentNode canHaveSwitch:oldSegmentType]) {
-      _switchPathId = FLSegmentSwitchPathIdNone;
-    }
-  }
   [self FL_createContent];
 }
 
@@ -139,9 +133,25 @@ using namespace std;
   if (self) {
     _segmentType = (FLSegmentType)[aDecoder decodeIntegerForKey:@"segmentType"];
     _label = (char)[aDecoder decodeIntForKey:@"label"];
-    _switchPathId = [aDecoder decodeIntForKey:@"switchPathId"];
-    _showsLabel = [aDecoder decodeBoolForKey:@"showsLabel"];
-    _showsSwitchValue = [aDecoder decodeBoolForKey:@"showsSwitchValue"];
+    // TODO: Some older archives were created switchPathId of -1 (meaning "no switch").  This
+    // is now controlled by mayShowSwitch, instead, so initialize appropriately on decoding.
+    // Can delete this code once (if) all archives have been recreated recently.
+    int codedSwitchPathId = [aDecoder decodeIntForKey:@"switchPathId"];
+    if (codedSwitchPathId == -1) {
+      _switchPathId = 1;
+    } else {
+      _switchPathId = codedSwitchPathId;
+    }
+    _mayShowLabel = [aDecoder decodeBoolForKey:@"showsLabel"];
+    // TODO: Some older archives were created without mayShowSwitch (and instead indicating a
+    // hidden switch with a switchPathId of -1).  Initialize appropriately on decoding.
+    // Can delete this code once (if) all archives have been recreated recently.
+    if ([aDecoder containsValueForKey:@"showsSwitch"]) {
+      _mayShowSwitch = [aDecoder decodeBoolForKey:@"showsSwitch"];
+    } else {
+      _mayShowSwitch = (codedSwitchPathId != -1);
+    }
+    _mayShowBubble = [aDecoder decodeBoolForKey:@"showsSwitchValue"];
 
     // note: Content is deleted before encoding; recreate it.
     [self FL_createContent];
@@ -158,14 +168,18 @@ using namespace std;
   [self FL_deleteContent];
   [super encodeWithCoder:aCoder];
   // note: It might prove slow to delete and recreate; if so, we could remove and re-add
-  // children instead.
+  // children instead, since that's the thing we're really trying to skip here (when we
+  // call super).
   [self FL_createContent];
 
   [aCoder encodeInteger:_segmentType forKey:@"segmentType"];
   [aCoder encodeInt:(char)_label forKey:@"label"];
   [aCoder encodeInt:_switchPathId forKey:@"switchPathId"];
-  [aCoder encodeBool:_showsLabel forKey:@"showsLabel"];
-  [aCoder encodeBool:_showsSwitchValue forKey:@"showsSwitchValue"];
+  [aCoder encodeBool:_mayShowLabel forKey:@"showsLabel"];
+  [aCoder encodeBool:_mayShowSwitch forKey:@"showsSwitch"];
+  // note: Value "bubble" was formerly known as just "switch value" until there was more
+  // than one way to graphically show switch value.
+  [aCoder encodeBool:_mayShowBubble forKey:@"showsSwitchValue"];
 }
 
 - (instancetype)copyWithZone:(NSZone *)zone
@@ -175,8 +189,9 @@ using namespace std;
     copy->_segmentType = _segmentType;
     copy->_label = _label;
     copy->_switchPathId = _switchPathId;
-    copy->_showsLabel = _showsLabel;
-    copy->_showsSwitchValue = _showsSwitchValue;
+    copy->_mayShowLabel = _mayShowLabel;
+    copy->_mayShowSwitch = _mayShowSwitch;
+    copy->_mayShowBubble = _mayShowBubble;
     // note: Not calling [copy createContent] because all content is assumed to be
     // represented in the node tree.
   }
@@ -212,6 +227,8 @@ using namespace std;
       return @"readout-input";
     case FLSegmentTypeReadoutOutput:
       return @"readout-output";
+    case FLSegmentTypePixel:
+      return @"pixel";
     case FLSegmentTypeNone:
     default:
       return nil;
@@ -228,18 +245,39 @@ using namespace std;
   return (segmentType != FLSegmentTypeReadoutInput && segmentType != FLSegmentTypeReadoutOutput);
 }
 
-+ (BOOL)canHaveSwitch:(FLSegmentType)segmentType
++ (BOOL)canSwitch:(FLSegmentType)segmentType
 {
+  return segmentType == FLSegmentTypeJoinLeft
+    || segmentType == FLSegmentTypeJoinRight
+    || segmentType == FLSegmentTypeReadoutInput
+    || segmentType == FLSegmentTypeReadoutOutput
+    || segmentType == FLSegmentTypePixel;
+}
+
++ (BOOL)FL_hasDynamicTexture:(FLSegmentType)segmentType
+{
+  return segmentType == FLSegmentTypeReadoutInput
+    || segmentType == FLSegmentTypeReadoutOutput
+    || segmentType == FLSegmentTypePixel;
+}
+
++ (BOOL)canShowSwitch:(FLSegmentType)segmentType
+{
+  // note: canSwitch says whether the segment is able to store a switch value.
+  // canShowSwitch refers to whether the segment has a drawn switch or not.
+  // Perhaps should rename the drawn switch to "handle" or "lever" or something
+  // to reduce confusion.
   return segmentType == FLSegmentTypeJoinLeft
     || segmentType == FLSegmentTypeJoinRight
     || segmentType == FLSegmentTypeReadoutInput
     || segmentType == FLSegmentTypeReadoutOutput;
 }
 
-+ (BOOL)mustHaveSwitch:(FLSegmentType)segmentType
++ (BOOL)canShowBubble:(FLSegmentType)segmentType
 {
-  return segmentType == FLSegmentTypeReadoutInput
-    || segmentType == FLSegmentTypeReadoutOutput;
+  return segmentType == FLSegmentTypeJoinLeft
+    || segmentType == FLSegmentTypeJoinRight
+    || segmentType == FLSegmentTypePixel;
 }
 
 + (UIImage *)createImageForReadoutSegment:(FLSegmentType)segmentType imageSize:(CGFloat)imageSize
@@ -314,6 +352,27 @@ using namespace std;
   return image;
 }
 
++ (UIImage *)createImageForPixelSegmentImageSize:(CGFloat)imageSize
+{
+  // note: Art constants in file are all scaled to full art size.  Our scaling
+  // factor brings everything into imageSize.
+  CGFloat scale = imageSize / FLSegmentArtSizeFull;
+
+  UIGraphicsBeginImageContext(CGSizeMake(imageSize, imageSize));
+  CGContextRef context = UIGraphicsGetCurrentContext();
+  // note: Flip, to account for differences in coordinate system for UIImage.
+  // commented out: Don't bother, since pixel segment is currently symmetrical.
+  //CGContextTranslateCTM(context, 0.0f, imageSize);
+  //CGContextScaleCTM(context, 1.0f, -1.0f);
+  CGContextSetFillColorWithColor(context, [FLSegmentArtPixel1Color CGColor]);
+  CGFloat scaledBasicInset = FLSegmentArtBasicInset * scale;
+  CGFloat scaledBasicSize = FLSegmentArtSizeBasic * scale;
+  CGContextFillRect(context, CGRectMake(scaledBasicInset, scaledBasicInset, scaledBasicSize, scaledBasicSize));
+  UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+  UIGraphicsEndImageContext();
+  return image;
+}
+
 - (NSString *)segmentKey
 {
   return [FLSegmentNode keyForSegmentType:_segmentType];
@@ -332,14 +391,13 @@ using namespace std;
 - (void)setZRotation:(CGFloat)zRotation
 {
   [super setZRotation:zRotation];
-  BOOL segmentTypeReadout = (_segmentType == FLSegmentTypeReadoutInput || _segmentType == FLSegmentTypeReadoutOutput);
-  if (_switchPathId != FLSegmentSwitchPathIdNone) {
-    if (_showsSwitchValue && !segmentTypeReadout) {
-      [self FL_rotateContentValue];
-    }
-    if (_showsLabel) {
-      [self FL_rotateContentLabel];
-    }
+  // note: The label and bubble both rotate independently from the segment node so that their
+  // text is always right-side-up with respect to the scene.
+  if (_mayShowLabel && _label != FLSegmentLabelNone) {
+    [self FL_rotateContentLabel];
+  }
+  if (_mayShowBubble && [FLSegmentNode canShowBubble:_segmentType]) {
+    [self FL_rotateContentBubble];
   }
 }
 
@@ -424,6 +482,9 @@ using namespace std;
       }
       break;
     }
+    case FLSegmentTypePixel:
+      // note: Pixel has both vertical and horizontal symmetry in all rotations.
+      break;
     case FLSegmentTypeReadoutInput:
     case FLSegmentTypeReadoutOutput:
     case FLSegmentTypeNone:
@@ -433,14 +494,9 @@ using namespace std;
   };
 }
 
-- (BOOL)canHaveSwitch
+- (BOOL)canSwitch
 {
-  return [FLSegmentNode canHaveSwitch:_segmentType];
-}
-
-- (BOOL)mustHaveSwitch
-{
-  return [FLSegmentNode mustHaveSwitch:_segmentType];
+  return [FLSegmentNode canSwitch:_segmentType];
 }
 
 - (int)switchPathId
@@ -450,54 +506,44 @@ using namespace std;
 
 - (void)setSwitchPathId:(int)switchPathId animated:(BOOL)animated
 {
+  if (switchPathId != 0 && switchPathId != 1) {
+    [NSException raise:@"FLSegmentNodeSwitchPathIdInvalid" format:@"Invalid switch path id %d.", _switchPathId];
+  }
+
   if (_switchPathId == switchPathId) {
     return;
   }
 
-  BOOL segmentTypeReadout = (_segmentType == FLSegmentTypeReadoutInput || _segmentType == FLSegmentTypeReadoutOutput);
-  if (switchPathId == FLSegmentSwitchPathIdNone) {
-    [self FL_deleteContentSwitch];
-    if (segmentTypeReadout) {
-      [NSException raise:@"FLSegmentNodeSwitchPathIdInvalid" format:@"Invalid switch path id %d for readout segment.", _switchPathId];
-    } else if (_showsSwitchValue) {
-      [self FL_deleteContentValue];
-    }
-  }
-
-  int oldSwitchPathId = _switchPathId;
   _switchPathId = switchPathId;
 
-  if (oldSwitchPathId == FLSegmentSwitchPathIdNone) {
-    [self FL_createContentSwitch];
-    if (segmentTypeReadout) {
-      [NSException raise:@"FLSegmentNodeSwitchPathIdInvalid" format:@"Invalid switch path id %d for readout segment.", _switchPathId];
-    } else if (_showsSwitchValue) {
-      [self FL_createContentValue];
-    }
-  } else if (switchPathId != FLSegmentSwitchPathIdNone) {
-    [self FL_updateContentSwitchAnimated:animated];
-    if (segmentTypeReadout) {
+  switch (_segmentType) {
+    case FLSegmentTypeReadoutInput:
+    case FLSegmentTypeReadoutOutput:
       [self FL_updateContentReadoutAnimated:animated];
-    } else if (_showsSwitchValue) {
-      [self FL_updateContentValueAnimated:animated];
-    }
+      break;
+    case FLSegmentTypePixel:
+      [self FL_updateContentPixelAnimated:animated];
+      break;
+    default:
+      // No special handling for segment type.
+      break;
+  }
+  if (_mayShowSwitch && [FLSegmentNode canShowSwitch:_segmentType]) {
+    [self FL_updateContentSwitchAnimated:animated];
+  }
+  if (_mayShowBubble && [FLSegmentNode canShowBubble:_segmentType]) {
+    [self FL_updateContentBubbleAnimated:animated];
   }
 }
 
 - (int)toggleSwitchPathIdAnimated:(BOOL)animated
 {
-  if (_switchPathId == FLSegmentSwitchPathIdNone) {
-    return FLSegmentSwitchPathIdNone;
-  }
-  if (_switchPathId == 0) {
-    [self setSwitchPathId:1 animated:animated];
-    return 1;
-  } else if (_switchPathId == 1) {
+  if (_switchPathId == 1) {
     [self setSwitchPathId:0 animated:animated];
     return 0;
   } else {
-    [NSException raise:@"FLSegmentNodeSwitchPathIdInvalid" format:@"Invalid switch path id %d.", _switchPathId];
-    return -1;
+    [self setSwitchPathId:1 animated:animated];
+    return 1;
   }
 }
 
@@ -506,14 +552,14 @@ using namespace std;
   if (_label == label) {
     return;
   }
-  if (_showsLabel) {
+  if (_mayShowLabel) {
     if (label == FLSegmentLabelNone) {
       [self FL_deleteContentLabel];
     }
   }
   char oldLabel = _label;
   _label = label;
-  if (_showsLabel) {
+  if (_mayShowLabel) {
     if (oldLabel == FLSegmentLabelNone) {
       [self FL_createContentLabel];
     } else if (_label != FLSegmentLabelNone) {
@@ -522,50 +568,93 @@ using namespace std;
   }
 }
 
-- (void)setShowsLabel:(BOOL)showsLabel
+- (void)setMayShowLabel:(BOOL)mayShowLabel
 {
-  if (showsLabel == _showsLabel) {
+  if (mayShowLabel == _mayShowLabel) {
     return;
   }
-  if (_showsLabel) {
+  if (_mayShowLabel) {
     if (_label != FLSegmentLabelNone) {
       [self FL_deleteContentLabel];
     }
   }
-  _showsLabel = showsLabel;
-  if (_showsLabel) {
+  _mayShowLabel = mayShowLabel;
+  if (_mayShowLabel) {
     if (_label != FLSegmentLabelNone) {
       [self FL_createContentLabel];
     }
   }
 }
 
-- (void)setShowsSwitchValue:(BOOL)showsSwitchValue
+- (BOOL)doesShowLabel
 {
-  if (showsSwitchValue == _showsSwitchValue) {
+  return _mayShowLabel && _label != FLSegmentLabelNone;
+}
+
+- (void)setMayShowSwitch:(BOOL)mayShowSwitch
+{
+  if (mayShowSwitch == _mayShowSwitch) {
     return;
   }
-  BOOL segmentTypeReadout = (_segmentType == FLSegmentTypeReadoutInput || _segmentType == FLSegmentTypeReadoutOutput);
-  if (_showsSwitchValue && !segmentTypeReadout) {
-    if (_switchPathId != FLSegmentSwitchPathIdNone) {
-      [self FL_deleteContentValue];
-    }
+  BOOL canShowSwitch = [FLSegmentNode canShowSwitch:_segmentType];
+  if (_mayShowSwitch && canShowSwitch) {
+    [self FL_deleteContentSwitch];
   }
-  _showsSwitchValue = showsSwitchValue;
-  if (_showsSwitchValue && !segmentTypeReadout) {
-    if (_switchPathId != FLSegmentSwitchPathIdNone) {
-      [self FL_createContentValue];
-    }
+  _mayShowSwitch = mayShowSwitch;
+  if (_mayShowSwitch && canShowSwitch) {
+    [self FL_createContentSwitch];
   }
 }
 
-- (CGPoint)switchPosition
+- (BOOL)canShowSwitch
 {
-  SKNode *switchNode = [self childNodeWithName:@"switch"];
-  if (!switchNode) {
-    return CGPointZero;
+  return [FLSegmentNode canShowSwitch:_segmentType];
+}
+
+- (BOOL)doesShowSwitch
+{
+  return _mayShowSwitch && [FLSegmentNode canShowSwitch:_segmentType];
+}
+
+- (void)setMayShowBubble:(BOOL)mayShowBubble
+{
+  if (mayShowBubble == _mayShowBubble) {
+    return;
   }
-  return [self.parent convertPoint:switchNode.position fromNode:self];
+  BOOL canShowBubble = [FLSegmentNode canShowBubble:_segmentType];
+  if (_mayShowBubble && canShowBubble) {
+    [self FL_deleteContentBubble];
+  }
+  _mayShowBubble = mayShowBubble;
+  if (_mayShowBubble && canShowBubble) {
+    [self FL_createContentBubble];
+  }
+}
+
+- (BOOL)canShowBubble
+{
+  return [FLSegmentNode canShowBubble:_segmentType];
+}
+
+- (BOOL)doesShowBubble
+{
+  return _mayShowBubble && [FLSegmentNode canShowBubble:_segmentType];
+}
+
+- (CGPoint)switchLinkLocation
+{
+  // note: Properly, should test _mayShowSwitch && [canShowSwitch].
+  // But as a shortcut that handles all current situations: Either use
+  // the switch node, if found, or else just return the center of the
+  // segment node.
+  CGPoint switchLinkLocation;
+  SKNode *switchNode = [self childNodeWithName:@"switch"];
+  if (switchNode) {
+    switchLinkLocation = switchNode.position;
+  } else {
+    switchLinkLocation = CGPointZero;
+  }
+  return [self.parent convertPoint:switchLinkLocation fromNode:self];
 }
 
 - (void)getPoint:(CGPoint *)point rotation:(CGFloat *)rotationRadians forPath:(int)pathId progress:(CGFloat)progress scale:(CGFloat)scale
@@ -637,7 +726,8 @@ using namespace std;
 
 - (BOOL)getConnectingPath:(int *)pathId progress:(CGFloat *)progress forEndPoint:(CGPoint)endPoint scale:(CGFloat)scale
 {
-  return [self FL_getConnectingPath:pathId progress:progress forEndPoint:endPoint doRotationCheck:NO rotation:0.0f progress:0.0f scale:scale switchPathId:_switchPathId];
+  BOOL hasSwitch = [FLSegmentNode canSwitch:_segmentType];
+  return [self FL_getConnectingPath:pathId progress:progress forEndPoint:endPoint doRotationCheck:NO rotation:0.0f progress:0.0f scale:scale hasSwitch:hasSwitch switchPathId:_switchPathId];
 }
 
 - (BOOL)getConnectingPath:(int *)pathId
@@ -647,7 +737,8 @@ using namespace std;
                  progress:(CGFloat)forProgress
                     scale:(CGFloat)scale
 {
-  return [self FL_getConnectingPath:pathId progress:progress forEndPoint:endPoint doRotationCheck:YES rotation:forRotationRadians progress:forProgress scale:scale switchPathId:_switchPathId];
+  BOOL hasSwitch = [FLSegmentNode canSwitch:_segmentType];
+  return [self FL_getConnectingPath:pathId progress:progress forEndPoint:endPoint doRotationCheck:YES rotation:forRotationRadians progress:forProgress scale:scale hasSwitch:hasSwitch switchPathId:_switchPathId];
 }
 
 - (BOOL)getConnectingPath:(int *)pathId
@@ -656,20 +747,20 @@ using namespace std;
                  rotation:(CGFloat)forRotationRadians
                  progress:(CGFloat)forProgress
                     scale:(CGFloat)scale
+                hasSwitch:(BOOL)hasSwitch
              switchPathId:(int)switchPathId
 {
-  return [self FL_getConnectingPath:pathId progress:progress forEndPoint:endPoint doRotationCheck:YES rotation:forRotationRadians progress:forProgress scale:scale switchPathId:switchPathId];
+  return [self FL_getConnectingPath:pathId progress:progress forEndPoint:endPoint doRotationCheck:YES rotation:forRotationRadians progress:forProgress scale:scale hasSwitch:hasSwitch switchPathId:switchPathId];
 }
 
 - (BOOL)hasConnectingPathForEndPoint:(CGPoint)endPoint
                             rotation:(CGFloat)forRotationRadians
                             progress:(CGFloat)forProgress
                                scale:(CGFloat)scale
-                        switchPathId:(int)switchPathId
 {
   int pathId;
   CGFloat progress;
-  return [self FL_getConnectingPath:&pathId progress:&progress forEndPoint:endPoint doRotationCheck:YES rotation:forRotationRadians progress:forProgress scale:scale switchPathId:switchPathId];
+  return [self FL_getConnectingPath:&pathId progress:&progress forEndPoint:endPoint doRotationCheck:YES rotation:forRotationRadians progress:forProgress scale:scale hasSwitch:NO switchPathId:0];
 }
 
 - (BOOL)FL_getConnectingPath:(int *)pathId
@@ -679,6 +770,7 @@ using namespace std;
                     rotation:(CGFloat)forRotationRadians
                     progress:(CGFloat)forProgress
                        scale:(CGFloat)scale
+                   hasSwitch:(BOOL)hasSwitch
                 switchPathId:(int)switchPathId
 {
   CGPoint pathEndPoint = CGPointMake((endPoint.x - self.position.x) / scale, (endPoint.y - self.position.y) / scale);
@@ -733,7 +825,7 @@ using namespace std;
         }
       }
       if (isConnectingRotation || !doRotationCheck) {
-        if (switchPathId == FLSegmentSwitchPathIdNone || switchPathId == p) {
+        if (!hasSwitch || switchPathId == p) {
           // note: The switch might not be relevant, even if set to this path;
           // it might only be for travel in the other direction.  But at least
           // we know there is no other better alternative to consider.
@@ -778,7 +870,7 @@ using namespace std;
         }
       }
       if (isConnectingRotation || !doRotationCheck) {
-        if (switchPathId == FLSegmentSwitchPathIdNone || switchPathId == p) {
+        if (!hasSwitch || switchPathId == p) {
           *pathId = p;
           *progress = 1.0f;
           return YES;
@@ -838,20 +930,29 @@ using namespace std;
   // noob: A less strict and more-explicit way to do this "according to current
   // object state" thing would be to pass the relevant state variables as parameters.
 
-  BOOL segmentTypeReadout = (_segmentType == FLSegmentTypeReadoutInput || _segmentType == FLSegmentTypeReadoutOutput);
-  if (segmentTypeReadout) {
-    [self FL_createContentReadout];
+  switch (_segmentType) {
+    case FLSegmentTypeReadoutInput:
+    case FLSegmentTypeReadoutOutput:
+      [self FL_createContentReadout];
+      break;
+    case FLSegmentTypePixel:
+      [self FL_createContentPixel];
+      break;
+    default:
+      // No special content for segment type.
+      break;
   }
 
-  if (_label != FLSegmentLabelNone && _showsLabel) {
+  if (_mayShowLabel && _label != FLSegmentLabelNone) {
     [self FL_createContentLabel];
   }
-
-  if (_switchPathId != FLSegmentSwitchPathIdNone) {
+  
+  if (_mayShowSwitch && [FLSegmentNode canShowSwitch:_segmentType]) {
     [self FL_createContentSwitch];
-    if (_showsSwitchValue && !segmentTypeReadout) {
-      [self FL_createContentValue];
-    }
+  }
+  
+  if (_mayShowBubble && [FLSegmentNode canShowBubble:_segmentType]) {
+    [self FL_createContentBubble];
   }
 }
 
@@ -860,20 +961,29 @@ using namespace std;
   // note: Assume content has been created according to *current* object state.
   // After deletion, the caller should change object state accordingly.
 
-  BOOL segmentTypeReadout = (_segmentType == FLSegmentTypeReadoutInput || _segmentType == FLSegmentTypeReadoutOutput);
-  if (segmentTypeReadout) {
-    [self FL_deleteContentReadout];
+  switch (_segmentType) {
+    case FLSegmentTypeReadoutInput:
+    case FLSegmentTypeReadoutOutput:
+      [self FL_deleteContentReadout];
+      break;
+    case FLSegmentTypePixel:
+      [self FL_deleteContentPixel];
+      break;
+    default:
+      // No special content for segment type.
+      break;
   }
-
-  if (_label != FLSegmentLabelNone && _showsLabel) {
+  
+  if (_mayShowLabel && _label != FLSegmentLabelNone) {
     [self FL_deleteContentLabel];
   }
-
-  if (_switchPathId != FLSegmentSwitchPathIdNone) {
+  
+  if (_mayShowSwitch && [FLSegmentNode canShowSwitch:_segmentType]) {
     [self FL_deleteContentSwitch];
-    if (_showsSwitchValue && !segmentTypeReadout) {
-      [self FL_deleteContentValue];
-    }
+  }
+  
+  if (_mayShowBubble && [FLSegmentNode canShowBubble:_segmentType]) {
+    [self FL_deleteContentBubble];
   }
 }
 
@@ -883,7 +993,7 @@ using namespace std;
   // *current* object state.
 
   // note: Additionally, since this is a helper method, assume _segmentType is
-  // FLSegmentTypeReadout and _switchPathId is not FLSegmentNodeSwitchPathIdNone.
+  // FLSegmentTypeReadout*.
   // (That is, the caller is responsible to short-circuit the call in cases where
   // it obviously won't do anything; this prevents duplicate checking.)
 
@@ -925,8 +1035,8 @@ using namespace std;
 - (void)FL_updateContentReadoutAnimated:(BOOL)animated
 {
   // note: Assume content has been created according to current object state
-  // with the exception that _switchPathId has changed from one value to another
-  // (neither of them FLSegmentSwitchPathIdNone).
+  // with the exception that _switchPathId has changed from one (legal) value to
+  // another.
 
   SKSpriteNode *topValueNode;
   SKSpriteNode *bottomValueNode;
@@ -951,8 +1061,8 @@ using namespace std;
   bottomValueNode.yScale = 0.8f;
 
   if (animated) {
-    [self FL_runActionFlashWhiteValue:topValueNode];
-    [self FL_runActionFlashBlackValue:bottomValueNode];
+    [self FL_runActionFlashWhiteNode:topValueNode];
+    [self FL_runActionFlashBlackNode:bottomValueNode];
   }
 }
 
@@ -966,15 +1076,80 @@ using namespace std;
   [value1Node removeFromParent];
 }
 
+- (void)FL_createContentPixel
+{
+  // note: Assume the content does not already exist.  Create content according to
+  // *current* object state.
+  
+  // note: Additionally, since this is a helper method, assume _segmentType is
+  // FLSegmentTypePixel.
+  // (That is, the caller is responsible to short-circuit the call in cases where
+  // it obviously won't do anything; this prevents duplicate checking.)
+  
+  // note: For now, treat the pixel content not as a decoration that can be added
+  // to any segment node, but instead a segment-type-specific way of doing content,
+  // like readout segments.  If instead we want it to be something that can be
+  // added to other segment nodes, like the "bubble" decoration, then call it
+  // something like "block" or "backdrop" or "matte", and make an FL_canShowMatte
+  // method a _mayShowMatte variable, and rename colors to FLSegmentNodeMatteColor0,
+  // etc.
+
+  SKColor *newColor = nil;
+  if (_switchPathId == 0) {
+    newColor = FLSegmentArtPixel0Color;
+  } else if (_switchPathId == 1) {
+    newColor = FLSegmentArtPixel1Color;
+  } else {
+    [NSException raise:@"FLSegmentNodeSwitchPathIdInvalid" format:@"Invalid switch path id %d.", _switchPathId];
+  }
+  
+  SKSpriteNode *matteNode = [SKSpriteNode spriteNodeWithColor:newColor size:CGSizeMake(FLSegmentArtSizeBasic, FLSegmentArtSizeBasic)];
+  matteNode.name = @"pixel-matte";
+  [self addChild:matteNode];
+}
+
+- (void)FL_updateContentPixelAnimated:(BOOL)animated
+{
+  // note: Assume content has been created according to current object state
+  // with the exception that _switchPathId has changed from one (legal) value to
+  // another.
+
+  SKColor *newColor = nil;
+  if (_switchPathId == 0) {
+    newColor = FLSegmentArtPixel0Color;
+  } else if (_switchPathId == 1) {
+    newColor = FLSegmentArtPixel1Color;
+  } else {
+    [NSException raise:@"FLSegmentNodeSwitchPathIdInvalid" format:@"Invalid switch path id %d.", _switchPathId];
+  }
+
+  SKSpriteNode *matteNode = (SKSpriteNode *)[self childNodeWithName:@"pixel-matte"];
+  if (!animated) {
+    matteNode.color = newColor;
+  } else {
+    [matteNode runAction:[SKAction colorizeWithColor:newColor colorBlendFactor:1.0f duration:FLColorizeDuration]];
+  }
+}
+
+- (void)FL_deleteContentPixel
+{
+  // note: Assume content has been created according to *current* object state.
+  // After deletion, the caller should change object state accordingly.
+
+  SKSpriteNode *matteNode = (SKSpriteNode *)[self childNodeWithName:@"pixel-matte"];
+  [matteNode removeFromParent];
+}
+
 - (void)FL_createContentLabel
 {
   // note: Assume the content does not already exist.  Create content according to
   // *current* object state.
 
   // note: Additionally, since this is a helper method, assume _label is not FLSegmentLabelNone
-  // and _showsLabel is YES.
+  // and _mayShowLabel is YES.
   // (That is, the caller is responsible to short-circuit the call in cases where
   // it obviously won't do anything; this prevents duplicate checking.)
+  
   SKLabelNode *labelNode = [SKLabelNode labelNodeWithFontNamed:@"Arial-BoldMT"];
   labelNode.name = @"label";
   labelNode.text = [NSString stringWithFormat:@"%c", _label];
@@ -992,9 +1167,10 @@ using namespace std;
   // note: Assume content has been created according to *current* object state.
   
   // note: Additionally, since this is a helper method, assume _label is not FLSegmentLabelNone
-  // and _showsLabel is YES.
+  // and _mayShowLabel is YES.
   // (That is, the caller is responsible to short-circuit the call in cases where
   // it obviously won't do anything; this prevents duplicate checking.)
+  
   SKLabelNode *labelNode = (SKLabelNode *)[self childNodeWithName:@"label"];
   labelNode.text = [NSString stringWithFormat:@"%c", _label];
 }
@@ -1004,9 +1180,10 @@ using namespace std;
   // note: Assume content has been created according to *current* object state.
 
   // note: Additionally, since this is a helper method, assume _label is not FLSegmentLabelNone
-  // and _showsLabel is YES.
+  // and _mayShowLabel is YES.
   // (That is, the caller is responsible to short-circuit the call in cases where
   // it obviously won't do anything; this prevents duplicate checking.)
+  
   SKNode *labelNode = [self childNodeWithName:@"label"];
   labelNode.zRotation = -self.zRotation;
 }
@@ -1015,8 +1192,9 @@ using namespace std;
 {
   // note: Assume content has been created according to *current* object state.  After
   // deletion, the caller should change object state accordingly.  For example, we may
-  // assume that _label is not FLSegmentLabelNone, _showsLabel is YES, and that the child node "label"
+  // assume that _label is not FLSegmentLabelNone, _mayShowLabel is YES, and that the child node "label"
   // exists and has been added to self.
+  
   SKNode *labelNode = [self childNodeWithName:@"label"];
   [labelNode removeFromParent];
 }
@@ -1026,9 +1204,9 @@ using namespace std;
   // note: Assume the content does not already exist.  Create content according to
   // *current* object state.
 
-  // note: Additionally, since this is a helper method, assume _switchPathId is
-  // not FLSegmentSwitchPathIdNone.  (That is, the caller is responsible to short-
-  // circuit the call in cases where it obviously won't do anything; this prevents
+  // note: Additionally, since this is a helper method, assume _mayShowSwitch is YES,
+  // and that this segment passes canShowSwitch.  (That is, the caller is responsible
+  // to short-circuit the call in cases where it obviously won't do anything; this prevents
   // duplicate checking.)
 
   SKSpriteNode *switchNode = [SKSpriteNode spriteNodeWithTexture:[[HLTextureStore sharedStore] textureForKey:@"switch"]];
@@ -1056,8 +1234,12 @@ using namespace std;
 - (void)FL_updateContentSwitchAnimated:(BOOL)animated
 {
   // note: Assume content has been created according to current object state
-  // with the exception that _switchPathId has changed from one value to another
-  // (neither of them FLSegmentSwitchPathIdNone).
+  // with the exception that _switchPathId has changed from one (legal) value to another.
+
+  // note: Additionally, since this is a helper method, assume _mayShowSwitch is YES,
+  // and that this segment passes canShowSwitch.  (That is, the caller is responsible
+  // to short-circuit the call in cases where it obviously won't do anything; this prevents
+  // duplicate checking.)
 
   SKSpriteNode *switchNode = (SKSpriteNode *)[self childNodeWithName:@"switch"];
 
@@ -1070,12 +1252,14 @@ using namespace std;
     newZRotation = (CGFloat)M_PI + (1 - _switchPathId) * switchAngleJoin;
   } else if (_segmentType == FLSegmentTypeReadoutInput || _segmentType == FLSegmentTypeReadoutOutput) {
     newZRotation = (_switchPathId - 1) * switchAngleReadout;
+  } else {
+    [NSException raise:@"FLSegmentNodeInvalidSegemntType" format:@"Segment is missing switch display information."];
   }
 
-  if (_switchPathId == FLSegmentSwitchPathIdNone || !animated) {
+  if (!animated) {
     switchNode.zRotation = newZRotation;
   } else {
-    [switchNode runAction:[SKAction rotateToAngle:newZRotation duration:0.1 shortestUnitArc:YES]];
+    [switchNode runAction:[SKAction rotateToAngle:newZRotation duration:FLSwitchRotateDuration shortestUnitArc:YES]];
   }
 }
 
@@ -1083,20 +1267,19 @@ using namespace std;
 {
   // note: Assume content has been created according to *current* object state.
   // After deletion, the caller should change object state accordingly.
-  // For example, we may assume that _switchPathId is not FLSegmentSwitchPathIdNone,
-  // and that the child node "switch" exists and has been added to self.
+  // For example, we may assume that _mayShowSwitch is YES, this segment passes
+  // canShowSwitch, and that the child node "switch" exists and has been added to self.
   SKSpriteNode *switchNode = (SKSpriteNode *)[self childNodeWithName:@"switch"];
   [switchNode removeFromParent];
 }
 
-- (void)FL_createContentValue
+- (void)FL_createContentBubble
 {
   // note: Assume the content does not already exist.  Create content according to
   // *current* object state.
 
-  // note: Additionally, since is a helper method, assume _showsSwitchValue is YES,
-  // _switchPathId is not FLSegmentSwitchPathIdNone, and _segmentType is not
-  // FLSegmentTypeReadout.
+  // note: Additionally, since is a helper method, assume _mayShowBubble is YES
+  // and this segment passes canShowBubble.
   // (That is, the caller is responsible to short-circuit the call in cases where
   // it obviously won't do anything; this prevents duplicate checking.)
 
@@ -1109,22 +1292,22 @@ using namespace std;
     [NSException raise:@"FLSegmentNodeSwitchPathIdInvalid" format:@"Invalid switch path id %d.", _switchPathId];
   }
 
-  SKNode *valueNode = [SKSpriteNode spriteNodeWithTexture:valueTexture];
-  valueNode.name = @"value";
-  valueNode.zPosition = FLZPositionValue;
-  valueNode.zRotation = (CGFloat)M_PI_2 - self.zRotation;
-  [self addChild:valueNode];
+  SKNode *bubbleNode = [SKSpriteNode spriteNodeWithTexture:valueTexture];
+  bubbleNode.name = @"bubble";
+  bubbleNode.zPosition = FLZPositionBubble;
+  bubbleNode.zRotation = (CGFloat)M_PI_2 - self.zRotation;
+  [self addChild:bubbleNode];
 }
 
-- (void)FL_updateContentValueAnimated:(BOOL)animated
+- (void)FL_updateContentBubbleAnimated:(BOOL)animated
 {
   // note: Assume content has been created according to current object state
   // with the exception that _switchPathId has changed from one value to another,
   // neither of them FLSegmentSwitchPathIdNone.  (The old value is currently
   // not tracked or needed.)
 
-  // note: Additionally, since is a helper method, assume _showsSwitchValue is YES
-  // and _segmentType is not FLSegmentTypeReadout.
+  // note: Additionally, since is a helper method, assume _mayShowBubble is YES
+  // and this segment passes canShowBubble.
   // (That is, the caller is responsible to short-circuit the call in cases where
   // it obviously won't do anything; this prevents duplicate checking.)
 
@@ -1137,56 +1320,56 @@ using namespace std;
     [NSException raise:@"FLSegmentNodeSwitchPathIdInvalid" format:@"Invalid switch path id %d.", _switchPathId];
   }
 
-  SKSpriteNode *valueNode = (SKSpriteNode *)[self childNodeWithName:@"value"];
+  SKSpriteNode *bubbleNode = (SKSpriteNode *)[self childNodeWithName:@"bubble"];
 
-  valueNode.texture = valueTexture;
+  bubbleNode.texture = valueTexture;
   if (animated) {
-    [self FL_runActionFlashWhiteValue:valueNode];
+    [self FL_runActionFlashWhiteNode:bubbleNode];
   }
 }
 
-- (void)FL_rotateContentValue
+- (void)FL_rotateContentBubble
 {
   // note: Assume content has been created according to *current* object state.
 
-  // note: Additionally, since is a helper method, assume _showsSwitchValue is YES,
-  // _switchPathId is not FLSegmentSwitchPathIdNone, and _segmentType is not
-  // FLSegmentTypeReadout.
+  // note: Additionally, since is a helper method, assume _mayShowBubble is YES
+  // and this segment passes canShowBubble.
   // (That is, the caller is responsible to short-circuit the call in cases where
   // it obviously won't do anything; this prevents duplicate checking.)
 
-  SKNode *valueNode = [self childNodeWithName:@"value"];
-  valueNode.zRotation = (CGFloat)M_PI_2 - self.zRotation;
+  SKNode *bubbleNode = [self childNodeWithName:@"bubble"];
+  bubbleNode.zRotation = (CGFloat)M_PI_2 - self.zRotation;
 }
 
-- (void)FL_deleteContentValue
+- (void)FL_deleteContentBubble
 {
   // note: Assume content has been created according to *current* object state.
   // After deletion, the caller should change object state accordingly.
-  // For example, we may assume _showsSwitchValue is YES and that the child
-  // node "value" exists and has been added to self.
-  SKNode *valueNode = [self childNodeWithName:@"value"];
-  [valueNode removeFromParent];
+  // For example, we may assume _mayShowBubble is YES and that the child
+  // node "bubble" exists and has been added to self.
+  
+  SKNode *bubbleNode = [self childNodeWithName:@"bubble"];
+  [bubbleNode removeFromParent];
 }
 
-- (void)FL_runActionFlashWhiteValue:(SKNode *)valueNode
+- (void)FL_runActionFlashWhiteNode:(SKNode *)node
 {
   // noob: Flash-white-and-fade effect.  Easier/better/more-performant/more-standard
   // way to do this?  (n.b. Colorize only works for tinting towards black, not
   // towards white.)
 
   SKCropNode *whiteLayer = [[SKCropNode alloc] init];
-  SKSpriteNode *maskNode = [valueNode copy];
+  SKSpriteNode *maskNode = [node copy];
   maskNode.position = CGPointZero;
   [maskNode removeFromParent];
   whiteLayer.maskNode = maskNode;
-  whiteLayer.zPosition = FLZPositionValueOverlay - valueNode.zPosition;
+  whiteLayer.zPosition = FLZPositionFlashOverlay - node.zPosition;
   // note: Cheating a bit here by hard-coding 2x node size: We know that sometimes the caller
   // is growing or shrinking the node at the same time it flashes it.
   SKSpriteNode *whiteNode = [SKSpriteNode spriteNodeWithColor:[SKColor whiteColor]
                                                          size:CGSizeMake(maskNode.size.width * 2.0f, maskNode.size.height * 2.0f)];
   [whiteLayer addChild:whiteNode];
-  [valueNode addChild:whiteLayer];
+  [node addChild:whiteLayer];
 
   SKAction *whiteFlash = [SKAction sequence:@[ [SKAction fadeAlphaTo:0.0f duration:FLFlashDuration],
                                                [SKAction removeFromParent] ]];
@@ -1194,18 +1377,18 @@ using namespace std;
   [whiteLayer runAction:whiteFlash];
 }
 
-- (void)FL_runActionFlashBlackValue:(SKSpriteNode *)valueNode
+- (void)FL_runActionFlashBlackNode:(SKSpriteNode *)node
 {
-  [valueNode removeActionForKey:@"flashBlack"];
+  [node removeActionForKey:@"flashBlack"];
 
-  SKColor *oldColor = valueNode.color;
-  CGFloat oldColorBlendFactor = valueNode.colorBlendFactor;
+  SKColor *oldColor = node.color;
+  CGFloat oldColorBlendFactor = node.colorBlendFactor;
 
-  valueNode.color = [SKColor blackColor];
-  valueNode.colorBlendFactor = 1.0f;
+  node.color = [SKColor blackColor];
+  node.colorBlendFactor = 1.0f;
   SKAction *blackFlash = [SKAction colorizeWithColor:oldColor colorBlendFactor:oldColorBlendFactor duration:FLFlashDuration];
   blackFlash.timingMode = SKActionTimingEaseOut;
-  [valueNode runAction:blackFlash withKey:@"flashBlack"];
+  [node runAction:blackFlash withKey:@"flashBlack"];
 }
 
 - (const FLPath *)FL_path:(int)pathId
@@ -1257,6 +1440,7 @@ using namespace std;
       break;
     case FLSegmentTypeReadoutInput:
     case FLSegmentTypeReadoutOutput:
+    case FLSegmentTypePixel:
     case FLSegmentTypeNone:
     default:
       [NSException raise:@"FLSegmentNodeSegmentTypeInvalid" format:@"Invalid segment type %ld.", (long)_segmentType];
@@ -1303,6 +1487,7 @@ using namespace std;
       return 1;
     case FLSegmentTypeReadoutInput:
     case FLSegmentTypeReadoutOutput:
+    case FLSegmentTypePixel:
       return 0;
     case FLSegmentTypeNone:
     default:
@@ -1336,6 +1521,7 @@ using namespace std;
       return 1;
     case FLSegmentTypeReadoutInput:
     case FLSegmentTypeReadoutOutput:
+    case FLSegmentTypePixel:
       return 0;
     case FLSegmentTypeNone:
     default:

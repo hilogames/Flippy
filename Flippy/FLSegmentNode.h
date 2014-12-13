@@ -22,8 +22,6 @@ FOUNDATION_EXPORT const CGFloat FLSegmentArtInsideDrawnTrackInset;
 FOUNDATION_EXPORT const CGFloat FLSegmentArtStraightShift;
 FOUNDATION_EXPORT const CGFloat FLSegmentArtCurveShift;
 
-FOUNDATION_EXPORT const int FLSegmentSwitchPathIdNone;
-
 FOUNDATION_EXPORT const char FLSegmentLabelNone;
 
 typedef NS_ENUM(NSInteger, FLSegmentType) {
@@ -41,6 +39,7 @@ typedef NS_ENUM(NSInteger, FLSegmentType) {
   FLSegmentTypeReadoutOutput,
   FLSegmentTypePlatformRight,
   FLSegmentTypePlatformStartRight,
+  FLSegmentTypePixel,
 };
 
 typedef NS_ENUM(NSInteger, FLSegmentFlipDirection) {
@@ -67,52 +66,104 @@ convertRotationQuartersToRadians(int quarters)
 
 @interface FLSegmentNode : SKSpriteNode <NSCoding, NSCopying>
 
-@property (nonatomic, readonly) FLSegmentType segmentType;
+/// @name Creating a Segment
 
-@property (nonatomic, readonly) NSString *segmentKey;
+- (instancetype)initWithSegmentType:(FLSegmentType)segmentType;
 
-@property (nonatomic) int zRotationQuarters;
-
-@property (nonatomic, assign) char label;
-
-@property (nonatomic, readonly) int switchPathId;
-
-@property (nonatomic, readonly) CGPoint switchPosition;
-
-@property (nonatomic, assign) BOOL showsLabel;
-
-@property (nonatomic, assign) BOOL showsSwitchValue;
-
-+ (NSString *)keyForSegmentType:(FLSegmentType)segmentType;
-
-+ (BOOL)canFlip:(FLSegmentType)segmentType;
-
-+ (BOOL)canHaveSwitch:(FLSegmentType)segmentType;
-
-+ (BOOL)mustHaveSwitch:(FLSegmentType)segmentType;
+/// @name Creating Images of Segments
 
 /**
- * Creates a image of the readout segment in one of its possible states.
+ * Creates an image of the readout segment in one of its possible states.
  * (The readout segment as represented in the node tree, by comparison,
  * is composed of a number of sprites which can change position dynamically.)
  *
- * note: Components of the image (for example, the switch and the "value"
- * bubbles) are scaled to imageSize either with interpolation or without,
+ * note: Components of the image (for example, the switch and the value
+ * bubble) are scaled to imageSize either with interpolation or without,
  * according to the filteringMode of the texture which corresponds to the
  * component image in the texture store.
  */
 + (UIImage *)createImageForReadoutSegment:(FLSegmentType)segmentType imageSize:(CGFloat)imageSize;
 
-- (instancetype)initWithSegmentType:(FLSegmentType)segmentType;
+/**
+ * Creates an image of the pixel segment in one of its possible states.
+ */
++ (UIImage *)createImageForPixelSegmentImageSize:(CGFloat)imageSize;
 
-- (BOOL)canFlip;
-- (void)flip:(FLSegmentFlipDirection)flipDirection;
+/// @name Getting Segment Type and Key
 
-- (BOOL)canHaveSwitch;
-- (BOOL)mustHaveSwitch;
+@property (nonatomic, readonly) FLSegmentType segmentType;
+
++ (NSString *)keyForSegmentType:(FLSegmentType)segmentType;
+
+@property (nonatomic, readonly) NSString *segmentKey;
+
+/// @name Configuring Segment Label and Switch Value
+
+@property (nonatomic, assign) char label;
+
++ (BOOL)canSwitch:(FLSegmentType)segmentType;
+
+- (BOOL)canSwitch;
 
 - (void)setSwitchPathId:(int)switchPathId animated:(BOOL)animated;
+
 - (int)toggleSwitchPathIdAnimated:(BOOL)animated;
+
+@property (nonatomic, readonly) int switchPathId;
+
+/// @name Configuring Segment Geometry
+
+@property (nonatomic) int zRotationQuarters;
+
++ (BOOL)canFlip:(FLSegmentType)segmentType;
+
+- (BOOL)canFlip;
+
+- (void)flip:(FLSegmentFlipDirection)flipDirection;
+
+/// @name Configuring Segment Appearance
+
+/**
+ * Sets visibility of the drawn label for segment types where it is an
+ * option.  (For all other segment types, this property is ignored.)
+ */
+@property (nonatomic, assign) BOOL mayShowLabel;
+- (BOOL)doesShowLabel;
+
+/**
+ * Sets visibility of the drawn switch for segment types where it is an
+ * option.  (For all other segment types, this property is ignored.)
+ */
+@property (nonatomic, assign) BOOL mayShowSwitch;
++ (BOOL)canShowSwitch:(FLSegmentType)segmentType;
+- (BOOL)canShowSwitch;
+- (BOOL)doesShowSwitch;
+
+/**
+ * Sets visibility of the drawn value bubble for segment types where it is
+ * an option.  (For all other segment types, this property is ignored.)
+ */
+@property (nonatomic, assign) BOOL mayShowBubble;
++ (BOOL)canShowBubble:(FLSegmentType)segmentType;
+- (BOOL)canShowBubble;
+- (BOOL)doesShowBubble;
+
+/**
+ * Returns a location (in this node's parent's coordinates) that can be used
+ * by the caller when "linking" this segment for the purpose of "switching".
+ *
+ * The description is vague, but the current use-case is very specific: The
+ * caller would like to draw a line between two segments indicating they
+ * switch together, and the caller wants to know a good point to use in each
+ * to best show this visually.
+ *
+ * Note that every segment that returns YES from [canSwitch] should be able
+ * to return a valid position, regardless of whether or not it is currently
+ * (or ever) drawing a switch on itself.
+ */
+@property (nonatomic, readonly) CGPoint switchLinkLocation;
+
+/// @name Dealing With Track Points and Paths
 
 - (void)getPoint:(CGPoint *)point rotation:(CGFloat *)rotationRadians forPath:(int)pathId progress:(CGFloat)progress scale:(CGFloat)scale;
 
@@ -145,18 +196,17 @@ convertRotationQuartersToRadians(int quarters)
 - (BOOL)getConnectingPath:(int *)pathId progress:(CGFloat *)progress forEndPoint:(CGPoint)endPoint rotation:(CGFloat)rotationRadians progress:(CGFloat)forProgress scale:(CGFloat)scale;
 
 /**
- * Same as getConnectingPath:progress:forEndPoint:rotation:rotationRadians:progress:scale:,
- * but allowing the caller to pass in a hypothetical value for the switchPathId used in
- * the computation.  If the passed value is FLSegmentSwitchPathIdNone, then switch position
- * is ignored, and the first connecting path is returned (regardless of switch position).
+ * Same as getConnectingPath:progress:forEndPoint:rotation:progress:scale:,
+ * but allowing the caller to pass in a hypothetical values for hasSwitch and switchPathId
+ * used in the computation.
  */
-- (BOOL)getConnectingPath:(int *)pathId progress:(CGFloat *)progress forEndPoint:(CGPoint)endPoint rotation:(CGFloat)rotationRadians progress:(CGFloat)forProgress scale:(CGFloat)scale switchPathId:(int)switchPathId;
+- (BOOL)getConnectingPath:(int *)pathId progress:(CGFloat *)progress forEndPoint:(CGPoint)endPoint rotation:(CGFloat)rotationRadians progress:(CGFloat)forProgress scale:(CGFloat)scale hasSwitch:(BOOL)hasSwitch switchPathId:(int)switchPathId;
 
 /**
- * Same as getConnectingPath:progress:forEndPoint:rotation:progress:scale:switchPathId,
+ * Same as getConnectingPath:progress:forEndPoint:rotation:progress:scale:hasSwitch:switchPathId,
  * but does not return the connecting path information.
  */
-- (BOOL)hasConnectingPathForEndPoint:(CGPoint)endPoint rotation:(CGFloat)rotationRadians progress:(CGFloat)forProgress scale:(CGFloat)scale switchPathId:(int)switchPathId;
+- (BOOL)hasConnectingPathForEndPoint:(CGPoint)endPoint rotation:(CGFloat)rotationRadians progress:(CGFloat)forProgress scale:(CGFloat)scale;
 
 - (int)pathCount;
 

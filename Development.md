@@ -10,8 +10,12 @@
 
 ## Current Tasks
 
-- Different output options: Segments that turn solid black or white
-  when 1 or 0; segments that move/rotate other segments when 1.
+- BUG (?): switch two switches connected to each other at the same time.
+  bad?  or expected?  try three: gets a hard crash?
+
+- Different output options:
+
+    - segments that move/rotate other segments when 1.
 
     - challenge level is dark, and you must light the light in order
       to complete?  can only put track segments where there is light.
@@ -44,7 +48,7 @@ https://developer.apple.com/library/ios/documentation/IDEs/Conceptual/AppDistrib
   find your way back to used sectors.  Or: scroll only to the edge of
   current content plus 10 segments, or something, which then enlarges
   as more segments are added (or even dragged through).  Consider some
-  other kind of world navigation tool for navigation between far flung
+  other kind of world navigation tool for navigation between far-flung
   sectors (e.g. an overlay which shows a map of all used sectors on a
   grid, and you can tap the sector to which you want to navigate).
   Persist distant sectors to disk and load on demand.  Remove their

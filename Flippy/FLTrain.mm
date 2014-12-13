@@ -135,8 +135,7 @@ using namespace std;
   // Another justification for having it here: The segment doesn't know what trains
   // are on it; in order for the segment to effect a change based on the train
   // position, we'd have to have the train give it some kind of callback anyway.
-  if (_lastSegmentNode.switchPathId != FLSegmentSwitchPathIdNone
-      && !_lastSegmentNodeAlreadySwitched) {
+  if ([_lastSegmentNode canSwitch] && !_lastSegmentNodeAlreadySwitched) {
     // note: This only applies, of course, if we're traveling "against" the switch,
     // not "with" the switch; otherwise, the switch chose our path, not vice versa.
     if (_lastDirection == FLPathDirectionIncreasing) {
@@ -235,7 +234,7 @@ using namespace std;
   // about the precisions desired by the caller; 2) We're the ones who will later
   // decide to turn the train in the direction where the switch becomes relevant,
   // and it's only then that this becomes a user-facing problem.
-  if (segmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
+  if ([segmentNode canSwitch]) {
     if (progress < progressPrecision || progress > 1.0f - progressPrecision) {
       const CGFloat segmentSize = _trackGrid->segmentSize();
       CGPoint endPoint;

@@ -56,9 +56,10 @@ static const CGFloat FLZPositionModal = 20.0f;
 static const CGFloat FLZPositionTutorial = 30.0f;
 // World sublayers.
 static const CGFloat FLZPositionWorldTerrain = 0.0f;
-static const CGFloat FLZPositionWorldSelect = 1.0f;
+static const CGFloat FLZPositionWorldSelectBelow = 1.0f;
 static const CGFloat FLZPositionWorldHighlight = 1.5f;
 static const CGFloat FLZPositionWorldTrack = 2.0f;
+static const CGFloat FLZPositionWorldSelectAbove = 2.5f;
 static const CGFloat FLZPositionWorldTrain = 3.0f;
 static const CGFloat FLZPositionWorldLinks = 4.0f;
 static const CGFloat FLZPositionWorldOverlay = 5.0f;
@@ -561,7 +562,7 @@ struct PointerPairHash
       ++l;
       FLSegmentNode *b = links[l];
       ++l;
-      SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:a.switchPosition toLocation:b.switchPosition linkErase:NO];
+      SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:a.switchLinkLocation toLocation:b.switchLinkLocation linkErase:NO];
       _links.insert(a, b, connectorNode);
     }
     if (_linksVisible) {
@@ -1074,7 +1075,7 @@ struct PointerPairHash
     CGPoint sceneLocation = [self convertPointFromView:viewLocation];
     CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
     FLSegmentNode *segmentNode = [self FL_trackFindSegmentNearLocation:worldLocation];
-    if (segmentNode && segmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
+    if (segmentNode && [segmentNode canSwitch]) {
       [self FL_linkSwitchTogglePathIdForSegment:segmentNode animated:YES];
     }
   }
@@ -1535,8 +1536,8 @@ struct PointerPairHash
       // Create segment.
       FLSegmentType segmentType = (FLSegmentType)[_constructionToolbarState.toolSegmentTypes[toolTag] integerValue];
       FLSegmentNode *newSegmentNode = [self FL_createSegmentWithSegmentType:segmentType];
-      newSegmentNode.showsLabel = _labelsVisible;
-      newSegmentNode.showsSwitchValue = _valuesVisible;
+      newSegmentNode.mayShowLabel = _labelsVisible;
+      newSegmentNode.mayShowBubble = _valuesVisible;
       newSegmentNode.zRotation = (CGFloat)M_PI_2;
       // note: Locate the new segment underneath the current touch, even though it's
       // not yet added to the node hierarchy.  (The track move routines translate nodes
@@ -1610,7 +1611,7 @@ struct PointerPairHash
           for (NSUInteger l = 0; l + 1 < [links count]; l += 2) {
             FLSegmentNode *a = links[l];
             FLSegmentNode *b = links[l + 1];
-            SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:a.switchPosition toLocation:b.switchPosition linkErase:NO];
+            SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:a.switchLinkLocation toLocation:b.switchLinkLocation linkErase:NO];
             self->_links.insert(a, b, connectorNode);
           }
         }
@@ -1658,8 +1659,8 @@ struct PointerPairHash
 
       // Configure imported segments for this world.
       for (FLSegmentNode *segmentNode in newSegmentNodes) {
-        segmentNode.showsLabel = _labelsVisible;
-        segmentNode.showsSwitchValue = _valuesVisible;
+        segmentNode.mayShowLabel = _labelsVisible;
+        segmentNode.mayShowBubble = _valuesVisible;
         if (_gameType == FLGameTypeChallenge) {
           segmentNode.label = FLSegmentLabelNone;
         }
@@ -1688,7 +1689,7 @@ struct PointerPairHash
                 || [removedSegmentNodePointers containsObject:[NSValue valueWithNonretainedObject:b]]) {
               continue;
             }
-            SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:a.switchPosition toLocation:b.switchPosition linkErase:NO];
+            SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:a.switchLinkLocation toLocation:b.switchLinkLocation linkErase:NO];
             self->_links.insert(a, b, connectorNode);
           }
         }
@@ -1824,9 +1825,16 @@ struct PointerPairHash
   NSString *buttonTag = [_trackEditMenuState.editMenuNode toolAtLocation:toolbarLocation];
 
   if ([buttonTag isEqualToString:@"toggle-switch"]) {
-    BOOL setEnabled = ![_trackEditMenuState.editMenuNode enabledForTool:buttonTag];
+    BOOL enabled = ![_trackEditMenuState.editMenuNode enabledForTool:buttonTag];
     for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
-      [self FL_linkSwitchSetEnabled:setEnabled forSegment:segmentNode];
+      if ([self FL_segmentCanHideSwitch:segmentNode.segmentType]) {
+        segmentNode.mayShowSwitch = enabled;
+        if (!enabled) {
+          // note: Could make the user do this manually.  But this seems like a safe bet
+          // in terms of convenience.
+          _links.erase(segmentNode);
+        }
+      }
     }
     // note: It should be possible to avoid recreating the track edit menu, and instead
     // just determine for ourselves whether or not the toggle-switch button should be
@@ -2232,6 +2240,7 @@ struct PointerPairHash
   // the segments look bad, so I'm choosing not to use linear filtering on this one, for now; see the TODO in HLToolbarNode.
   [textureStore setTextureWithImage:[FLSegmentNode createImageForReadoutSegment:FLSegmentTypeReadoutInput imageSize:FLSegmentArtSizeFull] forKey:@"readout-input" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImage:[FLSegmentNode createImageForReadoutSegment:FLSegmentTypeReadoutOutput imageSize:FLSegmentArtSizeFull] forKey:@"readout-output" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImage:[FLSegmentNode createImageForPixelSegmentImageSize:FLSegmentArtSizeFull] forKey:@"pixel" filteringMode:SKTextureFilteringLinear];
 
   NSLog(@"FLTrackScene loadTextures: loaded in %0.2f seconds", [[NSDate date] timeIntervalSinceDate:startDate]);
 }
@@ -2492,6 +2501,14 @@ writeArchiveWithPath:(NSString *)path
     segmentNode.position = CGPointMake(segmentNode.position.x + shift.x,
                                        segmentNode.position.y + shift.y);
   }
+}
+
+- (BOOL)FL_segmentCanHideSwitch:(FLSegmentType)segmentType
+{
+  // note: Only allow showing/hiding switches on certain kinds of segments.  This isn't
+  // implemented in FLSegmentNode because the segments don't care one way or another:
+  // this is an application thing, deciding whether or not we want to allow it.
+  return (segmentType == FLSegmentTypeJoinLeft || segmentType == FLSegmentTypeJoinRight);
 }
 
 - (void)FL_sceneGetVisibleLeft:(CGFloat *)left right:(CGFloat *)right top:(CGFloat *)top bottom:(CGFloat *)bottom
@@ -3198,7 +3215,7 @@ writeArchiveWithPath:(NSString *)path
     [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
     _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
     _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Input Value",
-                                                                               @"The name of the track segment that shows input values.");
+                                                                               @"The name of the track segment that shows input values using a switch and numbers.");
     _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypeReadoutInput);
   }
 
@@ -3208,8 +3225,18 @@ writeArchiveWithPath:(NSString *)path
     [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
     _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
     _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Output Value",
-                                                                               @"The name of the track segment that shows output values.");
+                                                                               @"The name of the track segment that shows output values using a switch and numbers.");
     _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypeReadoutOutput);
+  }
+
+  if (_gameType != FLGameTypeChallenge || [self FL_gameTypeChallengeCanCreateSegment:FLSegmentTypePixel]) {
+    textureKey = @"pixel";
+    [toolTags addObject:textureKey];
+    [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+    _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
+    _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"White/Black Value",
+                                                                               @"The name of the track segment that shows values using a block of color.");
+    _constructionToolbarState.toolSegmentTypes[textureKey] = @(FLSegmentTypePixel);
   }
 
   textureKey = @"platform-left";
@@ -3959,7 +3986,7 @@ writeArchiveWithPath:exportPath
 {
   if (!_trackSelectState.visualParentNode) {
     _trackSelectState.visualParentNode = [SKNode node];
-    _trackSelectState.visualParentNode.zPosition = FLZPositionWorldSelect;
+    _trackSelectState.visualParentNode.zPosition = FLZPositionWorldSelectBelow;
 
     const CGFloat FLTrackSelectAlphaMin = 0.7f;
     const CGFloat FLTrackSelectAlphaMax = 1.0f;
@@ -3983,10 +4010,18 @@ writeArchiveWithPath:exportPath
     NSValue *segmentNodePointer = [NSValue valueWithPointer:(void *)segmentNode];
     SKSpriteNode *selectionSquare = _trackSelectState.visualSquareNodes[segmentNodePointer];
     if (!selectionSquare) {
-      selectionSquare = [SKSpriteNode spriteNodeWithColor:[SKColor colorWithWhite:0.2f alpha:1.0f]
-                                                     size:CGSizeMake(FLSegmentArtSizeBasic * FLTrackArtScale,
-                                                                     FLSegmentArtSizeBasic * FLTrackArtScale)];
-      selectionSquare.blendMode = SKBlendModeAdd;
+      if (segmentNode.segmentType != FLSegmentTypePixel) {
+        selectionSquare = [SKSpriteNode spriteNodeWithColor:[SKColor colorWithWhite:0.2f alpha:1.0f]
+                                                       size:CGSizeMake(FLSegmentArtSizeBasic * FLTrackArtScale,
+                                                                       FLSegmentArtSizeBasic * FLTrackArtScale)];
+        selectionSquare.blendMode = SKBlendModeAdd;
+      } else {
+        selectionSquare = [SKSpriteNode spriteNodeWithColor:[SKColor colorWithWhite:0.5f alpha:0.6f]
+                                                       size:CGSizeMake(FLSegmentArtSizeBasic * FLTrackArtScale,
+                                                                       FLSegmentArtSizeBasic * FLTrackArtScale)];
+        selectionSquare.blendMode = SKBlendModeAlpha;
+        selectionSquare.zPosition = FLZPositionWorldSelectAbove - _trackSelectState.visualParentNode.zPosition;
+      }
       _trackSelectState.visualSquareNodes[segmentNodePointer] = selectionSquare;
       [_trackSelectState.visualParentNode addChild:selectionSquare];
     }
@@ -4128,7 +4163,11 @@ writeArchiveWithPath:exportPath
 {
   SKSpriteNode *conflictNode = [SKSpriteNode spriteNodeWithColor:FLInterfaceColorBad()
                                                             size:CGSizeMake(FLTrackSegmentSize, FLTrackSegmentSize)];
-  conflictNode.zPosition = FLZPositionWorldSelect;
+  if (segmentNode.segmentType != FLSegmentTypePixel) {
+    conflictNode.zPosition = FLZPositionWorldSelectBelow;
+  } else {
+    conflictNode.zPosition = FLZPositionWorldSelectAbove;
+  }
   conflictNode.position = segmentNode.position;
   conflictNode.alpha = 0.4f;
   [_worldNode addChild:conflictNode];
@@ -4413,15 +4452,15 @@ writeArchiveWithPath:exportPath
   CGFloat segmentsPositionTop;
   CGFloat segmentsPositionBottom;
   [self FL_segments:segmentNodes getExtremesLeft:&segmentsPositionLeft right:&segmentsPositionRight top:&segmentsPositionTop bottom:&segmentsPositionBottom];
-  BOOL hasSwitch;
-  BOOL canHaveSwitch;
+  BOOL canSwitchAny;
+  BOOL hidesSwitchAll;
   BOOL canLabelAny;
   BOOL canDeleteAny;
   BOOL canFlipAny;
   NSUInteger toolCount;
   [self FL_trackEditMenuGetTraitsForSegments:segmentNodes
-                                   hasSwitch:&hasSwitch
-                               canHaveSwitch:&canHaveSwitch
+                                canSwitchAny:&canSwitchAny
+                              hidesSwitchAll:&hidesSwitchAll
                                  canLabelAny:&canLabelAny
                                 canDeleteAny:&canDeleteAny
                                   canFlipAny:&canFlipAny
@@ -4430,7 +4469,7 @@ writeArchiveWithPath:exportPath
   // Update tools.
   NSMutableArray *textureKeys = [NSMutableArray array];
   [textureKeys addObject:@"rotate-ccw"];
-  if (canHaveSwitch) {
+  if (canSwitchAny) {
     [textureKeys addObject:@"toggle-switch"];
   }
   if (canLabelAny) {
@@ -4451,8 +4490,8 @@ writeArchiveWithPath:exportPath
     [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
   }
   [_trackEditMenuState.editMenuNode setTools:toolNodes tags:textureKeys animation:HLToolbarNodeAnimationNone];
-  if (canHaveSwitch) {
-    [_trackEditMenuState.editMenuNode setEnabled:hasSwitch forTool:@"toggle-switch"];
+  if (canSwitchAny) {
+    [_trackEditMenuState.editMenuNode setEnabled:(!hidesSwitchAll) forTool:@"toggle-switch"];
   }
   [_trackEditMenuState.editMenuNode setEnabled:canDeleteAny forTool:@"delete"];
 
@@ -4473,20 +4512,21 @@ writeArchiveWithPath:exportPath
 }
 
 - (void)FL_trackEditMenuGetTraitsForSegments:(NSArray *)segmentNodes
-                                   hasSwitch:(BOOL *)hasSwitch
-                               canHaveSwitch:(BOOL *)canHaveSwitch
+                                canSwitchAny:(BOOL *)canSwitchAny
+                              hidesSwitchAll:(BOOL *)hidesSwitchAll
                                  canLabelAny:(BOOL *)canLabelAny
                                 canDeleteAny:(BOOL *)canDeleteAny
                                   canFlipAny:(BOOL *)canFlipAny
                                    toolCount:(NSUInteger *)toolCount
 {
-  *hasSwitch = NO;
-  *canHaveSwitch = NO;
+  *canSwitchAny = NO;
+  *hidesSwitchAll = YES;
   for (FLSegmentNode *segmentNode in segmentNodes) {
-    if ([segmentNode canHaveSwitch]) {
-      *canHaveSwitch = YES;
-      if (segmentNode.switchPathId != FLSegmentSwitchPathIdNone) {
-        *hasSwitch = YES;
+    if ([segmentNode canSwitch]) {
+      *canSwitchAny = YES;
+      if (![self FL_segmentCanHideSwitch:segmentNode.segmentType]
+          || segmentNode.mayShowSwitch) {
+        *hidesSwitchAll = NO;
         break;
       }
     }
@@ -4511,7 +4551,7 @@ writeArchiveWithPath:exportPath
     }
   }
   *toolCount = 3;
-  if (*canHaveSwitch) {
+  if (*canSwitchAny) {
     ++(*toolCount);
   }
   if (*canLabelAny) {
@@ -4525,15 +4565,15 @@ writeArchiveWithPath:exportPath
 - (CGFloat)FL_trackEditMenuWidthForSegments:(NSArray *)segmentNodes
 {
   // note: At scale = 1.
-  BOOL hasSwitch;
-  BOOL canHaveSwitch;
+  BOOL canSwitchAny;
+  BOOL hidesSwitchAll;
   BOOL canLabelAny;
   BOOL canDeleteAny;
   BOOL canFlipAny;
   NSUInteger toolCount;
   [self FL_trackEditMenuGetTraitsForSegments:segmentNodes
-                                   hasSwitch:&hasSwitch
-                               canHaveSwitch:&canHaveSwitch
+                                canSwitchAny:&canSwitchAny
+                              hidesSwitchAll:&hidesSwitchAll
                                  canLabelAny:&canLabelAny
                                 canDeleteAny:&canDeleteAny
                                   canFlipAny:&canFlipAny
@@ -4652,7 +4692,7 @@ writeArchiveWithPath:exportPath
   vector<FLSegmentNode *> links;
   _links.get(segmentNode, &links);
   for (auto link : links) {
-    SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:segmentNode.switchPosition toLocation:link.switchPosition linkErase:NO];
+    SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:segmentNode.switchLinkLocation toLocation:link.switchLinkLocation linkErase:NO];
     _links.set(segmentNode, link, connectorNode);
   }
 }
@@ -4685,7 +4725,7 @@ writeArchiveWithPath:exportPath
 
   // Display an end-segment highlight if there is a nearby node with a switch.
   FLSegmentNode *endNode = [self FL_linkSwitchFindSegmentNearLocation:worldLocation];
-  if (endNode && endNode != _linkEditState.beginNode && endNode.switchPathId != FLSegmentSwitchPathIdNone) {
+  if (endNode && endNode != _linkEditState.beginNode && [endNode canSwitch]) {
     if (endNode != _linkEditState.endNode) {
       [_linkEditState.endHighlightNode removeFromParent];
       _linkEditState.endNode = endNode;
@@ -4701,17 +4741,17 @@ writeArchiveWithPath:exportPath
   }
 
   // Display a connector (a line segment).
-  CGPoint beginSwitchPosition = _linkEditState.beginNode.switchPosition;
-  CGPoint endSwitchPosition;
+  CGPoint beginSwitchLocation = _linkEditState.beginNode.switchLinkLocation;
+  CGPoint endSwitchLocation;
   BOOL linkErase;
   if (_linkEditState.endNode) {
-    endSwitchPosition = _linkEditState.endNode.switchPosition;
+    endSwitchLocation = _linkEditState.endNode.switchLinkLocation;
     linkErase = (_links.get(_linkEditState.beginNode, _linkEditState.endNode) != nil);
   } else {
-    endSwitchPosition = worldLocation;
+    endSwitchLocation = worldLocation;
     linkErase = NO;
   }
-  SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:beginSwitchPosition toLocation:endSwitchPosition linkErase:linkErase];
+  SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:beginSwitchLocation toLocation:endSwitchLocation linkErase:linkErase];
   if (_linkEditState.connectorNode) {
     [_linkEditState.connectorNode removeFromParent];
   }
@@ -4833,33 +4873,6 @@ writeArchiveWithPath:exportPath
   }
 }
 
-- (BOOL)FL_linkSwitchSetEnabled:(BOOL)enabled forSegment:(FLSegmentNode *)segmentNode
-{
-  // note: Returns the enabled state of the switch (resulting from this call).  Note
-  // that the method is defensively programmed as a convenience for some callers (and
-  // won't set the enabled value requested if it can't be done), which makes such a
-  // return value necessary.
-  int currentPathId = [segmentNode switchPathId];
-  if (enabled == (currentPathId != FLSegmentSwitchPathIdNone)) {
-    return enabled;
-  }
-
-  if (enabled) {
-    if ([segmentNode canHaveSwitch]) {
-      [segmentNode setSwitchPathId:1 animated:NO];
-      return YES;
-    }
-    return NO;
-  } else {
-    if (![segmentNode mustHaveSwitch]) {
-      [segmentNode setSwitchPathId:FLSegmentSwitchPathIdNone animated:NO];
-      _links.erase(segmentNode);
-      return NO;
-    }
-    return YES;
-  }
-}
-
 - (FLSegmentNode *)FL_linkSwitchFindSegmentNearLocation:(CGPoint)worldLocation
 {
   int gridX;
@@ -4871,10 +4884,10 @@ writeArchiveWithPath:exportPath
   for (int gx = gridX - 1; gx <= gridX + 1; ++gx) {
     for (int gy = gridY - 1; gy <= gridY + 1; ++gy) {
       FLSegmentNode *segmentNode = _trackGrid->get(gx, gy);
-      if (!segmentNode || segmentNode.switchPathId == FLSegmentSwitchPathIdNone) {
+      if (!segmentNode || ![segmentNode canSwitch]) {
         continue;
       }
-      CGPoint switchLocation = [segmentNode switchPosition];
+      CGPoint switchLocation = segmentNode.switchLinkLocation;
       CGFloat deltaX = worldLocation.x - switchLocation.x;
       CGFloat deltaY = worldLocation.y - switchLocation.y;
       CGFloat distanceSquared = deltaX * deltaX + deltaY * deltaY;
@@ -4940,7 +4953,7 @@ writeArchiveWithPath:exportPath
   [_constructionToolbarState.toolbarNode setHighlight:_labelsVisible forTool:@"show-labels"];
   for (auto s : *_trackGrid) {
     FLSegmentNode *segmentNode = s.second;
-    segmentNode.showsLabel = _labelsVisible;
+    segmentNode.mayShowLabel = _labelsVisible;
   }
   return _labelsVisible;
 }
@@ -5039,7 +5052,7 @@ writeArchiveWithPath:exportPath
   [_constructionToolbarState.toolbarNode setHighlight:_valuesVisible forTool:@"show-values"];
   for (auto s : *_trackGrid) {
     FLSegmentNode *segmentNode = s.second;
-    segmentNode.showsSwitchValue = _valuesVisible;
+    segmentNode.mayShowBubble = _valuesVisible;
   }
   return _valuesVisible;
 }
@@ -5057,12 +5070,12 @@ writeArchiveWithPath:exportPath
     segmentNode.zRotationQuarters = newRotationQuarters;
     [self FL_linkRedrawForSegment:segmentNode];
   } else {
-    segmentNode.showsLabel = NO;
-    segmentNode.showsSwitchValue = NO;
+    segmentNode.mayShowLabel = NO;
+    segmentNode.mayShowBubble = NO;
     [segmentNode runAction:[SKAction rotateToAngle:(newRotationQuarters * (CGFloat)M_PI_2) duration:FLTrackRotateDuration shortestUnitArc:YES] completion:^{
       [self FL_linkRedrawForSegment:segmentNode];
-      segmentNode.showsLabel = self->_labelsVisible;
-      segmentNode.showsSwitchValue = self->_valuesVisible;
+      segmentNode.mayShowLabel = self->_labelsVisible;
+      segmentNode.mayShowBubble = self->_valuesVisible;
     }];
     [_trackNode runAction:[SKAction playSoundFileNamed:@"wooden-click-1.caf" waitForCompletion:NO]];
   }
@@ -5165,15 +5178,15 @@ writeArchiveWithPath:exportPath
       [segmentNode removeFromParent];
       // noob: Unless I make a copy, something gets screwed up with my segmentNodes: They end up
       // with a null self.scene, and the coordinate conversions (e.g. by the segmentNode's
-      // switchPosition method, trying to use [self.parent convert*]) give bogus results in
+      // switchLinkLocation method, trying to use [self.parent convert*]) give bogus results in
       // some circumstances (e.g. in the completion block of the rotation action, below).  This
       // copying business is a workaround, but it seems low-impact, so I'm not pursuing it further
       // for now.
       FLSegmentNode *segmentNodeCopy = [segmentNode copy];
       segmentNodeCopy.position = CGPointMake(segmentNode.position.x - pivot.x, segmentNode.position.y - pivot.y);
       [rotateNode addChild:segmentNodeCopy];
-      segmentNodeCopy.showsLabel = NO;
-      segmentNodeCopy.showsSwitchValue = NO;
+      segmentNodeCopy.mayShowLabel = NO;
+      segmentNodeCopy.mayShowBubble = NO;
     }
     rotateNode.position = pivot;
 
@@ -5542,7 +5555,8 @@ writeArchiveWithPath:exportPath
   return (segmentType != FLSegmentTypeReadoutInput
           && segmentType != FLSegmentTypeReadoutOutput
           && segmentType != FLSegmentTypePlatformStartLeft
-          && segmentType != FLSegmentTypePlatformStartRight);
+          && segmentType != FLSegmentTypePlatformStartRight
+          && segmentType != FLSegmentTypePixel);
 }
 
 void
