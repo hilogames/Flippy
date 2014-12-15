@@ -10,22 +10,6 @@
 
 ## Current Tasks
 
-- BUG (?): switch two switches connected to each other at the same time.
-  bad?  or expected?  try three: gets a hard crash?
-
-- Different output options:
-
-    - segments that move/rotate other segments when 1.
-
-    - challenge level is dark, and you must light the light in order
-      to complete?  can only put track segments where there is light.
-      monsters come out of the dark to rip up your track?
-
-    - robots: put the circuit on a platform, and different outputs
-      activate movement in a different direction.
-
-    - guns: fire a mortar to attack someone else's track.
-
 - Check all sources of user input: try to overflow buffers.
 
 - Submit app to store.
@@ -42,6 +26,28 @@ https://developer.apple.com/library/ios/documentation/IDEs/Conceptual/AppDistrib
 
 
 ## Future Tasks
+
+- Make it an actual game.  You know, for kids.  Ideas:
+
+  - Guns.  A mortar segment which fires and can destroy track when
+    activated.  Two tracks face off in a death match.
+
+  - Lights.  Level is dark; lights must be activated in order to allow
+    train travel.
+
+  - Monsters.  Combine with guns and monster directional sensors to
+    make a program (track) to shoot monsters before they rip up the
+    track (program).
+
+  - Robots.  Put track inside a robot, like in Robot Odyssey.  When
+    the robot bumps into a wall, the robot's bump sensor flips a
+    switch inside where the train is running.  When the train enables
+    a direction switch inside the robot, the robot travels in the
+    designated direction until another direction switch is enabled.
+    The robot moves around a world and performs tasks or challenges.
+
+  - Self-Programming.  Special construction or manipulations segments
+    move or rotate or create other segments when activated.
 
 - Infinite grid.  Restrict minimum zoom, but have no world size.
   Display unused sectors in gray or something, to make it easier to
@@ -91,19 +97,8 @@ https://developer.apple.com/library/ios/documentation/IDEs/Conceptual/AppDistrib
   image?  At one point I had an idea to do clustered patches of
   squares in earth tones, procedurally generated.
 
-- Track destruction of readout and platform should not show the
-  same particle emitters as normal segments.
-
-- Prettier links.  Maybe quadratic Bezier curves for link nodes.
-  Maybe different coloring.
-
-- For import thumbnails: Trace out CG lines for track segment paths
-  rather than shrinking down images.  The result might be better.
-  (And wouldn't need UIImages anymore in HLTextureStore.)
-
-- For multisegment rotation: In case of conflict, search for nearby
-  pivot that would work without conflicts.  Shouldn't be hard to check
-  a few anyway.
+- Destruction of non-track-ish segments (readout, platform) should not
+  use the same particle emitters as track-ish segments.
 
 - Prettier Bezier curves for links . . . well, if it does indeed look
   better.  Control points chosen so that the links always curve a bit:
@@ -111,10 +106,19 @@ https://developer.apple.com/library/ios/documentation/IDEs/Conceptual/AppDistrib
   the other endpoint, but then if the other endpoint has the same X or
   Y coordinate, then bend it 45 degrees or something.
 
+- For import thumbnails: Draw simple CoreGraphics lines tracing track
+  segment paths rather than shrinking down textures/images.  The
+  result might be better.  (And wouldn't need UIImages anymore in
+  HLTextureStore.)
+
+- For multisegment rotation: In case of conflict, search for nearby
+  pivot that would work without conflicts.  Shouldn't be hard to check
+  a few.
+
 - Inertia for scrolling pan motion.
 
 - Consider doing tutorial stuff for the Half Adder level: Show the
-  user how to handle gates/circuits/exports.
+  user how to handle gates/circuits/exports/deletions.
 
 - If multiple trains, then train edit menu for play/pause controls
   (and an explicit way to turn train around, perhaps).
@@ -126,7 +130,8 @@ https://developer.apple.com/library/ios/documentation/IDEs/Conceptual/AppDistrib
 
 - Undo stack.
 
-- Train acceleration.
-
-- "Advanced" interface mode where most messages and tutorial are
-  suppressed.
+- Interface option allowing suppression of interface navigation
+  messages.  This would allow perhaps adding a few more navigation
+  messages for beginners (which would otherwise certainly be
+  annoying), e.g. describing a sub-toolbar (segments, gates, circuits,
+  exports, deletions) when navigating to it.

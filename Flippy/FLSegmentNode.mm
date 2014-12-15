@@ -1060,6 +1060,8 @@ using namespace std;
   bottomValueNode.xScale = 0.8f;
   bottomValueNode.yScale = 0.8f;
 
+  [self FL_removeActionFlashBlackNode:topValueNode];
+  [self FL_removeActionFlashWhiteNode:bottomValueNode];
   if (animated) {
     [self FL_runActionFlashWhiteNode:topValueNode];
     [self FL_runActionFlashBlackNode:bottomValueNode];
@@ -1124,10 +1126,11 @@ using namespace std;
   }
 
   SKSpriteNode *matteNode = (SKSpriteNode *)[self childNodeWithName:@"pixel-matte"];
+  [matteNode removeActionForKey:@"matte-fade"];
   if (!animated) {
     matteNode.color = newColor;
   } else {
-    [matteNode runAction:[SKAction colorizeWithColor:newColor colorBlendFactor:1.0f duration:FLColorizeDuration]];
+    [matteNode runAction:[SKAction colorizeWithColor:newColor colorBlendFactor:1.0f duration:FLColorizeDuration] withKey:@"matte-fade"];
   }
 }
 
@@ -1256,10 +1259,11 @@ using namespace std;
     [NSException raise:@"FLSegmentNodeInvalidSegemntType" format:@"Segment is missing switch display information."];
   }
 
+  [switchNode removeActionForKey:@"switch-rotate"];
   if (!animated) {
     switchNode.zRotation = newZRotation;
   } else {
-    [switchNode runAction:[SKAction rotateToAngle:newZRotation duration:FLSwitchRotateDuration shortestUnitArc:YES]];
+    [switchNode runAction:[SKAction rotateToAngle:newZRotation duration:FLSwitchRotateDuration shortestUnitArc:YES] withKey:@"switch-rotate"];
   }
 }
 
@@ -1323,6 +1327,7 @@ using namespace std;
   SKSpriteNode *bubbleNode = (SKSpriteNode *)[self childNodeWithName:@"bubble"];
 
   bubbleNode.texture = valueTexture;
+  [self FL_removeActionFlashWhiteNode:bubbleNode];
   if (animated) {
     [self FL_runActionFlashWhiteNode:bubbleNode];
   }
@@ -1359,6 +1364,7 @@ using namespace std;
   // towards white.)
 
   SKCropNode *whiteLayer = [[SKCropNode alloc] init];
+  whiteLayer.name = @"whiteLayer";
   SKSpriteNode *maskNode = [node copy];
   maskNode.position = CGPointZero;
   [maskNode removeFromParent];
@@ -1377,10 +1383,16 @@ using namespace std;
   [whiteLayer runAction:whiteFlash];
 }
 
+- (void)FL_removeActionFlashWhiteNode:(SKSpriteNode *)node
+{
+  SKNode *whiteLayer = [node childNodeWithName:@"whiteLayer"];
+  if (whiteLayer) {
+    [whiteLayer removeFromParent];
+  }
+}
+
 - (void)FL_runActionFlashBlackNode:(SKSpriteNode *)node
 {
-  [node removeActionForKey:@"flashBlack"];
-
   SKColor *oldColor = node.color;
   CGFloat oldColorBlendFactor = node.colorBlendFactor;
 
@@ -1389,6 +1401,11 @@ using namespace std;
   SKAction *blackFlash = [SKAction colorizeWithColor:oldColor colorBlendFactor:oldColorBlendFactor duration:FLFlashDuration];
   blackFlash.timingMode = SKActionTimingEaseOut;
   [node runAction:blackFlash withKey:@"flashBlack"];
+}
+
+- (void)FL_removeActionFlashBlackNode:(SKSpriteNode *)node
+{
+  [node removeActionForKey:@"flashBlack"];
 }
 
 - (const FLPath *)FL_path:(int)pathId
