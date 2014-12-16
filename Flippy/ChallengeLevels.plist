@@ -80,11 +80,11 @@
 		<key>record-defaults</key>
 		<dict>
 			<key>FLUserRecordSegmentsFewest</key>
-			<integer>99</integer>
+			<integer>10</integer>
 			<key>FLUserRecordJoinsFewest</key>
-			<integer>99</integer>
+			<integer>4</integer>
 			<key>FLUserRecordSolutionFastest</key>
-			<integer>86400</integer>
+			<integer>3600</integer>
 		</dict>
 	</dict>
 	<dict>
@@ -110,11 +110,11 @@
 		<key>record-defaults</key>
 		<dict>
 			<key>FLUserRecordSegmentsFewest</key>
-			<integer>99</integer>
+			<integer>34</integer>
 			<key>FLUserRecordJoinsFewest</key>
-			<integer>99</integer>
+			<integer>16</integer>
 			<key>FLUserRecordSolutionFastest</key>
-			<integer>604800</integer>
+			<integer>10800</integer>
 		</dict>
 	</dict>
 	<dict>
@@ -128,12 +128,12 @@
 		<array>
 			<integer>0</integer>
 			<integer>0</integer>
-			<integer>1</integer>
 			<integer>0</integer>
 			<integer>1</integer>
 			<integer>0</integer>
-			<integer>0</integer>
 			<integer>1</integer>
+			<integer>1</integer>
+			<integer>0</integer>
 		</array>
 		<key>victory-user-unlocks</key>
 		<array>
@@ -144,11 +144,11 @@
 		<key>record-defaults</key>
 		<dict>
 			<key>FLUserRecordSegmentsFewest</key>
-			<integer>99</integer>
+			<integer>25</integer>
 			<key>FLUserRecordJoinsFewest</key>
-			<integer>99</integer>
+			<integer>10</integer>
 			<key>FLUserRecordSolutionFastest</key>
-			<integer>2592000</integer>
+			<integer>10800</integer>
 		</dict>
 	</dict>
 </array>
