@@ -288,6 +288,11 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
     }
     _currentScene = _titleScene;
   }
+  // note: Otherwise, a _currentScene was unarchived during application restoration.
+  // In other similar situations, that means I need to update geometry of the scene:
+  // in particular, if the archive was created in a different orientation.  But it
+  // appears from testing that the application takes care of the rotation in this
+  // case.
 
   // note: No loading of track assets, or showing loading screens.  If the track was
   // decoded from application state, then the assets were already loaded.  If not,
@@ -704,6 +709,14 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   [_loadingScene addChild:loadingLabelNode];
 }
 
+- (void)FL_loadingSceneUpdateGeometry
+{
+  // note: The most common need for this: Another scene is presented, and the device
+  // orientation changes.  When the loading scene is next presented, it's size will
+  // need to updated.
+  _loadingScene.size = self.view.bounds.size;
+}
+
 - (void)FL_loadingSceneReset
 {
   // note: Start with label faded all the way out, so that a quick load screen will
@@ -731,6 +744,13 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   [self FL_titleMenuCreate];
 }
 
+- (void)FL_titleSceneUpdateGeometry
+{
+  // note: The most common need for this: Another scene is presented, and the device
+  // orientation changes.  When the title scene is next presented, it's size will
+  // need to updated.
+  _titleScene.size = self.view.bounds.size;
+}
 - (void)FL_titleSceneShowMessage:(NSString *)message
 {
   HLMessageNode *messageNode = (HLMessageNode *)[_titleScene childNodeWithName:@"messageNode"];
@@ -1121,6 +1141,8 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
 {
   if (!_loadingScene) {
     [self FL_loadingSceneCreate];
+  } else {
+    [self FL_loadingSceneUpdateGeometry];
   }
   [self FL_loadingSceneReset];
   [self.skView presentScene:_loadingScene];
@@ -1501,6 +1523,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   if (!_titleScene) {
     [self FL_titleSceneCreate];
   } else {
+    [self FL_titleSceneUpdateGeometry];
     [self FL_titleSceneHideMessage];
     HLMenuNode *titleMenuNode = _titleMenuNode;
     [titleMenuNode navigateToTopMenuAnimation:HLMenuNodeAnimationNone];

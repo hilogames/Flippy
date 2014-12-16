@@ -1,16 +1,14 @@
 
 ## Release Checklist
 
-- genstrings
-
-- analyze code
-
-- build using release scheme
-
+- build
+  - analyze code
+  - genstrings
+  - archive
+- deploy
+  - increment version and/or build string
 
 ## Current Tasks
-
-- Check all sources of user input: try to overflow buffers.
 
 - Submit app to store.
 
