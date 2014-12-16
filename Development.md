@@ -10,6 +10,16 @@
 
 ## Current Tasks
 
+- BUG: crash on rotating device on goals screen.  happened after archiving the app.
+
+- BUG: Import AND gate; non-hidden switches?
+
+- Allow all normal interaction while in linking mode.  Don't
+  automatically exit linking mode.  Only move track if not near a
+  linkable segment, though.
+
+- Provision for iPads, and test.
+
 - Submit app to store.
 
 https://developer.apple.com/library/ios/documentation/IDEs/Conceptual/AppDistributionGuide/ConfiguringYourApp/ConfiguringYourApp.html#//apple_ref/doc/uid/TP40012582-CH28-SW4

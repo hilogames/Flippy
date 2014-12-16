@@ -5397,13 +5397,16 @@ writeArchiveWithPath:exportPath
   } else if ([unlockKey isEqualToString:@"FLUserUnlockGateOr"]) {
     return NSLocalizedString(@"OR Gate",
                              @"Game information: displayed when the OR gate is unlocked by successfully completing a level.");
-  } else if ([unlockKey isEqualToString:@"FLUserUnlockGateNot"]) {
+  } else if ([unlockKey isEqualToString:@"FLUserUnlockGateXor"]) {
     return NSLocalizedString(@"XOR Gate",
                              @"Game information: displayed when the XOR gate is unlocked by successfully completing a level.");
-  } else if ([unlockKey isEqualToString:@"FLUserUnlockGateHalfAdder"]) {
+  } else if ([unlockKey isEqualToString:@"FLUserUnlockCircuitXor"]) {
+    return NSLocalizedString(@"XOR Circuit: “The Rocket”",
+                             @"Game information: displayed when the XOR circuit (“The Rocket”) is unlocked by successfully completing a level.");
+  } else if ([unlockKey isEqualToString:@"FLUserUnlockCircuitHalfAdder"]) {
     return NSLocalizedString(@"Half Adder Circuit",
                              @"Game information: displayed when the half adder circuit is unlocked by successfully completing a level.");
-  } else if ([unlockKey isEqualToString:@"FLUserUnlockGateFullAdder"]) {
+  } else if ([unlockKey isEqualToString:@"FLUserUnlockCircuitFullAdder"]) {
     return NSLocalizedString(@"Full Adder Circuit",
                              @"Game information: displayed when the full adder circuit is unlocked by successfully completing a level.");
   } else if ([unlockKey isEqualToString:@"FLUserUnlockTutorialCompleted"]) {
