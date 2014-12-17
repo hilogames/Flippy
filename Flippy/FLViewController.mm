@@ -319,19 +319,20 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
 
 - (void)viewDidLayoutSubviews
 {
-  if (_gameScene && [_gameScene modalNodePresented]) {
-    if (_gameOverlay) {
+  if (_gameScene) {
+    SKNode *gameScenePresentedOverlay = [_gameScene modalNodePresented];
+    if (gameScenePresentedOverlay == _gameOverlay) {
       [self FL_gameOverlayUpdateGeometry];
-    }
-    if (_nextLevelOverlay) {
+    } else if (gameScenePresentedOverlay == _nextLevelOverlay) {
       [self FL_nextLevelOverlayUpdateGeometry];
-    }
-    if (_helpOverlay) {
+    } else if (gameScenePresentedOverlay == _helpOverlay) {
       [self FL_helpOverlayUpdateGeometry];
     }
   }
-  if (_titleScene && [_titleScene modalNodePresented]) {
-    if (_aboutOverlay) {
+
+  if (_titleScene) {
+    SKNode *titleScenePresentedOverlay = [_titleScene modalNodePresented];
+    if (titleScenePresentedOverlay == _aboutOverlay) {
       [self FL_aboutOverlayUpdateGeometry];
     }
   }
@@ -1603,6 +1604,8 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
 
 - (void)FL_nextLevel
 {
+  [_gameScene dismissModalNodeAnimation:HLScenePresentationAnimationNone];
+
   int levelCount = FLChallengeLevelsCount();
   FLGameType gameType = _gameScene.gameType;
   int nextLevel = _gameScene.gameLevel + 1;
@@ -1611,7 +1614,8 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
     // not contain the correct kind of references to the objects it needs to finish.
     // But it seems to be working for now, even though I delete its scene out from
     // under it.  More noobish notes are in FLTrackScene at the block invocation
-    // site.
+    // site, and also further back in the FLGoalsNode handler which kicks off the whole
+    // process with the "Next Level" button.
     [self FL_load:gameType gameLevel:nextLevel isNew:YES otherwiseSaveNumber:0];
   }
 }
