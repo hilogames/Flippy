@@ -10,7 +10,12 @@
 
 ## Current Tasks
 
-- BUG: crash on rotating device on goals screen.  happened after archiving the app.
+- Make goals node reveal a little quicker.
+
+- BUGish: HLMessageNode likes to change its size only right before showing a message.
+  But still needs to do update geometry in case user rotates while a message is shown.
+  Perhaps this is an argument for changing the design and having the parent node be
+  persistant, while _backgroundNode is removed as necessary.
 
 - BUG: Import AND gate; non-hidden switches?
 
@@ -27,7 +32,9 @@ https://developer.apple.com/library/ios/documentation/IDEs/Conceptual/AppDistrib
 - Put app store link in README.md.
 
 - Upload Flippy to github.  Can't have HLSpriteKit be a development
-  dependency anymore, though . . . or can you?
+  dependency anymore, though . . . or can you?  Also, probably need to
+  copy in my DSMultilineLabelNode files, since I don't think I can
+  make a pod out of that.
 
 - Add a forum to hilogames.com, with development and game topics.  If
   so, add a link to the README.md.

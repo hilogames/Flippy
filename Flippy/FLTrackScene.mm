@@ -3757,6 +3757,10 @@ writeArchiveWithPath:(NSString *)path
       // noob: So is this dangerous?  The delegate is probably going to delete this scene.
       // Need to dispatch_async?
       // Got a EXC_BAD_ACCESS here after clicking Next Level button, 11/5/2014.
+      // Got a EXC_BAD_ACCESS on _nextLevelMessageNode._backgroundNode.scene after clicking the Next Level button, 12/17/2014
+      // (and then rotating device or having view controller try to set geometry on _nextLevelOverlay before it was presented).
+      // TODO: A little hard to reproduce the bad access errors; I'm trying something else to fix them,
+      // but if they come back then try doing this async as a policy.
       [delegate performSelector:@selector(trackSceneDidTapNextLevelButton:) withObject:self];
     }
   }
@@ -5309,10 +5313,14 @@ writeArchiveWithPath:exportPath
     [_trackNode addChild:railDestruction];
     // noob: I read it is recommended to remove emitter nodes when they aren't visible.  I'm not sure if that applies
     // to emitter nodes that have reached their numParticlesToEmit maximum, but it certainly seems like a best practice.
-    SKAction *removeAfterWait = [SKAction sequence:@[ [SKAction waitForDuration:sleeperDestruction.particleLifetime],
-                                                      [SKAction removeFromParent] ]];
-    [sleeperDestruction runAction:removeAfterWait];
-    [railDestruction runAction:removeAfterWait];
+    NSTimeInterval sleeperParticleLifetimeMax = sleeperDestruction.particleLifetime + sleeperDestruction.particleLifetimeRange / 2.0f;
+    [sleeperDestruction runAction:[SKAction waitForDuration:sleeperParticleLifetimeMax] completion:^{
+      [sleeperDestruction removeFromParent];
+    }];
+    NSTimeInterval railParticleLifetimeMax = railDestruction.particleLifetime + railDestruction.particleLifetimeRange / 2.0f;
+    [railDestruction runAction:[SKAction waitForDuration:railParticleLifetimeMax] completion:^{
+      [railDestruction removeFromParent];
+    }];
   }
   trackGridConvertErase(*_trackGrid, segmentNode.position);
   _links.erase(segmentNode);
@@ -5831,8 +5839,9 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
   SKSpriteNode *backdropNode = _tutorialState.backdropNode;
   _tutorialState.backdropNode = nil;
   if (animated) {
-    [backdropNode runAction:[SKAction sequence:@[ [SKAction fadeOutWithDuration:FLTutorialStepFadeDuration],
-                                                  [SKAction removeFromParent] ]]];
+    [backdropNode runAction:[SKAction fadeOutWithDuration:FLTutorialStepFadeDuration] completion:^{
+      [backdropNode removeFromParent];
+    }];
   } else {
     [backdropNode removeFromParent];
   }

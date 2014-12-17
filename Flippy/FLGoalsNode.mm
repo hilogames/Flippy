@@ -386,12 +386,7 @@ static const CGFloat FLLayoutNodeComponentPad = 7.0f;
   SKEmitterNode *happyBurst = [[HLEmitterStore sharedStore] emitterCopyForKey:@"happyBurst"];
   happyBurst.zPosition = FLZPositionHappyBursts;
   // noob: Good practice to remove emitter node once it's finished?
-  NSTimeInterval particleLifetimeMax = happyBurst.particleLifetime;
-  if (happyBurst.particleLifetimeRange > 0.001f) {
-    particleLifetimeMax += (happyBurst.particleLifetimeRange / 2.0f);
-  }
-  SKAction *removeHappyBurstAfterWait = [SKAction sequence:@[ [SKAction waitForDuration:particleLifetimeMax],
-                                                              [SKAction removeFromParent] ]];
+  NSTimeInterval particleLifetimeMax = happyBurst.particleLifetime + happyBurst.particleLifetimeRange / 2.0f;
 
   // Hide truth table correct column, and create actions to re-add them one at a time.
   if (_truthTableNode) {
@@ -445,7 +440,9 @@ static const CGFloat FLLayoutNodeComponentPad = 7.0f;
         happyBurstCopy.position = resultContentLocation;
         happyBurstCopy.particlePositionRange = CGVectorMake(squareNode.size.width, squareNode.size.height);
         [self.contentNode addChild:happyBurstCopy];
-        [happyBurstCopy runAction:removeHappyBurstAfterWait];
+        [happyBurstCopy runAction:[SKAction waitForDuration:particleLifetimeMax] completion:^{
+          [happyBurstCopy removeFromParent];
+        }];
       }]];
       [revealActions addObject:[SKAction waitForDuration:(correctStepDuration * 0.66f)]];
     }
@@ -479,7 +476,9 @@ static const CGFloat FLLayoutNodeComponentPad = 7.0f;
       happyBurstCopy.position = footerContentLocation;
       happyBurstCopy.particlePositionRange = CGVectorMake(self->_truthFooterNode.size.width, self->_truthFooterNode.size.height);
       [self.contentNode addChild:happyBurstCopy];
-      [happyBurstCopy runAction:removeHappyBurstAfterWait];
+      [happyBurstCopy runAction:[SKAction waitForDuration:particleLifetimeMax] completion:^{
+        [happyBurstCopy removeFromParent];
+      }];
     }]];
     [revealActions addObject:[SKAction waitForDuration:(FLTruthTableRevealOtherDuration * 0.66f)]];
   }
@@ -502,7 +501,9 @@ static const CGFloat FLLayoutNodeComponentPad = 7.0f;
       happyBurstCopy.position = victoryContentLocation;
       happyBurstCopy.particlePositionRange = CGVectorMake(self->_victoryButton.size.width, self->_victoryButton.size.height);
       [self.contentNode addChild:happyBurstCopy];
-      [happyBurstCopy runAction:removeHappyBurstAfterWait];
+      [happyBurstCopy runAction:[SKAction waitForDuration:particleLifetimeMax] completion:^{
+        [happyBurstCopy removeFromParent];
+      }];
     }]];
     [revealActions addObject:[SKAction waitForDuration:(FLTruthTableRevealOtherDuration * 0.66f)]];
   }
@@ -544,7 +545,9 @@ static const CGFloat FLLayoutNodeComponentPad = 7.0f;
           happyBurstCopy.position = rowContentLocation;
           happyBurstCopy.particlePositionRange = CGVectorMake(layoutManager.size.width, 20.0f);
           [self.contentNode addChild:happyBurstCopy];
-          [happyBurstCopy runAction:removeHappyBurstAfterWait];
+          [happyBurstCopy runAction:[SKAction waitForDuration:particleLifetimeMax] completion:^{
+            [happyBurstCopy removeFromParent];
+          }];
         }]];
         [revealActions addObject:[SKAction waitForDuration:(FLTruthTableRevealOtherDuration * 0.66f)]];
         replaceNodes = [NSMutableArray array];
@@ -848,6 +851,18 @@ static const CGFloat FLLayoutNodeComponentPad = 7.0f;
     // noob: This will typically deallocate this goals node, which means there might be
     // problems.  But I think the blocks that call this successfully retain self, and so
     // it doesn't end up being a problem.
+    //
+    // noob: In fact, there's a chain of self-deletion: The track scene is presenting this
+    // goals node "modally", and it removes it from the node hierarchy; then the track scene
+    // tells the view controller to present the next level.  Instead, it prepares a new modal
+    // overlay called the "next level overlay" for saving the current level, and presents it
+    // over the track scene; then, on a delegate call from a menu node in that overlay, the
+    // view controller dismisses the modal presentation on the track scene, and loads and
+    // presents the next level (another track scene).  And sure enough, somewhere in that mess
+    // I'm getting (11/2014) a EXC_BAD_ACCESS.  So perhaps best practice is to always
+    // dispatch_async a delegate call that might delete self, but in this case the connection
+    // between this goals node and the track scene that owns it doesn't seem as fragile, and
+    // it's not directly causing the EXC_BAD_ACCESS.  So still keep it like this.
     [delegate goalsNode:self didDismissWithNextLevel:nextLevel];
   }
 }

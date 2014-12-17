@@ -1377,10 +1377,11 @@ using namespace std;
   [whiteLayer addChild:whiteNode];
   [node addChild:whiteLayer];
 
-  SKAction *whiteFlash = [SKAction sequence:@[ [SKAction fadeAlphaTo:0.0f duration:FLFlashDuration],
-                                               [SKAction removeFromParent] ]];
+  SKAction *whiteFlash = [SKAction fadeAlphaTo:0.0f duration:FLFlashDuration];
   whiteFlash.timingMode = SKActionTimingEaseOut;
-  [whiteLayer runAction:whiteFlash];
+  [whiteLayer runAction:whiteFlash completion:^{
+    [whiteLayer removeFromParent];
+  }];
 }
 
 - (void)FL_removeActionFlashWhiteNode:(SKSpriteNode *)node
