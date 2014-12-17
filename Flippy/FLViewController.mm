@@ -76,9 +76,11 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   SKScene *_loadingScene;
 
   HLScene *_titleScene;
-  __weak HLMenuNode *_titleMenuNode;
+  HLMenuNode *_titleMenuNode;
+  HLMessageNode *_titleMessageNode;
 
   FLTrackScene *_gameScene;
+  
   SKNode *_gameOverlay;
   HLMenuNode *_gameMenuNode;
   HLMessageNode *_gameMessageNode;
@@ -198,17 +200,13 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
       _gameScene.delegate = self;
     }
     _titleScene = [extraCoder decodeObjectForKey:@"titleScene"];
-    HLMenuNode *titleMenuNode = nil;
     if (_titleScene) {
-      // noob: I'm keeping the pointer to the title scene's menu node a weak pointer just
-      // to prove the point that it's a reference, not an owned object.  But of course
-      // that means jumping through these hoops.  Good practice?
-      titleMenuNode = [extraCoder decodeObjectForKey:@"titleMenuNode"];
-      if (titleMenuNode) {
-        titleMenuNode.delegate = self;
+      _titleMenuNode = [extraCoder decodeObjectForKey:@"titleMenuNode"];
+      if (_titleMenuNode) {
+        _titleMenuNode.delegate = self;
       }
+      [self FL_titleMessageNodeCreate];
     }
-    _titleMenuNode = titleMenuNode;
     [extraCoder finishDecoding];
   }
 
@@ -319,7 +317,11 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
 
 - (void)viewDidLayoutSubviews
 {
-  if (_gameScene) {
+  if (!_currentScene) {
+    return;
+  }
+  if (_currentScene == _gameScene) {
+    [self FL_gameSceneUpdateGeometry];
     SKNode *gameScenePresentedOverlay = [_gameScene modalNodePresented];
     if (gameScenePresentedOverlay == _gameOverlay) {
       [self FL_gameOverlayUpdateGeometry];
@@ -328,13 +330,14 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
     } else if (gameScenePresentedOverlay == _helpOverlay) {
       [self FL_helpOverlayUpdateGeometry];
     }
-  }
-
-  if (_titleScene) {
+  } else if (_currentScene == _titleScene) {
+    [self FL_titleSceneUpdateGeometry];
     SKNode *titleScenePresentedOverlay = [_titleScene modalNodePresented];
     if (titleScenePresentedOverlay == _aboutOverlay) {
       [self FL_aboutOverlayUpdateGeometry];
     }
+  } else if (_currentScene == _loadingScene) {
+    [self FL_loadingSceneUpdateGeometry];
   }
 }
 
@@ -391,7 +394,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   }
 
   if (_gameScene && _currentScene != _gameScene) {
-    _gameScene = nil;
+    [self FL_gameSceneRelease];
   }
 
   SKNode *titleScenePresentedOverlay = nil;
@@ -403,11 +406,11 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   }
 
   if (_titleScene && _currentScene != _titleScene) {
-    _titleScene = nil;
+    [self FL_titleSceneRelease];
   }
 
   if (_loadingScene && _currentScene != _loadingScene) {
-    _loadingScene = nil;
+    [self FL_loadingSceneRelease];
   }
 }
 
@@ -710,6 +713,11 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   [_loadingScene addChild:loadingLabelNode];
 }
 
+- (void)FL_loadingSceneRelease
+{
+  _loadingScene = nil;
+}
+
 - (void)FL_loadingSceneUpdateGeometry
 {
   // note: The most common need for this: Another scene is presented, and the device
@@ -743,39 +751,70 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   _titleMenuNode = titleMenuNode;
 
   [self FL_titleMenuCreate];
+  
+  [self FL_titleMessageNodeCreate];
+  
+  [self FL_titleSceneUpdateGeometry];
+}
+
+- (void)FL_titleSceneRelease
+{
+  // note: Scene will be deleted; no need to unregister descendents.
+  _titleMenuNode = nil;
+  _titleMessageNode = nil;
+  _titleScene = nil;
 }
 
 - (void)FL_titleSceneUpdateGeometry
 {
-  // note: The most common need for this: Another scene is presented, and the device
-  // orientation changes.  When the title scene is next presented, it's size will
-  // need to updated.
+  // note: For some callers, the scene's size is already set correctly.  In particular,
+  // when the title scene is created, it's good; also, when the device orientation changes
+  // and the title scene is presented in the SKView, the SKView resizes it according to
+  // SKSceneScaleModeResizeFill; only after that does the view controller get called
+  // didLayoutSubviews, which brings us here.  But there is at least one use-case where
+  // the size is not correctly set: When the _titleScene is not presented in the UIView,
+  // and the device is reoriented, then (apparently) the UIView does not resize the
+  // _titleScene when it is next presented (despite the setting of [SKScene scaleMode]).
+  // So: set it!
   _titleScene.size = self.view.bounds.size;
+
+  // note: _titleMenuNode stays "centered".
+
+  _titleMessageNode.position = CGPointMake(0.0f, _titleMenuNode.position.y + _titleMenuNode.itemSpacing);
+  _titleMessageNode.size = CGSizeMake(_titleScene.size.width, FLMessageNodeHeight);
 }
+
+- (void)FL_titleMessageNodeCreate
+{
+  _titleMessageNode = [self FL_commonMessageNodeCreate];
+  _titleMessageNode.zPosition = FLZPositionTitleMessage;
+  [_titleScene registerDescendant:_titleMessageNode withOptions:[NSSet setWithObject:HLSceneChildNoCoding]];
+}
+
 - (void)FL_titleSceneShowMessage:(NSString *)message
 {
-  HLMessageNode *messageNode = (HLMessageNode *)[_titleScene childNodeWithName:@"messageNode"];
-  if (!messageNode) {
-    messageNode = [self FL_commonMessageNodeCreate];
-    messageNode.name = @"messageNode";
-    messageNode.zPosition = FLZPositionTitleMessage;
-    [_titleScene addChild:messageNode withOptions:[NSSet setWithObject:HLSceneChildNoCoding]];
-  }
-
-  // note: Could maintain the size and shape of the message node only when
-  // our own geometry changes.  But easier to do it for every message, for now.
-  HLMenuNode *titleMenuNode = _titleMenuNode;
-  messageNode.position = CGPointMake(0.0f, titleMenuNode.position.y + titleMenuNode.itemSpacing);
-  messageNode.size = CGSizeMake(_titleScene.size.width, FLMessageNodeHeight);
-
-  [messageNode showMessage:message parent:_titleScene];
+  [_titleMessageNode showMessage:message parent:_titleScene];
 }
 
 - (void)FL_titleSceneHideMessage
 {
-  HLMessageNode *messageNode = (HLMessageNode *)[_titleScene childNodeWithName:@"messageNode"];
-  if (messageNode) {
-    [messageNode hideMessage];
+  [_titleMessageNode hideMessage];
+}
+
+- (void)FL_gameSceneRelease
+{
+  _gameScene = nil;
+}
+
+- (void)FL_gameSceneUpdateGeometry
+{
+  SKNode *gameScenePresentedOverlay = [_gameScene modalNodePresented];
+  if (gameScenePresentedOverlay == _gameOverlay) {
+    [self FL_gameOverlayUpdateGeometry];
+  } else if (gameScenePresentedOverlay == _nextLevelOverlay) {
+    [self FL_nextLevelOverlayUpdateGeometry];
+  } else if (gameScenePresentedOverlay == _helpOverlay) {
+    [self FL_helpOverlayUpdateGeometry];
   }
 }
 
@@ -791,8 +830,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
                                                                   [HLMenuBackItem menuItemWithText:FLCommonMenuBack] ] ]];
   [menu addItem:[HLMenuItem menuItemWithText:FLTitleMenuAbout]];
 
-  HLMenuNode *titleMenuNode = _titleMenuNode;
-  [titleMenuNode setMenu:menu animation:HLMenuNodeAnimationNone];
+  [_titleMenuNode setMenu:menu animation:HLMenuNodeAnimationNone];
 }
 
 - (NSUInteger)FL_titleMenuUpdateNew:(HLMenu *)newMenu
@@ -1243,8 +1281,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
     FLViewController *selfStrongAgain = selfWeak;
     if (selfStrongAgain) {
       [selfStrongAgain FL_commonMenuUpdateSaves:menuItem.parent forGameType:gameType includeNewButton:YES includeBackButton:YES];
-      HLMenuNode *titleMenuNode = selfStrongAgain->_titleMenuNode;
-      [titleMenuNode navigateToSubmenuWithPath:menuItemParentPath animation:HLMenuNodeAnimationNone];
+      [selfStrongAgain->_titleMenuNode navigateToSubmenuWithPath:menuItemParentPath animation:HLMenuNodeAnimationNone];
       [selfStrongAgain FL_titleSceneShowMessage:NSLocalizedString(@"Deleted game.",
                                                                   @"Menu message: displayed when a game has been deleted.")];
     }
@@ -1526,8 +1563,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   } else {
     [self FL_titleSceneUpdateGeometry];
     [self FL_titleSceneHideMessage];
-    HLMenuNode *titleMenuNode = _titleMenuNode;
-    [titleMenuNode navigateToTopMenuAnimation:HLMenuNodeAnimationNone];
+    [_titleMenuNode navigateToTopMenuAnimation:HLMenuNodeAnimationNone];
   }
   [self.skView presentScene:_titleScene transition:[SKTransition fadeWithDuration:FLSceneTransitionDuration]];
   _currentScene = _titleScene;
