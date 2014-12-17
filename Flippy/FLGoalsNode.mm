@@ -374,11 +374,11 @@ static const CGFloat FLLayoutNodeComponentPad = 7.0f;
 
   const CGFloat FLTruthTableRevealTruthTableFlyUpScale = originalContentScale * 0.8f;
   const CGFloat FLTruthTableRevealTruthTableFlyDownScale = 1.3f;
-  const NSTimeInterval FLTruthTableRevealZoomInDuration = 0.8;
-  const NSTimeInterval FLTruthTableRevealDramaticPauseDuration = 0.5;
-  const NSTimeInterval FLTruthTableRevealCorrectStepDuration = 0.5;
+  const NSTimeInterval FLTruthTableRevealZoomInDuration = 0.5;
+  const NSTimeInterval FLTruthTableRevealDramaticPauseDuration = 0.2;
+  const NSTimeInterval FLTruthTableRevealCorrectStepDuration = 0.4;
   const NSTimeInterval FLTruthTableRevealCorrectMaxDuration = 3.0;
-  const NSTimeInterval FLTruthTableRevealOtherDuration = 0.5;
+  const NSTimeInterval FLTruthTableRevealOtherDuration = 0.4;
   const NSTimeInterval FLTruthTableRevealZoomOutDuration = 0.3;
 
   NSMutableArray *revealActions = [NSMutableArray array];

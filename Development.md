@@ -10,8 +10,6 @@
 
 ## Current Tasks
 
-- Make goals node reveal a little quicker.
-
 - BUGish: HLMessageNode likes to change its size only right before showing a message.
   But still needs to do update geometry in case user rotates while a message is shown.
   Perhaps this is an argument for changing the design and having the parent node be
