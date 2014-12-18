@@ -10,8 +10,6 @@
 
 ## Current Tasks
 
-- BUG: Import AND gate; non-hidden switches?
-
 - Allow all normal interaction while in linking mode.  Don't
   automatically exit linking mode.  Only move track if not near a
   linkable segment, though.
