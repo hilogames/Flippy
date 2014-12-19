@@ -10,9 +10,12 @@
 
 ## Current Tasks
 
-- Allow all normal interaction while in linking mode.  Don't
-  automatically exit linking mode.  Only move track if not near a
-  linkable segment, though.
+- Consider showing the track edit menu on the side or top or bottom of
+  the screen (in the HUD) rather than on top of the selection (in the
+  world).  Not only would it make the code easier, but it would make
+  it easier to e.g. repeatedly-rotate a selection.  Then maybe also
+  some selection-sensitive buttons could join that menu: export and
+  duplicate, in particular.
 
 - Provision for iPads, and test.
 
@@ -80,13 +83,6 @@ https://developer.apple.com/library/ios/documentation/IDEs/Conceptual/AppDistrib
 
 - Localize the saved circuit/gate names, perhaps in a plist like the
   challenge level information.
-
-- Consider showing the track edit menu on the side or top or bottom of
-  the screen (in the HUD) rather than on top of the selection (in the
-  world).  Not only would it make the code easier, but it would make
-  it easier to e.g. repeatedly-rotate a selection.  Then maybe also
-  some selection-sensitive buttons could join that menu: export and
-  duplicate, in particular.
 
 - For challenge games, show the level title in the save game slots
   when loading and saving.  (Need to encode the level number

@@ -1158,29 +1158,25 @@ struct PointerPairHash
         // Pan begins with link tool near a segment with a switch.
         _worldGestureState.panType = FLWorldPanTypeLink;
         [self FL_linkEditBeganWithNode:segmentNode];
-      } else {
-        // Pan begins with link tool not close to a segment with a switch.
-        _worldGestureState.panType = FLWorldPanTypeScroll;
+        return;
       }
+    }
+    FLSegmentNode *segmentNode = [self FL_trackFindSegmentNearLocation:firstTouchWorldLocation];
+    if ([self FL_trackSelected:segmentNode]) {
+      // Pan begins inside a selected track segment.
+      //
+      // note: Here we use the first touch location to start the pan, because the translation of
+      // the pan is calculated by gridlines crossed (not distance moved), and we wouldn't want to
+      // miss a gridline.
+      _worldGestureState.panType = FLWorldPanTypeTrackMove;
+      [self FL_trackMoveBeganWithNodes:_trackSelectState.selectedSegments location:firstTouchWorldLocation completion:nil];
     } else {
-      // Pan is not using link tool.
-      FLSegmentNode *segmentNode = [self FL_trackFindSegmentNearLocation:firstTouchWorldLocation];
-      if ([self FL_trackSelected:segmentNode]) {
-        // Pan begins inside a selected track segment.
-        //
-        // note: Here we use the first touch location to start the pan, because the translation of
-        // the pan is calculated by gridlines crossed (not distance moved), and we wouldn't want to
-        // miss a gridline.
-        _worldGestureState.panType = FLWorldPanTypeTrackMove;
-        [self FL_trackMoveBeganWithNodes:_trackSelectState.selectedSegments location:firstTouchWorldLocation completion:nil];
-      } else {
-        // Pan begins not inside a selected track segment.
-        //
-        // note: We end up not using the first touch location as the start of the scroll;
-        // if we wanted to, we could offset the starting translation right now based on
-        // the difference.
-        _worldGestureState.panType = FLWorldPanTypeScroll;
-      }
+      // Pan begins not inside a selected track segment.
+      //
+      // note: We end up not using the first touch location as the start of the scroll;
+      // if we wanted to, we could offset the starting translation right now based on
+      // the difference.
+      _worldGestureState.panType = FLWorldPanTypeScroll;
     }
 
   } else if (gestureRecognizer.state == UIGestureRecognizerStateChanged) {
@@ -1370,13 +1366,6 @@ struct PointerPairHash
   }
 
   FLToolbarToolType toolType = (FLToolbarToolType)[_constructionToolbarState.toolTypes[toolTag] integerValue];
-
-  // If navigating, reset state on linking mode (and any other similar modes).
-  if (toolType == FLToolbarToolTypeNavigation) {
-    if (![toolTag isEqualToString:@"link"] && _linksVisible) {
-      [self FL_linksToggle];
-    }
-  }
 
   if (toolType == FLToolbarToolTypeNavigation) {
 
@@ -4282,15 +4271,6 @@ writeArchiveWithPath:exportPath
 
   [self FL_trackConflictClear];
 
-  // note: Currently interface doesn't allow movement of track when links are visible,
-  // so this only needs to be done when ended/cancelled.
-  if (_trackMoveState.placed) {
-    // note: Could skip this if no movement actually took place.
-    for (FLSegmentNode *segmentNode in _trackMoveState.segmentNodes) {
-      [self FL_linkRedrawForSegment:segmentNode];
-    }
-  }
-
   if (_trackMoveState.completion) {
     _trackMoveState.completion(_trackMoveState.placed);
   }
@@ -4395,6 +4375,7 @@ writeArchiveWithPath:exportPath
     if (!_trackMoveState.placed) {
       [_trackNode addChild:segmentNode];
     }
+    [self FL_linkRedrawForSegment:segmentNode];
   }
   _trackMoveState.placed = YES;
   _trackMoveState.placedTranslationGridX = translationGridX;
@@ -4698,6 +4679,20 @@ writeArchiveWithPath:exportPath
   for (auto link : links) {
     SKShapeNode *connectorNode = [self FL_linkDrawFromLocation:segmentNode.switchLinkLocation toLocation:link.switchLinkLocation linkErase:NO];
     _links.set(segmentNode, link, connectorNode);
+  }
+}
+
+- (void)FL_linkHideForSegment:(FLSegmentNode *)segmentNode
+{
+  // note: FL_linkRedrawForSegment will be called for this segmentNode soon, but in the meantime
+  // we want the link connectorNodes hidden.  Not deleted; just hidden.  Could use SKNode's hidden,
+  // or alpha, or something else, but instead remove from parent and try to fix up other places
+  // where it is assumed the connectorNode is always added to parent.
+  vector<FLSegmentNode *> links;
+  _links.get(segmentNode, &links);
+  for (auto link : links) {
+    SKShapeNode *connectorNode = _links.get(segmentNode, link);
+    [connectorNode removeFromParent];
   }
 }
 
@@ -5074,6 +5069,7 @@ writeArchiveWithPath:exportPath
     segmentNode.zRotationQuarters = newRotationQuarters;
     [self FL_linkRedrawForSegment:segmentNode];
   } else {
+    [self FL_linkHideForSegment:segmentNode];
     segmentNode.mayShowLabel = NO;
     segmentNode.mayShowBubble = NO;
     [segmentNode runAction:[SKAction rotateToAngle:(newRotationQuarters * (CGFloat)M_PI_2) duration:FLTrackRotateDuration shortestUnitArc:YES] completion:^{
@@ -5189,6 +5185,7 @@ writeArchiveWithPath:exportPath
       FLSegmentNode *segmentNodeCopy = [segmentNode copy];
       segmentNodeCopy.position = CGPointMake(segmentNode.position.x - pivot.x, segmentNode.position.y - pivot.y);
       [rotateNode addChild:segmentNodeCopy];
+      [self FL_linkHideForSegment:segmentNode];
       segmentNodeCopy.mayShowLabel = NO;
       segmentNodeCopy.mayShowBubble = NO;
     }

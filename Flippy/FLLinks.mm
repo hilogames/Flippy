@@ -22,7 +22,9 @@ FLLinks::set(FLSegmentNode *a, FLSegmentNode *b, SKShapeNode *connector)
     emplacement = links_.emplace(std::make_pair((__bridge void *)b, (__bridge void *)a), connector);
   }
   if (!emplacement.second && emplacement.first->second != connector) {
-    [emplacement.first->second removeFromParent];
+    if (emplacement.first->second.parent) {
+      [emplacement.first->second removeFromParent];
+    }
     emplacement.first->second = connector;
   }
 }
@@ -79,14 +81,18 @@ FLLinks::erase(FLSegmentNode *a, FLSegmentNode *b)
   if (a < b) {
     auto link = links_.find(std::make_pair((__bridge void *)a, (__bridge void *)b));
     if (link != links_.end()) {
-      [link->second removeFromParent];
+      if (link->second.parent) {
+        [link->second removeFromParent];
+      }
       links_.erase(link);
       return;
     }
   } else {
     auto link = links_.find(std::make_pair((__bridge void *)b, (__bridge void *)a));
     if (link != links_.end()) {
-      [link->second removeFromParent];
+      if (link->second.parent) {
+        [link->second removeFromParent];
+      }
       links_.erase(link);
       return;
     }
@@ -100,10 +106,14 @@ FLLinks::erase(FLSegmentNode *a)
   auto link = links_.begin();
   while (link != links_.end()) {
     if ((__bridge void *)a == link->first.first) {
-      [link->second removeFromParent];
+      if (link->second.parent) {
+        [link->second removeFromParent];
+      }
       link = links_.erase(link);
     } else if ((__bridge void *)a == link->first.second) {
-      [link->second removeFromParent];
+      if (link->second.parent) {
+        [link->second removeFromParent];
+      }
       link = links_.erase(link);
     } else {
       ++link;
