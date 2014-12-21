@@ -12,7 +12,8 @@
 	<string></string>
 	<string>TRACK EDITING</string>
 	<string>The rotate gesture can be used to rotate selected track segments.</string>
-	<string>Tapped delete by accident? The last few track deletions (of more than one segment) can be restored from the main toolbar.</string>
+	<string>Double-tap the delete button to delete track.</string>
+	<string>The last few track deletions (of more than one segment) can be restored from the main toolbar.</string>
 	<string></string>
 	<string>WORLD NAVIGATION</string>
 	<string>Tap the four-arrows button (in the top toolbar) to find and follow the train.</string>

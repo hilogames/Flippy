@@ -10,12 +10,9 @@
 
 ## Current Tasks
 
-- Consider showing the track edit menu on the side or top or bottom of
-  the screen (in the HUD) rather than on top of the selection (in the
-  world).  Not only would it make the code easier, but it would make
-  it easier to e.g. repeatedly-rotate a selection.  Then maybe also
-  some selection-sensitive buttons could join that menu: export and
-  duplicate, in particular.
+- Allow cancel of label selection by clicking outside label box; that
+  way you aren't forced to make a change in case of multiple
+  selection.
 
 - Provision for iPads, and test.
 

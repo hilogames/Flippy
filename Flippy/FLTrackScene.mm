@@ -81,14 +81,12 @@ static const NSTimeInterval FLTutorialStepFadeDuration = 0.4;
 // chosen based on the screen layout.  Perhaps scaling like that is a bad idea.
 static const CGFloat FLMainToolbarToolArtSize = 54.0f;
 static const CGFloat FLMainToolbarHeight = 48.0f;
-static const CGFloat FLMessageSpacer = 1.0f;
+static const CGFloat FLMessageSpacer = 2.0f;
 static const CGFloat FLMessageHeight = 20.0f;
-static const CGFloat FLTrackEditMenuHeight = 42.0f;  // at scale = 1
+static const CGFloat FLTrackEditMenuHeight = 32.0f;
 static const CGFloat FLTrackEditMenuBackgroundBorderSize = 3.0f;
 static const CGFloat FLTrackEditMenuSquareSeparatorSize = 3.0f;
-static const CGFloat FLTrackEditMenuWorldInverseScaleFactor = 1.0f / 3.0f;
-static const CGFloat FLTrackEditMenuWorldScaleMinimum = 2.0f / 3.0f;
-static const CGFloat FLTrackEditMenuSegmentPad = 20.0f;
+static const CGFloat FLTrackEditMenuSpacer = 2.0f;
 
 static NSString *FLGatesDirectoryPath;
 static NSString *FLCircuitsDirectoryPath;
@@ -791,6 +789,7 @@ struct PointerPairHash
   [self FL_tutorialUpdateGeometry];
   [self FL_constructionToolbarUpdateGeometry];
   [self FL_simulationToolbarUpdateGeometry];
+  [self FL_trackEditMenuUpdateGeometry];
   [self FL_messageUpdateGeometry];
   [self FL_goalsUpdateGeometry];
 }
@@ -1437,13 +1436,6 @@ struct PointerPairHash
         [self FL_messageShow:NSLocalizedString(@"Hiding track labels.",
                                                @"Message to user: Shown when labels button is pressed to hide track labels.")];
       }
-    } else if ([toolTag isEqualToString:@"export"]) {
-      if ([self FL_trackSelectedNone]) {
-        [self FL_messageShow:NSLocalizedString(@"Export: Make a selection.",
-                                               @"Message to user: Shown when export button is pressed but no track is selected.")];
-      } else {
-        [self FL_export];
-      }
     }
 
   } else if (toolType == FLToolbarToolTypeActionPan) {
@@ -1797,8 +1789,27 @@ struct PointerPairHash
     [self FL_linkSwitchTogglePathIdForSegments:_trackSelectState.selectedSegments animated:YES];
   } else if ([buttonTag isEqualToString:@"set-label"]) {
     [self FL_labelPickForSegments:_trackSelectState.selectedSegments];
-  } else if ([buttonTag isEqualToString:@"delete"]) {
-    [self FL_delete];
+  } else if ([buttonTag isEqualToString:@"export"]) {
+    [self FL_export];
+  }
+}
+
+- (void)handleTrackEditMenuDoubleTap:(UIGestureRecognizer *)gestureRecognizer
+{
+  if (gestureRecognizer.state != UIGestureRecognizerStateEnded) {
+    return;
+  }
+  
+  CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
+  CGPoint sceneLocation = [self convertPointFromView:viewLocation];
+  CGPoint toolbarLocation = [_trackEditMenuState.editMenuNode convertPoint:sceneLocation fromNode:self];
+  NSString *buttonTag = [_trackEditMenuState.editMenuNode toolAtLocation:toolbarLocation];
+  
+  if ([buttonTag isEqualToString:@"delete"]) {
+    if ([self FL_deleteSegments:_trackSelectState.selectedSegments pointers:_trackSelectState.selectedSegmentPointers] == 0) {
+      [self FL_messageShow:NSLocalizedString(@"Cannot delete special segments.",
+                                             @"Message to user: Shown when user tries to delete special track segments in challenge mode.")];
+    }
   }
 }
 
@@ -2008,14 +2019,22 @@ struct PointerPairHash
   }
 
   // Track edit menu.
-  CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
   if (_trackEditMenuState.showing
-      && [_trackEditMenuState.editMenuNode containsPoint:worldLocation]) {
-    if ([gestureRecognizer isKindOfClass:[UITapGestureRecognizer class]]
-        && [(UITapGestureRecognizer *)gestureRecognizer numberOfTapsRequired] == 1) {
-      [gestureRecognizer removeTarget:nil action:NULL];
-      [gestureRecognizer addTarget:self action:@selector(handleTrackEditMenuTap:)];
-      return YES;
+      && [_trackEditMenuState.editMenuNode containsPoint:sceneLocation]) {
+    if ([gestureRecognizer isKindOfClass:[UITapGestureRecognizer class]]) {
+      NSUInteger numberOfTapsRequired = [(UITapGestureRecognizer *)gestureRecognizer numberOfTapsRequired];
+      switch (numberOfTapsRequired) {
+        case 1:
+          [gestureRecognizer removeTarget:nil action:NULL];
+          [gestureRecognizer addTarget:self action:@selector(handleTrackEditMenuTap:)];
+          return YES;
+        case 2:
+          [gestureRecognizer removeTarget:nil action:NULL];
+          [gestureRecognizer addTarget:self action:@selector(handleTrackEditMenuDoubleTap:)];
+          return YES;
+        default:
+          break;
+      }
     }
     if ([gestureRecognizer isKindOfClass:[UILongPressGestureRecognizer class]]) {
       [gestureRecognizer removeTarget:nil action:NULL];
@@ -2026,6 +2045,7 @@ struct PointerPairHash
   }
 
   // Train.
+  CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
   if (_train.parent
       && [_train containsPoint:worldLocation]) {
     if ([gestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]]) {
@@ -2187,6 +2207,7 @@ struct PointerPairHash
   [textureStore setTextureWithImageNamed:@"center" forKey:@"center" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"goals" forKey:@"goals" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"delete" forKey:@"delete" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"export" forKey:@"export" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"rotate-cw" forKey:@"rotate-cw" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"rotate-ccw" forKey:@"rotate-ccw" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"flip-horizontal" forKey:@"flip-horizontal" filteringMode:SKTextureFilteringLinear];
@@ -2201,11 +2222,10 @@ struct PointerPairHash
   [textureStore setTextureWithImageNamed:@"circuits" forKey:@"circuits" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"exports" forKey:@"exports" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"deletions" forKey:@"deletions" filteringMode:SKTextureFilteringLinear];
+  [textureStore setTextureWithImageNamed:@"duplicate" forKey:@"duplicate" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"link" forKey:@"link" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"show-labels" forKey:@"show-labels" filteringMode:SKTextureFilteringLinear];
   [textureStore setTextureWithImageNamed:@"show-values" forKey:@"show-values" filteringMode:SKTextureFilteringLinear];
-  [textureStore setTextureWithImageNamed:@"duplicate" forKey:@"duplicate" filteringMode:SKTextureFilteringLinear];
-  [textureStore setTextureWithImageNamed:@"export" forKey:@"export" filteringMode:SKTextureFilteringLinear];
 
   // Other.
   [textureStore setTextureWithImageNamed:@"switch" andUIImageWithImageNamed:@"switch-nonatlas.png" forKey:@"switch" filteringMode:SKTextureFilteringLinear];
@@ -2627,7 +2647,6 @@ writeArchiveWithPath:(NSString *)path
     CGFloat currentScale = startScale + (constrainedScale - startScale) * (CGFloat)(elapsedTime / duration);
     node.xScale = currentScale;
     node.yScale = currentScale;
-    [self FL_trackEditMenuScaleToWorld];
     // note: Maybe smoother to constrain the position once before animation, and animate
     // to that position?  Might even be able to skip the constraint checks in the animation,
     // since any intermediate values will be temporary.
@@ -2656,7 +2675,6 @@ writeArchiveWithPath:(NSString *)path
 {
   _worldNode.xScale = constrainedScale;
   _worldNode.yScale = constrainedScale;
-  [self FL_trackEditMenuScaleToWorld];
   _worldNode.position = [self FL_worldConstrainedPositionX:positionX
                                                  positionY:positionY
                                                  forScaleX:constrainedScale
@@ -2687,7 +2705,6 @@ writeArchiveWithPath:(NSString *)path
     CGFloat currentScale = startScale + (constrainedScale - startScale) * elapsedProportion;
     node.xScale = currentScale;
     node.yScale = currentScale;
-    [self FL_trackEditMenuScaleToWorld];
     // note: Maybe smoother to constrain the position once before animation, and animate
     // to that position?  Might even be able to skip the constraint checks in the animation,
     // since any intermediate values will be temporary.
@@ -2729,20 +2746,16 @@ writeArchiveWithPath:(NSString *)path
   CGFloat visibleSceneTop;
   CGFloat visibleSceneBottom;
   [self FL_sceneGetVisibleLeft:&visibleSceneLeft right:&visibleSceneRight top:&visibleSceneTop bottom:&visibleSceneBottom];
+  if (includeTrackEditMenu) {
+    visibleSceneBottom -= FLTrackEditMenuHeight;
+  }
   CGSize visibleSceneSize = CGSizeMake(visibleSceneRight - visibleSceneLeft, visibleSceneTop - visibleSceneBottom);
 
   CGFloat worldConstrainedScaleNew = _worldNode.xScale;
   if (scaling) {
     CGFloat worldScaleFit;
-    if (includeTrackEditMenu) {
-      // note: For now, don't bother calculating track edit menu width from segmentNodes
-      // using [self FL_trackEditMenuWidthForSegments:segmentNodes].  Instead, assume that
-      // the toolbar width fits on the screen at all world scales.
-      worldScaleFit = [self FL_trackEditMenuWorldScaleToFitSegmentSize:contentWorldSize intoTargetSceneSize:visibleSceneSize withTrackEditMenuWidth:0.0f];
-    } else {
-      worldScaleFit = MIN(visibleSceneSize.width / contentWorldSize.width,
-                          visibleSceneSize.height / contentWorldSize.height);
-    }
+    worldScaleFit = MIN(visibleSceneSize.width / contentWorldSize.width,
+                        visibleSceneSize.height / contentWorldSize.height);
     CGFloat worldConstrainedScaleFit = [self FL_worldConstrainedScale:worldScaleFit];
     if (worldConstrainedScaleFit < worldConstrainedScaleNew) {
       worldConstrainedScaleNew = worldConstrainedScaleFit;
@@ -2759,27 +2772,8 @@ writeArchiveWithPath:(NSString *)path
                                              visibleSceneBottom + (visibleSceneTop - visibleSceneBottom) / 2.0f);
     CGPoint visibleWorldCenter = CGPointMake((visibleSceneCenter.x - _worldNode.position.x) / worldConstrainedScaleNew,
                                              (visibleSceneCenter.y - _worldNode.position.y) / worldConstrainedScaleNew);
-
-    // Include track edit menu (if appropriate) in content bounds, size, and center.
     CGPoint contentWorldCenter = CGPointMake(contentWorldLeft + (contentWorldRight - contentWorldLeft) / 2.0f,
                                              contentWorldBottom + (contentWorldTop - contentWorldBottom) / 2.0f);
-    if (includeTrackEditMenu) {
-      CGFloat trackEditMenuScale = [self FL_trackEditMenuScaleForWorldScale:worldConstrainedScaleNew];
-      // note: If track edit menu is wider than the content, then we lose the pad previously added to the
-      // content width.  Add a (smaller) pad appropriate to the track edit menu.
-      const CGFloat FLWorldFitTrackEditMenuWidthPad = FLTrackEditMenuBackgroundBorderSize * 2.0f;
-      CGFloat trackEditMenuWorldWidth = ([self FL_trackEditMenuWidthForSegments:segmentNodes] + FLWorldFitTrackEditMenuWidthPad) * trackEditMenuScale;
-      if (trackEditMenuWorldWidth > contentWorldSize.width) {
-        CGFloat halfTrackEditMenuWorldWidth = trackEditMenuWorldWidth / 2.0f;
-        contentWorldLeft = contentWorldCenter.x - halfTrackEditMenuWorldWidth;
-        contentWorldRight = contentWorldCenter.x + halfTrackEditMenuWorldWidth;
-        contentWorldSize.width = trackEditMenuWorldWidth;
-      }
-      CGFloat trackEditMenuWorldHeight = FLTrackEditMenuSegmentPad + FLTrackEditMenuHeight * trackEditMenuScale;
-      contentWorldTop += trackEditMenuWorldHeight;
-      contentWorldSize.height += trackEditMenuWorldHeight;
-      contentWorldCenter.y += trackEditMenuWorldHeight / 2.0f;
-    }
 
     // Adjust world position (in scene) to fit content (as much as possible).
     CGPoint visibleWorldCenterNew = visibleWorldCenter;
@@ -3094,6 +3088,13 @@ writeArchiveWithPath:(NSString *)path
   [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
   
+  textureKey = @"duplicate";
+  [toolTags addObject:textureKey];
+  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+  _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
+  _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Drag to duplicate selected track.",
+                                                                             @"Message to user: shown when the duplicate tool (in the bottom toolbar) is tapped.");
+  
   textureKey = @"link";
   [toolTags addObject:textureKey];
   [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
@@ -3105,18 +3106,6 @@ writeArchiveWithPath:(NSString *)path
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionTap);
 
   textureKey = @"show-values";
-  [toolTags addObject:textureKey];
-  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-  _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionTap);
-
-  textureKey = @"duplicate";
-  [toolTags addObject:textureKey];
-  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
-  _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
-  _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Drag to duplicate selected track.",
-                                                                             @"Message to user: shown when the duplicate tool (in the bottom toolbar) is tapped.");
-
-  textureKey = @"export";
   [toolTags addObject:textureKey];
   [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionTap);
@@ -3652,11 +3641,12 @@ writeArchiveWithPath:(NSString *)path
 
 - (void)FL_messageUpdateGeometry
 {
-  CGFloat bottom = (FLMessageHeight - self.size.height) / 2.0f;
-  if (_constructionToolbarState.toolbarNode) {
-    bottom += _constructionToolbarState.toolbarNode.size.height;
-  }
-  _messageNode.position = CGPointMake(0.0f, bottom + FLMessageSpacer);
+  CGFloat y = (FLMessageHeight - self.size.height) / 2.0f
+    + FLMainToolbarHeight
+    + FLMessageSpacer
+    + FLTrackEditMenuHeight
+    + FLTrackEditMenuSpacer;
+  _messageNode.position = CGPointMake(0.0f, y);
   _messageNode.size = CGSizeMake(self.size.width, FLMessageHeight);
 }
 
@@ -3894,19 +3884,14 @@ writeArchiveWithPath:exportPath
   }
 }
 
-- (void)FL_delete
+- (NSUInteger)FL_deleteSegments:(NSArray *)segmentNodes pointers:(NSSet *)segmentPointers
 {
-  NSMutableArray *eraseSegments;
-  NSMutableSet *eraseSegmentPointers;
-  NSMutableArray *doNotEraseSegments;
-  if (_gameType == FLGameTypeSandbox) {
-    eraseSegments = _trackSelectState.selectedSegments;
-    eraseSegmentPointers = _trackSelectState.selectedSegmentPointers;
-  } else {
-    eraseSegments = [NSMutableArray array];
-    eraseSegmentPointers = [NSMutableSet set];
+  NSMutableArray *doNotEraseSegments = nil;
+  if (_gameType != FLGameTypeSandbox) {
+    NSMutableArray *eraseSegments = [NSMutableArray array];
+    NSMutableSet *eraseSegmentPointers = [NSMutableSet set];
     doNotEraseSegments = [NSMutableArray array];
-    for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
+    for (FLSegmentNode *segmentNode in segmentNodes) {
       if ([self FL_gameTypeChallengeCanEraseSegment:segmentNode.segmentType]) {
         [eraseSegments addObject:segmentNode];
         [eraseSegmentPointers addObject:[NSValue valueWithPointer:(void *)segmentNode]];
@@ -3915,18 +3900,18 @@ writeArchiveWithPath:exportPath
       }
     }
     if ([eraseSegments count] == 0) {
-      [self FL_messageShow:NSLocalizedString(@"Cannot delete special segments.",
-                                             @"Message to user: Shown when user tries to delete special track segments in challenge mode.")];
-      return;
+      return 0;
     }
+    segmentNodes = eraseSegments;
+    segmentPointers = eraseSegmentPointers;
   }
   
-  if ([eraseSegments count] > 1) {
-    [self FL_deletionsWriteSegments:eraseSegments segmentPointers:eraseSegmentPointers];
+  if ([segmentNodes count] > 1) {
+    [self FL_deletionsWriteSegments:segmentNodes segmentPointers:segmentPointers];
     _deleteState.dirtyTextures = YES;
   }
   
-  [self FL_trackEraseSegments:eraseSegments animated:YES];
+  [self FL_trackEraseSegments:segmentNodes animated:YES];
   [self FL_trackSelectClear];
   if (doNotEraseSegments && [doNotEraseSegments count] > 0) {
     [self FL_trackSelect:doNotEraseSegments];
@@ -3934,6 +3919,8 @@ writeArchiveWithPath:exportPath
   } else {
     [self FL_trackEditMenuHideAnimated:YES];
   }
+
+  return [segmentNodes count];
 }
 
 - (void)FL_deletionsWriteSegments:(NSArray *)segmentNodes segmentPointers:(NSSet *)segmentPointers
@@ -4421,35 +4408,27 @@ writeArchiveWithPath:exportPath
 
   if (!_trackEditMenuState.editMenuNode) {
     _trackEditMenuState.editMenuNode = [[HLToolbarNode alloc] init];
-    _trackEditMenuState.editMenuNode.size = CGSizeMake(0.0f, FLTrackEditMenuHeight);
-    _trackEditMenuState.editMenuNode.zPosition = FLZPositionWorldOverlay;
     _trackEditMenuState.editMenuNode.anchorPoint = CGPointMake(0.5f, 0.0f);
-    _trackEditMenuState.editMenuNode.automaticWidth = YES;
-    _trackEditMenuState.editMenuNode.automaticHeight = NO;
     _trackEditMenuState.editMenuNode.backgroundBorderSize = FLTrackEditMenuBackgroundBorderSize;
     _trackEditMenuState.editMenuNode.squareSeparatorSize = FLTrackEditMenuSquareSeparatorSize;
+    _trackEditMenuState.editMenuNode.backgroundColor = [SKColor colorWithWhite:0.8f alpha:0.6f];
+    _trackEditMenuState.editMenuNode.squareColor = [SKColor colorWithWhite:0.2f alpha:0.5f];
+    [self FL_trackEditMenuUpdateGeometry];
   }
 
   // Collect information about selected segments.
   NSArray *segmentNodes = _trackSelectState.selectedSegments;
-  CGFloat segmentsPositionLeft;
-  CGFloat segmentsPositionRight;
-  CGFloat segmentsPositionTop;
-  CGFloat segmentsPositionBottom;
-  [self FL_segments:segmentNodes getExtremesLeft:&segmentsPositionLeft right:&segmentsPositionRight top:&segmentsPositionTop bottom:&segmentsPositionBottom];
   BOOL canSwitchAny;
   BOOL hidesSwitchAll;
   BOOL canLabelAny;
   BOOL canDeleteAny;
   BOOL canFlipAny;
-  NSUInteger toolCount;
   [self FL_trackEditMenuGetTraitsForSegments:segmentNodes
                                 canSwitchAny:&canSwitchAny
                               hidesSwitchAll:&hidesSwitchAll
                                  canLabelAny:&canLabelAny
                                 canDeleteAny:&canDeleteAny
-                                  canFlipAny:&canFlipAny
-                                   toolCount:&toolCount];
+                                  canFlipAny:&canFlipAny];
 
   // Update tools.
   NSMutableArray *textureKeys = [NSMutableArray array];
@@ -4460,16 +4439,13 @@ writeArchiveWithPath:exportPath
   if (canLabelAny) {
     [textureKeys addObject:@"set-label"];
   }
+  [textureKeys addObject:@"export"];
   [textureKeys addObject:@"delete"];
   if (canFlipAny) {
     [textureKeys addObject:@"flip-horizontal"];
     [textureKeys addObject:@"flip-vertical"];
   }
   [textureKeys addObject:@"rotate-cw"];
-  // note: Internal checking here to make sure of consistent logic.
-  if ([textureKeys count] != toolCount) {
-    [NSException raise:@"FLTrackEditMenuInconsistent" format:@"Ensure that tool counting is the same in FL_trackEditMenuShowAnimated: and FL_trackEditMenuGetTraitsForSegments:."];
-  }
   NSMutableArray *toolNodes = [NSMutableArray array];
   for (NSString *textureKey in textureKeys) {
     [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
@@ -4482,18 +4458,29 @@ writeArchiveWithPath:exportPath
 
   // Show menu.
   if (!_trackEditMenuState.showing) {
-    [_worldNode addChild:_trackEditMenuState.editMenuNode];
+    // note: Track menu might still be in the process of animating hidden; in that case (and
+    // only that case), the node will have a parent even though it's not .showing.  The animation
+    // does not need to be explicitly canceled; showWithOrigin:finalPosition:fullScale:animated:
+    // doesn't assume the hide animation has been completed.
+    if (!_trackEditMenuState.editMenuNode.parent) {
+      [_hudNode addChild:_trackEditMenuState.editMenuNode];
+    }
     _trackEditMenuState.showing = YES;
   }
-  CGFloat segmentsPositionMidX = (segmentsPositionLeft + segmentsPositionRight) / 2.0f;
-  CGFloat segmentsPositionMidY = (segmentsPositionBottom + segmentsPositionTop) / 2.0f;
-  CGPoint position = CGPointMake(segmentsPositionMidX, segmentsPositionTop + FLTrackSegmentSize / 2.0f + FLTrackEditMenuSegmentPad);
-  CGPoint origin = CGPointMake(segmentsPositionMidX, segmentsPositionMidY);
-  CGFloat fullScale = [self FL_trackEditMenuScaleForWorldScale:_worldNode.xScale];
-  [_trackEditMenuState.editMenuNode showWithOrigin:origin
-                                     finalPosition:position
-                                         fullScale:fullScale
+  [_trackEditMenuState.editMenuNode showWithOrigin:_trackEditMenuState.editMenuNode.position
+                                     finalPosition:_trackEditMenuState.editMenuNode.position
+                                         fullScale:1.0f
                                           animated:animated];
+}
+
+- (void)FL_trackEditMenuUpdateGeometry
+{
+  _trackEditMenuState.editMenuNode.automaticWidth = YES;
+  _trackEditMenuState.editMenuNode.automaticHeight = NO;
+  _trackEditMenuState.editMenuNode.size = CGSizeMake(self.size.width, FLTrackEditMenuHeight);
+  _trackEditMenuState.editMenuNode.position = CGPointMake(0.0f,
+                                                          - self.size.height / 2.0f + FLMainToolbarHeight + FLTrackEditMenuSpacer);
+  [_trackEditMenuState.editMenuNode showUpdateOrigin:_trackEditMenuState.editMenuNode.position];
 }
 
 - (void)FL_trackEditMenuGetTraitsForSegments:(NSArray *)segmentNodes
@@ -4502,7 +4489,6 @@ writeArchiveWithPath:exportPath
                                  canLabelAny:(BOOL *)canLabelAny
                                 canDeleteAny:(BOOL *)canDeleteAny
                                   canFlipAny:(BOOL *)canFlipAny
-                                   toolCount:(NSUInteger *)toolCount
 {
   *canSwitchAny = NO;
   *hidesSwitchAll = YES;
@@ -4535,37 +4521,6 @@ writeArchiveWithPath:exportPath
       break;
     }
   }
-  *toolCount = 3;
-  if (*canSwitchAny) {
-    ++(*toolCount);
-  }
-  if (*canLabelAny) {
-    ++(*toolCount);
-  }
-  if (*canFlipAny) {
-    (*toolCount) += 2;
-  }
-}
-
-- (CGFloat)FL_trackEditMenuWidthForSegments:(NSArray *)segmentNodes
-{
-  // note: At scale = 1.
-  BOOL canSwitchAny;
-  BOOL hidesSwitchAll;
-  BOOL canLabelAny;
-  BOOL canDeleteAny;
-  BOOL canFlipAny;
-  NSUInteger toolCount;
-  [self FL_trackEditMenuGetTraitsForSegments:segmentNodes
-                                canSwitchAny:&canSwitchAny
-                              hidesSwitchAll:&hidesSwitchAll
-                                 canLabelAny:&canLabelAny
-                                canDeleteAny:&canDeleteAny
-                                  canFlipAny:&canFlipAny
-                                   toolCount:&toolCount];
-  return (FLTrackEditMenuHeight - 2.0f * FLTrackEditMenuBackgroundBorderSize + FLTrackEditMenuSquareSeparatorSize) * toolCount
-    - FLTrackEditMenuSquareSeparatorSize
-    + 2.0f * FLTrackEditMenuBackgroundBorderSize;
 }
 
 - (void)FL_trackEditMenuHideAnimated:(BOOL)animated
@@ -4574,75 +4529,7 @@ writeArchiveWithPath:exportPath
     return;
   }
   _trackEditMenuState.showing = NO;
-  [_trackEditMenuState.editMenuNode hideAnimated:NO];
-}
-
-- (void)FL_trackEditMenuScaleToWorld
-{
-  CGFloat editMenuScale = [self FL_trackEditMenuScaleForWorldScale:_worldNode.xScale];
-  _trackEditMenuState.editMenuNode.xScale = editMenuScale;
-  _trackEditMenuState.editMenuNode.yScale = editMenuScale;
-}
-
-- (CGFloat)FL_trackEditMenuScaleForWorldScale:(CGFloat)worldScale
-{
-  // note: The track edit menu scales inversely to the world, but perhaps at a different rate.
-  // A value of 1.0f means the edit menu will always maintain the same screen size no matter
-  // what the scale of the world.  Values less than one mean less-dramatic scaling than
-  // the world, and vice versa.
-  //
-  // note: Use same formula here as FL_trackEditMenuWorldScaleToFitSegmentSize:intoTargetSceneSize:.
-  // My original formula was 1 / sqrt(_worldNode.xScale), but to make some math easier I changed it
-  // to (1/3) / _worldNode.xScale + 2/3.  (Note that both of them solve to 1 at 1.)
-  return FLTrackEditMenuWorldInverseScaleFactor / worldScale + FLTrackEditMenuWorldScaleMinimum;
-}
-
-/**
- * Returns a world scale that will fit the passed (size of) segments, along with an accompanying
- * track edit menu, into the passed target size (in scene coordinates).  The width of the track
- * edit menu can be calculated by the caller and passed in, or else passed 0.0f meaning "don't
- * bother to take the width of the track edit menu into account, just the height".
- *
- * note: It might be surprising that this would be the purview of the track edit menu.  The
- * reason why, of course, is because the track edit menu itself changes screen size as a function
- * of world scale.  It's not the identity function, and it's kept private (in FL_trackEditMenuScaleForWorldScale),
- * so unless we make it public, we have to do the math here in FL_trackEditMenu* land.
- */
-- (CGFloat)FL_trackEditMenuWorldScaleToFitSegmentSize:(CGSize)segmentSize intoTargetSceneSize:(CGSize)sceneSize withTrackEditMenuWidth:(CGFloat)trackEditMenuWidth
-{
-  // note: The segments are in the world, and the world is in the scene.  So to fit segmentSize into
-  // sceneSize, the correct scale is simply:
-  //
-  //    worldScale = MIN(sceneSize.x / segmentSize.x, sceneSize.y / segmentSize.y)
-  //
-  // When we also want to leave room for the trackEditMenu (displayed above the segments according
-  // to current implementation).  The scale of the trackEditMenu is a function of worldScale; see
-  // FL_trackEditMenuScaleForWorldScale, but current function is this:
-  //
-  //    trackScale(worldScale) = 1 / (3 * worldScale) + 2/3
-  //
-  // So then the calculation to fit segmentSize + trackMenuSize becomes, in X:
-  //
-  //    worldScale_x = sceneSize.x / MAX(segmentSize.x, trackMenuSize.x * trackScale(worldScale_x))
-  //
-  // and in Y:
-  //
-  //    worldScale_y = sceneSize.y / (segmentSize.y + trackMenuSegmentPad + trackMenuSize.y * trackScale(worldScale_y))
-  //
-  // Solve for worldScale_x and worldScale_y, and then take the minimum to fit both dimensions.
-
-  CGFloat worldScaleX;
-  CGFloat worldScaleXSegments = sceneSize.width / segmentSize.width;
-  if (trackEditMenuWidth < 0.001f) {
-    worldScaleX = worldScaleXSegments;
-  } else {
-    CGFloat worldScaleXTrackEditMenu = sceneSize.width / trackEditMenuWidth;
-    worldScaleX = MIN(worldScaleXSegments, worldScaleXTrackEditMenu);
-  }
-
-  CGFloat worldScaleY = (sceneSize.height - FLTrackEditMenuHeight * FLTrackEditMenuWorldInverseScaleFactor) / (segmentSize.height + FLTrackEditMenuSegmentPad + FLTrackEditMenuHeight * FLTrackEditMenuWorldScaleMinimum);
-
-  return MIN(worldScaleX, worldScaleY);
+  [_trackEditMenuState.editMenuNode hideAnimated:animated];
 }
 
 - (SKShapeNode *)FL_linkDrawFromLocation:(CGPoint)fromWorldLocation toLocation:(CGPoint)toWorldLocation linkErase:(BOOL)linkErase
@@ -5158,18 +5045,12 @@ writeArchiveWithPath:exportPath
       [self FL_linkRedrawForSegment:segmentNode];
     }
     [self FL_trackSelect:segmentNodes];
-    if (!isSymmetricRotation) {
-      [self FL_trackEditMenuShowAnimated:YES];
-    }
   };
 
   // Rotate.
   if (animated) {
 
     [self FL_trackSelectClear];
-    if (!isSymmetricRotation) {
-      [self FL_trackEditMenuHideAnimated:NO];
-    }
 
     // Copy segments into a temporary parent node.
     SKNode *rotateNode = [SKNode node];
