@@ -862,6 +862,7 @@
 				CB8E4CB91A2503BA00330611 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		CBB4B7F0183C00E1003C3444 /* Build configuration list for PBXProject "Flippy" */ = {
 			isa = XCConfigurationList;

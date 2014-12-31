@@ -4416,8 +4416,40 @@ writeArchiveWithPath:exportPath
     _trackEditMenuState.editMenuNode.backgroundColor = [SKColor colorWithWhite:0.8f alpha:0.6f];
     _trackEditMenuState.editMenuNode.squareColor = [SKColor colorWithWhite:0.2f alpha:0.5f];
     [self FL_trackEditMenuUpdateGeometry];
+  } else {
+    [self FL_trackEditMenuUpdateTools];
   }
 
+  // Show menu.
+  if (!_trackEditMenuState.showing) {
+    // note: Track menu might still be in the process of animating hidden; in that case (and
+    // only that case), the node will have a parent even though it's not .showing.  The animation
+    // does not need to be explicitly canceled; showWithOrigin:finalPosition:fullScale:animated:
+    // doesn't assume the hide animation has been completed.
+    if (!_trackEditMenuState.editMenuNode.parent) {
+      [_hudNode addChild:_trackEditMenuState.editMenuNode];
+    }
+    _trackEditMenuState.showing = YES;
+  }
+  [_trackEditMenuState.editMenuNode showWithOrigin:_trackEditMenuState.editMenuNode.position
+                                     finalPosition:_trackEditMenuState.editMenuNode.position
+                                         fullScale:1.0f
+                                          animated:animated];
+}
+
+- (void)FL_trackEditMenuUpdateGeometry
+{
+  _trackEditMenuState.editMenuNode.automaticWidth = YES;
+  _trackEditMenuState.editMenuNode.automaticHeight = NO;
+  _trackEditMenuState.editMenuNode.size = CGSizeMake(0.0f, FLTrackEditMenuHeight);
+  _trackEditMenuState.editMenuNode.position = CGPointMake(0.0f,
+                                                          - self.size.height / 2.0f + FLMainToolbarHeight + FLTrackEditMenuSpacer);
+  [_trackEditMenuState.editMenuNode showUpdateOrigin:_trackEditMenuState.editMenuNode.position];
+  [self FL_trackEditMenuUpdateTools];
+}
+
+- (void)FL_trackEditMenuUpdateTools
+{
   // Collect information about selected segments.
   NSArray *segmentNodes = _trackSelectState.selectedSegments;
   BOOL canSwitchAny;
@@ -4431,7 +4463,7 @@ writeArchiveWithPath:exportPath
                                  canLabelAny:&canLabelAny
                                 canDeleteAny:&canDeleteAny
                                   canFlipAny:&canFlipAny];
-
+  
   // Update tools.
   NSMutableArray *textureKeys = [NSMutableArray array];
   [textureKeys addObject:@"rotate-ccw"];
@@ -4457,32 +4489,6 @@ writeArchiveWithPath:exportPath
     [_trackEditMenuState.editMenuNode setEnabled:(!hidesSwitchAll) forTool:@"toggle-switch"];
   }
   [_trackEditMenuState.editMenuNode setEnabled:canDeleteAny forTool:@"delete"];
-
-  // Show menu.
-  if (!_trackEditMenuState.showing) {
-    // note: Track menu might still be in the process of animating hidden; in that case (and
-    // only that case), the node will have a parent even though it's not .showing.  The animation
-    // does not need to be explicitly canceled; showWithOrigin:finalPosition:fullScale:animated:
-    // doesn't assume the hide animation has been completed.
-    if (!_trackEditMenuState.editMenuNode.parent) {
-      [_hudNode addChild:_trackEditMenuState.editMenuNode];
-    }
-    _trackEditMenuState.showing = YES;
-  }
-  [_trackEditMenuState.editMenuNode showWithOrigin:_trackEditMenuState.editMenuNode.position
-                                     finalPosition:_trackEditMenuState.editMenuNode.position
-                                         fullScale:1.0f
-                                          animated:animated];
-}
-
-- (void)FL_trackEditMenuUpdateGeometry
-{
-  _trackEditMenuState.editMenuNode.automaticWidth = YES;
-  _trackEditMenuState.editMenuNode.automaticHeight = NO;
-  _trackEditMenuState.editMenuNode.size = CGSizeMake(self.size.width, FLTrackEditMenuHeight);
-  _trackEditMenuState.editMenuNode.position = CGPointMake(0.0f,
-                                                          - self.size.height / 2.0f + FLMainToolbarHeight + FLTrackEditMenuSpacer);
-  [_trackEditMenuState.editMenuNode showUpdateOrigin:_trackEditMenuState.editMenuNode.position];
 }
 
 - (void)FL_trackEditMenuGetTraitsForSegments:(NSArray *)segmentNodes
