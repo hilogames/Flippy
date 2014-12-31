@@ -10,10 +10,6 @@
 
 ## Current Tasks
 
-- Allow cancel of label selection by clicking outside label box; that
-  way you aren't forced to make a change in case of multiple
-  selection.
-
 - Provision for iPads, and test.
 
 - Submit app to store.

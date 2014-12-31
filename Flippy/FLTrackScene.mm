@@ -277,14 +277,16 @@ struct FLDeleteState
 
 struct FLLabelState
 {
-  FLLabelState() : labelPicker(nil), segmentNodesToBeLabeled(nil) {}
+  FLLabelState() : backdropNode(nil), labelPicker(nil), segmentNodesToBeLabeled(nil) {}
   BOOL active() {
-    return ((labelPicker && labelPicker.parent) || segmentNodesToBeLabeled);
+    return ((backdropNode && backdropNode.parent) || segmentNodesToBeLabeled);
   }
   void release() {
+    backdropNode = nil;
     labelPicker = nil;
     segmentNodesToBeLabeled = nil;
   }
+  SKSpriteNode *backdropNode;
   HLGridNode *labelPicker;
   NSArray *segmentNodesToBeLabeled;
 };
@@ -4885,7 +4887,7 @@ writeArchiveWithPath:exportPath
     _labelState.labelPicker.squareColor = FLInterfaceColorMedium();
     _labelState.labelPicker.highlightColor = FLInterfaceColorLight();
     _labelState.labelPicker.content = letterNodes;
-    // note: Could easily store referenes to segmentNodes in the block for each invocation,
+    // note: Could easily store references to segmentNodes in the block for each invocation,
     // and do all the work there, too, but I felt slightly anxious that then the block
     // would retain references to objects that might not be needed otherwise.  So,
     // an object method instead, with explicit state stored here in _labelState and
@@ -4896,6 +4898,13 @@ writeArchiveWithPath:exportPath
     // note: Could register and unregister for each pick, but it seems okay to just
     // leave the one picker registered the whole time.
     [self registerDescendant:_labelState.labelPicker withOptions:[NSSet setWithObject:HLSceneChildGestureTarget]];
+
+    _labelState.backdropNode = [SKSpriteNode spriteNodeWithColor:[SKColor clearColor] size:self.size];
+    [_labelState.backdropNode hlSetGestureTarget:[HLTapGestureTarget tapGestureTargetWithHandleGestureBlock:^(UIGestureRecognizer *gestureRecognizer){
+      [self FL_labelPicked:-1];
+    }]];
+    [self registerDescendant:_labelState.backdropNode withOptions:[NSSet setWithObjects:HLSceneChildGestureTarget, HLSceneChildResizeWithScene, nil]];
+    [_labelState.backdropNode addChild:_labelState.labelPicker];
   }
 
   BOOL firstSegment = YES;
@@ -4919,14 +4928,16 @@ writeArchiveWithPath:exportPath
   }
 
   _labelState.segmentNodesToBeLabeled = segmentNodes;
-  [self presentModalNode:_labelState.labelPicker animation:HLScenePresentationAnimationFade];
+  [self presentModalNode:_labelState.backdropNode animation:HLScenePresentationAnimationFade];
 }
 
 - (void)FL_labelPicked:(int)squareIndex
 {
-  [_labelState.labelPicker setSelectionForSquare:squareIndex];
-  for (FLSegmentNode *segmentNode in _labelState.segmentNodesToBeLabeled) {
-    segmentNode.label = FLLabelPickerLabels[squareIndex];
+  if (squareIndex >= 0) {
+    [_labelState.labelPicker setSelectionForSquare:squareIndex];
+    for (FLSegmentNode *segmentNode in _labelState.segmentNodesToBeLabeled) {
+      segmentNode.label = FLLabelPickerLabels[squareIndex];
+    }
   }
   _labelState.segmentNodesToBeLabeled = nil;
   [self dismissModalNodeAnimation:HLScenePresentationAnimationFade];
