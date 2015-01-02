@@ -77,13 +77,16 @@ static const NSTimeInterval FLTrackRotateDuration = 0.1;
 static const NSTimeInterval FLBlinkHalfCycleDuration = 0.1;
 static const NSTimeInterval FLTutorialStepFadeDuration = 0.4;
 
-// noob: The tool art uses a somewhat arbitrary size.  The display height is
-// chosen based on the screen layout.  Perhaps scaling like that is a bad idea.
+// noob: The tool art uses a somewhat arbitrary size, and the toolbar display height
+// is chosen based on something else (the screen layout).  Perhaps scaling like that
+// (when most of the art is intentionally pixelated) is a bad idea.
 static const CGFloat FLMainToolbarToolArtSize = 54.0f;
-static const CGFloat FLMainToolbarHeight = 48.0f;
+static const CGFloat FLMainToolbarHeightCompact = 48.0f;
+static const CGFloat FLMainToolbarHeightRegular = 72.0f;
 static const CGFloat FLMessageSpacer = 2.0f;
 static const CGFloat FLMessageHeight = 20.0f;
-static const CGFloat FLTrackEditMenuHeight = 32.0f;
+static const CGFloat FLTrackEditMenuHeightCompact = 42.0f;
+static const CGFloat FLTrackEditMenuHeightRegular = 54.0f;
 static const CGFloat FLTrackEditMenuBackgroundBorderSize = 3.0f;
 static const CGFloat FLTrackEditMenuSquareSeparatorSize = 3.0f;
 static const CGFloat FLTrackEditMenuSpacer = 2.0f;
@@ -415,6 +418,7 @@ struct PointerPairHash
 @implementation FLTrackScene
 {
   BOOL _contentCreated;
+  UIUserInterfaceSizeClass _interfaceSizeClass;
 
   SKNode *_worldNode;
   SKNode *_trackNode;
@@ -786,6 +790,15 @@ struct PointerPairHash
 - (void)didChangeSize:(CGSize)oldSize
 {
   [super didChangeSize:oldSize];
+
+  // note: Alternately, could get trait collection from view controller and make ourselves compact
+  // if either dimension is compact.
+  if ([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPad) {
+    _interfaceSizeClass = UIUserInterfaceSizeClassRegular;
+  } else {
+    _interfaceSizeClass = UIUserInterfaceSizeClassCompact;
+  }
+
   // note: Reset current world scale (and thence position) using constraints that might now be changed.
   [self FL_worldSetScale:_worldNode.xScale];
   [self FL_tutorialUpdateGeometry];
@@ -2749,7 +2762,7 @@ writeArchiveWithPath:(NSString *)path
   CGFloat visibleSceneBottom;
   [self FL_sceneGetVisibleLeft:&visibleSceneLeft right:&visibleSceneRight top:&visibleSceneTop bottom:&visibleSceneBottom];
   if (includeTrackEditMenu) {
-    visibleSceneBottom -= FLTrackEditMenuHeight;
+    visibleSceneBottom -= (_interfaceSizeClass == UIUserInterfaceSizeClassCompact ? FLTrackEditMenuHeightCompact : FLTrackEditMenuHeightRegular);
   }
   CGSize visibleSceneSize = CGSizeMake(visibleSceneRight - visibleSceneLeft, visibleSceneTop - visibleSceneBottom);
 
@@ -3016,7 +3029,11 @@ writeArchiveWithPath:(NSString *)path
   _constructionToolbarState.toolbarNode.automaticWidth = NO;
   _constructionToolbarState.toolbarNode.automaticHeight = NO;
   _constructionToolbarState.toolbarNode.position = CGPointMake(0.0f, -self.size.height / 2.0f);
-  _constructionToolbarState.toolbarNode.size = CGSizeMake(self.size.width, FLMainToolbarHeight);
+  if (_interfaceSizeClass == UIUserInterfaceSizeClassCompact) {
+    _constructionToolbarState.toolbarNode.size = CGSizeMake(self.size.width, FLMainToolbarHeightCompact);
+  } else {
+    _constructionToolbarState.toolbarNode.size = CGSizeMake(self.size.width, FLMainToolbarHeightRegular);
+  }
 
   // note: Page might be too large as a result of additional toolbar width made possible by the new geometry.
   int pageMax = _constructionToolbarState.currentPage;
@@ -3420,7 +3437,8 @@ writeArchiveWithPath:(NSString *)path
 {
   CGFloat backgroundBorderSize = _constructionToolbarState.toolbarNode.backgroundBorderSize;
   CGFloat squareSeparatorSize = _constructionToolbarState.toolbarNode.squareSeparatorSize;
-  NSUInteger pageSize = (NSUInteger)((_constructionToolbarState.toolbarNode.size.width + squareSeparatorSize - 2.0f * backgroundBorderSize) / (FLMainToolbarHeight - 2.0f * backgroundBorderSize + squareSeparatorSize));
+  CGFloat toolbarHeight = (_interfaceSizeClass == UIUserInterfaceSizeClassCompact ? FLMainToolbarHeightCompact : FLMainToolbarHeightRegular);
+  NSUInteger pageSize = (NSUInteger)((_constructionToolbarState.toolbarNode.size.width + squareSeparatorSize - 2.0f * backgroundBorderSize) / (toolbarHeight - 2.0f * backgroundBorderSize + squareSeparatorSize));
   // note: Need main/previous/next buttons, and then anything less than two remaining is silly.
   if (pageSize < 5) {
     pageSize = 5;
@@ -3527,7 +3545,11 @@ writeArchiveWithPath:(NSString *)path
   _simulationToolbarState.toolbarNode.automaticWidth = NO;
   _simulationToolbarState.toolbarNode.automaticHeight = NO;
   _simulationToolbarState.toolbarNode.position = CGPointMake(0.0f, self.size.height / 2.0f);
-  _simulationToolbarState.toolbarNode.size = CGSizeMake(self.size.width, FLMainToolbarHeight);
+  if (_interfaceSizeClass == UIUserInterfaceSizeClassCompact) {
+    _simulationToolbarState.toolbarNode.size = CGSizeMake(self.size.width, FLMainToolbarHeightCompact);
+  } else {
+    _simulationToolbarState.toolbarNode.size = CGSizeMake(self.size.width, FLMainToolbarHeightRegular);
+  }
   [self FL_simulationToolbarUpdateTools];
 }
 
@@ -3643,10 +3665,19 @@ writeArchiveWithPath:(NSString *)path
 
 - (void)FL_messageUpdateGeometry
 {
+  CGFloat mainToolbarHeight;
+  CGFloat trackEditMenuHeight;
+  if (_interfaceSizeClass == UIUserInterfaceSizeClassCompact) {
+    mainToolbarHeight = FLMainToolbarHeightCompact;
+    trackEditMenuHeight = FLTrackEditMenuHeightCompact;
+  } else {
+    mainToolbarHeight = FLMainToolbarHeightRegular;
+    trackEditMenuHeight = FLTrackEditMenuHeightRegular;
+  }
   CGFloat y = (FLMessageHeight - self.size.height) / 2.0f
-    + FLMainToolbarHeight
+    + mainToolbarHeight
     + FLMessageSpacer
-    + FLTrackEditMenuHeight
+    + trackEditMenuHeight
     + FLTrackEditMenuSpacer;
   _messageNode.position = CGPointMake(0.0f, y);
   _messageNode.size = CGSizeMake(self.size.width, FLMessageHeight);
@@ -4441,9 +4472,15 @@ writeArchiveWithPath:exportPath
 {
   _trackEditMenuState.editMenuNode.automaticWidth = YES;
   _trackEditMenuState.editMenuNode.automaticHeight = NO;
-  _trackEditMenuState.editMenuNode.size = CGSizeMake(0.0f, FLTrackEditMenuHeight);
-  _trackEditMenuState.editMenuNode.position = CGPointMake(0.0f,
-                                                          - self.size.height / 2.0f + FLMainToolbarHeight + FLTrackEditMenuSpacer);
+  if (_interfaceSizeClass == UIUserInterfaceSizeClassCompact) {
+    _trackEditMenuState.editMenuNode.size = CGSizeMake(0.0f, FLTrackEditMenuHeightCompact);
+    _trackEditMenuState.editMenuNode.position = CGPointMake(0.0f,
+                                                            - self.size.height / 2.0f + FLMainToolbarHeightCompact + FLTrackEditMenuSpacer);
+  } else {
+    _trackEditMenuState.editMenuNode.size = CGSizeMake(0.0f, FLTrackEditMenuHeightRegular);
+    _trackEditMenuState.editMenuNode.position = CGPointMake(0.0f,
+                                                            - self.size.height / 2.0f + FLMainToolbarHeightRegular + FLTrackEditMenuSpacer);
+  }
   [_trackEditMenuState.editMenuNode showUpdateOrigin:_trackEditMenuState.editMenuNode.position];
   [self FL_trackEditMenuUpdateTools];
 }
@@ -5631,7 +5668,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
     annotationNode.text = annotation;
     annotationNode.paragraphWidth = edgeSizeMax - FLDSMultilineLabelParagraphWidthBugWorkaroundPad;
     if (_tutorialState.labelPosition == FLTutorialLabelLowerScene) {
-      annotationNode.position = CGPointMake(0.0f, (annotationNode.size.height - sceneSize.height) / 2.0f + FLTutorialLabelPad);
+      annotationNode.position = CGPointMake(0.0f, labelNode.position.y - (labelNode.size.height + annotationNode.size.height) / 2.0f - FLTutorialLabelPad);
     } else {
       annotationNode.position = CGPointMake(0.0f, -self.size.height / 5.0f);
     }

@@ -12,8 +12,6 @@
 
 - Provision for iPads, and test.
 
-  - Screen-size-specific toolbar sizes.  And tutorial annotation position.
-
 - Submit app to store.
 
 https://developer.apple.com/library/ios/documentation/IDEs/Conceptual/AppDistributionGuide/ConfiguringYourApp/ConfiguringYourApp.html#//apple_ref/doc/uid/TP40012582-CH28-SW4

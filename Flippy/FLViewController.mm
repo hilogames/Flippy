@@ -1349,10 +1349,10 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
     DSMultilineLabelNode *helpItemNode = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
     if (isHeader) {
       helpItemNode.fontColor = FLInterfaceColorMaybe();
-      helpItemNode.fontSize = 16.0f;
+      helpItemNode.fontSize = 18.0f;
     } else {
       helpItemNode.fontColor = [SKColor whiteColor];
-      helpItemNode.fontSize = 14.0f;
+      helpItemNode.fontSize = 16.0f;
     }
     helpItemNode.text = helpItem;
     [_helpOverlay.contentNode addChild:helpItemNode];
@@ -1376,8 +1376,8 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
 
 - (void)FL_helpOverlayUpdateGeometry
 {
-  const CGFloat FLHelpTextPad = 10.0f;
-  const CGFloat FLHelpTextSpacer = 8.0f;
+  const CGFloat FLHelpTextPad = 12.0f;
+  const CGFloat FLHelpTextSpacer = 10.0f;
 
   // note: Using content node for two purposes: 1) to organize help text; 2) to serve
   // as a node that covers everything and handles tap to dismiss the modal presentation.
