@@ -1739,7 +1739,7 @@ struct PointerPairHash
   }
 
   if ([toolTag isEqualToString:@"menu"]) {
-    id<FLTrackSceneDelegate> delegate = self.delegate;
+    id<FLTrackSceneDelegate> delegate = self.trackSceneDelegate;
     if (delegate) {
       [delegate trackSceneDidTapMenuButton:self];
     }
@@ -3764,7 +3764,7 @@ writeArchiveWithPath:(NSString *)path
   [self unregisterDescendant:_goalsNode];
   [self dismissModalNodeAnimation:HLScenePresentationAnimationNone];
   if (nextLevel) {
-    id<FLTrackSceneDelegate> delegate = self.delegate;
+    id<FLTrackSceneDelegate> delegate = self.trackSceneDelegate;
     if (delegate) {
       // noob: So is this dangerous?  The delegate is probably going to delete this scene.
       // Need to dispatch_async?

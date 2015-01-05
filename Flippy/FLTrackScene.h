@@ -18,7 +18,7 @@
 
 @interface FLTrackScene : HLScene <NSCoding, UIAlertViewDelegate, UIGestureRecognizerDelegate, FLTrainDelegate, FLGoalsNodeDelegate>
 
-@property (nonatomic, weak) id<FLTrackSceneDelegate> delegate;
+@property (nonatomic, weak) id<FLTrackSceneDelegate> trackSceneDelegate;
 
 @property (nonatomic, readonly) FLGameType gameType;
 @property (nonatomic, readonly) int gameLevel;

@@ -197,7 +197,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
     }
     _gameScene = [extraCoder decodeObjectForKey:@"trackScene"];
     if (_gameScene) {
-      _gameScene.delegate = self;
+      _gameScene.trackSceneDelegate = self;
     }
     _titleScene = [extraCoder decodeObjectForKey:@"titleScene"];
     if (_titleScene) {
@@ -1196,7 +1196,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
       switch (gameType) {
         case FLGameTypeSandbox:
           self->_gameScene = [[FLTrackScene alloc] initWithSize:self.view.bounds.size gameType:gameType gameLevel:gameLevel];
-          self->_gameScene.delegate = self;
+          self->_gameScene.trackSceneDelegate = self;
           self->_gameScene.scaleMode = SKSceneScaleModeResizeFill;
           self->_gameScene.gameIsNew = YES;
           break;
@@ -1212,7 +1212,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
           // should realize this and use the correct size when it is presented, but apparently
           // (at least with current SDK) it does not.
           self->_gameScene.size = self.view.bounds.size;
-          self->_gameScene.delegate = self;
+          self->_gameScene.trackSceneDelegate = self;
           // note: Check that the archive has the correct level and game type in the archive.  We'd like
           // to be able to change it at will, but the track scene doesn't currently support changing it
           // (because of the maintenance headache of trying to figure out what interface elements depend
@@ -1234,7 +1234,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
         [NSException raise:@"FLGameLoadFailure" format:@"Could not load game type %ld save number %lu from archive '%@'.", (long)gameType, (unsigned long)saveNumber, savePath];
       }
       self->_gameScene.size = self.view.bounds.size;
-      self->_gameScene.delegate = self;
+      self->_gameScene.trackSceneDelegate = self;
       // note: Trust the archive with game type and level information, for now; ignore passed values.
     }
 
