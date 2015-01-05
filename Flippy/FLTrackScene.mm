@@ -5307,9 +5307,9 @@ writeArchiveWithPath:exportPath
       case FLUnlockCircuitXor:
         return FLUserUnlocksUnlocked(@"FLUserUnlockCircuitXor");
       case FLUnlockCircuitHalfAdder:
-        return FLUserUnlocksUnlocked(@"FLUserUnlockHalfAdder");
+        return FLUserUnlocksUnlocked(@"FLUserUnlockCircuitHalfAdder");
       case FLUnlockCircuitFullAdder:
-        return FLUserUnlocksUnlocked(@"FLUserUnlockFullAdder");
+        return FLUserUnlocksUnlocked(@"FLUserUnlockCircuitFullAdder");
       case FLUnlockTutorialCompleted:
         return FLUserUnlocksUnlocked(@"FLUserUnlockTutorialCompleted");
       default:
