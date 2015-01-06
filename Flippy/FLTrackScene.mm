@@ -3829,7 +3829,7 @@ writeArchiveWithPath:(NSString *)path
  *
  * In this case, a tap on the right-handle line (as it is drawn) might technically
  * be inside the left-hand segment.  This result is not appropriate for most
- * user-interaction.  Rather than trackGridConvertGet, use trackGridFindVisualNearest.
+ * user-interaction.
  *
  * note: Right now the implementation includes SKNode-specific techniques and
  * information outside of the FLTrackGrid.  If, however, we resort to an implementation
@@ -4815,7 +4815,7 @@ writeArchiveWithPath:exportPath
   for (int gx = gridX - 1; gx <= gridX + 1; ++gx) {
     for (int gy = gridY - 1; gy <= gridY + 1; ++gy) {
       FLSegmentNode *segmentNode = _trackGrid->get(gx, gy);
-      if (!segmentNode || ![segmentNode canSwitch]) {
+      if (!segmentNode || ![segmentNode doesShowSwitch]) {
         continue;
       }
       CGPoint switchLocation = segmentNode.switchLinkLocation;
