@@ -2858,8 +2858,10 @@ writeArchiveWithPath:(NSString *)path
   // note: Consider adding an auto-scroll delay: Only auto-scroll after a gesture
   // has been inside the margin for a little while.
 
+  // note: 768x1024 is the current screen (logical point) maximum; 96 points seems enough
+  // of a margin for any screen size.
   const CGFloat FLWorldAutoScrollMarginSizeMax = 96.0f;
-  CGFloat marginSize = MIN(self.size.width, self.size.height) / 10.0f;
+  CGFloat marginSize = MIN(self.size.width, self.size.height) / 7.0f;
   if (marginSize > FLWorldAutoScrollMarginSizeMax) {
     marginSize = FLWorldAutoScrollMarginSizeMax;
   }
@@ -2930,13 +2932,11 @@ writeArchiveWithPath:(NSString *)path
   //
   // note: Current formula for velocity magnitude (speed):
   //
-  //   v_mag = base^p + linear*p + min
+  //   v_mag = linear*p + min
   //
-  // With the below values, it's mostly linear for the first half of proximity, and then the
-  // exponent term takes over.
+  // I played with various non-linear functions, but this seemed the best.
   const CGFloat FLAutoScrollVelocityMin = 4.0f;
-  const CGFloat FLAutoScrollVelocityLinear = 108.0f;
-  const CGFloat FLAutoScrollVelocityBase = 256.0f;
+  const CGFloat FLAutoScrollVelocityLinear = 800.0f;
 
   _worldAutoScrollState.scrolling = NO;
 
@@ -2970,13 +2970,12 @@ writeArchiveWithPath:(NSString *)path
   }
 
   if (_worldAutoScrollState.scrolling) {
-
     CGFloat sceneXCenter = sceneXMin + self.size.width / 2.0f;
     CGFloat sceneYCenter = sceneYMin + self.size.height / 2.0f;
     CGFloat locationOffsetX = sceneLocation.x - sceneXCenter;
     CGFloat locationOffsetY = sceneLocation.y - sceneYCenter;
     CGFloat locationOffsetSum = abs(locationOffsetX) + abs(locationOffsetY);
-    CGFloat speed = pow(FLAutoScrollVelocityBase, proximity) + FLAutoScrollVelocityLinear * proximity + FLAutoScrollVelocityMin;
+    CGFloat speed = FLAutoScrollVelocityLinear * proximity + FLAutoScrollVelocityMin;
     _worldAutoScrollState.velocityX = (locationOffsetX / locationOffsetSum) * speed;
     _worldAutoScrollState.velocityY = (locationOffsetY / locationOffsetSum) * speed;
 
