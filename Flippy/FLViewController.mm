@@ -46,6 +46,7 @@ static const NSTimeInterval FLSceneTransitionDuration = 0.5;
 static const NSTimeInterval FLOffscreenSlideDuration = 0.25;
 
 static const CGFloat FLMessageNodeHeight = 32.0f;
+static const CGFloat FLMenuNodeDefaultYPosition = 48.0f;
 
 static const NSUInteger FLSaveGameSlotCount = 3;
 
@@ -320,6 +321,8 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   if (!_currentScene) {
     return;
   }
+  // note: Only the presented scene will have its size updated by the SKView; non-presented
+  // but existing scenes will have to be updated right before they are presented.
   if (_currentScene == _gameScene) {
     [self FL_gameSceneUpdateGeometry];
     SKNode *gameScenePresentedOverlay = [_gameScene modalNodePresented];
@@ -337,7 +340,8 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
       [self FL_aboutOverlayUpdateGeometry];
     }
   } else if (_currentScene == _loadingScene) {
-    [self FL_loadingSceneUpdateGeometry];
+    // commented out: Nothing to update, for now.
+    //[self FL_loadingSceneUpdateGeometry];
   }
 }
 
@@ -673,7 +677,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   HLMenuNode *menuNode = [[HLMenuNode alloc] init];
   [menuNode hlSetGestureTarget:menuNode];
   menuNode.delegate = self;
-  menuNode.position = CGPointMake(0.0f, 48.0f);
+  menuNode.position = CGPointMake(0.0f, FLMenuNodeDefaultYPosition);
   menuNode.itemAnimation = HLMenuNodeAnimationSlideLeft;
   menuNode.itemAnimationDuration = FLOffscreenSlideDuration;
   menuNode.itemButtonPrototype = [FLViewController FL_sharedMenuButtonPrototypeBasic];
@@ -718,14 +722,6 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   _loadingScene = nil;
 }
 
-- (void)FL_loadingSceneUpdateGeometry
-{
-  // note: The most common need for this: Another scene is presented, and the device
-  // orientation changes.  When the loading scene is next presented, it's size will
-  // need to updated.
-  _loadingScene.size = self.view.bounds.size;
-}
-
 - (void)FL_loadingSceneReset
 {
   // note: Start with label faded all the way out, so that a quick load screen will
@@ -767,20 +763,11 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
 
 - (void)FL_titleSceneUpdateGeometry
 {
-  // note: For some callers, the scene's size is already set correctly.  In particular,
-  // when the title scene is created, it's good; also, when the device orientation changes
-  // and the title scene is presented in the SKView, the SKView resizes it according to
-  // SKSceneScaleModeResizeFill; only after that does the view controller get called
-  // didLayoutSubviews, which brings us here.  But there is at least one use-case where
-  // the size is not correctly set: When the _titleScene is not presented in the UIView,
-  // and the device is reoriented, then (apparently) the UIView does not resize the
-  // _titleScene when it is next presented (despite the setting of [SKScene scaleMode]).
-  // So: set it!
-  _titleScene.size = self.view.bounds.size;
+  const CGFloat FLMessageNodePad = _titleMenuNode.itemSpacing;
+  
+  // note: _titleMenuNode stays in fixed position relative to center of scene.
 
-  // note: _titleMenuNode stays "centered".
-
-  _titleMessageNode.position = CGPointMake(0.0f, _titleMenuNode.position.y + _titleMenuNode.itemSpacing);
+  _titleMessageNode.position = CGPointMake(0.0f, _titleMenuNode.position.y + FLMessageNodePad);
   _titleMessageNode.size = CGSizeMake(_titleScene.size.width, FLMessageNodeHeight);
 }
 
@@ -1181,7 +1168,12 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   if (!_loadingScene) {
     [self FL_loadingSceneCreate];
   } else {
-    [self FL_loadingSceneUpdateGeometry];
+    // note: If the device orientation changed since this scene was created, then
+    // the scene size must be updated.  (The SKView resizes the currently-presented scene
+    // via SKSceneScaleModeResizeFill.)
+    _loadingScene.size = self.view.bounds.size;
+    // commented out: Nothing else to update, for now.
+    //[self FL_loadingSceneUpdateGeometry];
   }
   [self FL_loadingSceneReset];
   [self.skView presentScene:_loadingScene];
@@ -1561,6 +1553,10 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   if (!_titleScene) {
     [self FL_titleSceneCreate];
   } else {
+    // note: If the device orientation changed since this scene was created, then
+    // the scene size must be updated.  (The SKView resizes the currently-presented scene
+    // via SKSceneScaleModeResizeFill.)
+    _titleScene.size = self.view.bounds.size;
     [self FL_titleSceneUpdateGeometry];
     [self FL_titleSceneHideMessage];
     [_titleMenuNode navigateToTopMenuAnimation:HLMenuNodeAnimationNone];
