@@ -48,11 +48,14 @@ static const NSTimeInterval FLOffscreenSlideDuration = 0.25;
 static const CGFloat FLMessageNodeHeight = 32.0f;
 static const CGFloat FLMenuNodeDefaultYPosition = 48.0f;
 
-static const NSUInteger FLSaveGameSlotCount = 3;
+static const NSUInteger FLCommonMenuButtonMax = 5;
+static const NSUInteger FLNewLevelPageMax = FLCommonMenuButtonMax - 2;  // Leave space for "Next" and "Back".
+static const NSUInteger FLSaveGameSlotCount = FLCommonMenuButtonMax - 2;  // Leave space for "New" and "Back".
 
 static NSString * const FLCommonMenuBack = NSLocalizedString(@"Back", @"Menu item: return to previous menu.");
 static NSString * const FLCommonMenuEmptySlot = NSLocalizedString(@"(Empty)", @"Menu item: no game in this save slot.");
 static NSString * const FLCommonMenuNew = NSLocalizedString(@"New", @"Menu item: start a new game.");
+static NSString * const FLCommonMenuNext = NSLocalizedString(@"Next", @"Menu item: navigate to next submenu (when paging through menus).");
 
 static NSString * const FLTitleMenuChallenge = NSLocalizedString(@"Play", @"Menu item: start a new or load an old challenge game.");
 static NSString * const FLTitleMenuSandbox = NSLocalizedString(@"Sandbox", @"Menu item: start a new or load an old sandbox game.");
@@ -489,12 +492,10 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
       [self FL_titleSceneShowMessage:NSLocalizedString(@"Choose starting level.",
                                                        @"Menu message: displayed when starting a new game over a list of challenge levels previously unlocked.")];
     } else if ([menuItemParent.text isEqualToString:FLCommonMenuNew]) {
-      // note: Assume this is a challenge game; sandbox games don't use a "New" submenu.
-      // note: Last item in parent menu is a "Back" button.
-      if (itemIndex + 1 < menuItemParent.itemCount) {
-        int gameLevel = (int)itemIndex;
-        [self FL_load:FLGameTypeChallenge gameLevel:gameLevel isNew:YES otherwiseSaveNumber:0];
-      }
+      [self FL_newFromTitleMenu:menuItem itemIndex:itemIndex];
+    } else if ([menuItemParent.text isEqualToString:FLCommonMenuNext]) {
+      // note: Currently only used for submenus of FLCommonMenuNew.
+      [self FL_newFromTitleMenu:menuItem itemIndex:itemIndex];
     } else if ([menuItem.text isEqualToString:FLTitleMenuChallenge]) {
       [self FL_titleSceneShowMessage:NSLocalizedString(@"Choose game to load.",
                                                        @"Menu message: displayed over a list of saved game slots.")];
@@ -822,23 +823,37 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
 
 - (NSUInteger)FL_titleMenuUpdateNew:(HLMenu *)newMenu
 {
-  NSUInteger newCount = 0;
-
   // note: Precondition: This is a challenge game.
   [newMenu removeAllItems];
 
-  int levelCount = FLChallengeLevelsCount();
-  for (int gameLevel = 0; gameLevel < levelCount; ++gameLevel) {
+  int totalLevelCount = FLChallengeLevelsCount();
+  int totalLevelButtonCount = 0;
+  for (int gameLevel = 0; gameLevel < totalLevelCount; ++gameLevel) {
     if (gameLevel == 0 || FLUserUnlocksUnlocked([NSString stringWithFormat:@"FLUserUnlockLevel%d", gameLevel])) {
-      NSString *levelTitle = FLChallengeLevelsInfo(gameLevel, FLChallengeLevelsTitle);
-      [newMenu addItem:[HLMenuItem menuItemWithText:[NSString stringWithFormat:@"%d: %@", gameLevel, levelTitle]]];
-      ++newCount;
+      ++totalLevelButtonCount;
     }
   }
+  int pageLevelButtonCount = 0;
+  HLMenu *currentPage = newMenu;
+  int totalAddedLevelButtonCount = 0;
+  for (int gameLevel = 0; gameLevel < totalLevelCount; ++gameLevel) {
+    if (gameLevel == 0 || FLUserUnlocksUnlocked([NSString stringWithFormat:@"FLUserUnlockLevel%d", gameLevel])) {
+      if (pageLevelButtonCount >= (int)FLNewLevelPageMax && totalAddedLevelButtonCount < totalLevelButtonCount - 1) {
+        HLMenu *nextMenu = [HLMenu menuWithText:FLCommonMenuNext items:@[]];
+        nextMenu.buttonPrototype = [FLViewController FL_sharedMenuButtonPrototypeBack];
+        [currentPage addItem:nextMenu];
+        [currentPage addItem:[HLMenuBackItem menuItemWithText:FLCommonMenuBack]];
+        currentPage = nextMenu;
+      }
+      NSString *levelTitle = FLChallengeLevelsInfo(gameLevel, FLChallengeLevelsTitle);
+      [currentPage addItem:[HLMenuItem menuItemWithText:[NSString stringWithFormat:@"%d: %@", gameLevel, levelTitle]]];
+      ++totalAddedLevelButtonCount;
+      ++pageLevelButtonCount;
+    }
+  }
+  [currentPage addItem:[HLMenuBackItem menuItemWithText:FLCommonMenuBack]];
 
-  [newMenu addItem:[HLMenuBackItem menuItemWithText:FLCommonMenuBack]];
-
-  return newCount;
+  return (NSUInteger)totalLevelButtonCount;
 }
 
 - (void)FL_gameOverlayCreate
@@ -1133,6 +1148,23 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   [NSKeyedArchiver archiveRootObject:_gameScene toFile:savePath];
   if (completion) {
     completion();
+  }
+}
+
+- (void)FL_newFromTitleMenu:(HLMenuItem *)menuItem itemIndex:(NSUInteger)itemIndex
+{
+  // note: Assume this is a challenge game; sandbox games don't use a "New" submenu.
+
+  // note: Last item in parent menu is a "Back" button.  Second to last might be a "Next".
+
+  HLMenu *menuItemParent = menuItem.parent;
+  if (itemIndex + 2 < menuItemParent.itemCount
+      || (itemIndex + 2 == menuItemParent.itemCount && ![menuItem.text isEqualToString:FLCommonMenuNext])) {
+    int gameLevel = (int)itemIndex;
+    for (HLMenuItem *p = menuItemParent; ![p.text isEqualToString:FLCommonMenuNew]; p = p.parent) {
+      gameLevel += (int)FLNewLevelPageMax;
+    }
+    [self FL_load:FLGameTypeChallenge gameLevel:gameLevel isNew:YES otherwiseSaveNumber:0];
   }
 }
 
