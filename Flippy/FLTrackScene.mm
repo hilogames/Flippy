@@ -1837,6 +1837,7 @@ struct PointerPairHash
   NSString *buttonTag = [_trackEditMenuState.editMenuNode toolAtLocation:toolbarLocation];
 
   if ([buttonTag isEqualToString:@"toggle-switch"]) {
+
     BOOL enabled = ![_trackEditMenuState.editMenuNode enabledForTool:buttonTag];
     for (FLSegmentNode *segmentNode in _trackSelectState.selectedSegments) {
       if ([self FL_segmentCanHideSwitch:segmentNode.segmentType]) {
@@ -1855,6 +1856,10 @@ struct PointerPairHash
     // trivial.  However, until performance is an issue, don't violate the encapsulation
     // here; just let the track menu figure it out.
     [self FL_trackEditMenuShowAnimated:NO];
+
+  } else if ([buttonTag isEqualToString:@"delete"]) {
+    [self FL_messageShow:NSLocalizedString(@"Double-tap to delete selected track.",
+                                           @"Message to user: Shown as a hint delete button is long-pressed rather than double-tapped.")];
   }
 }
 
