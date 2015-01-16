@@ -5014,7 +5014,9 @@ writeArchiveWithPath:exportPath
   [_constructionToolbarState.toolbarNode setHighlight:_valuesVisible forTool:@"show-values"];
   for (auto s : *_trackGrid) {
     FLSegmentNode *segmentNode = s.second;
-    segmentNode.mayShowBubble = _valuesVisible;
+    if (![self FL_segmentCanHideSwitch:segmentNode.segmentType] || segmentNode.mayShowSwitch) {
+      segmentNode.mayShowBubble = _valuesVisible;
+    }
   }
   return _valuesVisible;
 }
