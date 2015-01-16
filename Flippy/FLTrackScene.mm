@@ -1754,13 +1754,10 @@ struct PointerPairHash
   } else if ([toolTag isEqualToString:@"fff"]) {
     [self FL_simulationCycleSpeed];
   } else if ([toolTag isEqualToString:@"center"]) {
-    CGPoint trainSceneLocation = [self convertPoint:_train.position fromNode:_worldNode];
-    [self FL_worldSetPositionX:(_worldNode.position.x - trainSceneLocation.x)
-                     positionY:(_worldNode.position.y - trainSceneLocation.y)
-              animatedDuration:FLWorldAdjustDuration
-                    completion:^{
-                      self->_cameraMode = FLCameraModeFollowTrain;
-                    }];
+    [self FL_worldSetPositionToTrainAnimatedDuration:FLWorldAdjustDuration
+                                          completion:^{
+                                            self->_cameraMode = FLCameraModeFollowTrain;
+                                          }];
   } else if ([toolTag isEqualToString:@"goals"]) {
     [self FL_goalsShowWithSplash:NO];
   }
@@ -2621,6 +2618,27 @@ writeArchiveWithPath:(NSString *)path
                                                    forScaleX:_worldNode.xScale
                                                       scaleY:_worldNode.yScale];
   SKAction *move = [SKAction moveTo:worldPosition duration:duration];
+  move.timingMode = SKActionTimingEaseInEaseOut;
+  [_worldNode runAction:move completion:completion];
+}
+
+- (void)FL_worldSetPositionToTrainAnimatedDuration:(NSTimeInterval)duration
+                                        completion:(void (^)(void))completion
+{
+  // note: No big deal if train isn't moving.  But if train is moving, need to
+  // continually update destination.
+  SKAction *move = [SKAction customActionWithDuration:duration actionBlock:^(SKNode *node, CGFloat elapsedTime){
+    CGPoint trainSceneLocation = [self convertPoint:self->_train.position fromNode:self->_worldNode];
+    CGPoint currentWorldPosition = self->_worldNode.position;
+    CGFloat currentWorldScale = self->_worldNode.xScale;
+    CGPoint targetWorldPosition = [self FL_worldConstrainedPositionX:(currentWorldPosition.x - trainSceneLocation.x)
+                                                           positionY:(currentWorldPosition.y - trainSceneLocation.y)
+                                                           forScaleX:currentWorldScale
+                                                              scaleY:currentWorldScale];
+    CGFloat elapsedProportion = (CGFloat)(elapsedTime / duration);
+    self->_worldNode.position = CGPointMake(currentWorldPosition.x + (targetWorldPosition.x - currentWorldPosition.x) * elapsedProportion,
+                                            currentWorldPosition.y + (targetWorldPosition.y - currentWorldPosition.y) * elapsedProportion);
+  }];
   move.timingMode = SKActionTimingEaseInEaseOut;
   [_worldNode runAction:move completion:completion];
 }
