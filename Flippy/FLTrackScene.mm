@@ -1074,10 +1074,12 @@ struct PointerPairHash
     [self FL_trackEditMenuUpdateAnimated:YES];
   }
 
-  // note: Our current gesture tap recognizers do not require the other tap
-  // recognizers to fail, so all lower-tap gestures are always also recognized.
-  // Here, we would undo the effect of the single-tap, so that the double-tap "wins",
-  // except that it is already naturally undone (since both affect selection).
+  // note: Our current configuration of tap gesture recognizers (no simultaneous
+  // recognition, and no requirement for others to fail) means the single tap
+  // recognizer has already triggered, and we have the option of triggering it
+  // again explicitly if this double-tap should instead be treated as two single-taps.
+  // In this handler, though, the single- and double-tap implementations work well
+  // together naturally as-is (since they both affect selection).
 }
 
 - (void)handleWorldDoubleTwoTap:(UIGestureRecognizer *)gestureRecognizer
@@ -1786,11 +1788,20 @@ struct PointerPairHash
 
 - (void)handleTrackEditMenuTap:(UIGestureRecognizer *)gestureRecognizer
 {
+  if (gestureRecognizer.state != UIGestureRecognizerStateEnded) {
+    return;
+  }
+
   CGPoint viewLocation = [gestureRecognizer locationInView:self.view];
   CGPoint sceneLocation = [self convertPointFromView:viewLocation];
   CGPoint toolbarLocation = [_trackEditMenuState.editMenuNode convertPoint:sceneLocation fromNode:self];
   NSString *buttonTag = [_trackEditMenuState.editMenuNode toolAtLocation:toolbarLocation];
 
+  [self FL_handleTrackEditMenuTap:buttonTag];
+}
+
+- (void)FL_handleTrackEditMenuTap:(NSString *)buttonTag
+{
   if ([buttonTag isEqualToString:@"rotate-cw"]) {
     [self FL_trackRotateSegments:_trackSelectState.selectedSegments pointers:_trackSelectState.selectedSegmentPointers rotateBy:-1 animated:YES];
   } else if ([buttonTag isEqualToString:@"rotate-ccw"]) {
@@ -1824,6 +1835,13 @@ struct PointerPairHash
       [self FL_messageShow:NSLocalizedString(@"Cannot delete special segments.",
                                              @"Message to user: Shown when user tries to delete special track segments in challenge mode.")];
     }
+  } else {
+    // note: Our current configuration of tap gesture recognizers (no simultaneous
+    // recognition, and no requirement for others to fail) means the single tap
+    // recognizer has already triggered, and we have the option of triggering it
+    // again explicitly if this double-tap should instead be treated as two single-taps.
+    // In this handler, that's the case for any button that doesn't want the double-tap.
+    [self FL_handleTrackEditMenuTap:buttonTag];
   }
 }
 
@@ -1904,9 +1922,15 @@ struct PointerPairHash
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer
 {
-  // Taps: I'm not sure why I don't need to, but apparently I don't need to tell tap
-  // gesture recognizers they can recognize at the same time.  Even without it, a double
-  // tap will trigger single (unless I requireGestureRecognizerToFail).
+  // Taps: Even without simultaneous recognition enabled, a double tap will result in two
+  // gesture handlers recognizing: The first tap will trigger a single-tap (in "ended"
+  // state) (and nothing on the double-tap handler), and the second tap will trigger a
+  // double-tap (in "ended" state).  Simultaneous recognition means the second tap will
+  // also be recognized as a second single-tap.  Requiring gesture recognizer to fail
+  // on the single tap blocks the first tap from being recognized at all.  Currently the
+  // code is written with no simultaneous recognition desired: If the double-tap handler
+  // doesn't want to do anything, it has the option of calling the single-tap handler
+  // again to handle the second tap.
 
   // Swipe and pan: Basically these are the same gesture, or at least every swipe is
   // also a pan, so they must be recognized simultaneously or else one will never fire.
