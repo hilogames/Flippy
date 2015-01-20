@@ -174,6 +174,7 @@ struct FLConstructionToolbarState
     toolTypes = [NSMutableDictionary dictionary];
     toolDescriptions = [NSMutableDictionary dictionary];
     toolSegmentTypes = [NSMutableDictionary dictionary];
+    toolArchiveTextureStore = [[HLTextureStore alloc] init];
   }
   HLToolbarNode *toolbarNode;
   NSString *currentNavigation;
@@ -181,6 +182,7 @@ struct FLConstructionToolbarState
   NSMutableDictionary *toolTypes;
   NSMutableDictionary *toolDescriptions;
   NSMutableDictionary *toolSegmentTypes;
+  HLTextureStore *toolArchiveTextureStore;
   UIAlertView *deleteExportConfirmAlert;
   NSString *deleteExportName;
   NSString *deleteExportDescription;
@@ -2322,9 +2324,9 @@ struct PointerPairHash
   return segmentNode;
 }
 
-- (SKSpriteNode *)FL_createToolNodeForTextureKey:(NSString *)textureKey
+- (SKSpriteNode *)FL_createToolNodeForTextureKey:(NSString *)textureKey textureStore:(HLTextureStore *)textureStore
 {
-  SKTexture *texture = [[HLTextureStore sharedStore] textureForKey:textureKey];
+  SKTexture *texture = [textureStore textureForKey:textureKey];
   SKSpriteNode *toolNode = [SKSpriteNode spriteNodeWithTexture:texture];
   toolNode.zRotation = (CGFloat)M_PI_2;
   return toolNode;
@@ -3096,59 +3098,60 @@ writeArchiveWithPath:(NSString *)path
 
 - (void)FL_constructionToolbarShowMain:(int)page animation:(HLToolbarNodeAnimation)animation
 {
+  HLTextureStore *sharedTextureStore = [HLTextureStore sharedStore];
   NSMutableArray *toolNodes = [NSMutableArray array];
   NSMutableArray *toolTags = [NSMutableArray array];
   NSString *textureKey;
 
   textureKey = @"segments";
   [toolTags addObject:textureKey];
-  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore]];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
 
   if ([self FL_unlocked:FLUnlockGates]) {
     textureKey = @"gates";
     [toolTags addObject:textureKey];
-    [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+    [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore]];
     _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
   }
 
   if ([self FL_unlocked:FLUnlockCircuits]) {
     textureKey = @"circuits";
     [toolTags addObject:textureKey];
-    [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+    [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore]];
     _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
   }
 
   textureKey = @"exports";
   [toolTags addObject:textureKey];
-  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore]];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
   
   textureKey = @"deletions";
   [toolTags addObject:textureKey];
-  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore]];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
   
   textureKey = @"duplicate";
   [toolTags addObject:textureKey];
-  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore]];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
   _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Drag to duplicate selected track.",
                                                                              @"Message to user: shown when the duplicate tool (in the bottom toolbar) is tapped.");
   
   textureKey = @"link";
   [toolTags addObject:textureKey];
-  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore]];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionTap);
 
   textureKey = @"show-labels";
   [toolTags addObject:textureKey];
-  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore]];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionTap);
 
   textureKey = @"show-values";
   [toolTags addObject:textureKey];
-  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore]];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionTap);
 
   [_constructionToolbarState.toolbarNode setTools:toolNodes tags:toolTags animation:animation];
@@ -3160,13 +3163,14 @@ writeArchiveWithPath:(NSString *)path
 
 - (void)FL_constructionToolbarShowSegments:(int)page animation:(HLToolbarNodeAnimation)animation
 {
+  HLTextureStore *sharedTextureStore = [HLTextureStore sharedStore];
   NSMutableArray *toolNodes = [NSMutableArray array];
   NSMutableArray *toolTags = [NSMutableArray array];
   NSString *textureKey;
 
   textureKey = @"straight";
   [toolTags addObject:textureKey];
-  SKSpriteNode *toolNode = [self FL_createToolNodeForTextureKey:textureKey];
+  SKSpriteNode *toolNode = [self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore];
   toolNode.position = CGPointMake(FLSegmentArtStraightShift, 0.0f);
   [toolNodes addObject:toolNode];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
@@ -3176,7 +3180,7 @@ writeArchiveWithPath:(NSString *)path
 
   textureKey = @"curve";
   [toolTags addObject:textureKey];
-  toolNode = [self FL_createToolNodeForTextureKey:textureKey];
+  toolNode = [self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore];
   toolNode.position = CGPointMake(FLSegmentArtCurveShift, -FLSegmentArtCurveShift);
   [toolNodes addObject:toolNode];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
@@ -3186,7 +3190,7 @@ writeArchiveWithPath:(NSString *)path
 
   textureKey = @"join-left";
   [toolTags addObject:textureKey];
-  toolNode = [self FL_createToolNodeForTextureKey:textureKey];
+  toolNode = [self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore];
   toolNode.position = CGPointMake(FLSegmentArtCurveShift, -FLSegmentArtCurveShift);
   [toolNodes addObject:toolNode];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
@@ -3196,7 +3200,7 @@ writeArchiveWithPath:(NSString *)path
 
   textureKey = @"join-right";
   [toolTags addObject:textureKey];
-  toolNode = [self FL_createToolNodeForTextureKey:textureKey];
+  toolNode = [self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore];
   toolNode.position = CGPointMake(FLSegmentArtCurveShift, FLSegmentArtCurveShift);
   [toolNodes addObject:toolNode];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
@@ -3206,7 +3210,7 @@ writeArchiveWithPath:(NSString *)path
 
   textureKey = @"jog-left";
   [toolTags addObject:textureKey];
-  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore]];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
   _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Jog Left Track",
                                                                              @"The name of the track segment that jogs to the left.");
@@ -3214,7 +3218,7 @@ writeArchiveWithPath:(NSString *)path
 
   textureKey = @"jog-right";
   [toolTags addObject:textureKey];
-  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore]];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
   _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Jog Right Track",
                                                                              @"The name of the track segment that jogs to the right.");
@@ -3222,7 +3226,7 @@ writeArchiveWithPath:(NSString *)path
 
   textureKey = @"cross";
   [toolTags addObject:textureKey];
-  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore]];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
   _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Cross Track",
                                                                              @"The name of the track segment that is shaped like an X.");
@@ -3231,7 +3235,7 @@ writeArchiveWithPath:(NSString *)path
   if (_gameType != FLGameTypeChallenge || [self FL_gameTypeChallengeCanCreateSegment:FLSegmentTypeReadoutInput]) {
     textureKey = @"readout-input";
     [toolTags addObject:textureKey];
-    [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+    [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore]];
     _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
     _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Input Value",
                                                                                @"The name of the track segment that shows input values using a switch and numbers.");
@@ -3241,7 +3245,7 @@ writeArchiveWithPath:(NSString *)path
   if (_gameType != FLGameTypeChallenge || [self FL_gameTypeChallengeCanCreateSegment:FLSegmentTypeReadoutOutput]) {
     textureKey = @"readout-output";
     [toolTags addObject:textureKey];
-    [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+    [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore]];
     _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
     _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"Output Value",
                                                                                @"The name of the track segment that shows output values using a switch and numbers.");
@@ -3251,7 +3255,7 @@ writeArchiveWithPath:(NSString *)path
   if (_gameType != FLGameTypeChallenge || [self FL_gameTypeChallengeCanCreateSegment:FLSegmentTypePixel]) {
     textureKey = @"pixel";
     [toolTags addObject:textureKey];
-    [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+    [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore]];
     _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
     _constructionToolbarState.toolDescriptions[textureKey] = NSLocalizedString(@"White/Black Value",
                                                                                @"The name of the track segment that shows values using a block of color.");
@@ -3260,7 +3264,7 @@ writeArchiveWithPath:(NSString *)path
 
   textureKey = @"platform-left";
   [toolTags addObject:textureKey];
-  toolNode = [self FL_createToolNodeForTextureKey:textureKey];
+  toolNode = [self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore];
   toolNode.position = CGPointMake(FLSegmentArtStraightShift, 0.0f);
   [toolNodes addObject:toolNode];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
@@ -3271,7 +3275,7 @@ writeArchiveWithPath:(NSString *)path
   if (_gameType != FLGameTypeChallenge || [self FL_gameTypeChallengeCanCreateSegment:FLSegmentTypePlatformStartLeft]) {
     textureKey = @"platform-start-left";
     [toolTags addObject:textureKey];
-    toolNode = [self FL_createToolNodeForTextureKey:textureKey];
+    toolNode = [self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore];
     toolNode.position = CGPointMake(FLSegmentArtStraightShift, 0.0f);
     [toolNodes addObject:toolNode];
     _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
@@ -3383,14 +3387,25 @@ writeArchiveWithPath:(NSString *)path
   NSMutableArray *archiveTextureKeys = [NSMutableArray array];
   for (NSString *archiveFile in archiveFiles) {
     if (!unlockItems || unlockItemIndex >= unlockItems->size() || [self FL_unlocked:(*unlockItems)[unlockItemIndex]]) {
+      // note: Assume no namespace conflicts among gates, circuits, exports, deletions, and any
+      // other callers.  Maybe safer to create separate texture stores for each, but it seems
+      // safe enough as-is.
       NSString *archiveName = [archiveFile stringByDeletingPathExtension];
-      SKTexture *texture = [[HLTextureStore sharedStore] textureForKey:archiveName];
-      if (recreateTextures || !texture) {
+      SKTexture *texture = nil;
+      if (!recreateTextures) {
+        texture = [_constructionToolbarState.toolArchiveTextureStore textureForKey:archiveName];
+      }
+      if (!texture) {
         NSString *archivePath = [archiveDirectory stringByAppendingPathComponent:archiveFile];
         NSString *archiveDescription = nil;
         NSArray *segmentNodes = [self FL_segmentsReadArchiveWithPath:archivePath description:&archiveDescription links:NULL];
         UIImage *archiveImage = [self FL_segments:segmentNodes createImageWithSize:FLMainToolbarToolArtSize];
-        [[HLTextureStore sharedStore] setTextureWithImage:archiveImage forKey:archiveName filteringMode:SKTextureFilteringNearest];
+        // note: Could put archive textures into the shared texture store for reuse between scenes, which would
+        // save a little loading time, but we don't have a good place to store archiveDescription along with the
+        // texture.  Rather than add a special interface to HLTextureStore, or create a special static store for
+        // FLTrackScene to store just archive descriptions, for now we use a texture store that has the same
+        // lifetime as _constructionToolbarState.toolDescriptions.
+        [_constructionToolbarState.toolArchiveTextureStore setTextureWithImage:archiveImage forKey:archiveName filteringMode:SKTextureFilteringNearest];
         _constructionToolbarState.toolTypes[archiveName] = @(FLToolbarToolTypeActionPan);
         _constructionToolbarState.toolDescriptions[archiveName] = archiveDescription;
       }
@@ -3414,13 +3429,13 @@ writeArchiveWithPath:(NSString *)path
   // note: First "main".
   NSString *textureKey = @"main";
   [toolTags addObject:textureKey];
-  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:[HLTextureStore sharedStore]]];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
   // note: Next "previous".
   if (page != 0) {
     textureKey = @"previous";
     [toolTags addObject:textureKey];
-    [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+    [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:[HLTextureStore sharedStore]]];
     _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
   }
   // note: The page might end up with no tools if the requested page is too
@@ -3428,13 +3443,13 @@ writeArchiveWithPath:(NSString *)path
   for (NSUInteger i = beginIndex; i < endIndex; ++i) {
     textureKey = archiveTextureKeys[i];
     [toolTags addObject:textureKey];
-    [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+    [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:_constructionToolbarState.toolArchiveTextureStore]];
     _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeActionPan);
   }
   if (endIndex < archiveTextureKeysCount) {
     textureKey = @"next";
     [toolTags addObject:textureKey];
-    [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+    [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:[HLTextureStore sharedStore]]];
     _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
   }
 
@@ -3475,6 +3490,8 @@ writeArchiveWithPath:(NSString *)path
                                           pageToolNodes:(NSArray * __autoreleasing *)pageToolNodes
                                            pageToolTags:(NSArray * __autoreleasing *)pageToolTags
 {
+  HLTextureStore *sharedTextureStore = [HLTextureStore sharedStore];
+
   // Calculate indexes that will be included in page.
   //
   // note: [begin,end)
@@ -3489,14 +3506,14 @@ writeArchiveWithPath:(NSString *)path
   // First tool is always "main".
   NSString *textureKey = @"main";
   [selectedToolTags addObject:textureKey];
-  [selectedToolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+  [selectedToolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore]];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
 
   // Next tool is "previous" if not on first page.
   if (page != 0) {
     textureKey = @"previous";
     [selectedToolTags addObject:textureKey];
-    [selectedToolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+    [selectedToolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore]];
     _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
   }
 
@@ -3510,7 +3527,7 @@ writeArchiveWithPath:(NSString *)path
   if (endIndex < allNodesCount) {
     textureKey = @"next";
     [selectedToolTags addObject:textureKey];
-    [selectedToolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+    [selectedToolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore]];
     _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
   }
 
@@ -3577,12 +3594,13 @@ writeArchiveWithPath:(NSString *)path
 
 - (void)FL_simulationToolbarUpdateTools
 {
+  HLTextureStore *sharedTextureStore = [HLTextureStore sharedStore];
   NSMutableArray *toolNodes = [NSMutableArray array];
   NSMutableArray *toolTags = [NSMutableArray array];
 
   NSString *textureKey = @"menu";
   [toolTags addObject:textureKey];
-  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore]];
 
   if (_simulationRunning) {
     textureKey = @"pause";
@@ -3590,7 +3608,7 @@ writeArchiveWithPath:(NSString *)path
     textureKey = @"play";
   }
   [toolTags addObject:textureKey];
-  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore]];
 
   if (_simulationSpeed <= 1) {
     textureKey = @"ff";
@@ -3598,16 +3616,16 @@ writeArchiveWithPath:(NSString *)path
     textureKey = @"fff";
   }
   [toolTags addObject:textureKey];
-  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore]];
   NSString *speedToolTextureKey = textureKey;
 
   textureKey = @"center";
   [toolTags addObject:textureKey];
-  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore]];
 
   textureKey = @"goals";
   [toolTags addObject:textureKey];
-  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore]];
 
   [_simulationToolbarState.toolbarNode setTools:toolNodes tags:toolTags animation:HLToolbarNodeAnimationNone];
 
@@ -4509,6 +4527,8 @@ writeArchiveWithPath:exportPath
 
 - (void)FL_trackEditMenuUpdateTools
 {
+  HLTextureStore *sharedTextureStore = [HLTextureStore sharedStore];
+
   // Collect information about selected segments.
   NSArray *segmentNodes = _trackSelectState.selectedSegments;
   BOOL canSwitchAny;
@@ -4541,7 +4561,7 @@ writeArchiveWithPath:exportPath
   [textureKeys addObject:@"rotate-cw"];
   NSMutableArray *toolNodes = [NSMutableArray array];
   for (NSString *textureKey in textureKeys) {
-    [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey]];
+    [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:sharedTextureStore]];
   }
   [_trackEditMenuState.editMenuNode setTools:toolNodes tags:textureKeys animation:HLToolbarNodeAnimationNone];
   if (canSwitchAny) {
