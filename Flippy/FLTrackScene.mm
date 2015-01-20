@@ -4857,7 +4857,12 @@ writeArchiveWithPath:exportPath
   for (int gx = gridX - 1; gx <= gridX + 1; ++gx) {
     for (int gy = gridY - 1; gy <= gridY + 1; ++gy) {
       FLSegmentNode *segmentNode = _trackGrid->get(gx, gy);
-      if (!segmentNode || ![segmentNode doesShowSwitch]) {
+      if (!segmentNode || !segmentNode.canSwitch) {
+        continue;
+      }
+      // note: This is slightly debatable; maybe want to have a node linked even if the switch
+      // is hidden.
+      if ([self FL_segmentCanHideSwitch:segmentNode.segmentType] && !segmentNode.mayShowSwitch) {
         continue;
       }
       CGPoint switchLocation = segmentNode.switchLinkLocation;
