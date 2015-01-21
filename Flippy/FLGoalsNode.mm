@@ -124,7 +124,7 @@ static const CGFloat FLLayoutNodeComponentPad = 7.0f;
   // Truth table (if possible) and footer.
   NSString *truthFooterText = nil;
   SKColor *truthFooterColor = nil;
-  if ([trackTruthTable.platformStartSegmentNodes count] != 1) {
+  if (!trackTruthTable.platformStartSegmentNodes || [trackTruthTable.platformStartSegmentNodes count] != 1) {
     truthFooterText = NSLocalizedString(@"(Results can only be shown when track contains exactly one Starting Platform.)",
                                         @"Goals screen: note explaining that results (including truth table) can't be shown until the track meets certain conditions.");
     truthFooterColor = FLInterfaceColorBad();
@@ -137,7 +137,11 @@ static const CGFloat FLLayoutNodeComponentPad = 7.0f;
     if (_gameType == FLGameTypeChallenge) {
       goalValues = FLChallengeLevelsInfo(_gameLevel, FLChallengeLevelsGoalValues);
     }
-    _truthTableNode = [self FL_truthTableCreateForTable:trackTruthTable index:0 correctValues:goalValues correct:&victory];
+    NSUInteger outputValuesCorrect = 0;
+    _truthTableNode = [self FL_truthTableCreateForTable:trackTruthTable index:0 correctValues:goalValues outputValuesCorrect:&outputValuesCorrect];
+    if (goalValues) {
+      victory = (outputValuesCorrect == [goalValues count]);
+    }
     _truthTableNode.zPosition = FLZPositionContent;
     if (_gameType == FLGameTypeChallenge && victory) {
       if (_gameLevel + 1 >= FLChallengeLevelsCount()) {
@@ -152,6 +156,12 @@ static const CGFloat FLLayoutNodeComponentPad = 7.0f;
       truthFooterText = NSLocalizedString(@"Loop detected: The results simulation halted after finding a loop in the track.",
                                           @"Goals screen: displayed when a loop in the track is detected.");
       truthFooterColor = FLInterfaceColorBad();
+    } else if (goalValues) {
+      truthFooterText = [NSString stringWithFormat:NSLocalizedString(@"Solution Incomplete\n(%d of %d outputs correct)",
+                                                                     @"Goals screen: displayed when current level solution is not yet complete."),
+                         outputValuesCorrect,
+                         [goalValues count]];
+      truthFooterColor = [SKColor whiteColor];
     }
     // note: ...else no result footer text to display.
   }
@@ -599,7 +609,7 @@ static const CGFloat FLLayoutNodeComponentPad = 7.0f;
 - (HLGridNode *)FL_truthTableCreateForTable:(FLTrackTruthTable *)trackTruthTable
                                       index:(NSUInteger)truthTableIndex
                               correctValues:(NSArray *)correctValues
-                                    correct:(BOOL *)correct
+                        outputValuesCorrect:(NSUInteger *)outputValuesCorrect
 {
   FLTruthTable& truthTable = trackTruthTable.truthTables[truthTableIndex];
 
@@ -628,7 +638,7 @@ static const CGFloat FLLayoutNodeComponentPad = 7.0f;
 
   // Specify content for value rows.
   if (correctValues) {
-    *correct = YES;
+    *outputValuesCorrect = 0;
   }
   vector<int> inputValues = truthTable.inputValuesFirst();
   NSUInteger cv = 0;
@@ -647,10 +657,10 @@ static const CGFloat FLLayoutNodeComponentPad = 7.0f;
         int correctValue = [correctValues[cv++] intValue];
         if (outputValues[ov] == correctValue) {
           [contentColors addObject:FLInterfaceColorGood()];
+          ++(*outputValuesCorrect);
         } else {
           [contentColors addObject:FLInterfaceColorBad()];
           rowCorrect = NO;
-          *correct = NO;
         }
       }
     }
