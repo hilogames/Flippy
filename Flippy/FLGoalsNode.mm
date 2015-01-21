@@ -156,6 +156,18 @@ static const CGFloat FLLayoutNodeComponentPad = 7.0f;
       truthFooterText = NSLocalizedString(@"Loop detected: The results simulation halted after finding a loop in the track.",
                                           @"Goals screen: displayed when a loop in the track is detected.");
       truthFooterColor = FLInterfaceColorBad();
+    } else if (trackTruthTable.state == FLTrackTruthTableStateMissingLinks) {
+      if (_gameLevel == 0) {
+        // note: Hacky hint for level 0.  This is for the sake of the poor sod who accidentally deletes the pre-created
+        // join segments and doesn't know how to do linking (until the tutorial on the next level).
+        truthFooterText = NSLocalizedString(@"Warning: At least one of the track inputs or outputs isn’t linked to anything. Restart the level to restore links.",
+                                            @"Goals screen: note explaining that some important links are missing on the track.");
+        truthFooterColor = [SKColor whiteColor];
+      } else {
+        truthFooterText = NSLocalizedString(@"Warning: At least one of the track inputs or outputs isn’t linked to anything.",
+                                            @"Goals screen: note explaining that some important links are missing on the track.");
+        truthFooterColor = [SKColor whiteColor];
+      }
     } else if (goalValues) {
       truthFooterText = [NSString stringWithFormat:NSLocalizedString(@"Solution Incomplete\n(%d of %d outputs correct)",
                                                                      @"Goals screen: displayed when current level solution is not yet complete."),
@@ -163,8 +175,7 @@ static const CGFloat FLLayoutNodeComponentPad = 7.0f;
                          [goalValues count]];
       truthFooterColor = [SKColor whiteColor];
     }
-    // note: ...else no result footer text to display.
-  }
+  } // note: ...else no result footer text to display.
   if (truthFooterText) {
     _truthFooterNode = [[DSMultilineLabelNode alloc] initWithFontNamed:FLInterfaceFontName];
     _truthFooterNode.zPosition = FLZPositionContent;

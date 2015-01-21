@@ -75,6 +75,20 @@ FLLinks::get(FLSegmentNode *a, std::vector<FLSegmentNode *> *b) const
   }
 }
 
+bool
+FLLinks::hasAny(FLSegmentNode *a) const
+{
+  // note: Implemented as a nasty linear thing for now.
+  for (auto link = links_.begin(); link != links_.end(); ++link) {
+    if ((__bridge void *)a == link->first.first) {
+      return true;
+    } else if ((__bridge void *)a == link->first.second) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void
 FLLinks::erase(FLSegmentNode *a, FLSegmentNode *b)
 {

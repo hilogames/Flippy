@@ -177,6 +177,11 @@ private:
  *                                          platform or input or output segments; it will not
  *                                          contain meaningful results.
  *
+ *   FLTrackTruthTableStateMissingLinks: The track truth table has the right segments to make a
+ *                                       table, but at least one of the input or output segment
+ *                                       is not linked to anything.  (This may or may not be
+ *                                       considered a problem by the caller.)
+ *
  *   FLTrackTruthTableStateInfiniteLoopDetected: The track truth table was initialized, but
  *                                               during generation of results at least one start
  *                                               and one set of input values led to an infinite
@@ -185,6 +190,7 @@ private:
 typedef NS_ENUM(NSInteger, FLTrackTruthTableState) {
   FLTrackTruthTableStateInitialized,
   FLTrackTruthTableStateMissingSegments,
+  FLTrackTruthTableStateMissingLinks,
   FLTrackTruthTableStateInfiniteLoopDetected
 };
 

@@ -593,6 +593,25 @@ trackGridGenerateTruthTable(const FLTrackGrid& trackGrid, const FLLinks& links, 
         // led to the infinite loop.  If the caller cares, we can certainly return
         // that information.
         trackTruthTable.state = FLTrackTruthTableStateInfiniteLoopDetected;
+      } else {
+        bool missingLinks = false;
+        for (FLSegmentNode *inputSegmentNode in inputSegmentNodes) {
+          if (!links.hasAny(inputSegmentNode)) {
+            missingLinks = true;
+            break;
+          }
+        }
+        if (!missingLinks) {
+          for (FLSegmentNode *outputSegmentNode in outputSegmentNodes) {
+            if (!links.hasAny(outputSegmentNode)) {
+              missingLinks = true;
+              break;
+            }
+          }
+        }
+        if (missingLinks) {
+          trackTruthTable.state = FLTrackTruthTableStateMissingLinks;
+        }
       }
     }
     ++row;
