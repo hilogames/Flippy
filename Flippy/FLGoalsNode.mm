@@ -20,7 +20,7 @@ static const CGFloat FLZPositionHappyBursts = 1.0f;
 static const CGFloat FLZPositionCoverAll = 2.0f;
 
 static const CGFloat FLLayoutNodeSpacerVertical = 12.0f;
-static const CGFloat FLLayoutNodeSpacerHorizontal = 5.0f;
+static const CGFloat FLLayoutNodeSpacerHorizontal = 3.0f;
 static const CGFloat FLLayoutNodeLabelPad = 3.0f;
 static const CGFloat FLLayoutNodeComponentPad = 7.0f;
 
@@ -245,10 +245,9 @@ static const CGFloat FLLayoutNodeComponentPad = 7.0f;
     self.contentNode = nil;
   }
 
-  // note: Show multiline text in a square that won't have to change size if the interface
-  // rotates to a narrower horizontal dimension.
-  CGFloat edgeSizeMax = MIN(MIN(_sceneSize.width - FLLayoutNodeSpacerHorizontal * 2.0f,
-                                _sceneSize.height - FLLayoutNodeSpacerVertical * 2.0f),
+  // note: Usually we show text in a block that doesn't change when device is rotated.
+  // But space is precious here, so use all that we've got in terms of width.
+  CGFloat edgeSizeMax = MIN(_sceneSize.width - FLLayoutNodeSpacerHorizontal * 2.0f,
                             FLDSMultilineLabelParagraphWidthReadableMax);
 
   if (_introLevelHeaderNode) {

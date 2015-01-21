@@ -8,7 +8,7 @@
 		<key>goal-short</key>
 		<string>X = ¬A (X is not A)</string>
 		<key>goal-long</key>
-		<string>After the train has stopped, output X should show the opposite value as input A.</string>
+		<string>If input A is 1, the train should set output X to 0; if A is 0, the train should set X to 1.</string>
 		<key>goal-values</key>
 		<array>
 			<integer>1</integer>
@@ -35,7 +35,7 @@
 		<key>goal-short</key>
 		<string>X = A ∧ B (X is A and B)</string>
 		<key>goal-long</key>
-		<string>After the train has stopped, output X should be 1 if (and only if) A and B are 1.</string>
+		<string>If inputs A and B are both 1, the train should set output X to 1; otherwise, the train should set X to 0.</string>
 		<key>goal-values</key>
 		<array>
 			<integer>0</integer>
@@ -64,7 +64,7 @@
 		<key>goal-short</key>
 		<string>X = A ∨ B (X is A or B)</string>
 		<key>goal-long</key>
-		<string>After the train has stopped, output X should be 1 if (and only if) one or both of A and B are 1.</string>
+		<string>If either or both of inputs A and B are 1, the train should set output X to 1; otherwise, the train should set X to 0.</string>
 		<key>goal-values</key>
 		<array>
 			<integer>0</integer>
@@ -93,7 +93,7 @@
 		<key>goal-short</key>
 		<string>X = A ⊻ B (X is A xor B)</string>
 		<key>goal-long</key>
-		<string>After the train has stopped, output X should be 1 if (and only if) A and B are different.</string>
+		<string>If inputs A and B are different, the train should set output X to 1; if A and B are the same, the train should set X to 0.</string>
 		<key>goal-values</key>
 		<array>
 			<integer>0</integer>
