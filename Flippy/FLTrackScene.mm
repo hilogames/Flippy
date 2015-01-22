@@ -5652,7 +5652,12 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
                                rotatedCutoutSceneBounds.width,
                                rotatedCutoutSceneBounds.height);
     } else {
-      FL_tutorialContextCutoutRect(context, cutout.rect);
+      // note: Remember cutout.rect is in scene coordinates.
+      CGRect cutoutRectContext = CGRectMake(cutout.rect.origin.x + sceneSize.width / 2.0f,
+                                            cutout.rect.origin.y + sceneSize.height / 2.0f,
+                                            cutout.rect.size.width,
+                                            cutout.rect.size.height);
+      FL_tutorialContextCutoutRect(context, cutoutRectContext);
     }
   }
 
@@ -6009,7 +6014,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
     }
     case 12: {
       [self FL_linksHide];
-      NSString *label = NSLocalizedString(@"The goal of each level is to build a track so that Flippy sets the output correctly.",
+      NSString *label = NSLocalizedString(@"The goal of each level is to build a track so that Flippy sets the output correctly for all possible inputs.",
                                           @"Tutorial message.");
       _tutorialState.labelPosition = FLTutorialLabelLowerScene;
       [self FL_tutorialShowWithLabel:label animated:animated];
@@ -6028,6 +6033,91 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
       return YES;
     }
     case 14: {
+      NSString *label = NSLocalizedString(@"What do those goals mean, exactly?",
+                                          @"Tutorial message.");
+      NSString *annotation = NSLocalizedString(@"Long-press to skip tutorial.",
+                                               @"Tutorial message.");
+      _tutorialState.labelPosition = FLTutorialLabelUpperScene;
+      [self FL_tutorialShowWithLabel:label annotation:annotation firstPanWorld:NO panLocation:CGPointZero animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropLongPress, FLTutorialResultExit);
+      return YES;
+    }
+    case 15: {
+      NSString *label = NSLocalizedString(@"If input A is 1, then Flippy will go straight.",
+                                          @"Tutorial message.");
+      FLSegmentNode *segmentNode = _trackGrid->get(0, 1);
+      [self FL_linkSwitchSetPathId:1 forSegment:segmentNode animated:YES];
+      CGPoint panSceneLocation = [self convertPoint:segmentNode.position fromNode:_worldNode];
+      panSceneLocation.y += FLTrackSegmentSize;
+      _tutorialState.cutouts.emplace_back(segmentNode, NO);
+      // note: Cut out the square above the segmentNode.  We need the rect in scene coordinates; note that the world
+      // will be panned so that the "above rect" is centered at scene (0,0).
+      CGRect aboveSquareSceneRect = CGRectMake(-FLSegmentArtSizeFull,
+                                               -FLSegmentArtSizeFull,
+                                               FLSegmentArtSizeFull * 2.0f,
+                                               FLSegmentArtSizeFull * 2.0f);
+      _tutorialState.cutouts.emplace_back(aboveSquareSceneRect, NO);
+      _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
+      [self FL_tutorialShowWithLabel:label annotation:nil firstPanWorld:YES panLocation:panSceneLocation animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropLongPress, FLTutorialResultExit);
+      return YES;
+    }
+    case 16: {
+      NSString *label = NSLocalizedString(@"Going that way, Flippy must somehow set output X to 0.",
+                                          @"Tutorial message.");
+      FLSegmentNode *segmentNode = _trackGrid->get(0, 1);
+      _tutorialState.cutouts.emplace_back(segmentNode, NO);
+      CGRect aboveSquareSceneRect = CGRectMake(-FLSegmentArtSizeFull,
+                                               -FLSegmentArtSizeFull,
+                                               FLSegmentArtSizeFull * 2.0f,
+                                               FLSegmentArtSizeFull * 2.0f);
+      _tutorialState.cutouts.emplace_back(aboveSquareSceneRect, NO);
+      _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
+      [self FL_tutorialShowWithLabel:label animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropLongPress, FLTutorialResultExit);
+      return YES;
+    }
+    case 17: {
+      NSString *label = NSLocalizedString(@"On the other hand, if input A is 0, then Flippy will go right.",
+                                          @"Tutorial message.");
+      FLSegmentNode *segmentNode = _trackGrid->get(0, 1);
+      [self FL_linkSwitchSetPathId:0 forSegment:segmentNode animated:YES];
+      CGPoint panSceneLocation = [self convertPoint:segmentNode.position fromNode:_worldNode];
+      panSceneLocation.x += FLTrackSegmentSize;
+      _tutorialState.cutouts.emplace_back(segmentNode, NO);
+      // note: Cut out the square to the right of the segmentNode.  We need the rect in scene coordinates; note that the world
+      // will be panned so that the "right square rect" is centered at scene (0,0).
+      CGRect rightSquareSceneRect = CGRectMake(-FLSegmentArtSizeFull,
+                                               -FLSegmentArtSizeFull,
+                                               FLSegmentArtSizeFull * 2.0f,
+                                               FLSegmentArtSizeFull * 2.0f);
+      _tutorialState.cutouts.emplace_back(rightSquareSceneRect, NO);
+      _tutorialState.labelPosition = FLTutorialLabelBelowCutouts;
+      [self FL_tutorialShowWithLabel:label annotation:nil firstPanWorld:YES panLocation:panSceneLocation animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropLongPress, FLTutorialResultExit);
+      return YES;
+    }
+    case 18: {
+      NSString *label = NSLocalizedString(@"In that case, Flippy must somehow set output X to 1.",
+                                          @"Tutorial message.");
+      FLSegmentNode *segmentNode = _trackGrid->get(0, 1);
+      _tutorialState.cutouts.emplace_back(segmentNode, NO);
+      CGRect rightSquareSceneRect = CGRectMake(-FLSegmentArtSizeFull,
+                                               -FLSegmentArtSizeFull,
+                                               FLSegmentArtSizeFull * 2.0f,
+                                               FLSegmentArtSizeFull * 2.0f);
+      _tutorialState.cutouts.emplace_back(rightSquareSceneRect, NO);
+      _tutorialState.labelPosition = FLTutorialLabelBelowCutouts;
+      [self FL_tutorialShowWithLabel:label animated:animated];
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropTap, FLTutorialResultContinue);
+      _tutorialState.conditions.emplace_back(FLTutorialActionBackdropLongPress, FLTutorialResultExit);
+      return YES;
+    }
+    case 19: {
       NSString *label = NSLocalizedString(@"Tap the goals button again when you want to check your solution.\n\nNow go forth, Flippy, and solve the level!",
                                           @"Tutorial message.");
       [self FL_tutorialShowWithLabel:label animated:animated];
@@ -6207,7 +6297,6 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
 
   if ((results & FLTutorialResultContinue) != 0) {
     dispatch_async(dispatch_get_main_queue(), ^{
-      NSLog(@"tutorial continue");
       ++(self->_tutorialState.step);
       [self FL_tutorialStepAnimated:YES];
     });

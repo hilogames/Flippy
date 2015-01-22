@@ -30,6 +30,19 @@ https://developer.apple.com/library/ios/documentation/IDEs/Conceptual/AppDistrib
 
 ## Future Tasks
 
+- Improve new-user game experience; in particular, it's confusing, and
+  unclear what needs to be done to solve the challenge levels.
+
+  - One tester pointed out that using switches for outputs is
+    confusing, because it seems like you should manually control a
+    switch.  So maybe create a variant of black/white which shows a
+    big pink/gray bubble, and no switch?  (They still can be switched
+    manually, of course, but they don't *show* a switch.)
+
+  - During tutorial and first level, it should be made clear that the
+    position of the train doesn't matter when the solution is checked,
+    because the solution-checker looks at all possible train routes.
+
 - Make it an actual game.  You know, for kids.  Ideas:
 
   - Guns.  A mortar segment which fires and can destroy track when
