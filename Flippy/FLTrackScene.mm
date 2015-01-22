@@ -145,7 +145,6 @@ typedef NS_ENUM(NSInteger, FLUnlockItem) {
   FLUnlockCircuitXor,
   FLUnlockCircuitHalfAdder,
   FLUnlockCircuitFullAdder,
-  FLUnlockTutorialCompleted,
 };
 
 typedef NS_ENUM(NSInteger, FLRecordItem) {
@@ -774,7 +773,7 @@ struct PointerPairHash
                                              object:nil];
 
   if (_gameType == FLGameTypeChallenge) {
-    if ([self FL_unlocked:FLUnlockTutorialCompleted] || ![self FL_tutorialStepAnimated:_gameIsNew]) {
+    if (![self FL_tutorialStepAnimated:_gameIsNew]) {
       [self FL_goalsShowWithSplash:YES];
     }
   }
@@ -5350,8 +5349,6 @@ writeArchiveWithPath:exportPath
         return _gameLevel >= 4;
       case FLUnlockCircuits:
         return NO;
-      case FLUnlockTutorialCompleted:
-        return FLUserUnlocksUnlocked(@"FLUserUnlockTutorialCompleted");
       default:
         [NSException raise:@"FLUnlockItemUnknown" format:@"Unknown unlock item %ld.", (long)item];
     }
@@ -5383,8 +5380,6 @@ writeArchiveWithPath:exportPath
         return FLUserUnlocksUnlocked(@"FLUserUnlockCircuitHalfAdder");
       case FLUnlockCircuitFullAdder:
         return FLUserUnlocksUnlocked(@"FLUserUnlockCircuitFullAdder");
-      case FLUnlockTutorialCompleted:
-        return FLUserUnlocksUnlocked(@"FLUserUnlockTutorialCompleted");
       default:
         [NSException raise:@"FLUnlockItemUnknown" format:@"Unknown unlock item %ld.", (long)item];
     }
@@ -5422,8 +5417,6 @@ writeArchiveWithPath:exportPath
   } else if ([unlockKey isEqualToString:@"FLUserUnlockCircuitFullAdder"]) {
     return NSLocalizedString(@"Full Adder Circuit",
                              @"Game information: displayed when the full adder circuit is unlocked by successfully completing a level.");
-  } else if ([unlockKey isEqualToString:@"FLUserUnlockTutorialCompleted"]) {
-    return nil;
   }
   [NSException raise:@"FLUnlockTextUnknownUnlockKey" format:@"Missing unlock text for unlock key '%@'.", unlockKey];
   return nil;
@@ -6155,10 +6148,6 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
       return YES;
     }
     case 8: {
-      // note: Unlock here, on not on next step, so that if the tutorial is reset it won't immediately get
-      // completed again.  (On reset, a tutorial should be shown on a new game, and not on this one,
-      // so don't set step to 0.)
-      FLUserUnlocksUnlock(@[ @"FLUserUnlockTutorialCompleted" ]);
       NSString *label = NSLocalizedString(@"That’s all for this tutorial. Have fun!",
                                           @"Tutorial message.");
       [self FL_tutorialShowWithLabel:label animated:animated];
@@ -6190,7 +6179,6 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
   // or desirable.
 
   if ((results & FLTutorialResultExit) != 0) {
-    FLUserUnlocksUnlock(@[ @"FLUserUnlockTutorialCompleted" ]);
     [self timerReset];
     dispatch_async(dispatch_get_main_queue(), ^{
       // note: Must advance step to the end of the tutorial, in case someone resets the
@@ -6219,6 +6207,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
 
   if ((results & FLTutorialResultContinue) != 0) {
     dispatch_async(dispatch_get_main_queue(), ^{
+      NSLog(@"tutorial continue");
       ++(self->_tutorialState.step);
       [self FL_tutorialStepAnimated:YES];
     });

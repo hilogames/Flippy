@@ -61,9 +61,8 @@ static NSString * const FLTitleMenuChallenge = NSLocalizedString(@"Play", @"Menu
 static NSString * const FLTitleMenuSandbox = NSLocalizedString(@"Sandbox", @"Menu item: start a new or load an old sandbox game.");
 static NSString * const FLTitleMenuSettings = NSLocalizedString(@"Settings", @"Menu item: modify game global settings.");
 static NSString * const FLTitleMenuAbout = NSLocalizedString(@"About", @"Menu item: show game production information.");
-static NSString * const FLTitleMenuResetApp = NSLocalizedString(@"Reset App", @"Menu item: reset application to original installed (unlocks, tutorials, saves, etc).");
+static NSString * const FLTitleMenuResetApp = NSLocalizedString(@"Reset App", @"Menu item: reset application to original installed (unlocks, saves, etc).");
 static NSString * const FLTitleMenuResetUnlocks = NSLocalizedString(@"Reset Unlocks", @"Menu item: reset unlocks, so new challenge games start at first level.");
-static NSString * const FLTitleMenuResetTutorial = NSLocalizedString(@"Reset Tutorial", @"Menu item: reset tutorial so that it will display on the next new game.");
 
 static NSString * const FLGameMenuResume = NSLocalizedString(@"Resume", @"Menu item: continue the current game.");
 static NSString * const FLGameMenuSave = NSLocalizedString(@"Save", @"Menu item: save the current game.");
@@ -110,7 +109,6 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   UIAlertView *_exitConfirmAlert;
   UIAlertView *_resetAppConfirmAlert;
   UIAlertView *_resetUnlocksConfirmAlert;
-  UIAlertView *_resetTutorialConfirmAlert;
 }
 
 + (void)initialize
@@ -512,8 +510,6 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
       [self FL_resetAppFromTitleMenuConfirm];
     } else if ([menuItem.text isEqualToString:FLTitleMenuResetUnlocks]) {
       [self FL_resetUnlocksFromTitleMenuConfirm];
-    } else if ([menuItem.text isEqualToString:FLTitleMenuResetTutorial]) {
-      [self FL_resetTutorialFromTitleMenuConfirm];
     }
 
     return;
@@ -662,11 +658,6 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
       [self FL_resetUnlocksFromTitleMenu];
     }
     _resetUnlocksConfirmAlert = nil;
-  } else if (alertView == _resetTutorialConfirmAlert) {
-    if (buttonIndex == 1) {
-      [self FL_resetTutorialFromTitleMenu];
-    }
-    _resetTutorialConfirmAlert = nil;
   }
 }
 
@@ -812,8 +803,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   // note: Create empty loading menus for now; update later with FL_commonMenuUpdateSaves.
   [menu addItem:[HLMenu menuWithText:FLTitleMenuChallenge items:@[] ]];
   [menu addItem:[HLMenu menuWithText:FLTitleMenuSandbox items:@[] ]];
-  [menu addItem:[HLMenu menuWithText:FLTitleMenuSettings items:@[ [HLMenuItem menuItemWithText:FLTitleMenuResetTutorial],
-                                                                  [HLMenuItem menuItemWithText:FLTitleMenuResetUnlocks],
+  [menu addItem:[HLMenu menuWithText:FLTitleMenuSettings items:@[ [HLMenuItem menuItemWithText:FLTitleMenuResetUnlocks],
                                                                   [HLMenuItem menuItemWithText:FLTitleMenuResetApp],
                                                                   [HLMenuBackItem menuItemWithText:FLCommonMenuBack] ] ]];
   [menu addItem:[HLMenuItem menuItemWithText:FLTitleMenuAbout]];
@@ -1613,9 +1603,9 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
 - (void)FL_resetAppFromTitleMenu
 {
   // note: Rather than "restoring the app to its newly-installed state", we could make
-  // a smaller claim: Reset tutorial, unlocks, and saved games.  In that case we could
-  // do all that stuff here.  But if it's a full factory reset we want, then that's the
-  // purview of the global application, not just this view controller.
+  // a smaller claim: Reset unlocks and saved games.  In that case we could do all that
+  // stuff here.  But if it's a full factory reset we want, then that's the purview of
+  // the global application, not just this view controller.
   [FLApplication applicationReset];
   [self FL_titleSceneShowMessage:NSLocalizedString(@"App reset.",
                                                    @"Menu message: displayed when the app has been reset.")];
@@ -1637,33 +1627,9 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
 - (void)FL_resetUnlocksFromTitleMenu
 {
   FLUserRecordsResetAll();
-  BOOL tutorialCompleted = FLUserUnlocksUnlocked(@"FLUserUnlockTutorialCompleted");
   FLUserUnlocksResetAll();
-  if (tutorialCompleted) {
-    FLUserUnlocksUnlock(@[ @"FLUserUnlockTutorialCompleted" ]);
-  }
   [self FL_titleSceneShowMessage:NSLocalizedString(@"Unlocks reset.",
                                                    @"Menu message: displayed when unlocks have been reset.")];
-}
-
-- (void)FL_resetTutorialFromTitleMenuConfirm
-{
-  UIAlertView *confirmAlert = [[UIAlertView alloc] initWithTitle:NSLocalizedString(@"The tutorial will start over on the next new game. Reset tutorial?",
-                                                                                   @"Alert prompt: confirmation of intention to reset tutorial.")
-                                                         message:nil
-                                                        delegate:self
-                                               cancelButtonTitle:NSLocalizedString(@"Cancel", @"Alert button: cancel reset.")
-                                               otherButtonTitles:FLTitleMenuResetTutorial, nil];
-  confirmAlert.alertViewStyle = UIAlertViewStyleDefault;
-  [confirmAlert show];
-  _resetTutorialConfirmAlert = confirmAlert;
-}
-
-- (void)FL_resetTutorialFromTitleMenu
-{
-  FLUserUnlocksReset(@"FLUserUnlockTutorialCompleted");
-  [self FL_titleSceneShowMessage:NSLocalizedString(@"Tutorial reset.",
-                                                   @"Menu message: displayed when the tutorial has been reset.")];
 }
 
 - (void)FL_nextLevel
