@@ -2,6 +2,7 @@
 ## Release Checklist
 
 - build
+  - unit test
   - analyze code
   - genstrings
   - archive
