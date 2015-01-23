@@ -71,7 +71,12 @@ FLUserRecordsInit()
   }
   NSDictionary *userRecordsLevels = [[NSUserDefaults standardUserDefaults] dictionaryForKey:@"FLUserRecordsLevels"];
   if (userRecordsLevels) {
-    _userRecordsLevels = [NSMutableDictionary dictionaryWithDictionary:userRecordsLevels];
+    // note: User records organized into dictionaries by level; each of those dictionaries needs
+    // to be mutable.
+    _userRecordsLevels = [NSMutableDictionary dictionary];
+    [userRecordsLevels enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop){
+      _userRecordsLevels[key] = [NSMutableDictionary dictionaryWithDictionary:obj];
+    }];
   } else {
     _userRecordsLevels = [NSMutableDictionary dictionary];
   }
@@ -93,7 +98,7 @@ FLUserRecordsLevelGet(NSString *recordKey, int gameLevel)
     FLUserRecordsInit();
   }
   NSString *levelKey = [NSString stringWithFormat:@"%d", gameLevel];
-  NSDictionary *userRecordsLevel = [_userRecordsLevels objectForKey:levelKey];
+  NSMutableDictionary *userRecordsLevel = _userRecordsLevels[levelKey];
   if (!userRecordsLevel) {
     return nil;
   }
@@ -117,15 +122,12 @@ FLUserRecordsLevelSet(NSString *recordKey, int gameLevel, id value)
     FLUserRecordsInit();
   }
   NSString *levelKey = [NSString stringWithFormat:@"%d", gameLevel];
-  NSDictionary *userRecordsLevel = [_userRecordsLevels objectForKey:levelKey];
-  if (!userRecordsLevel) {
+  NSMutableDictionary *userRecordsLevel = _userRecordsLevels[levelKey];
+  if (userRecordsLevel) {
+    userRecordsLevel[recordKey] = value;
+  } else {
     userRecordsLevel = [NSMutableDictionary dictionaryWithObject:value forKey:recordKey];
     _userRecordsLevels[levelKey] = userRecordsLevel;
-  } else {
-    if (![userRecordsLevel isKindOfClass:[NSMutableDictionary class]]) {
-      userRecordsLevel = [NSMutableDictionary dictionaryWithDictionary:userRecordsLevel];
-    }
-    [(NSMutableDictionary *)userRecordsLevel setObject:value forKey:recordKey];
   }
   [[NSUserDefaults standardUserDefaults] setObject:_userRecordsLevels forKey:@"FLUserRecordsLevels"];
 }
