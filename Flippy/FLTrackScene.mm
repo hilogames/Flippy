@@ -247,8 +247,9 @@ struct FLTrackMoveState
 
 struct FLTrackEditMenuState
 {
-  FLTrackEditMenuState() : editMenuNode(nil), showing(NO) {}
+  FLTrackEditMenuState() : editMenuNode(nil), showing(NO), deleteSingleTapNotYetDouble(NO) {}
   BOOL showing;
+  BOOL deleteSingleTapNotYetDouble;
   BOOL active() {
     return showing;
   }
@@ -1815,6 +1816,39 @@ struct PointerPairHash
     [self FL_labelPickForSegments:_trackSelectState.selectedSegments];
   } else if ([buttonTag isEqualToString:@"export"]) {
     [self FL_export];
+  } else if ([buttonTag isEqualToString:@"delete"]) {
+    [self FL_handleTrackEditMenuDeleteSingleTap];
+  }
+}
+
+- (void)FL_handleTrackEditMenuDeleteSingleTap
+{
+  // note: Apparently this is not exposed by UIGestureRecognizer.  I've read that 0.3 is a good rule of
+  // thumb; a longer delay is fine in this interface, so I'm not cutting it too close.
+  const NSTimeInterval FLDoubleTapBeyondMaximumInterval = 0.5;
+  _trackEditMenuState.deleteSingleTapNotYetDouble = YES;
+  [self performSelector:@selector(FL_handleTrackEditMenuDeleteCheckOnlySingleTap)
+             withObject:nil
+             afterDelay:FLDoubleTapBeyondMaximumInterval];
+}
+
+- (void)FL_handleTrackEditMenuDeleteDoubleTap
+{
+  _trackEditMenuState.deleteSingleTapNotYetDouble = NO;
+  if ([self FL_deleteSegments:_trackSelectState.selectedSegments pointers:_trackSelectState.selectedSegmentPointers] == 0) {
+    [self FL_messageShow:NSLocalizedString(@"Cannot delete special segments.",
+                                           @"Message to user: Shown when user tries to delete special track segments in challenge mode.")];
+  }
+}
+
+- (void)FL_handleTrackEditMenuDeleteCheckOnlySingleTap
+{
+  // note: Our current configuration of tap gesture recognizers (no simultaneous
+  // recognition, and no requirement for others to fail) means the single tap recognizer
+  // will not trigger on the second tap of a double-tap.  This makes things easy.
+  if (_trackEditMenuState.deleteSingleTapNotYetDouble) {
+    [self FL_messageShow:NSLocalizedString(@"Double-tap to delete selected track.",
+                                           @"Message to user: Shown as a hint when delete button is single-tapped rather than double-tapped.")];
   }
 }
 
@@ -1830,10 +1864,7 @@ struct PointerPairHash
   NSString *buttonTag = [_trackEditMenuState.editMenuNode toolAtLocation:toolbarLocation];
   
   if ([buttonTag isEqualToString:@"delete"]) {
-    if ([self FL_deleteSegments:_trackSelectState.selectedSegments pointers:_trackSelectState.selectedSegmentPointers] == 0) {
-      [self FL_messageShow:NSLocalizedString(@"Cannot delete special segments.",
-                                             @"Message to user: Shown when user tries to delete special track segments in challenge mode.")];
-    }
+    [self FL_handleTrackEditMenuDeleteDoubleTap];
   } else {
     // note: Our current configuration of tap gesture recognizers (no simultaneous
     // recognition, and no requirement for others to fail) means the single tap
@@ -1878,7 +1909,7 @@ struct PointerPairHash
 
   } else if ([buttonTag isEqualToString:@"delete"]) {
     [self FL_messageShow:NSLocalizedString(@"Double-tap to delete selected track.",
-                                           @"Message to user: Shown as a hint delete button is long-pressed rather than double-tapped.")];
+                                           @"Message to user: Shown as a hint when delete button is long-pressed rather than double-tapped.")];
   }
 }
 
