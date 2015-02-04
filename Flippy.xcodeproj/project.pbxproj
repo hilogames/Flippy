@@ -22,7 +22,6 @@
 		CB1D39E419F05A3900D829CB /* platform-start-left-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB1D39E019F05A3900D829CB /* platform-start-left-nonatlas.png */; };
 		CB1D39E519F05A3900D829CB /* platform-start-right-nonatlas.png in Resources */ = {isa = PBXBuildFile; fileRef = CB1D39E119F05A3900D829CB /* platform-start-right-nonatlas.png */; };
 		CB230D791A003E6A00F4CA44 /* unlock.png in Resources */ = {isa = PBXBuildFile; fileRef = CB230D781A003E6A00F4CA44 /* unlock.png */; };
-		CB2E91831A1552D700067053 /* DSMultilineLabelNode.m in Sources */ = {isa = PBXBuildFile; fileRef = CB2E91821A1552D700067053 /* DSMultilineLabelNode.m */; };
 		CB2ED87419D9AB8C0021CF86 /* grass.jpg in Resources */ = {isa = PBXBuildFile; fileRef = CB2ED87319D9AB8C0021CF86 /* grass.jpg */; };
 		CB485D88196ECE2B00E8646B /* ChallengeLevels.plist in Resources */ = {isa = PBXBuildFile; fileRef = CB485D87196ECE2B00E8646B /* ChallengeLevels.plist */; };
 		CB485D92196ED4D900E8646B /* FLConstants.m in Sources */ = {isa = PBXBuildFile; fileRef = CB485D91196ED4D900E8646B /* FLConstants.m */; };
@@ -77,6 +76,7 @@
 		CBD707C418AD0EE00041B170 /* FLTrain.mm in Sources */ = {isa = PBXBuildFile; fileRef = CBD707C318AD0EE00041B170 /* FLTrain.mm */; };
 		CBE687AB1A0BC5AB00072EB0 /* Help.plist in Resources */ = {isa = PBXBuildFile; fileRef = CBE687AA1A0BC5AB00072EB0 /* Help.plist */; };
 		CBEE13F018C4DBA400D1D42B /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CB0464A318AA6F7F00ABCA03 /* AVFoundation.framework */; };
+		CBF729A01A82AD8A00F3FFA3 /* DSMultilineLabelNode.m in Sources */ = {isa = PBXBuildFile; fileRef = CBF7299F1A82AD8A00F3FFA3 /* DSMultilineLabelNode.m */; };
 		CBFCCE611A1BDB6600A598E5 /* FLApplication.m in Sources */ = {isa = PBXBuildFile; fileRef = CBFCCE601A1BDB6600A598E5 /* FLApplication.m */; };
 /* End PBXBuildFile section */
 
@@ -110,8 +110,6 @@
 		CB1D39E119F05A3900D829CB /* platform-start-right-nonatlas.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "platform-start-right-nonatlas.png"; sourceTree = "<group>"; };
 		CB230D781A003E6A00F4CA44 /* unlock.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = unlock.png; sourceTree = "<group>"; };
 		CB2E3250198BF31000720EAA /* fnv.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fnv.h; sourceTree = "<group>"; };
-		CB2E91811A1552D700067053 /* DSMultilineLabelNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = DSMultilineLabelNode.h; path = ../../DSMultilineLabelNode/DSMultilineLabelNode.h; sourceTree = "<group>"; };
-		CB2E91821A1552D700067053 /* DSMultilineLabelNode.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = DSMultilineLabelNode.m; path = ../../DSMultilineLabelNode/DSMultilineLabelNode.m; sourceTree = "<group>"; };
 		CB2ED87319D9AB8C0021CF86 /* grass.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = grass.jpg; sourceTree = "<group>"; };
 		CB485D87196ECE2B00E8646B /* ChallengeLevels.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = ChallengeLevels.plist; sourceTree = "<group>"; };
 		CB485D90196ED4D900E8646B /* FLConstants.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLConstants.h; sourceTree = "<group>"; };
@@ -181,6 +179,8 @@
 		CBD707C218AD0EE00041B170 /* FLTrain.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTrain.h; sourceTree = "<group>"; };
 		CBD707C318AD0EE00041B170 /* FLTrain.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLTrain.mm; sourceTree = "<group>"; };
 		CBE687AA1A0BC5AB00072EB0 /* Help.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Help.plist; sourceTree = "<group>"; };
+		CBF7299E1A82AD8A00F3FFA3 /* DSMultilineLabelNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DSMultilineLabelNode.h; sourceTree = "<group>"; };
+		CBF7299F1A82AD8A00F3FFA3 /* DSMultilineLabelNode.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DSMultilineLabelNode.m; sourceTree = "<group>"; };
 		CBFCCE5F1A1BDB6600A598E5 /* FLApplication.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLApplication.h; sourceTree = "<group>"; };
 		CBFCCE601A1BDB6600A598E5 /* FLApplication.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FLApplication.m; sourceTree = "<group>"; };
 		D8D553652305AF6F8063F695 /* Pods-Flippy.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Flippy.debug.xcconfig"; path = "Pods/Target Support Files/Pods-Flippy/Pods-Flippy.debug.xcconfig"; sourceTree = "<group>"; };
@@ -355,8 +355,8 @@
 				CB960312196B878F00569870 /* Audio */,
 				CB0FBEF11A23944C0024CFBD /* DenseSectorTable.cpp */,
 				CB0FBEF21A23944C0024CFBD /* DenseSectorTable.h */,
-				CB2E91811A1552D700067053 /* DSMultilineLabelNode.h */,
-				CB2E91821A1552D700067053 /* DSMultilineLabelNode.m */,
+				CBF7299E1A82AD8A00F3FFA3 /* DSMultilineLabelNode.h */,
+				CBF7299F1A82AD8A00F3FFA3 /* DSMultilineLabelNode.m */,
 				CB960313196B87AE00569870 /* Emitters */,
 				CBB4B809183C00E1003C3444 /* FLAppDelegate.h */,
 				CBB4B80A183C00E1003C3444 /* FLAppDelegate.mm */,
@@ -606,9 +606,9 @@
 				CBD707C418AD0EE00041B170 /* FLTrain.mm in Sources */,
 				CB0DA5A618B7D8CE00E43D34 /* FLPath.mm in Sources */,
 				CB929EAE18B93AE200543F25 /* FLSegmentNode.mm in Sources */,
-				CB2E91831A1552D700067053 /* DSMultilineLabelNode.m in Sources */,
 				CB485D92196ED4D900E8646B /* FLConstants.m in Sources */,
 				CBB4B807183C00E1003C3444 /* main.m in Sources */,
+				CBF729A01A82AD8A00F3FFA3 /* DSMultilineLabelNode.m in Sources */,
 				CBB4B814183C00E1003C3444 /* FLViewController.mm in Sources */,
 				CB7B494C18D39E1C00FACEF4 /* FLLinks.mm in Sources */,
 				CBC28EC819F9580D00DA248E /* FLUser.m in Sources */,
