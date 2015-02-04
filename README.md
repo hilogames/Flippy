@@ -3,35 +3,32 @@
 Flippy the Train is a toy train simulation that can model logic
 circuits.
 
+For iPhone and iPad running iOS7 or higher.
+
+More information is supposedly available on
+[hilogames.com/flippy](http://hilogames.com/flippy/), but really it's
+the same information in a different form.
 
 ## Obtaining the Application
 
-Flippy the Train is available for download in the Apple App Store
-using the following link:
-
-  [insert app store link here]
-
+Get Flippy the Train on the Apple App Store using this
+[link](https://itunes.apple.com/us/genre/ios/id36?mt=8).
 
 ## Obtaining Source Code
 
-The source code for Flippy the Train is available under MIT License in
-the form of an Xcode project from GitHub (github.com):
+The source code for Flippy the Train is available under MIT License.
+Visit the project page at
+[github.com/hilogames/Flippy](https://github.com/hilogames/Flippy).
 
-  https://github.com/hilogames/Flippy
-
-The project uses Cocoapods (cocoapods.org) to manage its dependencies.
-Currently, all dependencies are committed to the main git repository,
-and so don't need to need to be downloaded or installed separately.
-If you do want to modify the dependencies, though, use `pod update` as
-normal.
+The project uses [Cocoapods](http://cocoapods.org) to manage its
+dependencies.  Currently, all dependencies are committed to the main
+git repository (and so don't need to need to be downloaded or
+installed separately).
 
 Of particular note is the standalone library called `HLSpriteKit`,
-which was developed alongside Flippy the Train.  For releases of
-Flippy the Train to github, though, it should be listed as a regular
-CocoaPods dependency.  The code for `HLSpriteKit` is here:
-
-  https://github.com/hilogames/HLSpriteKit
-
+which was developed alongside Flippy the Train.  The code for
+`HLSpriteKit` is also on GitHub at
+[github.com/hilogames/HLSpriteKit](https://github.com/hilogames/HLSpriteKit).
 
 ## Building
 
@@ -40,44 +37,39 @@ a deployment target of iOS 7.0 (with iOS 8.1 SDKs).
 
 It might build for other things, too.  But nobody knows.
 
-
 ## Documentation
 
-The file Documentation.md contains a pathetic amount of information.
-It's more insulting than useful.
+The file Documentation.md contains an insultingly-small amount of
+information.
 
-On the bright side, the author has a habit of leaving rambling,
-unintelligible comments in the code.
+`HLSpriteKit`, the library of reusable components used heavily in
+Flippy the Train, is documented by [CocoaDocs](http://cocoadocs.org) at
+[cocoadocs.org/docsets/HLSpriteKit](http://cocoadocs.org/docsets/HLSpriteKit).
 
-HLSpriteKit, the library of reusable components used heavily in Flippy
-the Train, is documented by CocoaDocs (cocoadocs.org) here:
+## Help, Discussion, and Feedback
 
-  http://cocoadocs.org/docsets/HLSpriteKit
+Bugs and features are tracked on the
+[GitHub project page](https://github.com/hilogames/Flippy).
 
-
-## Development, Features, and Bugs
+Users can discuss gameplay and user-facing issues on the
+[Hilo Games forum](http://hilogames.com/forum/).
 
 An informal list of ideas, features, and bugs sits quietly in the
-Development.md file included in the project.
+Development.md file included in the project.  This should fade into
+obsolescence over time.
 
-Other development information is tracked at the GitHub project:
-
-  https://github.com/hilogames/Flippy
-
+You can contact the author directly at (karl * hilogames dot com).
 
 ## Acknowledgements
 
-Grass texture (grass.jpg) from www.goodtextures.com:
+Grass texture (grass.jpg) from Goodtextures.com:
 
-  "One or more textures in this game have been created with images
-   from Goodtextures.com. These images may not be redistributed by
-   default. Please visit www.goodtextures.com for more information."
+> One or more textures in this game have been created with images
+> from Goodtextures.com. These images may not be redistributed by
+> default. Please visit www.goodtextures.com for more information.
 
-Multiline label node (DSMultilineLabelNode) from Downright Simple
-(github.com/downrightsimple).
-
-Everything else by Karl Voskuil / hilogames.com <karl@hilogames.com>.
-
+Multi-line label node `DSMultilineLabelNode` from
+[Downright Simple](https://github.com/downrightsimple).
 
 ## License
 

@@ -11,22 +11,26 @@
 
 ## Current Tasks
 
-- Provision for iPads, and test.
+- Submit app for review.
 
-- Submit app to store.
+- Upload Flippy to github.
 
-https://developer.apple.com/library/ios/documentation/IDEs/Conceptual/AppDistributionGuide/ConfiguringYourApp/ConfiguringYourApp.html#//apple_ref/doc/uid/TP40012582-CH28-SW4
+  - Add app store link to Flippy/README.md.
 
-- Put app store link in README.md.
+- Put website fully online.
 
-- Upload Flippy to github.  Can't have HLSpriteKit be a development
-  dependency anymore, though . . . or can you?  Also, probably need to
-  copy in my DSMultilineLabelNode files, since I don't think I can
-  make a pod out of that.
+  - Add app store links to index.html and flippy/index.html.
 
-- Add a forum to hilogames.com, with development and game topics.  If
-  so, add a link to the README.md.
+  - Add board for News/Releases, and announce the release of the first
+    version.  Thank the beta testers.
 
+## Known Bugs
+
+- Audio doesn't correctly restart on application interruption.  Er,
+  sometimes.  Would seem to be in SpriteKit domain.
+
+- Problems deactivating AVAudioSession on application backgrounding;
+  see notes in FLAppDelegate.h.  Would seem to be in SpriteKit domain.
 
 ## Future Tasks
 
