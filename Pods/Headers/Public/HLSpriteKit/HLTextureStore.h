@@ -1,1 +1,1 @@
-../../../../../common/HLSpriteKit/HLSpriteKit/HLTextureStore.h
+../../../HLSpriteKit/HLSpriteKit/HLTextureStore.h

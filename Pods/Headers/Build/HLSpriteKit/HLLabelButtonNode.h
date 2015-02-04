@@ -1,1 +1,1 @@
-../../../../../common/HLSpriteKit/HLSpriteKit/HLLabelButtonNode.h
+../../../HLSpriteKit/HLSpriteKit/HLLabelButtonNode.h

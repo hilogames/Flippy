@@ -1,1 +1,1 @@
-../../../../../common/HLSpriteKit/HLSpriteKit/HLError.h
+../../../HLSpriteKit/HLSpriteKit/HLError.h

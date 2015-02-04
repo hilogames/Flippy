@@ -1,1 +1,1 @@
-../../../../../common/HLSpriteKit/HLSpriteKit/HLGestureTarget.h
+../../../HLSpriteKit/HLSpriteKit/HLGestureTarget.h

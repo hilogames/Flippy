@@ -1,1 +1,1 @@
-../../../../../common/HLSpriteKit/HLSpriteKit/HLScrollNode.h
+../../../HLSpriteKit/HLSpriteKit/HLScrollNode.h

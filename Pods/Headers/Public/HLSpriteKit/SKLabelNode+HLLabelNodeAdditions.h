@@ -1,1 +1,1 @@
-../../../../../common/HLSpriteKit/HLSpriteKit/SKLabelNode+HLLabelNodeAdditions.h
+../../../HLSpriteKit/HLSpriteKit/SKLabelNode+HLLabelNodeAdditions.h

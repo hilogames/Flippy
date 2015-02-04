@@ -1,1 +1,1 @@
-../../../../../common/HLSpriteKit/HLSpriteKit/UIImage+HLImageAdditions.h
+../../../HLSpriteKit/HLSpriteKit/UIImage+HLImageAdditions.h

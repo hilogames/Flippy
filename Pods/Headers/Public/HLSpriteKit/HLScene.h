@@ -1,1 +1,1 @@
-../../../../../common/HLSpriteKit/HLSpriteKit/HLScene.h
+../../../HLSpriteKit/HLSpriteKit/HLScene.h
