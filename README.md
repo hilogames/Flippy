@@ -12,7 +12,7 @@ the same information in a different form.
 ## Obtaining the Application
 
 Get Flippy the Train on the Apple App Store using this
-[link](https://itunes.apple.com/us/genre/ios/id36?mt=8).
+[link](https://itunes.apple.com/us/app/flippy-the-train/id957889052?mt=8).
 
 ## Obtaining Source Code
 

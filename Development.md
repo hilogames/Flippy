@@ -1,29 +1,4 @@
 
-## Release Checklist
-
-- build
-  - unit test
-  - analyze code
-  - genstrings
-  - archive
-- deploy
-  - increment version and/or build string
-
-## Current Tasks
-
-- Submit app for review.
-
-- Upload Flippy to github.
-
-  - Add app store link to Flippy/README.md.
-
-- Put website fully online.
-
-  - Add app store links to index.html and flippy/index.html.
-
-  - Add board for News/Releases, and announce the release of the first
-    version.  Thank the beta testers.
-
 ## Known Bugs
 
 - Audio doesn't correctly restart on application interruption.  Er,
@@ -148,3 +123,12 @@
   messages for beginners (which would otherwise certainly be
   annoying), e.g. describing a sub-toolbar (segments, gates, circuits,
   exports, deletions) when navigating to it.
+
+## Release Checklist
+
+- unit test
+- analyze code
+- genstrings
+- increment version and/or build string
+- commit
+- archive
