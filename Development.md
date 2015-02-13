@@ -7,7 +7,14 @@
 - Problems deactivating AVAudioSession on application backgrounding;
   see notes in FLAppDelegate.h.  Would seem to be in SpriteKit domain.
 
-## Future Tasks
+## Small Tasks from User Feedback
+
+- Add visual feedback for first tap on delete button: red background
+  or something.
+
+- Leave linking mode on after tutorial in level 1?
+
+## Postponed Tasks
 
 - Improve new-user game experience; in particular, it's confusing, and
   unclear what needs to be done to solve the challenge levels.
@@ -43,6 +50,10 @@
 
   - Self-Programming.  Special construction or manipulations segments
     move or rotate or create other segments when activated.
+
+- From goals screen, tap on a results row to show the simulation run.
+  Inputs will be set accordingly, and Flippy will be put on the
+  starting platform and started.
 
 - Infinite grid.  Restrict minimum zoom, but have no world size.
   Display unused sectors in gray or something, to make it easier to
