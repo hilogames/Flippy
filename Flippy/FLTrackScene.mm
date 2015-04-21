@@ -5036,8 +5036,10 @@ writeArchiveWithPath:exportPath
     // would retain references to objects that might not be needed otherwise.  So,
     // an object method instead, with explicit state stored here in _labelState and
     // then cleared in the callback.
+    __weak FLTrackScene *selfWeak = self;
     _labelState.labelPicker.squareTappedBlock = ^(int squareIndex){
-      [self FL_labelPicked:squareIndex];
+      FLTrackScene *selfStrongAgain = selfWeak;
+      [selfStrongAgain FL_labelPicked:squareIndex];
     };
     // note: Could register and unregister for each pick, but it seems okay to just
     // leave the one picker registered the whole time.

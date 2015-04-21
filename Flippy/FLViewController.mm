@@ -1475,7 +1475,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   DSMultilineLabelNode *creditsLabel = [DSMultilineLabelNode labelNodeWithFontNamed:FLInterfaceFontName];
   creditsLabel.fontSize = 12.0f;
   creditsLabel.fontColor = FLInterfaceColorSunny();
-  creditsLabel.text = @"Grass texture from www.goodtextures.com."
+  creditsLabel.text = @"Grass texture from Goodtextures.com."
   "\nMulti-line label node (DSMultilineLabelNode) from Downright Simple (github.com/downrightsimple)."
   "\nEverything else Karl Voskuil / hilogames.com.";
   creditsLabel.paragraphWidth = edgeSizeMax - FLDSMultilineLabelParagraphWidthBugWorkaroundPad;

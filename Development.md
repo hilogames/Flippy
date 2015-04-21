@@ -14,6 +14,8 @@
 
 - Leave linking mode on after tutorial in level 1?
 
+- Link to review/rate from About screen.
+
 ## Postponed Tasks
 
 - Improve new-user game experience; in particular, it's confusing, and
