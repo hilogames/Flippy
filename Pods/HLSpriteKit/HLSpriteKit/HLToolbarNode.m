@@ -6,13 +6,10 @@
 //  Copyright (c) 2013 Hilo Games. All rights reserved.
 //
 
-// noob: See notes in notes/objective-c.txt.  I spent time thinking about how this
-// SKNode subclass should detect and respond to gestures from gesture recognizers.
-// The result is a bit awkward and tightly-coupled.
-
 #import "HLToolbarNode.h"
 
 #import "HLMath.h"
+#import "HLToolNode.h"
 
 typedef struct {
   BOOL enabled;
@@ -25,6 +22,9 @@ enum {
   HLToolbarNodeZPositionLayerTools,
   HLToolbarNodeZPositionLayerCount
 };
+
+static const NSTimeInterval HLToolbarResizeDuration = 0.15f;
+static const NSTimeInterval HLToolbarSlideDuration = 0.15f;
 
 @implementation HLToolbarNode
 {
@@ -46,6 +46,8 @@ enum {
     _disabledAlpha = 0.4f;
     _automaticWidth = NO;
     _automaticHeight = NO;
+    _automaticToolsScaleLimit = NO;
+    _anchorPoint = CGPointMake(0.5f, 0.5f);
     _justification = HLToolbarNodeJustificationCenter;
     _backgroundBorderSize = 4.0f;
     _squareSeparatorSize = 4.0f;
@@ -56,7 +58,7 @@ enum {
 
     // note: All animations happen within a cropped area, currently.
     _cropNode = [SKCropNode node];
-    _cropNode.maskNode = [SKSpriteNode spriteNodeWithColor:[UIColor colorWithWhite:1.0f alpha:1.0f] size:CGSizeZero];
+    _cropNode.maskNode = [SKSpriteNode spriteNodeWithColor:[SKColor colorWithWhite:1.0f alpha:1.0f] size:CGSizeZero];
     [self addChild:_cropNode];
 
     _squareState = NULL;
@@ -92,6 +94,74 @@ enum {
   return _toolbarNode.color;
 }
 
+- (void)setSquareColor:(UIColor *)squareColor
+{
+  _squareColor = squareColor;
+  int s = 0;
+  for (SKSpriteNode *squareNode in _squaresNode.children) {
+    if (!_squareState[s].highlight) {
+      SKNode *toolNode = (SKNode *)squareNode.children.firstObject;
+      if (!toolNode
+          || ![toolNode conformsToProtocol:@protocol(HLToolNode)]
+          || ![toolNode respondsToSelector:@selector(hlToolSetHighlight:)]) {
+        squareNode.color = _squareColor;
+      }
+    }
+    ++s;
+  }
+}
+
+- (void)setHighlightColor:(UIColor *)highlightColor
+{
+  _highlightColor = highlightColor;
+  int s = 0;
+  for (SKSpriteNode *squareNode in _squaresNode.children) {
+    if (_squareState[s].highlight) {
+      SKNode *toolNode = (SKNode *)squareNode.children.firstObject;
+      if (!toolNode
+          || ![toolNode conformsToProtocol:@protocol(HLToolNode)]
+          || ![toolNode respondsToSelector:@selector(hlToolSetHighlight:)]) {
+        squareNode.color = _highlightColor;
+      }
+    }
+    ++s;
+  }
+}
+
+- (void)setEnabledAlpha:(CGFloat)enabledAlpha
+{
+  _enabledAlpha = enabledAlpha;
+  int s = 0;
+  for (SKSpriteNode *squareNode in _squaresNode.children) {
+    if (_squareState[s].enabled) {
+      SKNode *toolNode = (SKNode *)squareNode.children.firstObject;
+      if (!toolNode
+          || ![toolNode conformsToProtocol:@protocol(HLToolNode)]
+          || ![toolNode respondsToSelector:@selector(hlToolSetEnabled:)]) {
+        squareNode.alpha = _enabledAlpha;
+      }
+    }
+    ++s;
+  }
+}
+
+- (void)setDisabledAlpha:(CGFloat)disabledAlpha
+{
+  _disabledAlpha = disabledAlpha;
+  int s = 0;
+  for (SKSpriteNode *squareNode in _squaresNode.children) {
+    if (!_squareState[s].enabled) {
+      SKNode *toolNode = (SKNode *)squareNode.children.firstObject;
+      if (!toolNode
+          || ![toolNode conformsToProtocol:@protocol(HLToolNode)]
+          || ![toolNode respondsToSelector:@selector(hlToolSetEnabled:)]) {
+        squareNode.alpha = _disabledAlpha;
+      }
+    }
+    ++s;
+  }
+}
+
 - (BOOL)containsPoint:(CGPoint)p
 {
   // note: A bug, I think, in SpriteKit and SKCropNode: When the toolbar is animated to change tools,
@@ -103,183 +173,46 @@ enum {
   // mostly impacting the HLGestureTarget stuff, in which case a possible solution would be to
   // have HLGestureTargets define their custom hit test methods (with default implementation of
   // containsPoint).  But if I'm really correcting a bug here, then this is bigger than just
-  // HLGestureTarget and should apply to all callers.  (Well, and all callers of calculateAccumualtedFrame,
+  // HLGestureTarget and should apply to all callers.  (Well, and all callers of calculateAccumulatedFrame,
   // too.)
   return [_toolbarNode containsPoint:[self convertPoint:p fromNode:self.parent]];
 }
 
-- (void)setSize:(CGSize)size
+- (void)setZPositionScale:(CGFloat)zPositionScale
 {
-  _toolbarNode.size = size;
-  [(SKSpriteNode *)_cropNode.maskNode setSize:size];
-}
-
-- (CGSize)size
-{
-  return _toolbarNode.size;
-}
-
-- (void)setAnchorPoint:(CGPoint)anchorPoint
-{
-  _toolbarNode.anchorPoint = anchorPoint;
-  [(SKSpriteNode *)_cropNode.maskNode setAnchorPoint:anchorPoint];
-}
-
-- (CGPoint)anchorPoint
-{
-  return _toolbarNode.anchorPoint;
+  [super setZPositionScale:zPositionScale];
+  [self HL_layoutZ];
 }
 
 - (void)setTools:(NSArray *)toolNodes tags:(NSArray *)toolTags animation:(HLToolbarNodeAnimation)animation
 {
-  const NSTimeInterval HLToolbarResizeDuration = 0.15f;
-  const NSTimeInterval HLToolbarSlideDuration = 0.15f;
-
   SKNode *squaresNode = [SKNode node];
 
-  // Find natural tool sizes.
   NSUInteger toolCount = [toolNodes count];
-  CGSize naturalToolsSize = CGSizeZero;
-  for (SKNode *toolNode in toolNodes) {
-    // note: The tool's frame.size only includes what is visible.  Instead, require that the
-    // tool implement a size method.  Assume that the reported size, however, does not yet
-    // account for rotation.
-    CGSize naturalToolSize = HLGetBoundsForTransformation([(id)toolNode size], toolNode.zRotation);
-    naturalToolsSize.width += naturalToolSize.width;
-    if (naturalToolSize.height > naturalToolsSize.height) {
-      naturalToolsSize.height = naturalToolSize.height;
-    }
-  }
-
-  // TODO: Some pretty ugly quantization of border sizes and/or tool locations when scaling sizes.
-  // I think it's only when the toolbar node itself is scaled (by the owner), but it might also
-  // result from any fractional pixel sizes when scaling internally.  Most obvious: As the toolbar
-  // increases in size by one full pixel, the extra row of pixels will appear to be allocated to
-  // either the top border, or the bottom border, or the tools; the border sizes will look off-by-one.
-  // So, clearly, if the owner is scaling us then our only solution would be to keep pad/border
-  // sizes constant regardless of scale.  Better, but perhaps mathy, would be to solve the tool scaling
-  // so that the pad/border sizes are always integer and symmetrical.  Or can we blame the resampling/aliasing
-  // of sprite nodes during scaling -- shouldn't the darker border appear to blend better with it children,
-  // even if it jumps from 2 pixels wide down to 1 pixel?  Okay, so then we're left with problems that
-  // might be our own fault -- perhaps it's because we're calculating fractional pixel widths for our
-  // components, and instead we should always calculate integer pixel widths.  (Also, that way we could
-  // choose where to remove a row of pixels, and/or only resize in increments so that all components
-  // lose a line of pixels at the same time.)  One note: The rotation code leaves size values with
-  // floating point error; maybe that's the problem.  I guess overall I can't decide if this is a simple
-  // problem or a complicated one; need to look further.
-  //
-  // TODO: There is also some ugly scaling going on for the segment tools because they are usually
-  // larger than the toolbar size, but their texture filtering mode is usually set to "nearest"
-  // (for intentionally-pixellated upscaling).  But that's different.  As a tangent, though, I seem
-  // to get strange behavior when I mess with this: For instance, if I copy the texture from the
-  // texture store and force it here to use linear filtering, then it looks nice in the toolbar...
-  // but then all my segment textures dragged into the track seem to take on the same filtering.
-  // And testing the value of texture.filteringMode gives unexpected results.
-
-  // Calculate tool scale.
-  //
-  // note: If caller would like to prevent tools from growing past their natural size,
-  // even when a large toolbar size is specified, we could add an option to limit
-  // finalToolsScale to 1.0f.
-  CGSize toolbarConstantSize = CGSizeMake(_squareSeparatorSize * (toolCount - 1) + _toolPad * (toolCount * 2) + _backgroundBorderSize * 2,
-                                          _toolPad * 2 + _backgroundBorderSize * 2);
-  CGFloat finalToolsScale;
-  CGSize finalToolbarSize;
-  BOOL shouldSetToolbarSize = NO;
-  if (_automaticWidth && _automaticHeight) {
-    finalToolsScale = 1.0f;
-    finalToolbarSize = CGSizeMake(naturalToolsSize.width + toolbarConstantSize.width,
-                                  naturalToolsSize.height + toolbarConstantSize.height);
-    shouldSetToolbarSize = YES;
-  } else if (_automaticWidth) {
-    finalToolsScale = (_toolbarNode.size.height - toolbarConstantSize.height) / naturalToolsSize.height;
-    finalToolbarSize = CGSizeMake(naturalToolsSize.width * finalToolsScale + toolbarConstantSize.width,
-                                  _toolbarNode.size.height);
-    shouldSetToolbarSize = YES;
-  } else if (_automaticHeight) {
-    finalToolsScale = (_toolbarNode.size.width - toolbarConstantSize.width) / naturalToolsSize.width;
-    finalToolbarSize = CGSizeMake(_toolbarNode.size.width,
-                                  naturalToolsSize.height * finalToolsScale + toolbarConstantSize.height);
-    shouldSetToolbarSize = YES;
-  } else {
-    finalToolsScale = MIN((_toolbarNode.size.width - toolbarConstantSize.width) / naturalToolsSize.width,
-                          (_toolbarNode.size.height - toolbarConstantSize.height) / naturalToolsSize.height);
-    finalToolbarSize = _toolbarNode.size;
-  }
-
-  // Set toolbar size.
-  if (shouldSetToolbarSize) {
-    if (animation == HLToolbarNodeAnimationNone) {
-      _toolbarNode.size = finalToolbarSize;
-      [(SKSpriteNode *)_cropNode.maskNode setSize:finalToolbarSize];
-    } else {
-      SKAction *resize = [SKAction resizeToWidth:finalToolbarSize.width height:finalToolbarSize.height duration:HLToolbarResizeDuration];
-      resize.timingMode = SKActionTimingEaseOut;
-      [_toolbarNode runAction:resize];
-      // noob: The cropNode mask must be resized along with the toolbar size.  Or am I missing something?
-      SKAction *resizeMaskNode = [SKAction customActionWithDuration:HLToolbarResizeDuration actionBlock:^(SKNode *node, CGFloat elapsedTime){
-        SKSpriteNode *maskNode = (SKSpriteNode *)node;
-        maskNode.size = self->_toolbarNode.size;
-      }];
-      resizeMaskNode.timingMode = resize.timingMode;
-      [_cropNode.maskNode runAction:resizeMaskNode];
-    }
-  }
-
-  // Calculate justification offset.
-  CGFloat justificationOffset = 0.0f;
-  if (_justification == HLToolbarNodeJustificationLeft) {
-    justificationOffset = 0.0f;
-  } else {
-    CGFloat remainingToolsWidth = finalToolbarSize.width - toolbarConstantSize.width - naturalToolsSize.width * finalToolsScale;
-    if (_justification == HLToolbarNodeJustificationCenter) {
-      justificationOffset = remainingToolsWidth / 2.0f;
-    } else {
-      justificationOffset = remainingToolsWidth;
-    }
-  }
-
-  // Set tools (scaled and positioned appropriately).
-  CGFloat x = _toolbarNode.anchorPoint.x * -finalToolbarSize.width + _backgroundBorderSize + justificationOffset;
-  CGFloat y = _toolbarNode.anchorPoint.y * -finalToolbarSize.height + finalToolbarSize.height / 2.0f;
-  CGFloat zPositionLayerIncrement = self.zPositionScale / HLToolbarNodeZPositionLayerCount;
   for (NSUInteger i = 0; i < toolCount; ++i) {
     SKNode *toolNode = toolNodes[i];
     NSString *toolTag = toolTags[i];
 
-    CGSize naturalToolSize = HLGetBoundsForTransformation([(id)toolNode size], toolNode.zRotation);
-    // note: Can multiply toolNode.scale by finalToolsScale, directly.  But that's messing
-    // with the properties of the nodes passed in to us.  Instead, set the scale of the
-    // square, which will then be inherited (multiplied) automatically.
-    CGSize finalToolSize = CGSizeMake(naturalToolSize.width * finalToolsScale,
-                                      naturalToolSize.height * finalToolsScale);
-    CGSize squareSize = CGSizeMake(finalToolSize.width + _toolPad * 2.0f,
-                                   finalToolSize.height + _toolPad * 2.0f);
-    SKSpriteNode *squareNode = [SKSpriteNode spriteNodeWithColor:_squareColor size:CGSizeMake(squareSize.width / finalToolsScale,
-                                                                                              squareSize.height / finalToolsScale)];
+    SKSpriteNode *squareNode = [SKSpriteNode spriteNodeWithColor:_squareColor size:CGSizeZero];
     squareNode.name = toolTag;
-    squareNode.xScale = finalToolsScale;
-    squareNode.yScale = finalToolsScale;
     squareNode.alpha = _enabledAlpha;
-    squareNode.zPosition = zPositionLayerIncrement;
-    squareNode.position = CGPointMake(x + finalToolSize.width / 2.0f + _toolPad, y);
     [squaresNode addChild:squareNode];
 
-    //toolNode.xScale *= finalToolsScale;
-    //toolNode.yScale *= finalToolsScale;
-    toolNode.zPosition = zPositionLayerIncrement;
     [squareNode addChild:toolNode];
-
-    x += finalToolSize.width + _toolPad * 2 + _squareSeparatorSize;
   }
 
   SKNode *oldSquaresNode = _squaresNode;
   _squaresNode = squaresNode;
-  // note: Allocate square state; note that it will be initalized as enabled and unhighlighted,
+  // note: Allocate square state; note that it will be initialized as enabled and unhighlighted,
   // as in code above.
   [self HL_freeSquareState];
   [self HL_allocateSquareState];
   [_cropNode addChild:squaresNode];
+
+  CGSize oldSize = _size;
+  [self HL_layoutXYAnimation:animation];
+  [self HL_layoutZ];
+  CGSize newSize = _size;
 
   if (animation == HLToolbarNodeAnimationNone) {
     if (oldSquaresNode) {
@@ -290,16 +223,16 @@ enum {
     CGPoint delta;
     switch (animation) {
       case HLToolbarNodeAnimationSlideUp:
-        delta = CGPointMake(0.0f, MAX(finalToolbarSize.height, _toolbarNode.size.height));
+        delta = CGPointMake(0.0f, MAX(oldSize.height, newSize.height));
         break;
       case HLToolbarNodeAnimationSlideDown:
-        delta = CGPointMake(0.0f, -1.0f * MAX(finalToolbarSize.height, _toolbarNode.size.height));
+        delta = CGPointMake(0.0f, -1.0f * MAX(oldSize.height, newSize.height));
         break;
       case HLToolbarNodeAnimationSlideLeft:
-        delta = CGPointMake(-1.0f * MAX(finalToolbarSize.width, _toolbarNode.size.width), 0.0f);
+        delta = CGPointMake(-1.0f * MAX(oldSize.width, newSize.width), 0.0f);
         break;
       case HLToolbarNodeAnimationSlideRight:
-        delta = CGPointMake(MAX(finalToolbarSize.width, _toolbarNode.size.width), 0.0f);
+        delta = CGPointMake(MAX(oldSize.width, newSize.width), 0.0f);
         break;
       default:
         [NSException raise:@"HLToolbarNodeUnhandledAnimation" format:@"Unhandled animation %ld.", (long)animation];
@@ -316,6 +249,11 @@ enum {
       // note: See containsPoint; after this animation the accumulated from of the crop node is unreliable.
     }
   }
+}
+
+- (void)layoutToolsAnimation:(HLToolbarNodeAnimation)animation
+{
+  [self HL_layoutXYAnimation:animation];
 }
 
 - (NSUInteger)toolCount
@@ -343,6 +281,18 @@ enum {
   return nil;
 }
 
+- (BOOL)highlightForTool:(NSString *)toolTag
+{
+  int s = 0;
+  for (SKSpriteNode *squareNode in _squaresNode.children) {
+    if ([squareNode.name isEqualToString:toolTag]) {
+      return _squareState[s].highlight;
+    }
+    ++s;
+  }
+  return YES;
+}
+
 - (void)setHighlight:(BOOL)highlight forTool:(NSString *)toolTag
 {
   int s = 0;
@@ -350,10 +300,17 @@ enum {
     if ([squareNode.name isEqualToString:toolTag]) {
       [squareNode removeActionForKey:@"setHighlight"];
       _squareState[s].highlight = highlight;
-      if (highlight) {
-        squareNode.color = _highlightColor;
+      SKNode *toolNode = (SKNode *)squareNode.children.firstObject;
+      if (toolNode
+          && [toolNode conformsToProtocol:@protocol(HLToolNode)]
+          && [toolNode respondsToSelector:@selector(hlToolSetHighlight:)]) {
+        [(id <HLToolNode>)toolNode hlToolSetHighlight:highlight];
       } else {
-        squareNode.color = _squareColor;
+        if (highlight) {
+          squareNode.color = _highlightColor;
+        } else {
+          squareNode.color = _squareColor;
+        }
       }
       break;
     }
@@ -369,10 +326,17 @@ enum {
       [squareNode removeActionForKey:@"setHighlight"];
       BOOL highlight = !_squareState[s].highlight;
       _squareState[s].highlight = highlight;
-      if (highlight) {
-        squareNode.color = _highlightColor;
+      SKNode *toolNode = (SKNode *)squareNode.children.firstObject;
+      if (toolNode
+          && [toolNode conformsToProtocol:@protocol(HLToolNode)]
+          && [toolNode respondsToSelector:@selector(hlToolSetHighlight:)]) {
+        [(id <HLToolNode>)toolNode hlToolSetHighlight:highlight];
       } else {
-        squareNode.color = _squareColor;
+        if (highlight) {
+          squareNode.color = _highlightColor;
+        } else {
+          squareNode.color = _squareColor;
+        }
       }
       break;
     }
@@ -397,15 +361,28 @@ enum {
     return;
   }
 
-  [squareNode removeActionForKey:@"setHighlight"];
-  
   BOOL startingHighlight = _squareState[s].highlight;
   _squareState[s].highlight = finalHighlight;
+  
+  [squareNode removeActionForKey:@"setHighlight"];
+  
+  SKAction *blinkIn;
+  SKAction *blinkOut;
+  SKNode *toolNode = (SKNode *)squareNode.children.firstObject;
+  if (toolNode
+      && [toolNode conformsToProtocol:@protocol(HLToolNode)]
+      && [toolNode respondsToSelector:@selector(hlToolSetHighlight:)]) {
+    blinkIn = [SKAction sequence:@[ [SKAction runBlock:^{ [(id <HLToolNode>)toolNode hlToolSetHighlight:!startingHighlight]; }],
+                                    [SKAction waitForDuration:halfCycleDuration] ]];
+    blinkOut = [SKAction sequence:@[ [SKAction runBlock:^{ [(id <HLToolNode>)toolNode hlToolSetHighlight:startingHighlight]; }],
+                                     [SKAction waitForDuration:halfCycleDuration] ]];
+  } else {
+    blinkIn = [SKAction colorizeWithColor:(startingHighlight ? _squareColor : _highlightColor) colorBlendFactor:1.0f duration:halfCycleDuration];
+    blinkIn.timingMode = (startingHighlight ? SKActionTimingEaseOut : SKActionTimingEaseIn);
+    blinkOut = [SKAction colorizeWithColor:(startingHighlight ? _highlightColor : _squareColor) colorBlendFactor:1.0f duration:halfCycleDuration];
+    blinkOut.timingMode = (startingHighlight ? SKActionTimingEaseIn : SKActionTimingEaseOut);
+  }
 
-  SKAction *blinkIn = [SKAction colorizeWithColor:(startingHighlight ? _squareColor : _highlightColor) colorBlendFactor:1.0f duration:halfCycleDuration];
-  blinkIn.timingMode = SKActionTimingEaseIn;
-  SKAction *blinkOut = [SKAction colorizeWithColor:(startingHighlight ? _highlightColor : _squareColor) colorBlendFactor:1.0f duration:halfCycleDuration];
-  blinkOut.timingMode = SKActionTimingEaseOut;
   NSMutableArray *blinkActions = [NSMutableArray array];
   for (int b = 0; b < blinkCount; ++b) {
     [blinkActions addObject:blinkIn];
@@ -418,23 +395,6 @@ enum {
   [squareNode runAction:[SKAction sequence:blinkActions] withKey:@"setHighlight"];
 }
 
-- (void)setEnabled:(BOOL)enabled forTool:(NSString *)toolTag
-{
-  int s = 0;
-  for (SKSpriteNode *squareNode in _squaresNode.children) {
-    if ([squareNode.name isEqualToString:toolTag]) {
-      _squareState[s].enabled = enabled;
-      if (enabled) {
-        squareNode.alpha = _enabledAlpha;
-      } else {
-        squareNode.alpha = _disabledAlpha;
-      }
-      break;
-    }
-    ++s;
-  }
-}
-
 - (BOOL)enabledForTool:(NSString *)toolTag
 {
   int s = 0;
@@ -445,6 +405,30 @@ enum {
     ++s;
   }
   return YES;
+}
+
+- (void)setEnabled:(BOOL)enabled forTool:(NSString *)toolTag
+{
+  int s = 0;
+  for (SKSpriteNode *squareNode in _squaresNode.children) {
+    if ([squareNode.name isEqualToString:toolTag]) {
+      _squareState[s].enabled = enabled;
+      SKNode *toolNode = (SKNode *)squareNode.children.firstObject;
+      if (toolNode
+          && [toolNode conformsToProtocol:@protocol(HLToolNode)]
+          && [toolNode respondsToSelector:@selector(hlToolSetEnabled:)]) {
+        [(id <HLToolNode>)toolNode hlToolSetEnabled:enabled];
+      } else {
+        if (enabled) {
+          squareNode.alpha = _enabledAlpha;
+        } else {
+          squareNode.alpha = _disabledAlpha;
+        }
+      }
+      break;
+    }
+    ++s;
+  }
 }
 
 - (void)showWithOrigin:(CGPoint)origin finalPosition:(CGPoint)finalPosition fullScale:(CGFloat)fullScale animated:(BOOL)animated
@@ -528,17 +512,22 @@ enum {
 
 - (void)handleTap:(UIGestureRecognizer *)gestureRecognizer
 {
-  if (!self.toolTappedBlock) {
-    return;
-  }
-  
   CGPoint viewLocation = [gestureRecognizer locationInView:self.scene.view];
   CGPoint sceneLocation = [self.scene convertPointFromView:viewLocation];
   CGPoint location = [self convertPoint:sceneLocation fromNode:self.scene];
-  
+
   NSString *toolTag = [self toolAtLocation:location];
-  if (toolTag) {
+  if (!toolTag) {
+    return;
+  }
+
+  if (self.toolTappedBlock) {
     self.toolTappedBlock(toolTag);
+  }
+
+  id <HLToolbarNodeDelegate> delegate = _delegate;
+  if (delegate) {
+    [delegate toolbarNode:self didTapTool:toolTag];
   }
 }
 
@@ -550,7 +539,7 @@ enum {
   int squareCount = (int)[_squaresNode.children count];
   _squareState = (HLToolbarNodeSquareState *)malloc(sizeof(HLToolbarNodeSquareState) * (size_t)squareCount);
   for (int s = 0; s < squareCount; ++s) {
-    _squareState[s].enabled = NO;
+    _squareState[s].enabled = YES;
     _squareState[s].highlight = NO;
   }
 }
@@ -558,6 +547,161 @@ enum {
 - (void)HL_freeSquareState
 {
   free(_squareState);
+}
+
+- (void)HL_layoutXYAnimation:(HLToolbarNodeAnimation)animation
+{
+  // Find natural tool sizes.
+  CGSize naturalToolsSize = CGSizeZero;
+  for (SKSpriteNode *squareNode in _squaresNode.children) {
+    // note: The tool's frame.size only includes what is visible.  Instead, require that the
+    // tool implement a size method.  Assume that the reported size, however, does not yet
+    // account for rotation.
+    SKNode *toolNode = squareNode.children.firstObject;
+    CGSize naturalToolSize = HLGetBoundsForTransformation([(id)toolNode size], toolNode.zRotation);
+    naturalToolsSize.width += naturalToolSize.width;
+    if (naturalToolSize.height > naturalToolsSize.height) {
+      naturalToolsSize.height = naturalToolSize.height;
+    }
+  }
+  
+  // TODO: Some pretty ugly quantization of border sizes and/or tool locations when scaling sizes.
+  // I think it's only when the toolbar node itself is scaled (by the owner), but it might also
+  // result from any fractional pixel sizes when scaling internally.  Most obvious: As the toolbar
+  // increases in size by one full pixel, the extra row of pixels will appear to be allocated to
+  // either the top border, or the bottom border, or the tools; the border sizes will look off-by-one.
+  // So, clearly, if the owner is scaling us then our only solution would be to keep pad/border
+  // sizes constant regardless of scale.  Better, but perhaps mathy, would be to solve the tool scaling
+  // so that the pad/border sizes are always integer and symmetrical.  Or can we blame the resampling/aliasing
+  // of sprite nodes during scaling -- shouldn't the darker border appear to blend better with it children,
+  // even if it jumps from 2 pixels wide down to 1 pixel?  Okay, so then we're left with problems that
+  // might be our own fault -- perhaps it's because we're calculating fractional pixel widths for our
+  // components, and instead we should always calculate integer pixel widths.  (Also, that way we could
+  // choose where to remove a row of pixels, and/or only resize in increments so that all components
+  // lose a line of pixels at the same time.)  One note: The rotation code leaves size values with
+  // floating point error; maybe that's the problem.  I guess overall I can't decide if this is a simple
+  // problem or a complicated one; need to look further.
+  //
+  // TODO: There is also some ugly scaling going on for the segment tools because they are usually
+  // larger than the toolbar size, but their texture filtering mode is usually set to "nearest"
+  // (for intentionally-pixellated upscaling).  But that's different.  As a tangent, though, I seem
+  // to get strange behavior when I mess with this: For instance, if I copy the texture from the
+  // texture store and force it here to use linear filtering, then it looks nice in the toolbar...
+  // but then all my segment textures dragged into the track seem to take on the same filtering.
+  // And testing the value of texture.filteringMode gives unexpected results.
+  
+  // Calculate tool scale.
+  int squareCount = (int)[_squaresNode.children count];
+  CGSize toolbarConstantSize = CGSizeMake(_squareSeparatorSize * (squareCount - 1) + _toolPad * (squareCount * 2) + _backgroundBorderSize * 2,
+                                          _toolPad * 2 + _backgroundBorderSize * 2);
+  CGFloat finalToolsScale;
+  CGSize finalToolbarSize;
+  if (_automaticWidth && _automaticHeight) {
+    finalToolsScale = 1.0f;
+    finalToolbarSize = CGSizeMake(naturalToolsSize.width + toolbarConstantSize.width,
+                                  naturalToolsSize.height + toolbarConstantSize.height);
+  } else if (_automaticWidth) {
+    finalToolsScale = (_size.height - toolbarConstantSize.height) / naturalToolsSize.height;
+    if (_automaticToolsScaleLimit && finalToolsScale > 1.0f) {
+      finalToolsScale = 1.0f;
+    }
+    finalToolbarSize = CGSizeMake(naturalToolsSize.width * finalToolsScale + toolbarConstantSize.width,
+                                  _size.height);
+  } else if (_automaticHeight) {
+    finalToolsScale = (_size.width - toolbarConstantSize.width) / naturalToolsSize.width;
+    if (_automaticToolsScaleLimit && finalToolsScale > 1.0f) {
+      finalToolsScale = 1.0f;
+    }
+    finalToolbarSize = CGSizeMake(_size.width,
+                                  naturalToolsSize.height * finalToolsScale + toolbarConstantSize.height);
+  } else {
+    finalToolsScale = MIN((_size.width - toolbarConstantSize.width) / naturalToolsSize.width,
+                          (_size.height - toolbarConstantSize.height) / naturalToolsSize.height);
+    if (_automaticToolsScaleLimit && finalToolsScale > 1.0f) {
+      finalToolsScale = 1.0f;
+    }
+    finalToolbarSize = _size;
+  }
+
+  // note: Size and anchorPoint may or may not have changed, but if this is the first layout, then _toolbarNode
+  // and _cropNode have not yet been initialized correctly.  (We could do it in the property mutator methods, but
+  // the documented promise is that "no changes take effect until an explicit call to layout"; moreover, since in
+  // those mutators the _squaresNode wouldn't be updated, the effected change might only be partial, and therefore
+  // ugly.)
+  
+  // Set toolbar size.
+  _size = finalToolbarSize;
+  if (animation == HLToolbarNodeAnimationNone) {
+    _toolbarNode.size = finalToolbarSize;
+    [(SKSpriteNode *)_cropNode.maskNode setSize:finalToolbarSize];
+  } else if (!CGSizeEqualToSize(_toolbarNode.size, finalToolbarSize)) {
+    SKAction *resize = [SKAction resizeToWidth:finalToolbarSize.width height:finalToolbarSize.height duration:HLToolbarResizeDuration];
+    resize.timingMode = SKActionTimingEaseOut;
+    [_toolbarNode runAction:resize];
+    // noob: The cropNode mask must be resized along with the toolbar size.  Or am I missing something?
+    SKAction *resizeMaskNode = [SKAction customActionWithDuration:HLToolbarResizeDuration actionBlock:^(SKNode *node, CGFloat elapsedTime){
+      SKSpriteNode *maskNode = (SKSpriteNode *)node;
+      maskNode.size = self->_toolbarNode.size;
+    }];
+    resizeMaskNode.timingMode = resize.timingMode;
+    [_cropNode.maskNode runAction:resizeMaskNode];
+  }
+
+  // Set toolbar anchorPoint.
+  _toolbarNode.anchorPoint = _anchorPoint;
+  [(SKSpriteNode *)_cropNode.maskNode setAnchorPoint:_anchorPoint];
+  
+  // Calculate justification offset.
+  CGFloat justificationOffset = 0.0f;
+  if (_justification == HLToolbarNodeJustificationLeft) {
+    justificationOffset = 0.0f;
+  } else {
+    CGFloat remainingToolsWidth = finalToolbarSize.width - toolbarConstantSize.width - naturalToolsSize.width * finalToolsScale;
+    if (_justification == HLToolbarNodeJustificationCenter) {
+      justificationOffset = remainingToolsWidth / 2.0f;
+    } else {
+      justificationOffset = remainingToolsWidth;
+    }
+  }
+  
+  // Layout tools (scaled and positioned appropriately).
+  CGFloat x = _anchorPoint.x * -finalToolbarSize.width + _backgroundBorderSize + justificationOffset;
+  CGFloat y = _anchorPoint.y * -finalToolbarSize.height + finalToolbarSize.height / 2.0f;
+  for (SKSpriteNode *squareNode in _squaresNode.children) {
+    SKNode *toolNode = squareNode.children.firstObject;
+    
+    CGSize naturalToolSize = HLGetBoundsForTransformation([(id)toolNode size], toolNode.zRotation);
+    // note: Can multiply toolNode.scale by finalToolsScale, directly.  But that's messing
+    // with the properties of the nodes passed in to us.  Instead, set the scale of the
+    // square, which will then be inherited (multiplied) automatically.
+    CGSize finalToolSize = CGSizeMake(naturalToolSize.width * finalToolsScale,
+                                      naturalToolSize.height * finalToolsScale);
+    CGSize squareSize = CGSizeMake(finalToolSize.width + _toolPad * 2.0f,
+                                   finalToolSize.height + _toolPad * 2.0f);
+    squareNode.size = CGSizeMake(squareSize.width / finalToolsScale,
+                                 squareSize.height / finalToolsScale);
+    squareNode.xScale = finalToolsScale;
+    squareNode.yScale = finalToolsScale;
+    squareNode.position = CGPointMake(x + finalToolSize.width / 2.0f + _toolPad, y);
+    
+    x += finalToolSize.width + _toolPad * 2 + _squareSeparatorSize;
+  }
+}
+
+- (void)HL_layoutZ
+{
+  CGFloat zPositionLayerIncrement = self.zPositionScale / HLToolbarNodeZPositionLayerCount;
+  for (SKSpriteNode *squareNode in _squaresNode.children) {
+    squareNode.zPosition = zPositionLayerIncrement;
+    NSArray *squareNodeChildren = squareNode.children;
+    SKNode *toolNode = (SKNode *)(squareNodeChildren.firstObject);
+    if (toolNode) {
+      toolNode.zPosition = zPositionLayerIncrement;
+      if ([toolNode isKindOfClass:[HLComponentNode class]]) {
+        ((HLComponentNode *)toolNode).zPositionScale = zPositionLayerIncrement;
+      }
+    }
+  }
 }
 
 @end

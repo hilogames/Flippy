@@ -31,6 +31,7 @@ enum {
   self = [super init];
   if (self) {
     _backgroundNode = [SKSpriteNode spriteNodeWithColor:color size:size];
+    _backgroundNode.zPosition = HLLabelButtonNodeZPositionLayerBackground * self.zPositionScale / HLLabelButtonNodeZPositionLayerCount;
     [self addChild:_backgroundNode];
     [self HL_labelButtonNodeInitCommon];
   }
@@ -42,6 +43,7 @@ enum {
   self = [super init];
   if (self) {
     _backgroundNode = [SKSpriteNode spriteNodeWithTexture:texture];
+    _backgroundNode.zPosition = HLLabelButtonNodeZPositionLayerBackground * self.zPositionScale / HLLabelButtonNodeZPositionLayerCount;
     [self addChild:_backgroundNode];
     [self HL_labelButtonNodeInitCommon];
   }
@@ -53,6 +55,7 @@ enum {
   self = [super init];
   if (self) {
     _backgroundNode = [SKSpriteNode spriteNodeWithImageNamed:name];
+    _backgroundNode.zPosition = HLLabelButtonNodeZPositionLayerBackground * self.zPositionScale / HLLabelButtonNodeZPositionLayerCount;
     [self addChild:_backgroundNode];
     [self HL_labelButtonNodeInitCommon];
   }
@@ -67,7 +70,7 @@ enum {
   _labelPadX = 0.0f;
   _labelPadY = 0.0f;
   _labelNode = [SKLabelNode labelNodeWithFontNamed:@"Helvetica"];
-  _labelNode.zPosition = self.zPositionScale / HLLabelButtonNodeZPositionLayerCount * HLLabelButtonNodeZPositionLayerLabel;
+  _labelNode.zPosition = HLLabelButtonNodeZPositionLayerLabel * self.zPositionScale / HLLabelButtonNodeZPositionLayerCount;
   [self addChild:_labelNode];
   [self HL_layout];
 }
@@ -179,6 +182,14 @@ enum {
   return _backgroundNode.anchorPoint;
 }
 
+- (void)setZPositionScale:(CGFloat)zPositionScale
+{
+  [super setZPositionScale:zPositionScale];
+  CGFloat zPositionLayerIncrement = zPositionScale / HLLabelButtonNodeZPositionLayerCount;
+  _backgroundNode.zPosition = HLLabelButtonNodeZPositionLayerBackground * zPositionLayerIncrement;
+  _labelNode.zPosition = HLLabelButtonNodeZPositionLayerLabel * zPositionLayerIncrement;
+}
+
 - (void)setAutomaticWidth:(BOOL)automaticWidth
 {
   _automaticWidth = automaticWidth;
@@ -284,25 +295,23 @@ enum {
   }
 
   SKLabelVerticalAlignmentMode skVerticalAlignmentMode;
-  CGFloat alignedYPosition;
+  CGFloat alignedYOffset;
   if (_automaticHeight) {
     CGFloat effectiveLabelHeight;
-    [_labelNode getAlignmentInNode:self
-        forHLVerticalAlignmentMode:_verticalAlignmentMode
-           skVerticalAlignmentMode:&skVerticalAlignmentMode
-                       labelHeight:&effectiveLabelHeight
-                         yPosition:&alignedYPosition];
+    [_labelNode getAlignmentForHLVerticalAlignmentMode:_verticalAlignmentMode
+                               skVerticalAlignmentMode:&skVerticalAlignmentMode
+                                           labelHeight:&effectiveLabelHeight
+                                             yOffset:&alignedYOffset];
     newSize.height = effectiveLabelHeight + _labelPadY * 2.0f;
   } else {
-    [_labelNode getAlignmentInNode:self
-        forHLVerticalAlignmentMode:_verticalAlignmentMode
-           skVerticalAlignmentMode:&skVerticalAlignmentMode
-                       labelHeight:nil
-                         yPosition:&alignedYPosition];
+    [_labelNode getAlignmentForHLVerticalAlignmentMode:_verticalAlignmentMode
+                               skVerticalAlignmentMode:&skVerticalAlignmentMode
+                                           labelHeight:nil
+                                             yOffset:&alignedYOffset];
   }
   _labelNode.verticalAlignmentMode = skVerticalAlignmentMode;
   _labelNode.position = CGPointMake((0.5f - _backgroundNode.anchorPoint.x) * newSize.width,
-                                    (0.5f - _backgroundNode.anchorPoint.y) * newSize.height + alignedYPosition);
+                                    (0.5f - _backgroundNode.anchorPoint.y) * newSize.height + alignedYOffset);
 
   if (_automaticWidth || _automaticHeight) {
     if (_backgroundNode.texture) {

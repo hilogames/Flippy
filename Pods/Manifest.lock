@@ -1,10 +1,10 @@
 PODS:
-  - HLSpriteKit (0.9.6)
+  - HLSpriteKit (0.9.7)
 
 DEPENDENCIES:
   - HLSpriteKit
 
 SPEC CHECKSUMS:
-  HLSpriteKit: e7ae4b12ca787621d7acb7365af41e54309fa53f
+  HLSpriteKit: 96b464e2dfc3cc0358fd065893fefe94e3662ebc
 
 COCOAPODS: 0.34.4

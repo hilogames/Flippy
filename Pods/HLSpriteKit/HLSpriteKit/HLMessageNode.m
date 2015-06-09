@@ -22,7 +22,7 @@ enum {
 
 - (instancetype)init
 {
-  return [self initWithColor:[SKColor whiteColor] size:CGSizeMake(320.0f, 40.0f)];
+  return [self initWithColor:[SKColor blackColor] size:CGSizeMake(320.0f, 40.0f)];
 }
 
 - (instancetype)initWithColor:(SKColor *)color size:(CGSize)size
@@ -67,16 +67,20 @@ enum {
 
 - (void)HL_messageNodeInitCommon:(SKSpriteNode *)backgroundNode
 {
+  CGFloat zPositionLayerIncrement = self.zPositionScale / HLMessageNodeZPositionLayerCount;
+
   _backgroundNode = backgroundNode;
+  _backgroundNode.zPosition = HLMessageNodeZPositionLayerBackground * zPositionLayerIncrement;
   [self addChild:_backgroundNode];
 
   _verticalAlignmentMode = HLLabelNodeVerticalAlignFont;
 
+  _messageAnimation = HLMessageNodeAnimationSlideLeft;
   _messageAnimationDuration = 0.1;
   _messageLingerDuration = 2.0;
 
   _labelNode = [SKLabelNode labelNodeWithFontNamed:@"Courier"];
-  _labelNode.zPosition = self.zPositionScale / HLMessageNodeZPositionLayerCount;
+  _labelNode.zPosition = (HLMessageNodeZPositionLayerLabel - HLMessageNodeZPositionLayerBackground) * zPositionLayerIncrement;
   _labelNode.fontSize = 14.0f;
   _labelNode.fontColor = [UIColor whiteColor];
   [_backgroundNode addChild:_labelNode];
@@ -119,6 +123,26 @@ enum {
 - (void)setSize:(CGSize)size
 {
   _backgroundNode.size = size;
+  [self HL_layoutLabelNode];
+}
+
+- (CGPoint)anchorPoint
+{
+  return _backgroundNode.anchorPoint;
+}
+
+- (void)setAnchorPoint:(CGPoint)anchorPoint
+{
+  _backgroundNode.anchorPoint = anchorPoint;
+  [self HL_layoutLabelNode];
+}
+
+- (void)setZPositionScale:(CGFloat)zPositionScale
+{
+  [super setZPositionScale:zPositionScale];
+  CGFloat zPositionLayerIncrement = zPositionScale / HLMessageNodeZPositionLayerCount;
+  _backgroundNode.zPosition = HLMessageNodeZPositionLayerBackground * zPositionLayerIncrement;
+  _labelNode.zPosition = HLMessageNodeZPositionLayerLabel * zPositionLayerIncrement;
 }
 
 - (void)setVerticalAlignmentMode:(HLLabelNodeVerticalAlignmentMode)verticalAlignmentMode
@@ -161,31 +185,65 @@ enum {
 
 - (void)showMessage:(NSString *)message parent:(SKNode *)parent
 {
-  _labelNode.text = message;
-
-  if (!self.parent || self.parent != parent) {
+  BOOL newlyAdded;
+  if (!self.parent) {
     [parent addChild:self];
-    _backgroundNode.position = CGPointMake(_backgroundNode.size.width, 0.0f);
-    SKAction *slideIn = [SKAction moveToX:0.0f duration:_messageAnimationDuration];
-    SKAction *wait = [SKAction waitForDuration:_messageLingerDuration];
-    SKAction *slideOut = [SKAction moveToX:-_backgroundNode.size.width duration:_messageAnimationDuration];
-    SKAction *remove = [SKAction runBlock:^{
-      [self removeFromParent];
-    }];
-    SKAction *show = [SKAction sequence:@[slideIn, wait, slideOut, remove ]];
-    [_backgroundNode runAction:show withKey:@"show"];
+    newlyAdded = YES;
+  } else if (self.parent != parent) {
+    [self removeFromParent];
+    [parent addChild:self];
+    newlyAdded = YES;
   } else {
-    // note: Remove animation and reset position to home (in case the animation was in the middle of running).
+    newlyAdded = NO;
+  }
+
+  _labelNode.text = message;
+  
+  // note: Reset state for ALL possible animation types; the _messageAnimation
+  // type could have changed since it was last animated.  If this gets too crazy,
+  // though, then another solution can be found.
+  if (!newlyAdded) {
     [_backgroundNode removeActionForKey:@"show"];
     _backgroundNode.position = CGPointZero;
-    SKAction *wait = [SKAction waitForDuration:_messageLingerDuration];
-    SKAction *slideOut = [SKAction moveToX:-_backgroundNode.size.width duration:_messageAnimationDuration];
-    SKAction *remove = [SKAction runBlock:^{
-      [self removeFromParent];
-    }];
-    SKAction *show = [SKAction sequence:@[ wait, slideOut, remove ]];
-    [_backgroundNode runAction:show withKey:@"show"];
+    _backgroundNode.alpha = 1.0f;
   }
+
+  NSMutableArray *showActions = [NSMutableArray array];
+  switch (_messageAnimation) {
+    case HLMessageNodeAnimationSlideLeft: {
+      if (newlyAdded) {
+        _backgroundNode.position = CGPointMake(_backgroundNode.size.width, 0.0f);
+        [showActions addObject:[SKAction moveToX:0.0f duration:_messageAnimationDuration]];
+      }
+      [showActions addObject:[SKAction waitForDuration:_messageLingerDuration]];
+      [showActions addObject:[SKAction moveToX:-_backgroundNode.size.width duration:_messageAnimationDuration]];
+      break;
+    }
+    case HLMessageNodeAnimationSlideRight: {
+      if (newlyAdded) {
+        _backgroundNode.position = CGPointMake(-_backgroundNode.size.width, 0.0f);
+        [showActions addObject:[SKAction moveToX:0.0f duration:_messageAnimationDuration]];
+      }
+      [showActions addObject:[SKAction waitForDuration:_messageLingerDuration]];
+      [showActions addObject:[SKAction moveToX:_backgroundNode.size.width duration:_messageAnimationDuration]];
+      break;
+    }
+    case HLMessageNodeAnimationFade: {
+      if (newlyAdded) {
+        _backgroundNode.alpha = 0.0f;
+        [showActions addObject:[SKAction fadeInWithDuration:_messageAnimationDuration]];
+      }
+      [showActions addObject:[SKAction waitForDuration:_messageLingerDuration]];
+      [showActions addObject:[SKAction fadeOutWithDuration:_messageAnimationDuration]];
+      break;
+    }
+  }
+  // note: As of iOS8, doing the remove using an [SKAction removeFromParent] causes EXC_BAD_ACCESS.
+  [showActions addObject:[SKAction runBlock:^{
+    [self removeFromParent];
+  }]];
+  [_backgroundNode runAction:[SKAction sequence:showActions] withKey:@"show"];
+
   if (_messageSoundFile) {
     [_backgroundNode runAction:[SKAction playSoundFileNamed:_messageSoundFile waitForCompletion:NO]];
   }
@@ -201,16 +259,9 @@ enum {
 
 - (void)HL_layoutLabelNode
 {
-  SKLabelVerticalAlignmentMode skVerticalAlignmentMode;
-  CGFloat alignedYPosition;
-  [_labelNode getAlignmentInNode:_backgroundNode
-      forHLVerticalAlignmentMode:_verticalAlignmentMode
-         skVerticalAlignmentMode:&skVerticalAlignmentMode
-                     labelHeight:nil
-                       yPosition:&alignedYPosition];
-
-  _labelNode.verticalAlignmentMode = skVerticalAlignmentMode;
-  _labelNode.position = CGPointMake(0.0f, alignedYPosition);
+  _labelNode.position = CGPointMake((0.5f - _backgroundNode.anchorPoint.x) * _backgroundNode.size.width,
+                                    (0.5f - _backgroundNode.anchorPoint.y) * _backgroundNode.size.height);
+  [_labelNode alignForHLVerticalAlignmentMode:_verticalAlignmentMode];
 }
 
 @end

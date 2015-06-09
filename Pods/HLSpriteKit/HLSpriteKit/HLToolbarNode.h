@@ -11,6 +11,8 @@
 #import "HLComponentNode.h"
 #import "HLGestureTarget.h"
 
+@protocol HLToolbarNodeDelegate;
+
 /**
  Justification for toolbar tools.
 */
@@ -22,7 +24,7 @@ typedef NS_ENUM(NSInteger, HLToolbarNodeJustification) {
 
 /**
  Animation used for setting toolbar tools.
- */
+*/
 typedef NS_ENUM(NSInteger, HLToolbarNodeAnimation) {
   HLToolbarNodeAnimationNone,
   HLToolbarNodeAnimationSlideUp,
@@ -41,12 +43,13 @@ typedef NS_ENUM(NSInteger, HLToolbarNodeAnimation) {
  ## Common Gesture Handling Configurations
 
  - Set this node as its own gesture target (using `[SKNode+HLGestureTarget
-   hlSetGestureTarget]`) to get a simple callback for taps via the `toolTappedBlock`
-   property.
- 
+   hlSetGestureTarget]`) to get a simple delegation and/or callback for taps.  See
+   `HLToolbarNodeDelegate` for delegation and the `toolTappedBlock` property for setting a
+   callback block.
+
  - Set a custom gesture target to recognize and respond to other gestures.  (Convert touch
    locations to this node's coordinate system and call `toolAtLocation` as desired.)
- 
+
  - Leave the gesture target unset for no gesture handling.
 */
 @interface HLToolbarNode : HLComponentNode <NSCoding, HLGestureTarget>
@@ -61,11 +64,23 @@ typedef NS_ENUM(NSInteger, HLToolbarNodeAnimation) {
 /// @name Managing Interaction
 
 /**
- A callback invoked when a tool is tapped.
- 
- The callback parameter is passed as the tag of the tapped tool.
- 
- note: For now, use callbacks rather than delegation.
+ The delegate invoked on interaction (when this node is its own gesture handler).
+
+ Unless this toolbar node is its own gesture handler, this delegate will not be called.
+ See "Common Gesture Handling Configurations".
+*/
+@property (nonatomic, weak) id <HLToolbarNodeDelegate> delegate;
+
+/**
+ A callback invoked when a tool is tapped (when this node is its own gesture handler).
+
+ The tag of the tapped tool is passed as an argument to the callback.
+
+ Unless this toolbar node is its own gesture handler, this callback will not be invoked.
+ See "Common Gesture Handling Configurations".
+
+ Beware retain cycles when using the callback to invoke a method in the owner.  As a safer
+ alternative, use the toolbar node's delegation interface; see `setDelegate:`.
  */
 @property (nonatomic, copy) void (^toolTappedBlock)(NSString *toolTag);
 
@@ -76,6 +91,10 @@ typedef NS_ENUM(NSInteger, HLToolbarNodeAnimation) {
 
  The square node that holds each tool has `anchorPoint` `(0.5, 0.5)`.
 
+ Any `SKNode` descendant may be used as a tool, but any tools which conform to `HLToolNode`
+ can customize their behavior and/or appearance for certain toolbar functions (for example,
+ setting enabled or highlight); see `HLToolNode` for details.
+
  Each tool node is expected to have a size selector which reports its desired size.  (The
  size is expected to behave like `[SKSpriteNode size]` property, where the `SKNode`
  `xScale` and `yScale` are already reflected in the reported size, but the `SKNode`
@@ -84,18 +103,24 @@ typedef NS_ENUM(NSInteger, HLToolbarNodeAnimation) {
 
  - If `automaticWidth` and `automaticHeight` are both `YES`, the toolbar will set its
    height to the maximum tool node height (plus relevant pads and borders) and its width
-   to the sum of the tool node widths (plus relevant pads and borders).
+   to the sum of the tool node widths (plus relevant pads and borders).  (The tools won't
+   be scaled; that is, they will remain their natural size.)
 
  - If only `automaticWidth` is `YES`, and toolbar height is fixed, the toolbar will scale
    the tool nodes so that the tallest tool node will fit the toolbar height (plus relevant
-   pads and borders), and the others will be scaled proportionally.
+   pads and borders), and the others will be scaled proportionally.  If
+   `automaticToolsScaleLimit` is `YES`, then the scaling of the tools will not exceed their
+   natural size.
 
  - If only `automaticHeight` is `YES`, and toolbar width is fixed, the toolbar will scale
    the tool nodes proportionally to each other so that the sum of tool node widths will
-   fit the toolbar width (plus relevant pads and borders).
+   fit the toolbar width (plus relevant pads and borders).  If `automaticToolsScaleLimit`
+   is `YES`, then the scaling of the tools will not exceed their natural size.
 
  - Otherwise, with both toolbar width and height fixed, the toolbar will scale the tools
-   proportionally so they fit into both the fixed width and fixed height.
+   proportionally so they fit into both the fixed width and fixed height.  If
+   `automaticToolsScaleLimit` is `YES`, then the scaling of the tools will not exceed their
+   natural size.
 
  @param tools The array of `SKNode`s to be set as tools.
 
@@ -135,7 +160,6 @@ typedef NS_ENUM(NSInteger, HLToolbarNodeAnimation) {
 /**
  Main toolbar color, showing as background behind tool squares.
 
- Changes will not take effect until the next call to `setTools:tags:animation:`.
  Default is `[SKColor colorWithWhite:0.0 alpha:0.5]`.
 */
 @property (nonatomic, strong) SKColor *backgroundColor;
@@ -143,7 +167,6 @@ typedef NS_ENUM(NSInteger, HLToolbarNodeAnimation) {
 /**
  Tool square color, showing behind each tool node set.
 
- Changes will not take effect until the next call to `setTools:tags:animation:`.
  Default is `[SKColor colorWithWhite:0.7 alpha:0.5]`.
 */
 @property (nonatomic, strong) SKColor *squareColor;
@@ -151,16 +174,14 @@ typedef NS_ENUM(NSInteger, HLToolbarNodeAnimation) {
 /**
  Tool square color when highlighted.
 
- Changes will not take effect for already-highlighted tools until the next call to
- `setTools:tags:animation:`.  Default is `[SKColor colorWithWhite:1.0 alpha:0.8]`.
+ Default is `[SKColor colorWithWhite:1.0 alpha:0.8]`.
 */
 @property (nonatomic, strong) SKColor *highlightColor;
 
 /**
  Alpha value for tool square (and inherited by tool node in square) when tool is enabled.
 
- Changes will not take effect for already-enabled tools until the next call to
- `setTools:tags:animation:`.
+ Default is `1.0`.
 */
 @property (nonatomic, assign) CGFloat enabledAlpha;
 
@@ -168,13 +189,22 @@ typedef NS_ENUM(NSInteger, HLToolbarNodeAnimation) {
  Alpha value for tool square (and inherited by tool node in square) when tool is
  disabled.
 
- Changes won't take effect until after the next call to `setTools:tags:animation:`; since
- all tools are enabled in `setTools:tags:animation:`, already-disabled tools will not be
- affected.
+ Default is `0.4`.
 */
 @property (nonatomic, assign) CGFloat disabledAlpha;
 
 /// @name Configuring Toolbar Geometry
+
+/**
+ Effects layout according to all object properties.
+ 
+ See `setTools:tags:animation:` for details.
+ 
+ In general, this method (or `setTools:tags:animation:`) must be called after modifying
+ any geometry-related (layout-affecting) object property.  Requiring an explicit call
+ allows the caller to set multiple properties at the same time efficiently.
+ */
+- (void)layoutToolsAnimation:(HLToolbarNodeAnimation)animation;
 
 /**
  Whether the toolbar should automatically size its width according to its tools.
@@ -182,6 +212,9 @@ typedef NS_ENUM(NSInteger, HLToolbarNodeAnimation) {
  Default value is `NO`.
 
  See `setTools:tags:animation:` for details.
+ 
+ Changes will not take effect until the next call to `layoutTools:animation:` or
+ `setTools:tags:animation:`.
 */
 @property (nonatomic, assign) BOOL automaticWidth;
 
@@ -191,26 +224,54 @@ typedef NS_ENUM(NSInteger, HLToolbarNodeAnimation) {
  Default value is `NO`.
 
  See `setTools:tags:animation:` for details.
+
+ Changes will not take effect until the next call to `layoutTools:animation:` or
+ `setTools:tags:animation:`.
 */
 @property (nonatomic, assign) BOOL automaticHeight;
 
 /**
+ Whether the tools should be allowed to scale larger than their natural size during
+ automatic sizing.
+ 
+ Default value is `NO`.
+ 
+ See `setTools:tags:animation:` for details.
+
+ Changes will not take effect until the next call to `layoutTools:animation:` or
+ `setTools:tags:animation:`.
+*/
+@property (nonatomic, assign) BOOL automaticToolsScaleLimit;
+
+/**
  Overall toolbar size.
 
- If `automaticWidth` or `automaticHeight` are `YES`, the relevant dimension may be changed
- during calls to `setTools:tags:animation:`.
+ Changes will not take effect until the next call to `layoutTools:animation:` or
+ `setTools:tags:animation:`.
+
+ After layout, this property will be set to the actual size of the toolbar.  In
+ particular, a caller-provided width or height will probably be changed during
+ layout if `automaticWidth` or `automaticHeight` (respectively) is set to YES.
 */
 @property (nonatomic, assign) CGSize size;
 
 /**
  The anchor point used by the toolbar.
+
+ Default value is `(0.5, 0.5)`.
+ 
+ Changes will not take effect until the next call to `layoutTools:animation:` or
+ `setTools:tags:animation:`.
 */
 @property (nonatomic, assign) CGPoint anchorPoint;
 
 /**
  The justification of tools within the toolbar.
 
- See `HLToolbarNodeJustification`.
+ Default value is `HLToolbarNodeJustificationCenter`.  See `HLToolbarNodeJustification`.
+ 
+ Changes will not take effect until the next call to `layoutTools:animation:` or
+ `setTools:tags:animation:`.
 */
 @property (nonatomic, assign) HLToolbarNodeJustification justification;
 
@@ -220,7 +281,8 @@ typedef NS_ENUM(NSInteger, HLToolbarNodeAnimation) {
 
  Default value is `4.0`.
 
- Changes will not take effect until the next call to `setTools:tags:animation:`.
+ Changes will not take effect until the next call to `layoutTools:animation:` or
+ `setTools:tags:animation:`.
 */
 @property (nonatomic, assign) CGFloat backgroundBorderSize;
 
@@ -229,7 +291,8 @@ typedef NS_ENUM(NSInteger, HLToolbarNodeAnimation) {
 
  Default value is `4.0`.
 
- Changes will not take effect until the next call to `setTools:tags:animation:`.
+ Changes will not take effect until the next call to `layoutTools:animation:` or
+ `setTools:tags:animation:`.
 */
 @property (nonatomic, assign) CGFloat squareSeparatorSize;
 
@@ -237,12 +300,18 @@ typedef NS_ENUM(NSInteger, HLToolbarNodeAnimation) {
  The extra space added between the edge of the tool square (made for each tool) and the
  user-supplied tool node itself.
 
- Negative values mean the tool square will be drawn smaller than the tool node.  Changes
- will not take effect until the next call to `setTools:tags:animation:`.
+ Default value is `0.0`.
+
+ Negative values mean the tool square will be drawn smaller than the tool node.
+ 
+ Changes will not take effect until the next call to `layoutTools:animation:` or
+ `setTools:tags:animation:`.
 */
 @property (nonatomic, assign) CGFloat toolPad;
 
 /// @name Managing Tool State
+
+- (BOOL)highlightForTool:(NSString *)toolTag;
 
 - (void)setHighlight:(BOOL)highlight forTool:(NSString *)toolTag;
 
@@ -250,9 +319,9 @@ typedef NS_ENUM(NSInteger, HLToolbarNodeAnimation) {
 
 - (void)setHighlight:(BOOL)finalHighlight forTool:(NSString *)toolTag blinkCount:(int)blinkCount halfCycleDuration:(NSTimeInterval)halfCycleDuration;
 
-- (void)setEnabled:(BOOL)enabled forTool:(NSString *)toolTag;
-
 - (BOOL)enabledForTool:(NSString *)toolTag;
+
+- (void)setEnabled:(BOOL)enabled forTool:(NSString *)toolTag;
 
 /// @name Showing or Hiding Toolbar in Parent
 
@@ -262,7 +331,7 @@ typedef NS_ENUM(NSInteger, HLToolbarNodeAnimation) {
 
 /**
  Hides the toolbar by removing it from parent.
- 
+
  When hiding is animated, the toolbar will scale down and move to its last origin
  (passed during `[showWithOrigin:finalPosition:fullScale:animated:]`).  For consistency,
  the position of the toolbar is set likewise even when not animating.  This means that
@@ -270,5 +339,23 @@ typedef NS_ENUM(NSInteger, HLToolbarNodeAnimation) {
  the caller might consider calling `[showUpdateOrigin:]`, to change the stored origin.
 */
 - (void)hideAnimated:(BOOL)animated;
+
+@end
+
+/**
+ A delegate for `HLToolbarNode`.
+
+ The delegate is (currently) concerned mostly with handling user interaction.  It's worth
+ noting that the `HLToolbarNode` only receives gestures if it is configured as its own
+ gesture target (using `[SKNode+HLGestureTarget hlSetGestureTarget]`).
+ */
+@protocol HLToolbarNodeDelegate <NSObject>
+
+/// @name Handling User Interaction
+
+/**
+ Called when the user taps a tool.
+*/
+- (void)toolbarNode:(HLToolbarNode *)toolbarNode didTapTool:(NSString *)toolTag;
 
 @end
