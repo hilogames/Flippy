@@ -85,9 +85,24 @@ HLGestureTarget_areEquivalentGestureRecognizers(UIGestureRecognizer *a, UIGestur
 
 @implementation HLTapGestureTarget
 
++ (instancetype)tapGestureTargetWithDelegate:(id<HLTapGestureTargetDelegate>)delegate
+{
+  return [[HLTapGestureTarget alloc] initWithDelegate:delegate];
+}
+
 + (instancetype)tapGestureTargetWithHandleGestureBlock:(void (^)(UIGestureRecognizer *))handleGestureBlock
 {
   return [[HLTapGestureTarget alloc] initWithHandleGestureBlock:handleGestureBlock];
+}
+
+- (instancetype)initWithDelegate:(id<HLTapGestureTargetDelegate>)delegate
+{
+  self = [super init];
+  if (self) {
+    _delegate = delegate;
+    _gestureTransparent = NO;
+  }
+  return self;
 }
 
 - (instancetype)initWithHandleGestureBlock:(void (^)(UIGestureRecognizer *))handleGestureBlock
@@ -100,10 +115,20 @@ HLGestureTarget_areEquivalentGestureRecognizers(UIGestureRecognizer *a, UIGestur
   return self;
 }
 
+- (instancetype)init
+{
+  self = [super init];
+  if (self) {
+    _gestureTransparent = NO;
+  }
+  return self;
+}
+
 - (instancetype)initWithCoder:(NSCoder *)aDecoder
 {
   self = [super init];
   if (self) {
+    _delegate = [aDecoder decodeObjectForKey:@"delegate"];
     // note: Cannot decode _handleGestureBlock.
     _gestureTransparent = [aDecoder decodeBoolForKey:@"gestureTransparent"];
   }
@@ -112,6 +137,7 @@ HLGestureTarget_areEquivalentGestureRecognizers(UIGestureRecognizer *a, UIGestur
 
 - (void)encodeWithCoder:(NSCoder *)aCoder
 {
+  [aCoder encodeObject:_delegate forKey:@"delegate"];
   // note: Cannot encode _handleGestureBlock.
   [aCoder encodeBool:_gestureTransparent forKey:@"gestureTransparent"];
 }
@@ -120,6 +146,7 @@ HLGestureTarget_areEquivalentGestureRecognizers(UIGestureRecognizer *a, UIGestur
 {
   HLTapGestureTarget *copy = [[[self class] allocWithZone:zone] init];
   if (copy) {
+    copy->_delegate = _delegate;
     copy->_handleGestureBlock = _handleGestureBlock;
     copy->_gestureTransparent = _gestureTransparent;
   }
@@ -152,6 +179,10 @@ HLGestureTarget_areEquivalentGestureRecognizers(UIGestureRecognizer *a, UIGestur
 
 - (void)HLTapGestureTarget_handleGesture:(UIGestureRecognizer *)gestureRecognizer
 {
+  id <HLTapGestureTargetDelegate> delegate = _delegate;
+  if (delegate) {
+    [delegate tapGestureTarget:self didTap:gestureRecognizer];
+  }
   if (_handleGestureBlock) {
     _handleGestureBlock(gestureRecognizer);
   }

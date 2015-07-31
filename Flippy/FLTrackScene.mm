@@ -5915,7 +5915,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
     case 1: {
       NSString *label = NSLocalizedString(@"Tap here to build more track for Flippy.",
                                           @"Tutorial message.");
-      SKSpriteNode *squareNode = [_constructionToolbarState.toolbarNode squareNodeForTool:@"segments"];
+      SKNode *squareNode = [_constructionToolbarState.toolbarNode squareNodeForTool:@"segments"];
       _tutorialState.cutouts.emplace_back(squareNode, YES);
       _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
       [self FL_tutorialShowWithLabel:label animated:animated];
@@ -5926,7 +5926,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
     case 2: {
       NSString *label = NSLocalizedString(@"Drag a ‘Straight Track’ segment from the toolbar to an open spot.",
                                           @"Tutorial message.");
-      SKSpriteNode *squareNode = [_constructionToolbarState.toolbarNode squareNodeForTool:@"straight"];
+      SKNode *squareNode = [_constructionToolbarState.toolbarNode squareNodeForTool:@"straight"];
       _tutorialState.cutouts.emplace_back(squareNode, YES);
       _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
       CGPoint panSceneLocation = [self convertPoint:_train.position fromNode:_worldNode];
@@ -5953,7 +5953,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
       [self FL_trackSelectClear];
       NSString *label = NSLocalizedString(@"Now tap the green arrow button to start Flippy.",
                                           @"Tutorial message.");
-      SKSpriteNode *squareNode = [_simulationToolbarState.toolbarNode squareNodeForTool:@"play"];
+      SKNode *squareNode = [_simulationToolbarState.toolbarNode squareNodeForTool:@"play"];
       _tutorialState.cutouts.emplace_back(squareNode, YES);
       _tutorialState.labelPosition = FLTutorialLabelBelowCutouts;
       CGPoint panSceneLocation = [self convertPoint:_train.position fromNode:_worldNode];
@@ -6057,7 +6057,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
     case 13: {
       NSString *label = NSLocalizedString(@"Tap this button to see the goals for this level.",
                                           @"Tutorial message.");
-      SKSpriteNode *squareNode = [_simulationToolbarState.toolbarNode squareNodeForTool:@"goals"];
+      SKNode *squareNode = [_simulationToolbarState.toolbarNode squareNodeForTool:@"goals"];
       _tutorialState.cutouts.emplace_back(squareNode, YES);
       _tutorialState.labelPosition = FLTutorialLabelBelowCutouts;
       [self FL_tutorialShowWithLabel:label animated:animated];
@@ -6196,7 +6196,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
     case 2: {
       NSString *label = NSLocalizedString(@"Tap this button to show labels on the inputs.",
                                           @"Tutorial message.");
-      SKSpriteNode *squareNode = [_constructionToolbarState.toolbarNode squareNodeForTool:@"show-labels"];
+      SKNode *squareNode = [_constructionToolbarState.toolbarNode squareNodeForTool:@"show-labels"];
       _tutorialState.cutouts.emplace_back(squareNode, YES);
       _tutorialState.cutouts.emplace_back(_trackGrid->get(1, 0), NO);
       _tutorialState.cutouts.emplace_back(_trackGrid->get(2, 0), NO);
@@ -6208,7 +6208,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
     case 3: {
       NSString *label = NSLocalizedString(@"Okay. Now let’s look at the goals.",
                                           @"Tutorial message.");
-      SKSpriteNode *squareNode = [_simulationToolbarState.toolbarNode squareNodeForTool:@"goals"];
+      SKNode *squareNode = [_simulationToolbarState.toolbarNode squareNodeForTool:@"goals"];
       _tutorialState.cutouts.emplace_back(squareNode, YES);
       _tutorialState.cutouts.emplace_back(_trackGrid->get(1, 0), NO);
       _tutorialState.cutouts.emplace_back(_trackGrid->get(2, 0), NO);
@@ -6241,7 +6241,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
     case 5: {
       NSString *label = NSLocalizedString(@"First, tap this button.",
                                           @"Tutorial message.");
-      SKSpriteNode *squareNode = [_constructionToolbarState.toolbarNode squareNodeForTool:@"link"];
+      SKNode *squareNode = [_constructionToolbarState.toolbarNode squareNodeForTool:@"link"];
       _tutorialState.cutouts.emplace_back(squareNode, YES);
       _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
      [self FL_tutorialShowWithLabel:label animated:animated];
@@ -6263,7 +6263,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
     case 7: {
       NSString *label = NSLocalizedString(@"The link button is highlighted, so we’re still in linking mode. Tap it again to exit linking mode.",
                                           @"Tutorial message.");
-      SKSpriteNode *squareNode = [_constructionToolbarState.toolbarNode squareNodeForTool:@"link"];
+      SKNode *squareNode = [_constructionToolbarState.toolbarNode squareNodeForTool:@"link"];
       _tutorialState.cutouts.emplace_back(squareNode, YES);
       _tutorialState.labelPosition = FLTutorialLabelUpperScene;
       [self FL_tutorialShowWithLabel:label animated:animated];

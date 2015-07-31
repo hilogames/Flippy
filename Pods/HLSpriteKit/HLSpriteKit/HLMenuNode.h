@@ -74,14 +74,17 @@ typedef NS_ENUM(NSInteger, HLMenuNodeAnimation) {
 
  For the sake of simplicity, menu node does not worry about updating its display when
  the caller makes changes to the individual menu items.  Instead, it will only refresh
- the display after a call to `setMenu:animation:` (or from manual or programmatic
- navigation of the menu).  The readonly attribute helps to suggest this pattern.  More
- stringent would be to copy the menu into the menu node, but that is deemed unnecessary.
+ the display after a call to `setMenu:animation:`, `redisplayMenuAnimation:`, or from
+ manual or programmatic navigation of the menu.  The readonly attribute helps to suggest
+ this pattern.  (The menu is retained, though, not copied, and so the caller is still
+ able to change submenus and items within the menu.  Again, though, those changes will
+ not be displayed until the HLMenuNode is explicitly redisplayed or navigated.)
 
  @bug It is considered convenient for the menu node to keep a strong reference to its
       menu, assuming that the caller typically wants a single fairly-static menu
       hierarchy.  An alternate design, perhaps where only "current" menu is tracked,
-      should be considered if useful.
+      and submenus or parent menus are returned dynamically from delegate calls, should
+      be considered if useful.
  */
 @property (nonatomic, readonly) HLMenu *menu;
 
@@ -95,28 +98,46 @@ typedef NS_ENUM(NSInteger, HLMenuNodeAnimation) {
 
 /**
  Sets the hierarchical menu that the menu node will navigate.
-
- A note on layout and geometry: The `HLMenuNode` lays out the buttons of its menu by setting
- the positions of its buttons, starting at `(0,0)` and incrementing subsequent `y` position
- by `itemSpacing`.  The menu doesn't consider itself to have any other extent: it's just a
- collection of buttons.  As such, it doesn't have geometric properties like `size`
- or `anchorPoint`.  Instead, the caller may call `calculateAccumulatedFrame` on the menu node
- to get bounds, or may use the `displayedMenu` property to infer information about the
- buttons currently displayed.
  */
 - (void)setMenu:(HLMenu *)menu animation:(HLMenuNodeAnimation)animation;
 
-/// @name Configuring Menu Item Buttons
+/**
+ Recreate display of current menu.
+ 
+ The HLMenuNode tracks a current HLMenu, but changes to that menu are not reflected in the
+ display until an explicit call to `setMenu`, a navigation method, or a call to this method.
+ */
+- (void)redisplayMenuAnimation:(HLMenuNodeAnimation)animation;
+
+/// @name Managing Geometry
 
 /**
- The distance between the vertical position of each button in the menu node.
-
- This is the distance between the *positions* of the buttons, and not the distance between
- button bounds (which would be affected by button sizes).
+ The vertical distance between the edges of adjacent buttons in the menu node.
  
- See `setMenu` for notes about button layout and extent.
+ Changes to this property won't take effect on the currently displayed menu until it
+ is explicitly redisplayed (for example by navigation or `redisplayMenuAnimation:`).
  */
-@property (nonatomic, assign) CGFloat itemSpacing;
+@property (nonatomic, assign) CGFloat itemSeparatorSize;
+
+/**
+ The size of the bounds of the currently displayed menu.
+
+ Derived from the button geometry, `itemSeperatorSize`, and the content of the current menu.
+ Overall size cannot be set directly.
+ */
+@property (nonatomic, readonly) CGSize size;
+
+/**
+ The anchor point of the currently displayed menu.
+
+ Changes to this property won't take effect on the currently displayed menu until it
+ is explicitly redisplayed (for example by navigation or `redisplayMenuAnimation:`).
+
+ Default value is `(0.5, 0.5)`.
+*/
+@property (nonatomic, assign) CGPoint anchorPoint;
+
+/// @name Configuring Menu Item Buttons
 
 /**
  Default prototype button for items in the menu.
@@ -135,6 +156,9 @@ typedef NS_ENUM(NSInteger, HLMenuNodeAnimation) {
  All buttons in the menu hierarchy must have a button prototype, or an exception is
  raised at runtime.  Setting this property (`itemButtonPrototype`) is the easiest way to
  ensure prototypes for all items.
+ 
+ Changes to this property won't take effect on the currently displayed menu until it
+ is explicitly redisplayed (for example by navigation or `redisplayMenuAnimation:`).
  */
 @property (nonatomic, strong) HLLabelButtonNode *itemButtonPrototype;
 
@@ -142,6 +166,9 @@ typedef NS_ENUM(NSInteger, HLMenuNodeAnimation) {
  Default prototype button for submenu items in the menu.
 
  See `itemButtonPrototype` for notes about prototype buttons.
+
+ Changes to this property won't take effect on the currently displayed menu until it
+ is explicitly redisplayed (for example by navigation or `redisplayMenuAnimation:`).
  */
 @property (nonatomic, strong) HLLabelButtonNode *menuItemButtonPrototype;
 
@@ -149,6 +176,9 @@ typedef NS_ENUM(NSInteger, HLMenuNodeAnimation) {
  Default prototype button for back items in the menu.
 
  See `itemButtonPrototype` for notes about prototype buttons.
+
+ Changes to this property won't take effect on the currently displayed menu until it
+ is explicitly redisplayed (for example by navigation or `redisplayMenuAnimation:`).
  */
 @property (nonatomic, strong) HLLabelButtonNode *backItemButtonPrototype;
 

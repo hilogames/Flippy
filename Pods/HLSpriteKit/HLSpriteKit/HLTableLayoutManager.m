@@ -14,7 +14,12 @@ const CGFloat HLTableLayoutManagerEpsilon = 0.001f;
 
 - (instancetype)init
 {
-  return [super init];
+  self = [super init];
+  if (self) {
+    _anchorPoint = CGPointMake(0.5f, 0.5f);
+    _tableOffset = CGPointZero;
+  }
+  return self;
 }
 
 - (instancetype)initWithColumnCount:(NSUInteger)columnCount
@@ -25,6 +30,7 @@ const CGFloat HLTableLayoutManagerEpsilon = 0.001f;
   self = [super init];
   if (self) {
     _anchorPoint = CGPointMake(0.5f, 0.5f);
+    _tableOffset = CGPointZero;
     _columnCount = columnCount;
     _columnWidths = columnWidths;
     _columnAnchorPoints = columnAnchorPoints;
@@ -38,9 +44,9 @@ const CGFloat HLTableLayoutManagerEpsilon = 0.001f;
   self = [super init];
   if (self) {
     _anchorPoint = [aDecoder decodeCGPointForKey:@"anchorPoint"];
+    _tableOffset = [aDecoder decodeCGPointForKey:@"tableOffset"];
     _columnCount = (NSUInteger)[aDecoder decodeIntegerForKey:@"columnCount"];
     _rowCount = (NSUInteger)[aDecoder decodeIntegerForKey:@"rowCount"];
-    _size = [aDecoder decodeCGSizeForKey:@"size"];
     _constrainedSize = [aDecoder decodeCGSizeForKey:@"constrainedSize"];
     _columnWidths = [aDecoder decodeObjectForKey:@"columnWidths"];
     _columnAnchorPoints = [aDecoder decodeObjectForKey:@"columnAnchorPoints"];
@@ -48,6 +54,7 @@ const CGFloat HLTableLayoutManagerEpsilon = 0.001f;
     _tableBorder = (CGFloat)[aDecoder decodeDoubleForKey:@"tableBorder"];
     _columnSeparator = (CGFloat)[aDecoder decodeDoubleForKey:@"columnSeparator"];
     _rowSeparator = (CGFloat)[aDecoder decodeDoubleForKey:@"rowSeparator"];
+    _size = [aDecoder decodeCGSizeForKey:@"size"];
   }
   return self;
 }
@@ -55,11 +62,11 @@ const CGFloat HLTableLayoutManagerEpsilon = 0.001f;
 - (void)encodeWithCoder:(NSCoder *)aCoder
 {
   [aCoder encodeCGPoint:_anchorPoint forKey:@"anchorPoint"];
+  [aCoder encodeCGPoint:_tableOffset forKey:@"tableOffset"];
   [aCoder encodeInteger:(NSInteger)_columnCount forKey:@"columnCount"];
   // noob: rowCount and size could be recalculated, but since they are
   // typically not recalculated after layout, it makes sense to me to encode them.
   [aCoder encodeInteger:(NSInteger)_rowCount forKey:@"rowCount"];
-  [aCoder encodeCGSize:_size forKey:@"size"];
   [aCoder encodeCGSize:_constrainedSize forKey:@"constrainedSize"];
   [aCoder encodeObject:_columnWidths forKey:@"columnWidths"];
   [aCoder encodeObject:_columnAnchorPoints forKey:@"columnAnchorPoints"];
@@ -67,6 +74,7 @@ const CGFloat HLTableLayoutManagerEpsilon = 0.001f;
   [aCoder encodeDouble:_tableBorder forKey:@"tableBorder"];
   [aCoder encodeDouble:_columnSeparator forKey:@"columnSeparator"];
   [aCoder encodeDouble:_rowSeparator forKey:@"rowSeparator"];
+  [aCoder encodeCGSize:_size forKey:@"size"];
 }
 
 - (instancetype)copyWithZone:(NSZone *)zone
@@ -74,6 +82,7 @@ const CGFloat HLTableLayoutManagerEpsilon = 0.001f;
   HLTableLayoutManager *copy = [[[self class] allocWithZone:zone] init];
   if (copy) {
     copy->_anchorPoint = _anchorPoint;
+    copy->_tableOffset = _tableOffset;
     copy->_columnCount = _columnCount;
     copy->_rowCount = _rowCount;
     copy->_constrainedSize = _constrainedSize;
@@ -137,20 +146,10 @@ const CGFloat HLTableLayoutManagerEpsilon = 0.001f;
             break;
           }
           id node = nodes[nodeIndex];
-          if ([node respondsToSelector:@selector(size)]) {
-            CGSize nodeSize = [node size];
-            if (nodeSize.width > widthCellMax) {
-              widthCellMax = nodeSize.width;
-            }
-          } else if ([node isKindOfClass:[SKLabelNode class]]) {
-            CGSize nodeSize = [node frame].size;
-            if (nodeSize.width > widthCellMax) {
-              widthCellMax = nodeSize.width;
-            }
+          CGFloat nodeWidth = HLLayoutManagerGetNodeWidth(node);
+          if (nodeWidth > widthCellMax) {
+            widthCellMax = nodeWidth;
           }
-          // note: Else node will not affect column size.  Would it be
-          // a good general-purpose algorithm to use frame.size for all
-          // kindOfClass SKNode?
         }
         widthTotalFixed += widthCellMax;
         columnWidthsPartiallyCalculated[column] = widthCellMax;
@@ -187,20 +186,10 @@ const CGFloat HLTableLayoutManagerEpsilon = 0.001f;
             break;
           }
           id node = nodes[nodeIndex];
-          if ([node respondsToSelector:@selector(size)]) {
-            CGSize nodeSize = [node size];
-            if (nodeSize.height > heightCellMax) {
-              heightCellMax = nodeSize.height;
-            }
-          } else if ([node isKindOfClass:[SKLabelNode class]]) {
-            CGSize nodeSize = [node frame].size;
-            if (nodeSize.height > heightCellMax) {
-              heightCellMax = nodeSize.height;
-            }
+          CGFloat nodeHeight = HLLayoutManagerGetNodeHeight(node);
+          if (nodeHeight > heightCellMax) {
+            heightCellMax = nodeHeight;
           }
-          // note: Else node will not affect row size.  Would it be
-          // a good general-purpose algorithm to use frame.size for all
-          // kindOfClass SKNode?
         }
         heightTotalFixed += heightCellMax;
         rowHeightsPartiallyCalculated[row] = heightCellMax;
@@ -218,7 +207,7 @@ const CGFloat HLTableLayoutManagerEpsilon = 0.001f;
 
   // note: x and y track the upper left corner of each cell.
   NSEnumerator *nodesEnumerator = [nodes objectEnumerator];
-  CGFloat yCell = _size.height * (1.0f - _anchorPoint.y) - _tableBorder;
+  CGFloat yCell = _size.height * (1.0f - _anchorPoint.y) - _tableBorder + _tableOffset.y;
   id node = nil;
   for (NSUInteger row = 0; row < _rowCount; ++row) {
 
@@ -227,7 +216,7 @@ const CGFloat HLTableLayoutManagerEpsilon = 0.001f;
       heightCell = heightTotalExpanding / heightExpandingRowRatioSum * heightCell;
     }
     
-    CGFloat xCell = _size.width * -1.0f * _anchorPoint.x + _tableBorder;
+    CGFloat xCell = _size.width * -1.0f * _anchorPoint.x + _tableBorder + _tableOffset.x;
     CGPoint anchorPointCell = CGPointZero;
     for (NSUInteger column = 0; column < _columnCount; ++column) {
 

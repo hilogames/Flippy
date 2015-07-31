@@ -418,7 +418,7 @@ static const CGFloat FLLayoutNodeComponentPad = 7.0f;
     }
     for (int row = 1; row < gridHeight; ++row) {
       int squareIndex = (row + 1) * gridWidth - 1;
-      SKSpriteNode *squareNode = [_truthTableNode squareNodeForSquare:squareIndex];
+      SKNode *squareNode = [_truthTableNode squareNodeForSquare:squareIndex];
       SKLabelNode *resultNode = (SKLabelNode *)[_truthTableNode contentForSquare:squareIndex];
       [_truthTableNode setContent:nil forSquare:squareIndex];
 
@@ -458,7 +458,7 @@ static const CGFloat FLLayoutNodeComponentPad = 7.0f;
         [self->_truthTableNode setContent:resultNode forSquare:squareIndex];
         SKEmitterNode *happyBurstCopy = [happyBurst copy];
         happyBurstCopy.position = resultContentLocation;
-        happyBurstCopy.particlePositionRange = CGVectorMake(squareNode.size.width, squareNode.size.height);
+        happyBurstCopy.particlePositionRange = CGVectorMake(resultNode.frame.size.width, resultNode.frame.size.height);
         [self.contentNode addChild:happyBurstCopy];
         [happyBurstCopy runAction:[SKAction waitForDuration:particleLifetimeMax] completion:^{
           [happyBurstCopy removeFromParent];

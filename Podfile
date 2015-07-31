@@ -4,6 +4,6 @@ source 'https://github.com/CocoaPods/Specs.git'
 
 target 'Flippy' do
 
-pod 'HLSpriteKit'
+  pod 'HLSpriteKit'
 
 end

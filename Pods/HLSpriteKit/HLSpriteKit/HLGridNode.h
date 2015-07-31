@@ -39,7 +39,7 @@ typedef NS_ENUM(NSInteger, HLGridNodeLayoutMode) {
  ## Common Gesture Handling Configurations
 
  - Set this node as its own gesture target (using `[SKNode+HLGestureTarget
-   hlSetGestureTarget]`) to get a simple delegation and/or callbacks for taps.  See
+   hlSetGestureTarget]`) to get simple delegation and/or a callbacks for taps.  See
    `HLGridNodeDelegate` for delegation and the `squareTappedBlock` property for setting a
    callback block.
 
@@ -59,10 +59,6 @@ typedef NS_ENUM(NSInteger, HLGridNodeLayoutMode) {
  note: Currently the layout-affecting parameters are not properties, and so can't be set
  individually, which helps avoid the problem where layout is redone multiple times as
  each parameter is adjusted individually.
-
- TODO: Allow modification of layout-affecting parameters via properties, with a similar
- contract as other components: If the content is not set, then layout will not be
- performed.
 
  @param gridWidth The maximum number of squares to layout in a row.
 
@@ -158,9 +154,10 @@ typedef NS_ENUM(NSInteger, HLGridNodeLayoutMode) {
  The square node that holds each content node has `anchorPoint` `(0.5, 0.5)`.  Typically
  the size of the square is `squareSize`; see `HLGridNodeLayoutMode` for exceptions.
 
- Any `SKNode` descendant may be used as a tool, but any tools which conform to `HLToolNode`
- can customize their behavior and/or appearance for certain toolbar functions (for example,
- setting enabled or highlight); see `HLToolNode` for details.
+ Any `SKNode` descendant may be used as content, but any content nodes which conform to
+ `HLItemContentNode` can customize their behavior and/or appearance for certain square
+ functions (for example, setting enabled or highlight); see `HLItemContentNode` for
+ details.
 */
 - (void)setContent:(NSArray *)contentNodes;
 
@@ -189,14 +186,16 @@ typedef NS_ENUM(NSInteger, HLGridNodeLayoutMode) {
  @warning The returned node should be treated as read-only.  Modification of the square
           node is neither expected nor recommended.
 */
-- (SKSpriteNode *)squareNodeForSquare:(int)squareIndex;
+- (SKNode *)squareNodeForSquare:(int)squareIndex;
 
 /**
  Returns the index of the square at the passed location, or `-1` for none.
 
+ A location is considered to be on a square only if it is within its bounds.
+
  The location is expected to be in the coordinate system of this node.
 */
-- (int)squareAtLocation:(CGPoint)location;
+- (int)squareAtPoint:(CGPoint)location;
 
 /// @name Configuring Appearance
 
@@ -261,9 +260,11 @@ typedef NS_ENUM(NSInteger, HLGridNodeLayoutMode) {
 /**
  Sets the enabled state of a square.
 
- The alpha value of the square will be set either to `enabledAlpha` or `disabledAlpha`
- regardless of the square's current color.  Throws an exception if the square index is out
- of bounds.
+ If the content node conforms to `HLItemContentNode` implementing
+ `hlItemContentSetEnabled`, then that method will be called.  Otherwise, the alpha value
+ of the square will be set either to `enabledAlpha` or `disabledAlpha`.
+
+ Throws an exception if the square index is out of bounds.
 */
 - (void)setEnabled:(BOOL)enabled forSquare:(int)squareIndex;
 
@@ -277,16 +278,22 @@ typedef NS_ENUM(NSInteger, HLGridNodeLayoutMode) {
 /**
  Sets the highlight state of a square.
 
- The color of the square will be set either to `highlightColor` or `squareColor`.  Throws
- an exception if the square index is out of bounds.
+ If the content node conforms to `HLItemContentNode` implementing
+ `hlItemContentSetHighlight`, then that method will be called.  Otherwise, the color of
+ the square will be set either to `highlightColor` or `squareColor`.
+
+ Throws an exception if the square index is out of bounds.
 */
 - (void)setHighlight:(BOOL)highlight forSquare:(int)squareIndex;
 
 /**
  Sets the highlight state of a square with animation.
 
- The color of the square will be set either to `highlightColor` or `squareColor`.  Throws
- an exception if the square index is out of bounds.
+ If the content node conforms to `HLItemContentNode` implementing
+ `hlItemContentSetHighlight`, then that method will be called.  Otherwise, the color of
+ the square will be set either to `highlightColor` or `squareColor`.
+
+ Throws an exception if the square index is out of bounds.
 
  @param finalHighlight The intended highlight value for the square when the animation is
                        complete.
@@ -298,7 +305,7 @@ typedef NS_ENUM(NSInteger, HLGridNodeLayoutMode) {
  @param blinkCount The number of times the highlight value will cycle from its current
                    value to the final value.
 
- @param halfCycleDuration The amount of time it takes to fade in or fade out during a
+ @param halfCycleDuration The amount of time it takes to cycle the highlight during a
                           blink; a full blink will be completed in twice this duration.
 
  @param completion A block that will be run when the animation is complete.
@@ -337,15 +344,15 @@ typedef NS_ENUM(NSInteger, HLGridNodeLayoutMode) {
                    completion:(void(^)(void))completion;
 
 /**
- Convenience method for setting highlight state of a single square.
+ Convenience method for clearing the highlight state of the last selected square.
 
  Clears the highlight of the last-selected square, if any.
 */
 - (void)clearSelection;
 
 /**
- Convenience method for setting the highlight state of a single square with animation.
- 
+ Convenience method for clearing the highlight state of the last selected square with animation.
+
  Clears the highlight of the last-selected square, if any, with animation.
 */
 - (void)clearSelectionBlinkCount:(int)blinkCount

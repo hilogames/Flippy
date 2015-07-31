@@ -46,7 +46,8 @@ static const NSTimeInterval FLSceneTransitionDuration = 0.5;
 static const NSTimeInterval FLOffscreenSlideDuration = 0.25;
 
 static const CGFloat FLMessageNodeHeight = 32.0f;
-static const CGFloat FLMenuNodeDefaultYPosition = 48.0f;
+static const CGFloat FLMenuNodeDefaultYPosition = 66.0f;
+static const CGFloat FLMessageNodeSeparator = 26.0;  // From edge of nearest button.
 
 static const NSUInteger FLCommonMenuButtonMax = 5;
 static const NSUInteger FLNewLevelPageMax = FLCommonMenuButtonMax - 2;  // Leave space for "Next" and "Back".
@@ -669,12 +670,13 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   HLMenuNode *menuNode = [[HLMenuNode alloc] init];
   [menuNode hlSetGestureTarget:menuNode];
   menuNode.delegate = self;
+  menuNode.anchorPoint = CGPointMake(0.5f, 1.0f);
   menuNode.position = CGPointMake(0.0f, FLMenuNodeDefaultYPosition);
   menuNode.itemAnimation = HLMenuNodeAnimationSlideLeft;
   menuNode.itemAnimationDuration = FLOffscreenSlideDuration;
   menuNode.itemButtonPrototype = [FLViewController FL_sharedMenuButtonPrototypeBasic];
   menuNode.backItemButtonPrototype = [FLViewController FL_sharedMenuButtonPrototypeBack];
-  menuNode.itemSpacing = 44.0f;
+  menuNode.itemSeparatorSize = 8.0f;
   menuNode.itemSoundFile = @"wooden-click-1.caf";
   return menuNode;
 }
@@ -755,11 +757,8 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
 
 - (void)FL_titleSceneUpdateGeometry
 {
-  const CGFloat FLMessageNodePad = _titleMenuNode.itemSpacing;
-  
   // note: _titleMenuNode stays in fixed position relative to center of scene.
-
-  _titleMessageNode.position = CGPointMake(0.0f, _titleMenuNode.position.y + FLMessageNodePad);
+  _titleMessageNode.position = CGPointMake(0.0f, _titleMenuNode.position.y + FLMessageNodeSeparator);
   _titleMessageNode.size = CGSizeMake(_titleScene.size.width, FLMessageNodeHeight);
 }
 
@@ -885,11 +884,10 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
 
 - (void)FL_gameOverlayUpdateGeometry
 {
-  const CGFloat FLMessageSeparator = _gameMenuNode.itemSpacing;
-  _gameMessageNode.position = CGPointMake(0.0f, _gameMenuNode.position.y + FLMessageSeparator);
+  _gameMessageNode.position = CGPointMake(0.0f, _gameMenuNode.position.y + FLMessageNodeSeparator);
   _gameMessageNode.size = CGSizeMake(_gameScene.size.width, FLMessageNodeHeight);
 
-  const CGFloat FLStatusSeperator = _gameMenuNode.itemSpacing - FLMessageNodeHeight;
+  const CGFloat FLStatusSeperator = 12.0f;
   const CGFloat FLStatusLabelPad = 5.0f;
   SKSpriteNode *statusBackgroundNode = (SKSpriteNode *)_gameStatusNode.parent;
   _gameStatusNode.paragraphWidth = _gameScene.size.width - 2.0f * FLStatusLabelPad - FLDSMultilineLabelParagraphWidthBugWorkaroundPad;
@@ -956,8 +954,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
 
 - (void)FL_nextLevelOverlayUpdateGeometry
 {
-  const CGFloat FLMessageSeparator = _nextLevelMenuNode.itemSpacing;
-  _nextLevelMessageNode.position = CGPointMake(0.0f, _nextLevelMenuNode.position.y + FLMessageSeparator);
+  _nextLevelMessageNode.position = CGPointMake(0.0f, _nextLevelMenuNode.position.y + FLMessageNodeSeparator);
   _nextLevelMessageNode.size = CGSizeMake(_gameScene.size.width, FLMessageNodeHeight);
 }
 
