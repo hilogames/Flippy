@@ -90,6 +90,12 @@ FLTruthTable::outputValues(const vector<int>& inputValues)
   vector<FLTruthTable> _truthTables;
 }
 
+- (instancetype)init
+{
+  [NSException raise:@"FLTrackTruthTableBadInit" format:@"Must use initWtihCardinality."];
+  return [self initWithCardinality:0];
+}
+
 - (instancetype)initWithCardinality:(int)valueCardinality
 {
   self = [super init];

@@ -11,7 +11,6 @@
 #import "HLComponentNode.h"
 #import "HLGestureTarget.h"
 
-@class HLLabelButtonNode;
 @class HLMenuItem;
 @class HLMenu;
 @protocol HLMenuNodeDelegate;
@@ -40,7 +39,7 @@ typedef NS_ENUM(NSInteger, HLMenuNodeAnimation) {
 };
 
 /**
- `HLMenuNode` has an `HLMenu`, and it creates and displays `HLLabelButtonNode`s for each
+ `HLMenuNode` has an `HLMenu`, and it creates and displays buttons for each
  item in the `HLMenu`, stacked vertically.  Menus are hierarchical in nature, and the
  node provides functionality for navigating between menus and submenus.
 
@@ -142,6 +141,12 @@ typedef NS_ENUM(NSInteger, HLMenuNodeAnimation) {
 /**
  Default prototype button for items in the menu.
 
+ Buttons are typed using "duck typing": They must be descended from `SKNode` and must
+ additionally respond to the following selectors: `(CGSize)size`, and `setAnchorPoint:(CGPoint)`.
+ In addition, if it has a `setText:(NSString *)` selector, it will be automatically set
+ with the corresponding `HLMenuItem` text.  A good class to use is `HLLabelButtonNode`.
+ Selectors will be checked at runtime.
+
  This prototype is used if no other more-specific prototype is specified.  In particular,
  a prototype for an item is found in the following order, from most-specific to
  least-specific:
@@ -160,7 +165,7 @@ typedef NS_ENUM(NSInteger, HLMenuNodeAnimation) {
  Changes to this property won't take effect on the currently displayed menu until it
  is explicitly redisplayed (for example by navigation or `redisplayMenuAnimation:`).
  */
-@property (nonatomic, strong) HLLabelButtonNode *itemButtonPrototype;
+@property (nonatomic, strong) SKNode *itemButtonPrototype;
 
 /**
  Default prototype button for submenu items in the menu.
@@ -170,7 +175,7 @@ typedef NS_ENUM(NSInteger, HLMenuNodeAnimation) {
  Changes to this property won't take effect on the currently displayed menu until it
  is explicitly redisplayed (for example by navigation or `redisplayMenuAnimation:`).
  */
-@property (nonatomic, strong) HLLabelButtonNode *menuItemButtonPrototype;
+@property (nonatomic, strong) SKNode *menuItemButtonPrototype;
 
 /**
  Default prototype button for back items in the menu.
@@ -180,7 +185,7 @@ typedef NS_ENUM(NSInteger, HLMenuNodeAnimation) {
  Changes to this property won't take effect on the currently displayed menu until it
  is explicitly redisplayed (for example by navigation or `redisplayMenuAnimation:`).
  */
-@property (nonatomic, strong) HLLabelButtonNode *backItemButtonPrototype;
+@property (nonatomic, strong) SKNode *backItemButtonPrototype;
 
 /**
  The animation used for navigation between menus.
@@ -237,6 +242,18 @@ typedef NS_ENUM(NSInteger, HLMenuNodeAnimation) {
  */
 @protocol HLMenuNodeDelegate <NSObject>
 
+/// @name Configuring Buttons for Menu Node
+
+/**
+ Called immediately after a button is created for a menu item, but before the button is
+ added to the node hierarchy and displayed.
+ 
+ This callback is optional, but provides an opportunity for the delegate to customize
+ the appearance of a button right before display.
+ */
+@optional
+- (void)menuNode:(HLMenuNode *)menuNode willDisplayButton:(SKNode *)buttonNode forMenuItem:(HLMenuItem *)menuItem itemIndex:(NSUInteger)itemIndex;
+
 /// @name Handling User Interaction
 
 /**
@@ -281,12 +298,7 @@ typedef NS_ENUM(NSInteger, HLMenuNodeAnimation) {
 /**
  Initializes a new menu item.
  */
-- (instancetype)initWithText:(NSString *)text NS_DESIGNATED_INITIALIZER;
-
-// TODO: This is declared for the sake of the NS_DESIGNATED_INITIALIZER; I expected
-// a superclass to do this for me.  Give it some time and then try to remove this
-// declaration.
-- (instancetype)initWithCoder:(NSCoder *)aDecoder NS_DESIGNATED_INITIALIZER;
+- (instancetype)initWithText:(NSString *)text;
 
 /// @name Configuring Appearance
 
@@ -304,7 +316,7 @@ typedef NS_ENUM(NSInteger, HLMenuNodeAnimation) {
 
  See notes in `[HLMenuNode itemButtonPrototype]`.
  */
-@property (nonatomic, strong) HLLabelButtonNode *buttonPrototype;
+@property (nonatomic, strong) SKNode *buttonPrototype;
 
 /**
  The sound file that will be played when this button is tapped, if not `nil`.

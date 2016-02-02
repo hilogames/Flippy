@@ -43,7 +43,8 @@ typedef NS_ENUM(NSInteger, HLScrollNodeContentScaleMinimumMode)
 
  The `HLScrollNode` is not completely analogous to `UIScrollView`, but the similarity is
  deliberate.  One notable difference: The `HLScrollNode` does not currently clip the
- contents to its own size.
+ contents to its own size except when configured to do so using the `contentClipped`
+ property.
 
  ## Common Gesture Handling Configurations
 
@@ -113,13 +114,40 @@ typedef NS_ENUM(NSInteger, HLScrollNodeContentScaleMinimumMode)
 */
 @property (nonatomic, strong) SKNode *contentNode;
 
+/**
+ Set content node and various content properties at the same time.
+ 
+ This is partly a convenience method, but more importantly it suggests the most efficient
+ way to accomplish the task.  Setting the properties individually, otherwise, might result
+ in superfluous layout calls (internally).
+
+ The properties accepted by the method are not **all** the possible layout-affecting
+ parameters; see the big long init method for notes.  However, these are the deemed
+ the most common layout-affecting parameters that might change if a scroll node's
+ content node is changed.
+ 
+ For an efficient way to set an arbitrary number of layout-affecting parameters, follow
+ this pattern: If `contentNode` is unset, then content properties may be set without any
+ internal layout attempted.  For instance:
+ 
+     scrollNode.contentNode = nil;
+     scrollNode.contentSize = newContentSize;
+     scrollNode.contentOffset = CGPointZero;
+     scrollNode.contentAnchorPoint = newContentAnchorPoint;
+     scrollNode.contentNode = newContentNode;
+*/
+- (void)setContent:(SKNode *)contentNode
+       contentSize:(CGSize)contentSize
+     contentOffset:(CGPoint)contentOffset
+      contentScale:(CGFloat)contentScale;
+
 /// @name Configuring Scroll Node Geometry
 
 /**
  The size of the scroll node in which the content appears.
 
- Currently, the content is not clipped to this area, but the `contentOffset` and
- `contentScale` are constrained to respect it.
+ The `contentOffset` and `contentScale` are constrained to respect this size.
+ If `contentClipped` is `YES`, the content will be cropped to this size.
  */
 @property (nonatomic, assign) CGSize size;
 
@@ -180,6 +208,21 @@ typedef NS_ENUM(NSInteger, HLScrollNodeContentScaleMinimumMode)
  Default value `1.0`.
 */
 @property (nonatomic, assign) CGFloat contentScaleMaximum;
+
+/**
+ Whether or not the content is clipped (cropped) to the overall scroll node dimensions.
+ 
+ Default value is `NO`.
+ 
+ @bug When a descendant node of the `contentNode` is an `SKCropNode`, the clipping of
+      contents is irregular, affecting some descendants but not others.  Unfortunately
+      it can be difficult to determine the culprit, since crop nodes are sometimes
+      hidden in the implementation of custom nodes.  For instance, `HLToolbarNode`
+      includes a crop node in its hierarchy of children nodes.  If a toolbarnode
+      is added to the content of a scroll node, clipping will be affected for all
+      other children of the content node.
+*/
+@property (nonatomic, getter=isContentClipped) BOOL contentClipped;
 
 /// @name Setting Content Offset and Scale
 

@@ -69,3 +69,9 @@ using nearest-neighbor sampling:
     convert icon-72.png -filter point -resize 144x144 icon-144.png
     convert icon-76.png -filter point -resize 152x152 icon-152.png
     convert icon-60.png -filter point -resize 180x180 icon-180.png
+
+For 83.5@2x for iPad Pro, I didn't need a @1x version, so I skipped
+that part, and again used one of my base images, scaled up and then
+padded.  Practically speaking, this meant padding icon-152.png a
+little more or padding icon-180.png a little less.  The latter worked
+out.
