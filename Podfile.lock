@@ -1,5 +1,5 @@
 PODS:
-  - HLSpriteKit (0.9.9)
+  - HLSpriteKit (1.0.0)
 
 DEPENDENCIES:
   - HLSpriteKit (from `https://github.com/hilogames/HLSpriteKit.git`)
@@ -10,10 +10,10 @@ EXTERNAL SOURCES:
 
 CHECKOUT OPTIONS:
   HLSpriteKit:
-    :commit: 9697aa85a0311081879a64378c4a1823b0a51e1b
+    :commit: bd2a712e61ed91fc08c09224b756ba2316edca49
     :git: https://github.com/hilogames/HLSpriteKit.git
 
 SPEC CHECKSUMS:
-  HLSpriteKit: e88f5398f4d0c03b3f2c67e3ac014a5e8f986761
+  HLSpriteKit: 6e1be7876cac3c81d1faf833d1216fb0937fe189
 
 COCOAPODS: 0.39.0

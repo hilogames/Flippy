@@ -114,7 +114,7 @@ BOOL HLGestureTarget_areEquivalentGestureRecognizers(UIGestureRecognizer *a, UIG
 - (BOOL)addToGesture:(UIGestureRecognizer *)gestureRecognizer firstTouch:(UITouch *)touch isInside:(BOOL *)isInside;
 
 // Commented out: Another idea, for callers with lots of targets: A version of
-// addToGesture to be implemented by SKNode descendents who care about sceneLocation not
+// addToGesture to be implemented by SKNode descendants who care about sceneLocation not
 // touch.  This could avoid every target doing the same coordinates conversion over and
 // over.
 //- (BOOL)addToGesture:(UIGestureRecognizer *)gestureRecognizer firstTouchSceneLocation:(CGPoint)sceneLocation isInside:(BOOL *)isInside;
@@ -157,7 +157,7 @@ BOOL HLGestureTarget_areEquivalentGestureRecognizers(UIGestureRecognizer *a, UIG
 
 /**
  Initializes a tap gesture target with the passed delegate.
- */
+*/
 - (instancetype)initWithDelegate:(id <HLTapGestureTargetDelegate>)delegate;
 
 /**
@@ -170,7 +170,7 @@ BOOL HLGestureTarget_areEquivalentGestureRecognizers(UIGestureRecognizer *a, UIG
  delegate.
  
  See `initWithDelegate:`.
- */
+*/
 + (instancetype)tapGestureTargetWithDelegate:(id <HLTapGestureTargetDelegate>)delegate;
 
 /**
@@ -260,7 +260,7 @@ BOOL HLGestureTarget_areEquivalentGestureRecognizers(UIGestureRecognizer *a, UIG
      dialog box, and add a single button which dismisses it.  So then the button removes
      the dialog box from the node hierarchy, no other references exist, the parent is
      deleted which deletes the children, the button is deleted, so the callback block
-     (being run) is deleted.  So (see notes in notes/objective-c.txt) we have add TWO
+     (being run) is deleted.  So (see notes in notes/objective-c.txt) we have to add TWO
      lines of code, making a strong reference (at block execution time) of a weak
      reference (at block copy time) of the dialog box.  What a pain.  HLGestureTarget
      should make this easier for us somehow.  Could it retain a strong reference for us

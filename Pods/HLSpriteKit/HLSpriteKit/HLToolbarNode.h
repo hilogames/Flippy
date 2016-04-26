@@ -24,6 +24,10 @@ typedef NS_ENUM(NSInteger, HLToolbarNodeJustification) {
 
 /**
  Animation used for setting toolbar tools.
+
+ Some of these animation options will look silly unless property `contentClipped`
+ is set to `YES`.  (See the notes at `contentClipped` for an explanation why it
+ defaults to `NO`.)
 */
 typedef NS_ENUM(NSInteger, HLToolbarNodeAnimation) {
   HLToolbarNodeAnimationNone,
@@ -59,7 +63,7 @@ typedef NS_ENUM(NSInteger, HLToolbarNodeAnimation) {
 /**
  Initializes a toolbar node.
 */
-- (instancetype)init NS_DESIGNATED_INITIALIZER;
+- (instancetype)init;
 
 /// @name Managing Interaction
 
@@ -81,7 +85,7 @@ typedef NS_ENUM(NSInteger, HLToolbarNodeAnimation) {
 
  Beware retain cycles when using the callback to invoke a method in the owner.  As a safer
  alternative, use the toolbar node's delegation interface; see `setDelegate:`.
- */
+*/
 @property (nonatomic, copy) void (^toolTappedBlock)(NSString *toolTag);
 
 /// @name Getting and Setting Tools
@@ -215,8 +219,28 @@ typedef NS_ENUM(NSInteger, HLToolbarNodeAnimation) {
  In general, this method (or `setTools:tags:animation:`) must be called after modifying
  any geometry-related (layout-affecting) object property.  Requiring an explicit call
  allows the caller to set multiple properties at the same time efficiently.
- */
+*/
 - (void)layoutToolsAnimation:(HLToolbarNodeAnimation)animation;
+
+/**
+ Whether or not the content is clipped (cropped) to the overall toolbar dimensions.
+ 
+ Default value is `NO`.
+
+ This is especially relevant to the animation options offered by `HLToolbarNodeAnimation`
+ while setting tools in the toolbar node: Some animation options will look silly without
+ clipping.  And in fact, this option would default `YES`, or would not even be offered
+ as an option, except that sometimes the owner needs to control whether or not the
+ hierarchy includes an `SKCropNode`; see the bug below.
+ 
+ @bug When a descendant node of the `contentNode` is an `SKCropNode`, the clipping of
+      contents is irregular, affecting some descendants but not others.  Unfortunately
+      it can be difficult to determine the culprit, since crop nodes are sometimes
+      hidden in the implementation of custom nodes.  Also: In certain versions of iOS,
+      adding an SKEffectNode as a descendant of an SKCropNode causes the effect to render
+      incorrectly.
+ */
+@property (nonatomic, getter=isContentClipped) BOOL contentClipped;
 
 /**
  Whether the toolbar should automatically size its width according to its tools.
@@ -430,7 +454,7 @@ typedef NS_ENUM(NSInteger, HLToolbarNodeAnimation) {
  The delegate is (currently) concerned mostly with handling user interaction.  It's worth
  noting that the `HLToolbarNode` only receives gestures if it is configured as its own
  gesture target (using `[SKNode+HLGestureTarget hlSetGestureTarget]`).
- */
+*/
 @protocol HLToolbarNodeDelegate <NSObject>
 
 /// @name Handling User Interaction
@@ -445,26 +469,48 @@ typedef NS_ENUM(NSInteger, HLToolbarNodeAnimation) {
 @protocol HLToolbarNodeMultiGestureTargetDelegate;
 
 /**
- A gesture target for toolbar nodes that handles taps, double-taps, long-presses, and pans.
+ A gesture target for toolbar nodes that handles taps, double-taps, long-presses, and
+ pans.
 */
 @interface HLToolbarNodeMultiGestureTarget : NSObject <HLGestureTarget>
 
+/**
+ Initializes a new multi-gesture target for a particular toolbar node.
+*/
 - (instancetype)initWithToolbarNode:(HLToolbarNode *)toolbarNode;
 
+/**
+ The toolbar node for which this target handles gestures.
+*/
 @property (nonatomic, weak) HLToolbarNode *toolbarNode;
 
+/**
+ The delegate invoked when the target handles gestures.
+*/
 @property (nonatomic, weak) id <HLToolbarNodeMultiGestureTargetDelegate> delegate;
 
 @end
 
 @protocol HLToolbarNodeMultiGestureTargetDelegate <NSObject>
 
+/**
+ Invoked when the multi-gesture target handles a tap on a tool.
+*/
 - (void)toolbarNode:(HLToolbarNode *)toolbarNode didTapTool:(NSString *)toolTag;
 
+/**
+ Invoked when the multi-gesture target handles a double-tap on a tool.
+*/
 - (void)toolbarNode:(HLToolbarNode *)toolbarNode didDoubleTapTool:(NSString *)toolTag;
 
+/**
+ Invoked when the multi-gesture target handles a long press on a tool.
+*/
 - (void)toolbarNode:(HLToolbarNode *)toolbarNode didLongPressTool:(NSString *)toolTag;
 
+/**
+ Invoked when the multi-gesture target handles a pan on a tool.
+*/
 - (void)toolbarNode:(HLToolbarNode *)toolbarNode didPanWithGestureRecognizer:(UIPanGestureRecognizer *)gestureRecognizer;
 
 @end

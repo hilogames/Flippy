@@ -49,20 +49,71 @@ static const NSTimeInterval HLToolbarSlideDuration = 0.15f;
 
     _backgroundNode = [SKSpriteNode spriteNodeWithColor:[SKColor colorWithWhite:0.0f alpha:0.5f] size:CGSizeZero];
     [self addChild:_backgroundNode];
-
-    // note: All animations happen within a cropped area, currently.
-    _cropNode = [SKCropNode node];
-    _cropNode.maskNode = [SKSpriteNode spriteNodeWithColor:[SKColor colorWithWhite:1.0f alpha:1.0f] size:CGSizeZero];
-    [self addChild:_cropNode];
   }
   return self;
 }
 
 - (instancetype)initWithCoder:(NSCoder *)aDecoder
 {
-  [NSException raise:@"HLCodingNotImplemented" format:@"Coding not implemented for this descendant of an NSCoding parent."];
-  // note: Call [init] for the sake of the compiler trying to detect problems with designated initializers.
-  return [self init];
+  self = [super initWithCoder:aDecoder];
+  if (self) {
+
+    _delegate = [aDecoder decodeObjectForKey:@"delegate"];
+
+    // note: Cannot decode toolTappedBlock.  Assume it will be reset on decode.
+
+    _backgroundNode = [aDecoder decodeObjectForKey:@"backgroundNode"];
+    _cropNode = [aDecoder decodeObjectForKey:@"cropNode"];
+    _squaresNode = [aDecoder decodeObjectForKey:@"squaresNode"];
+
+    _squareColor = [aDecoder decodeObjectForKey:@"squareColor"];
+    _highlightColor = [aDecoder decodeObjectForKey:@"highlightColor"];
+    _enabledAlpha = (CGFloat)[aDecoder decodeDoubleForKey:@"enabledAlpha"];
+    _disabledAlpha = (CGFloat)[aDecoder decodeDoubleForKey:@"disabledAlpha"];
+
+    _automaticWidth = [aDecoder decodeBoolForKey:@"automaticWidth"];
+    _automaticHeight = [aDecoder decodeBoolForKey:@"automaticHeight"];
+    _automaticToolsScaleLimit = [aDecoder decodeBoolForKey:@"automaticToolsScaleLimit"];
+    _size = [aDecoder decodeCGSizeForKey:@"size"];
+    _anchorPoint = [aDecoder decodeCGPointForKey:@"anchorPoint"];
+    _justification = [aDecoder decodeIntegerForKey:@"justification"];
+    _backgroundBorderSize = (CGFloat)[aDecoder decodeDoubleForKey:@"backgroundBorderSize"];
+    _squareSeparatorSize = (CGFloat)[aDecoder decodeDoubleForKey:@"squareSeparatorSize"];
+    _toolPad = (CGFloat)[aDecoder decodeDoubleForKey:@"toolPad"];
+
+    _lastOrigin = [aDecoder decodeCGPointForKey:@"lastOrigin"];
+  }
+  return self;
+}
+
+- (void)encodeWithCoder:(NSCoder *)aCoder
+{
+  [super encodeWithCoder:aCoder];
+
+  [aCoder encodeConditionalObject:_delegate forKey:@"delegate"];
+
+  // note: Cannot encode toolTappedBlock.  Assume it will be reset on decode.
+
+  [aCoder encodeObject:_backgroundNode forKey:@"backgroundNode"];
+  [aCoder encodeObject:_cropNode forKey:@"cropNode"];
+  [aCoder encodeObject:_squaresNode forKey:@"squaresNode"];
+
+  [aCoder encodeObject:_squareColor forKey:@"squareColor"];
+  [aCoder encodeObject:_highlightColor forKey:@"highlightColor"];
+  [aCoder encodeDouble:_enabledAlpha forKey:@"enabledAlpha"];
+  [aCoder encodeDouble:_disabledAlpha forKey:@"disabledAlpha"];
+
+  [aCoder encodeBool:_automaticWidth forKey:@"automaticWidth"];
+  [aCoder encodeBool:_automaticHeight forKey:@"automaticHeight"];
+  [aCoder encodeBool:_automaticToolsScaleLimit forKey:@"automaticToolsScaleLimit"];
+  [aCoder encodeCGSize:_size forKey:@"size"];
+  [aCoder encodeCGPoint:_anchorPoint forKey:@"anchorPoint"];
+  [aCoder encodeInteger:_justification forKey:@"justification"];
+  [aCoder encodeDouble:_backgroundBorderSize forKey:@"backgroundBorderSize"];
+  [aCoder encodeDouble:_squareSeparatorSize forKey:@"squareSeparatorSize"];
+  [aCoder encodeDouble:_toolPad forKey:@"toolPad"];
+
+  [aCoder encodeCGPoint:_lastOrigin forKey:@"lastOrigin"];
 }
 
 - (instancetype)copyWithZone:(NSZone *)zone
@@ -130,7 +181,11 @@ static const NSTimeInterval HLToolbarSlideDuration = 0.15f;
   // containsPoint).  But if I'm really correcting a bug here, then this is bigger than just
   // HLGestureTarget and should apply to all callers.  (Well, and all callers of calculateAccumulatedFrame,
   // too.)
-  return [_backgroundNode containsPoint:[self convertPoint:p fromNode:self.parent]];
+  if (_contentClipped) {
+    return [_backgroundNode containsPoint:[self convertPoint:p fromNode:self.parent]];
+  } else {
+    return [super containsPoint:p];
+  }
 }
 
 - (void)setZPositionScale:(CGFloat)zPositionScale
@@ -161,7 +216,11 @@ static const NSTimeInterval HLToolbarSlideDuration = 0.15f;
 
   HLItemsNode *oldSquaresNode = _squaresNode;
   _squaresNode = squaresNode;
-  [_cropNode addChild:squaresNode];
+  if (_contentClipped) {
+    [_cropNode addChild:squaresNode];
+  } else {
+    [self addChild:squaresNode];
+  }
 
   CGSize oldSize = _size;
   [self HL_layoutXYAnimation:animation];
@@ -195,12 +254,10 @@ static const NSTimeInterval HLToolbarSlideDuration = 0.15f;
     squaresNode.position = CGPointMake(-delta.x, -delta.y);
     [squaresNode runAction:[SKAction moveByX:delta.x y:delta.y duration:HLToolbarSlideDuration]];
     if (oldSquaresNode) {
-      // note: In iOS8, removeFromParent as SKAction in a sequence causes an untraceable EXC_BAD_ACCESS.
-      // Change to a completion block.
-      [oldSquaresNode runAction:[SKAction moveByX:delta.x y:delta.y duration:HLToolbarSlideDuration] completion:^{
-        [oldSquaresNode removeFromParent];
-      }];
-      // note: See containsPoint; after this animation the accumulated from of the crop node is unreliable.
+      // note: In iOS8, [SKAction removeFromParent] in a sequence causes an untraceable EXC_BAD_ACCESS.
+      [oldSquaresNode runAction:[SKAction sequence:@[ [SKAction moveByX:delta.x y:delta.y duration:HLToolbarSlideDuration],
+                                                      [SKAction performSelector:@selector(removeFromParent) onTarget:oldSquaresNode] ]]];
+      // note: See containsPoint; after this animation the accumulated frame of the crop node is unreliable.
     }
   }
 }
@@ -221,6 +278,32 @@ static const NSTimeInterval HLToolbarSlideDuration = 0.15f;
 - (void)layoutToolsAnimation:(HLToolbarNodeAnimation)animation
 {
   [self HL_layoutXYAnimation:animation];
+}
+
+- (void)setContentClipped:(BOOL)contentClipped
+{
+  if (contentClipped == _contentClipped) {
+    return;
+  }
+  _contentClipped = contentClipped;
+  if (_contentClipped) {
+    _cropNode = [SKCropNode node];
+    SKSpriteNode *maskNode = [SKSpriteNode spriteNodeWithColor:[SKColor blackColor] size:_size];
+    maskNode.anchorPoint = _anchorPoint;
+    _cropNode.maskNode = maskNode;
+    [self addChild:_cropNode];
+    if (_squaresNode) {
+      [_squaresNode removeFromParent];
+      [_cropNode addChild:_squaresNode];
+    }
+  } else {
+    [_cropNode removeFromParent];
+    _cropNode = nil;
+    if (_squaresNode) {
+      [_squaresNode removeFromParent];
+      [self addChild:_squaresNode];
+    }
+  }
 }
 
 - (NSUInteger)toolCount
@@ -367,9 +450,7 @@ static const NSTimeInterval HLToolbarSlideDuration = 0.15f;
     hideGroup.timingMode = SKActionTimingEaseIn;
     // note: Avoiding [SKAction removeFromParent]; see
     //   http://stackoverflow.com/questions/26131591/exc-bad-access-sprite-kit/26188747
-    SKAction *remove = [SKAction runBlock:^{
-      [self removeFromParent];
-    }];
+    SKAction *remove = [SKAction performSelector:@selector(removeFromParent) onTarget:self];
     SKAction *hideSequence = [SKAction sequence:@[ hideGroup, remove ]];
     [self runAction:hideSequence withKey:@"hide"];
   } else {
@@ -444,7 +525,7 @@ static const NSTimeInterval HLToolbarSlideDuration = 0.15f;
       naturalToolsSize.height = naturalToolSize.height;
     }
   }
-  
+
   // TODO: Some pretty ugly quantization of border sizes and/or tool locations when scaling sizes.
   // I think it's only when the toolbar node itself is scaled (by the owner), but it might also
   // result from any fractional pixel sizes when scaling internally.  Most obvious: As the toolbar
@@ -469,7 +550,7 @@ static const NSTimeInterval HLToolbarSlideDuration = 0.15f;
   // texture store and force it here to use linear filtering, then it looks nice in the toolbar...
   // but then all my segment textures dragged into the track seem to take on the same filtering.
   // And testing the value of texture.filteringMode gives unexpected results.
-  
+
   // Calculate tool scale.
   int squareCount = (int)[squareNodes count];
   CGSize toolbarConstantSize = CGSizeMake(_squareSeparatorSize * (squareCount - 1) + _toolPad * (squareCount * 2) + _backgroundBorderSize * 2,
@@ -508,29 +589,35 @@ static const NSTimeInterval HLToolbarSlideDuration = 0.15f;
   // the documented promise is that "no changes take effect until an explicit call to layout"; moreover, since in
   // those mutators the _squaresNode wouldn't be updated, the effected change might only be partial, and therefore
   // ugly.)
-  
+
   // Set toolbar size.
   _size = finalToolbarSize;
   if (animation == HLToolbarNodeAnimationNone) {
     _backgroundNode.size = finalToolbarSize;
-    [(SKSpriteNode *)_cropNode.maskNode setSize:finalToolbarSize];
+    if (_contentClipped) {
+      [(SKSpriteNode *)_cropNode.maskNode setSize:finalToolbarSize];
+    }
   } else if (!CGSizeEqualToSize(_backgroundNode.size, finalToolbarSize)) {
     SKAction *resize = [SKAction resizeToWidth:finalToolbarSize.width height:finalToolbarSize.height duration:HLToolbarResizeDuration];
     resize.timingMode = SKActionTimingEaseOut;
     [_backgroundNode runAction:resize];
     // noob: The cropNode mask must be resized along with the toolbar size.  Or am I missing something?
-    SKAction *resizeMaskNode = [SKAction customActionWithDuration:HLToolbarResizeDuration actionBlock:^(SKNode *node, CGFloat elapsedTime){
-      SKSpriteNode *maskNode = (SKSpriteNode *)node;
-      maskNode.size = self->_backgroundNode.size;
-    }];
-    resizeMaskNode.timingMode = resize.timingMode;
-    [_cropNode.maskNode runAction:resizeMaskNode];
+    if (_contentClipped) {
+      SKAction *resizeMaskNode = [SKAction customActionWithDuration:HLToolbarResizeDuration actionBlock:^(SKNode *node, CGFloat elapsedTime){
+        SKSpriteNode *maskNode = (SKSpriteNode *)node;
+        maskNode.size = self->_backgroundNode.size;
+      }];
+      resizeMaskNode.timingMode = resize.timingMode;
+      [_cropNode.maskNode runAction:resizeMaskNode];
+    }
   }
 
   // Set toolbar anchorPoint.
   _backgroundNode.anchorPoint = _anchorPoint;
-  [(SKSpriteNode *)_cropNode.maskNode setAnchorPoint:_anchorPoint];
-  
+  if (_contentClipped) {
+    [(SKSpriteNode *)_cropNode.maskNode setAnchorPoint:_anchorPoint];
+  }
+
   // Calculate justification offset.
   CGFloat justificationOffset = 0.0f;
   if (_justification == HLToolbarNodeJustificationLeft) {
@@ -543,13 +630,13 @@ static const NSTimeInterval HLToolbarSlideDuration = 0.15f;
       justificationOffset = remainingToolsWidth;
     }
   }
-  
+
   // Layout tools (scaled and positioned appropriately).
   CGFloat x = _anchorPoint.x * -finalToolbarSize.width + _backgroundBorderSize + justificationOffset;
   CGFloat y = _anchorPoint.y * -finalToolbarSize.height + finalToolbarSize.height / 2.0f;
   for (HLBackdropItemNode *squareNode in squareNodes) {
     SKNode *toolNode = squareNode.content;
-    
+
     CGSize naturalToolSize = HLGetBoundsForTransformation([(id)toolNode size], toolNode.zRotation);
     // note: Can multiply toolNode.scale by finalToolsScale, directly.  But that's messing
     // with the properties of the nodes passed in to us.  Instead, set the scale of the
@@ -563,7 +650,7 @@ static const NSTimeInterval HLToolbarSlideDuration = 0.15f;
     squareNode.xScale = finalToolsScale;
     squareNode.yScale = finalToolsScale;
     squareNode.position = CGPointMake(x + finalToolSize.width / 2.0f + _toolPad, y);
-    
+
     x += finalToolSize.width + _toolPad * 2 + _squareSeparatorSize;
   }
 }
@@ -636,12 +723,12 @@ static const NSTimeInterval HLToolbarSlideDuration = 0.15f;
   CGPoint viewLocation = [gestureRecognizer locationInView:_toolbarNode.scene.view];
   CGPoint sceneLocation = [_toolbarNode.scene convertPointFromView:viewLocation];
   CGPoint location = [_toolbarNode convertPoint:sceneLocation fromNode:_toolbarNode.scene];
-  
+
   NSString *toolTag = [_toolbarNode toolAtLocation:location];
   if (!toolTag) {
     return;
   }
-  
+
   [delegate toolbarNode:_toolbarNode didTapTool:toolTag];
 }
 
@@ -651,16 +738,16 @@ static const NSTimeInterval HLToolbarSlideDuration = 0.15f;
   if (!delegate) {
     return;
   }
-  
+
   CGPoint viewLocation = [gestureRecognizer locationInView:_toolbarNode.scene.view];
   CGPoint sceneLocation = [_toolbarNode.scene convertPointFromView:viewLocation];
   CGPoint location = [_toolbarNode convertPoint:sceneLocation fromNode:_toolbarNode.scene];
-  
+
   NSString *toolTag = [_toolbarNode toolAtLocation:location];
   if (!toolTag) {
     return;
   }
-  
+
   [delegate toolbarNode:_toolbarNode didDoubleTapTool:toolTag];
 }
 
@@ -670,16 +757,16 @@ static const NSTimeInterval HLToolbarSlideDuration = 0.15f;
   if (!delegate) {
     return;
   }
-  
+
   CGPoint viewLocation = [gestureRecognizer locationInView:_toolbarNode.scene.view];
   CGPoint sceneLocation = [_toolbarNode.scene convertPointFromView:viewLocation];
   CGPoint location = [_toolbarNode convertPoint:sceneLocation fromNode:_toolbarNode.scene];
-  
+
   NSString *toolTag = [_toolbarNode toolAtLocation:location];
   if (!toolTag) {
     return;
   }
-  
+
   [delegate toolbarNode:_toolbarNode didLongPressTool:toolTag];
 }
 

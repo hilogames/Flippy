@@ -49,7 +49,7 @@ typedef NS_ENUM(NSInteger, HLGridNodeLayoutMode) {
  - Leave the gesture target unset for no gesture handling.
 */
 
-@interface HLGridNode : HLComponentNode <HLGestureTarget>
+@interface HLGridNode : HLComponentNode <NSCoding, HLGestureTarget>
 
 /// @name Creating a Grid Node
 
@@ -88,7 +88,7 @@ typedef NS_ENUM(NSInteger, HLGridNodeLayoutMode) {
                        layoutMode:(HLGridNodeLayoutMode)layoutMode
                        squareSize:(CGSize)squareSize
              backgroundBorderSize:(CGFloat)backgroundBorderSize
-              squareSeparatorSize:(CGFloat)squareSeparatorSize NS_DESIGNATED_INITIALIZER;
+              squareSeparatorSize:(CGFloat)squareSeparatorSize;
 
 /// @name Managing Interaction
 
@@ -367,7 +367,7 @@ typedef NS_ENUM(NSInteger, HLGridNodeLayoutMode) {
  The delegate is (currently) concerned mostly with handling user interaction.  It's worth
  noting that the `HLGridNode` only receives gestures if it is configured as its own
  gesture target (using `[SKNode+HLGestureTarget hlSetGestureTarget]`).
- */
+*/
 @protocol HLGridNodeDelegate <NSObject>
 
 /// @name Handling User Interaction

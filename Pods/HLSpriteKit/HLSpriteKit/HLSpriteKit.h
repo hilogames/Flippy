@@ -6,6 +6,7 @@
 //  Copyright (c) 2014 Hilo Games. All rights reserved.
 //
 
+#import "HLAction.h"
 #import "HLComponentNode.h"
 #import "HLEmitterStore.h"
 #import "HLGestureTarget.h"
@@ -30,5 +31,5 @@
 #import "SKLabelNode+HLLabelNodeAdditions.h"
 #import "SKNode+HLLayoutManager.h"
 #import "SKNode+HLGestureTarget.h"
-#import "SKSpriteNode+HLSpriteNodeAdditions.h"
+#import "SKNode+HLNodeVisuals.h"
 #import "UIImage+HLImageAdditions.h"

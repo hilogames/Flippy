@@ -71,6 +71,7 @@ HLMenuNodeValidateButtonPrototype(SKNode *buttonPrototype, NSString *label)
 {
   self = [super initWithCoder:aDecoder];
   if (self) {
+    _delegate = [aDecoder decodeObjectForKey:@"delegate"];
     _menu = [aDecoder decodeObjectForKey:@"menu"];
     _currentMenu = [aDecoder decodeObjectForKey:@"currentMenu"];
     _itemSeparatorSize = (CGFloat)[aDecoder decodeDoubleForKey:@"itemSeparatorSize"];
@@ -98,6 +99,7 @@ HLMenuNodeValidateButtonPrototype(SKNode *buttonPrototype, NSString *label)
 
   // Encode.
   [super encodeWithCoder:aCoder];
+  [aCoder encodeConditionalObject:_delegate forKey:@"delegate"];
   [aCoder encodeObject:_menu forKey:@"menu"];
   [aCoder encodeObject:_currentMenu forKey:@"currentMenu"];
   [aCoder encodeDouble:_itemSeparatorSize forKey:@"itemSeparatorSize"];
@@ -356,9 +358,8 @@ HLMenuNodeValidateButtonPrototype(SKNode *buttonPrototype, NSString *label)
 
     if (oldButtonsNode) {
       // note: As of iOS8, doing the remove using an [SKAction removeFromParent] causes EXC_BAD_ACCESS.
-      [oldButtonsNode runAction:animationAction completion:^{
-        [oldButtonsNode removeFromParent];
-      }];
+      [oldButtonsNode runAction:[SKAction sequence:@[ animationAction,
+                                                      [SKAction performSelector:@selector(removeFromParent) onTarget:oldButtonsNode] ]]];
     }
   }
 
@@ -491,7 +492,7 @@ HLMenuNodeValidateButtonPrototype(SKNode *buttonPrototype, NSString *label)
 
 - (void)encodeWithCoder:(NSCoder *)aCoder
 {
-  [aCoder encodeObject:_parent forKey:@"parent"];
+  [aCoder encodeConditionalObject:_parent forKey:@"parent"];
   [aCoder encodeObject:_text forKey:@"text"];
   [aCoder encodeObject:_buttonPrototype forKey:@"buttonPrototype"];
   [aCoder encodeObject:_soundFile forKey:@"soundFile"];
