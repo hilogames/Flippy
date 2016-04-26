@@ -151,7 +151,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
 
   // note: Calling encodeObject on either of these scenes doesn't work, perhaps because of a bug.  See:
   //
-  //   http://stackoverflow.com/questions/23617405/why-is-encodewithcoder-not-getting-called-on-a-subclass-of-sknode-during-applica?noredirect=1#comment36287148_23617405
+  //   http://stackoverflow.com/questions/23617405
   //
   // As a workaround, we save state to a different file using our own archiver.  So, then, once the
   // problem with encodeObject is fixed: The menu scene definitely should just go into the application
