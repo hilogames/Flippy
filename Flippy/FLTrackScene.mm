@@ -3088,6 +3088,7 @@ writeArchiveWithPath:(NSString *)path
     _constructionToolbarState.toolbarNode.backgroundBorderSize = 4.0f;
     _constructionToolbarState.toolbarNode.squareSeparatorSize = 4.0;
     _constructionToolbarState.toolbarNode.anchorPoint = CGPointMake(0.5f, 0.0f);
+    _constructionToolbarState.toolbarNode.contentClipped = YES;
     [self FL_constructionToolbarUpdateGeometry];
   }
 
