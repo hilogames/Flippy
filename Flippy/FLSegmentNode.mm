@@ -9,7 +9,7 @@
 #import "FLSegmentNode.h"
 
 #include <tgmath.h>
-#import "HLTextureStore.h"
+#import "FLTextureStore.h"
 
 #import "FLPath.h"
 
@@ -97,7 +97,7 @@ using namespace std;
     self = [super initWithColor:[SKColor clearColor] size:CGSizeMake(FLSegmentArtSizeFull, FLSegmentArtSizeFull)];
   } else {
     NSString *textureKey = [FLSegmentNode keyForSegmentType:segmentType];
-    SKTexture *texture = [[HLTextureStore sharedStore] textureForKey:textureKey];
+    SKTexture *texture = [[FLTextureStore sharedStore] textureForKey:textureKey];
     self = [super initWithTexture:texture];
   }
   if (self) {
@@ -120,7 +120,7 @@ using namespace std;
     self.size = CGSizeMake(FLSegmentArtSizeFull, FLSegmentArtSizeFull);
   } else {
     NSString *textureKey = [FLSegmentNode keyForSegmentType:segmentType];
-    SKTexture *texture = [[HLTextureStore sharedStore] textureForKey:textureKey];
+    SKTexture *texture = [[FLTextureStore sharedStore] textureForKey:textureKey];
     self.texture = texture;
   }
   _segmentType = segmentType;
@@ -288,7 +288,7 @@ using namespace std;
   // factor brings everything into imageSize.
   CGFloat scale = imageSize / FLSegmentArtSizeFull;
 
-  HLTextureStore *textureStore = [HLTextureStore sharedStore];
+  FLTextureStore *textureStore = [FLTextureStore sharedStore];
 
   UIGraphicsBeginImageContext(CGSizeMake(imageSize, imageSize));
   CGContextRef context = UIGraphicsGetCurrentContext();
@@ -313,7 +313,7 @@ using namespace std;
                                  (FLReadoutValue0Position.y - FLSegmentArtReadoutValueSize / 2.0f) * scale,
                                  scaledReadoutValueSize,
                                  scaledReadoutValueSize);
-  // note: The caller has put images into the HLTextureStore alongside textures, and we can use the
+  // note: The caller has put images into the FLTextureStore alongside textures, and we can use the
   // textures as clues about how to scale the images.  In particular, if the texture uses filtering
   // mode "nearest", then we're looking for a blocky, pixelated look.  Otherwise we want smooth.
   if ([textureStore textureForKey:@"value-0"].filteringMode == SKTextureFilteringNearest) {
@@ -997,7 +997,7 @@ using namespace std;
   // (That is, the caller is responsible to short-circuit the call in cases where
   // it obviously won't do anything; this prevents duplicate checking.)
 
-  HLTextureStore *textureStore = [HLTextureStore sharedStore];
+  FLTextureStore *textureStore = [FLTextureStore sharedStore];
 
   // note: Art assets assume origin in the lower left; node layout, though, has origin
   // in the center.
@@ -1212,7 +1212,7 @@ using namespace std;
   // to short-circuit the call in cases where it obviously won't do anything; this prevents
   // duplicate checking.)
 
-  SKSpriteNode *switchNode = [SKSpriteNode spriteNodeWithTexture:[[HLTextureStore sharedStore] textureForKey:@"switch"]];
+  SKSpriteNode *switchNode = [SKSpriteNode spriteNodeWithTexture:[[FLTextureStore sharedStore] textureForKey:@"switch"]];
   switchNode.name = @"switch";
 
   CGFloat halfBasicSize = FLSegmentArtSizeBasic / 2.0f;
@@ -1289,9 +1289,9 @@ using namespace std;
 
   SKTexture *valueTexture;
   if (_switchPathId == 0) {
-    valueTexture = [[HLTextureStore sharedStore] textureForKey:@"value-0"];
+    valueTexture = [[FLTextureStore sharedStore] textureForKey:@"value-0"];
   } else if (_switchPathId == 1) {
-    valueTexture = [[HLTextureStore sharedStore] textureForKey:@"value-1"];
+    valueTexture = [[FLTextureStore sharedStore] textureForKey:@"value-1"];
   } else {
     [NSException raise:@"FLSegmentNodeSwitchPathIdInvalid" format:@"Invalid switch path id %d.", _switchPathId];
   }
@@ -1317,9 +1317,9 @@ using namespace std;
 
   SKTexture *valueTexture;
   if (_switchPathId == 0) {
-    valueTexture = [[HLTextureStore sharedStore] textureForKey:@"value-0"];
+    valueTexture = [[FLTextureStore sharedStore] textureForKey:@"value-0"];
   } else if (_switchPathId == 1) {
-    valueTexture = [[HLTextureStore sharedStore] textureForKey:@"value-1"];
+    valueTexture = [[FLTextureStore sharedStore] textureForKey:@"value-1"];
   } else {
     [NSException raise:@"FLSegmentNodeSwitchPathIdInvalid" format:@"Invalid switch path id %d.", _switchPathId];
   }

@@ -10,6 +10,7 @@
 
 #import "DSMultilineLabelNode.h"
 #import "FLGoalsNode.h"
+#import "FLTextureStore.h"
 #include "FLTrackGrid.h"
 #import "FLUser.h"
 
@@ -752,7 +753,7 @@ static const CGFloat FLLayoutNodeComponentPad = 7.0f;
       firstOne = NO;
     }
 
-    SKSpriteNode *iconNode = [SKSpriteNode spriteNodeWithTexture:[[HLTextureStore sharedStore] textureForKey:@"unlock"]
+    SKSpriteNode *iconNode = [SKSpriteNode spriteNodeWithTexture:[[FLTextureStore sharedStore] textureForKey:@"unlock"]
                                                             size:CGSizeMake(25.0f, 25.0f)];
     iconNode.zRotation = (CGFloat)M_PI_2;
     [parent addChild:iconNode];
@@ -801,7 +802,7 @@ static const CGFloat FLLayoutNodeComponentPad = 7.0f;
       firstOne = NO;
     }
 
-    SKSpriteNode *iconNode = [SKSpriteNode spriteNodeWithTexture:[[HLTextureStore sharedStore] textureForKey:@"goals"]
+    SKSpriteNode *iconNode = [SKSpriteNode spriteNodeWithTexture:[[FLTextureStore sharedStore] textureForKey:@"goals"]
                                                             size:CGSizeMake(22.0f, 22.0f)];
     iconNode.zRotation = (CGFloat)M_PI_2;
     [parent addChild:iconNode];

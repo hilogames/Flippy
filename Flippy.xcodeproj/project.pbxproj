@@ -76,6 +76,7 @@
 		CBD707C418AD0EE00041B170 /* FLTrain.mm in Sources */ = {isa = PBXBuildFile; fileRef = CBD707C318AD0EE00041B170 /* FLTrain.mm */; };
 		CBE687AB1A0BC5AB00072EB0 /* Help.plist in Resources */ = {isa = PBXBuildFile; fileRef = CBE687AA1A0BC5AB00072EB0 /* Help.plist */; };
 		CBEE13F018C4DBA400D1D42B /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CB0464A318AA6F7F00ABCA03 /* AVFoundation.framework */; };
+		CBF569811CD39CD40043C216 /* FLTextureStore.m in Sources */ = {isa = PBXBuildFile; fileRef = CBF569801CD39CD40043C216 /* FLTextureStore.m */; };
 		CBF729A01A82AD8A00F3FFA3 /* DSMultilineLabelNode.m in Sources */ = {isa = PBXBuildFile; fileRef = CBF7299F1A82AD8A00F3FFA3 /* DSMultilineLabelNode.m */; };
 		CBFCCE611A1BDB6600A598E5 /* FLApplication.m in Sources */ = {isa = PBXBuildFile; fileRef = CBFCCE601A1BDB6600A598E5 /* FLApplication.m */; };
 /* End PBXBuildFile section */
@@ -179,6 +180,8 @@
 		CBD707C218AD0EE00041B170 /* FLTrain.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTrain.h; sourceTree = "<group>"; };
 		CBD707C318AD0EE00041B170 /* FLTrain.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLTrain.mm; sourceTree = "<group>"; };
 		CBE687AA1A0BC5AB00072EB0 /* Help.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Help.plist; sourceTree = "<group>"; };
+		CBF5697F1CD39CD40043C216 /* FLTextureStore.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTextureStore.h; sourceTree = "<group>"; };
+		CBF569801CD39CD40043C216 /* FLTextureStore.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FLTextureStore.m; sourceTree = "<group>"; };
 		CBF7299E1A82AD8A00F3FFA3 /* DSMultilineLabelNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DSMultilineLabelNode.h; sourceTree = "<group>"; };
 		CBF7299F1A82AD8A00F3FFA3 /* DSMultilineLabelNode.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DSMultilineLabelNode.m; sourceTree = "<group>"; };
 		CBFCCE5F1A1BDB6600A598E5 /* FLApplication.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLApplication.h; sourceTree = "<group>"; };
@@ -372,6 +375,8 @@
 				CB0DA5A418B7D8CE00E43D34 /* FLPath.mm */,
 				CB929EAC18B93AE200543F25 /* FLSegmentNode.h */,
 				CB929EAD18B93AE200543F25 /* FLSegmentNode.mm */,
+				CBF5697F1CD39CD40043C216 /* FLTextureStore.h */,
+				CBF569801CD39CD40043C216 /* FLTextureStore.m */,
 				CB50C21618BF8F140072DA30 /* FLTrackGrid.h */,
 				CB50C21518BF8F140072DA30 /* FLTrackGrid.mm */,
 				CBB4B815183C00E1003C3444 /* FLTrackScene.h */,
@@ -624,6 +629,7 @@
 				CB929EAE18B93AE200543F25 /* FLSegmentNode.mm in Sources */,
 				CB485D92196ED4D900E8646B /* FLConstants.m in Sources */,
 				CBB4B807183C00E1003C3444 /* main.m in Sources */,
+				CBF569811CD39CD40043C216 /* FLTextureStore.m in Sources */,
 				CBF729A01A82AD8A00F3FFA3 /* DSMultilineLabelNode.m in Sources */,
 				CBB4B814183C00E1003C3444 /* FLViewController.mm in Sources */,
 				CB7B494C18D39E1C00FACEF4 /* FLLinks.mm in Sources */,

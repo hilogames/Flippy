@@ -16,6 +16,7 @@
 #include "FLLinks.h"
 #import "FLPath.h"
 #import "FLSegmentNode.h"
+#import "FLTextureStore.h"
 #include "FLTrackGrid.h"
 #import "FLUser.h"
 
@@ -173,7 +174,7 @@ struct FLConstructionToolbarState
     toolTypes = [NSMutableDictionary dictionary];
     toolDescriptions = [NSMutableDictionary dictionary];
     toolSegmentTypes = [NSMutableDictionary dictionary];
-    toolArchiveTextureStore = [[HLTextureStore alloc] init];
+    toolArchiveTextureStore = [[FLTextureStore alloc] init];
   }
   HLToolbarNode *toolbarNode;
   NSString *currentNavigation;
@@ -181,7 +182,7 @@ struct FLConstructionToolbarState
   NSMutableDictionary *toolTypes;
   NSMutableDictionary *toolDescriptions;
   NSMutableDictionary *toolSegmentTypes;
-  HLTextureStore *toolArchiveTextureStore;
+  FLTextureStore *toolArchiveTextureStore;
   UIAlertView *deleteExportConfirmAlert;
   NSString *deleteExportName;
   NSString *deleteExportDescription;
@@ -2259,14 +2260,14 @@ struct PointerPairHash
   // for convenient re-use.  It's not clear to me that SKTextures's preloadTextures:withCompletionHandler:
   // would do any better, but it might be worth checking.
 
-  // note: Some sloppiness here in terms of resource-management: We use the shared HLTextureStore
+  // note: Some sloppiness here in terms of resource-management: We use the shared FLTextureStore
   // rather than maintaining our own and passing it to those who need it; we preload textures for
   // (for example) FLTrain and FLSegmentNode rather than asking them to load themselves; etc.
   // This is justified, perhaps, since FLTrackScene is the master scene in the app, but be sure
   // to design more modularly if copying this pattern for other scenes.
   NSDate *startDate = [NSDate date];
 
-  HLTextureStore *textureStore = [HLTextureStore sharedStore];
+  FLTextureStore *textureStore = [FLTextureStore sharedStore];
 
   // Train.
   [textureStore setTextureWithImageNamed:@"engine" andUIImageWithImageNamed:@"engine" forKey:@"engine" filteringMode:SKTextureFilteringNearest];
@@ -2378,7 +2379,7 @@ struct PointerPairHash
   return segmentNode;
 }
 
-- (SKSpriteNode *)FL_createToolNodeForTextureKey:(NSString *)textureKey textureStore:(HLTextureStore *)textureStore
+- (SKSpriteNode *)FL_createToolNodeForTextureKey:(NSString *)textureKey textureStore:(FLTextureStore *)textureStore
 {
   SKTexture *texture = [textureStore textureForKey:textureKey];
   SKSpriteNode *toolNode = [SKSpriteNode spriteNodeWithTexture:texture];
@@ -2516,7 +2517,7 @@ writeArchiveWithPath:(NSString *)path
   // result I expect.  I'm not sure that's the correct treatment.  (For instance, I could instead use
   // CGImageRef cgImage = CGBitmapContextCreateImage(context) to get a Quartz image, and then initialize the
   // texture using that image, which presumably would give me the result I expect.  But I haven't checked,
-  // and HLTextureStore is factored in such a way that I want a UIImage.)
+  // and FLTextureStore is factored in such a way that I want a UIImage.)
   CGContextTranslateCTM(context, 0.0f, imageSize);
   CGContextScaleCTM(context, 1.0f, -1.0f);
   // note: The segments are positioned and rotated according to scene coordinates, which uses Cartesian coordinates
@@ -2526,7 +2527,7 @@ writeArchiveWithPath:(NSString *)path
   CGContextTranslateCTM(context, 0.0f, imageSize);
   CGContextRotateCTM(context, -(CGFloat)M_PI_2);
   for (FLSegmentNode *segmentNode in segmentNodes) {
-    UIImage *segmentNodeImage = [[HLTextureStore sharedStore] imageForKey:segmentNode.segmentKey];
+    UIImage *segmentNodeImage = [[FLTextureStore sharedStore] imageForKey:segmentNode.segmentKey];
     // Calculate final center position of the scaled segment (on the imageSize x imageSize image with origin in the lower left).
     CGPoint scaledSegmentPosition = CGPointMake((segmentNode.position.x - shift.x) * scaleBasicSegmentPosition - scaledBasicSegmentInset + imageMargin + halfScaledFullSegmentSize,
                                                 (segmentNode.position.y - shift.y) * scaleBasicSegmentPosition - scaledBasicSegmentInset + imageMargin + halfScaledFullSegmentSize);
@@ -3153,7 +3154,7 @@ writeArchiveWithPath:(NSString *)path
 
 - (void)FL_constructionToolbarShowMain:(int)page animation:(HLToolbarNodeAnimation)animation
 {
-  HLTextureStore *sharedTextureStore = [HLTextureStore sharedStore];
+  FLTextureStore *sharedTextureStore = [FLTextureStore sharedStore];
   NSMutableArray *toolNodes = [NSMutableArray array];
   NSMutableArray *toolTags = [NSMutableArray array];
   NSString *textureKey;
@@ -3218,7 +3219,7 @@ writeArchiveWithPath:(NSString *)path
 
 - (void)FL_constructionToolbarShowSegments:(int)page animation:(HLToolbarNodeAnimation)animation
 {
-  HLTextureStore *sharedTextureStore = [HLTextureStore sharedStore];
+  FLTextureStore *sharedTextureStore = [FLTextureStore sharedStore];
   NSMutableArray *toolNodes = [NSMutableArray array];
   NSMutableArray *toolTags = [NSMutableArray array];
   NSString *textureKey;
@@ -3457,7 +3458,7 @@ writeArchiveWithPath:(NSString *)path
         UIImage *archiveImage = [self FL_segments:segmentNodes createImageWithSize:FLMainToolbarToolArtSize];
         // note: Could put archive textures into the shared texture store for reuse between scenes, which would
         // save a little loading time, but we don't have a good place to store archiveDescription along with the
-        // texture.  Rather than add a special interface to HLTextureStore, or create a special static store for
+        // texture.  Rather than add a special interface to FLTextureStore, or create a special static store for
         // FLTrackScene to store just archive descriptions, for now we use a texture store that has the same
         // lifetime as _constructionToolbarState.toolDescriptions.
         [_constructionToolbarState.toolArchiveTextureStore setTextureWithImage:archiveImage forKey:archiveName filteringMode:SKTextureFilteringNearest];
@@ -3484,13 +3485,13 @@ writeArchiveWithPath:(NSString *)path
   // note: First "main".
   NSString *textureKey = @"main";
   [toolTags addObject:textureKey];
-  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:[HLTextureStore sharedStore]]];
+  [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:[FLTextureStore sharedStore]]];
   _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
   // note: Next "previous".
   if (page != 0) {
     textureKey = @"previous";
     [toolTags addObject:textureKey];
-    [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:[HLTextureStore sharedStore]]];
+    [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:[FLTextureStore sharedStore]]];
     _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
   }
   // note: The page might end up with no tools if the requested page is too
@@ -3504,7 +3505,7 @@ writeArchiveWithPath:(NSString *)path
   if (endIndex < archiveTextureKeysCount) {
     textureKey = @"next";
     [toolTags addObject:textureKey];
-    [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:[HLTextureStore sharedStore]]];
+    [toolNodes addObject:[self FL_createToolNodeForTextureKey:textureKey textureStore:[FLTextureStore sharedStore]]];
     _constructionToolbarState.toolTypes[textureKey] = @(FLToolbarToolTypeNavigation);
   }
 
@@ -3545,7 +3546,7 @@ writeArchiveWithPath:(NSString *)path
                                           pageToolNodes:(NSArray * __autoreleasing *)pageToolNodes
                                            pageToolTags:(NSArray * __autoreleasing *)pageToolTags
 {
-  HLTextureStore *sharedTextureStore = [HLTextureStore sharedStore];
+  FLTextureStore *sharedTextureStore = [FLTextureStore sharedStore];
 
   // Calculate indexes that will be included in page.
   //
@@ -3649,7 +3650,7 @@ writeArchiveWithPath:(NSString *)path
 
 - (void)FL_simulationToolbarUpdateTools
 {
-  HLTextureStore *sharedTextureStore = [HLTextureStore sharedStore];
+  FLTextureStore *sharedTextureStore = [FLTextureStore sharedStore];
   NSMutableArray *toolNodes = [NSMutableArray array];
   NSMutableArray *toolTags = [NSMutableArray array];
 
@@ -3727,7 +3728,7 @@ writeArchiveWithPath:(NSString *)path
 
 - (FLTrain *)FL_trainCreate
 {
-  SKTexture *trainTexture = [[HLTextureStore sharedStore] textureForKey:@"engine"];
+  SKTexture *trainTexture = [[FLTextureStore sharedStore] textureForKey:@"engine"];
   FLTrain *train = [[FLTrain alloc] initWithTexture:trainTexture trackGrid:_trackGrid];
   train.delegate = self;
   train.scale = FLTrackArtScale;
@@ -3884,7 +3885,7 @@ writeArchiveWithPath:(NSString *)path
   _trainMoveState.progressPrecision = FLPath::getLength(FLPathTypeStraight) / FLTrackSegmentSize / _worldNode.xScale;
 
   if (!_trainMoveState.cursorNode) {
-    SKSpriteNode *cursorNode = [SKSpriteNode spriteNodeWithTexture:[[HLTextureStore sharedStore] textureForKey:@"engine"]];
+    SKSpriteNode *cursorNode = [SKSpriteNode spriteNodeWithTexture:[[FLTextureStore sharedStore] textureForKey:@"engine"]];
     cursorNode.zPosition = FLZPositionWorldOverlay;
     cursorNode.zRotation = (CGFloat)M_PI_2;
     cursorNode.xScale = FLTrackArtScale;
@@ -4582,7 +4583,7 @@ writeArchiveWithPath:exportPath
 
 - (void)FL_trackEditMenuUpdateTools
 {
-  HLTextureStore *sharedTextureStore = [HLTextureStore sharedStore];
+  FLTextureStore *sharedTextureStore = [FLTextureStore sharedStore];
 
   // Collect information about selected segments.
   NSArray *segmentNodes = _trackSelectState.selectedSegments;
@@ -4854,7 +4855,7 @@ writeArchiveWithPath:exportPath
   const CGFloat FLLinkHighlightOffsetDistance = 4.0f;
   const CGFloat FLLinkHighlightBlur = 12.0f;
   const int FLLinkHighlightShadowCount = 4;
-  UIImage *segmentImage = [[HLTextureStore sharedStore] imageForKey:segmentNode.segmentKey];
+  UIImage *segmentImage = [[FLTextureStore sharedStore] imageForKey:segmentNode.segmentKey];
   UIImage *shadowedImage = [segmentImage multiShadowWithOffsetDistance:FLLinkHighlightOffsetDistance
                                                            shadowCount:FLLinkHighlightShadowCount
                                                                   blur:FLLinkHighlightBlur
@@ -5905,7 +5906,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
                                           @"Tutorial message.");
       NSString *annotation = NSLocalizedString(@"Long-press to skip tutorial.",
                                                @"Tutorial message.");
-      _tutorialState.cutouts.emplace_back(_train, [[HLTextureStore sharedStore] imageForKey:@"engine"], NO);
+      _tutorialState.cutouts.emplace_back(_train, [[FLTextureStore sharedStore] imageForKey:@"engine"], NO);
       _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
       CGPoint panSceneLocation = [self convertPoint:_train.position fromNode:_worldNode];
       [self FL_tutorialShowWithLabel:label annotation:annotation firstPanWorld:YES panLocation:panSceneLocation animated:animated];
@@ -5974,7 +5975,7 @@ FL_tutorialContextCutoutImage(CGContextRef context, UIImage *image, CGPoint cuto
       NSString *label = NSLocalizedString(@"Flippy starts out on a green platform. Each level has only one.",
                                           @"Tutorial message.");
       FLSegmentNode *segmentNode = _trackGrid->get(0, 0);
-      _tutorialState.cutouts.emplace_back(segmentNode, [[HLTextureStore sharedStore] imageForKey:@"platform-start-left"], NO);
+      _tutorialState.cutouts.emplace_back(segmentNode, [[FLTextureStore sharedStore] imageForKey:@"platform-start-left"], NO);
       _tutorialState.labelPosition = FLTutorialLabelAboveCutouts;
       CGPoint panSceneLocation = [self convertPoint:segmentNode.position fromNode:_trackNode];
       [self FL_tutorialShowWithLabel:label annotation:nil firstPanWorld:YES panLocation:panSceneLocation animated:animated];

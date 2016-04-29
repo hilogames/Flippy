@@ -110,7 +110,7 @@
 - For import thumbnails: Draw simple CoreGraphics lines tracing track
   segment paths rather than shrinking down textures/images.  The
   result might be better.  (And wouldn't need UIImages anymore in
-  HLTextureStore.)
+  FLTextureStore.)
 
 - For multisegment rotation: In case of conflict, search for nearby
   pivot that would work without conflicts.  Shouldn't be hard to check
