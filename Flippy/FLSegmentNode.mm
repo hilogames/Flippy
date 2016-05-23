@@ -1379,7 +1379,9 @@ using namespace std;
 
   SKAction *whiteFlash = [SKAction fadeAlphaTo:0.0f duration:FLFlashDuration];
   whiteFlash.timingMode = SKActionTimingEaseOut;
-  [whiteLayer runAction:whiteFlash completion:^{
+  // note: Before iOS 9 I ran the fade on the crop node itself, which worked, but in iOS 9
+  // the alpha of the crop node doesn't seem to be inherited by the child.
+  [whiteNode runAction:whiteFlash completion:^{
     [whiteLayer removeFromParent];
   }];
 }
