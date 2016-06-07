@@ -742,7 +742,7 @@ struct PointerPairHash
   //
   //   . If you make the pan gesture require the swipe gestures to fail, with two touches, then
   //     everything is pretty good: The two-finger swipes fail when there is only one touch,
-  //     and the two-finger gestures are reconized right away.  But it introduces a delay into
+  //     and the two-finger gestures are recognized right away.  But it introduces a delay into
   //     the pan recognition, which is unacceptable here (since panning is so much more common
   //     than swiping).
   UISwipeGestureRecognizer *swipeLeftGestureRecognizer = [[UISwipeGestureRecognizer alloc] init];
@@ -2119,6 +2119,18 @@ struct PointerPairHash
   }
 
   // Train.
+  if ([self FL_trainMoveInProgress]) {
+    // note: When a pan gesture recognizer is being handled with a single touch, but then
+    // a second touch begins, the gesture recognizer gets run through gestureRecognizer:shouldReceiveTouch:
+    // again.  In that case, the gesture handling is already in progress, and should continue; it appears to
+    // work better to reject the touch, which apparently continues the original gesture with a single touch,
+    // as opposed to returning YES which ends up canceling the original gesture.  I'd like to do better, but
+    // I'm scared to mess with the gesture handling configuration (since the balance between swipe and pan is
+    // already so tricky, see notes elsewhere).
+    if ([gestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]]) {
+      return NO;
+    }
+  }
   CGPoint worldLocation = [_worldNode convertPoint:sceneLocation fromNode:self];
   if (_train.parent
       && [_train containsPoint:worldLocation]) {
@@ -3894,7 +3906,11 @@ writeArchiveWithPath:(NSString *)path
     _trainMoveState.cursorNode = cursorNode;
   }
   _trainMoveState.cursorNode.position = worldLocation;
-  [_trackNode addChild:_trainMoveState.cursorNode];
+  // noob: Normally I wouldn't be defensive here, but I had this crash in production, so am
+  // interested in eradicating the crash even if the state ends up strange.
+  if (!_trainMoveState.cursorNode.parent) {
+    [_trackNode addChild:_trainMoveState.cursorNode];
+  }
 }
 
 - (void)FL_trainMoveChangedWithLocation:(CGPoint)worldLocation
@@ -3904,6 +3920,11 @@ writeArchiveWithPath:(NSString *)path
   [_train moveToClosestOnTrackLocationForLocation:worldLocation
                                gridSearchDistance:FLGridSearchDistance
                                 progressPrecision:_trainMoveState.progressPrecision];
+}
+
+- (BOOL)FL_trainMoveInProgress
+{
+  return _trainMoveState.cursorNode && _trainMoveState.cursorNode.parent;
 }
 
 - (void)FL_trainMoveEnded
