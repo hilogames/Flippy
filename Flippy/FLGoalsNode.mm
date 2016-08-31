@@ -158,7 +158,7 @@ static const CGFloat FLLayoutNodeComponentPad = 7.0f;
                                           @"Goals screen: displayed when a loop in the track is detected.");
       truthFooterColor = FLInterfaceColorBad();
     } else if (trackTruthTable.state == FLTrackTruthTableStateMissingLinks) {
-      if (_gameLevel == 0) {
+      if (_gameType == FLGameTypeChallenge && _gameLevel == 0) {
         // note: Hacky hint for level 0.  This is for the sake of the poor sod who accidentally deletes the pre-created
         // join segments and doesn't know how to do linking (until the tutorial on the next level).
         truthFooterText = NSLocalizedString(@"Warning: At least one of the track inputs or outputs isn’t linked to anything. Restart the level to restore links.",
