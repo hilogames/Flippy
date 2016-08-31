@@ -273,8 +273,7 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   // three possible states:
   //
   //   1) View was previously hidden and is now about to appear again.  This
-  //      state shouldn't exist; an exception is added to viewWillDisappear to
-  //      check the assumption.
+  //      state shouldn't exist; see viewWillDisappear.
   //
   //   2) View is about to appear for the first time after application decoded
   //      restorable state.  In this case, present the state if it's presentable.
@@ -314,7 +313,12 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
 
 - (void)viewWillDisappear:(BOOL)animated
 {
-  [NSException raise:@"FLViewControllerBadState" format:@"Method viewWillAppear assumes that the view never disappears."];
+  // note: There is only one view for the lifetime of the view controller, so this is
+  // not expected to be called in the normal course of the app.  It can, however, happen
+  // in at least one unusual circumstance: The app is force-quit while in the foreground.
+  // If there are other circumstances, I'd like to know about them, so assert.  For the
+  // one known circumstance, though, there is nothing to do.
+  assert(NO);
   [super viewWillDisappear:animated];
 }
 
