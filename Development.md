@@ -7,6 +7,15 @@
 - Problems deactivating AVAudioSession on application backgrounding;
   see notes in FLAppDelegate.h.  Would seem to be in SpriteKit domain.
 
+  - Probably related: Crash in [SKSoundSource purgeCompletionBuffers]
+    when receiving a memory warning in the background.  Appears to be
+    triggered by the unsetting of `_titleScene` in `FLViewController
+    applicationDidReceiveMemoryWarning` (to `FL_titleSceneRelease`).
+    Can reproduce by starting at title scene, starting a sandbox game,
+    then pushing home button, then triggering a memory warning.  (Does
+    not get triggered if _titleScene is the current scene, since
+    _titleScene is not then unset.)
+
 ## Small Tasks from User Feedback
 
 - Add visual feedback for first tap on delete button: red background

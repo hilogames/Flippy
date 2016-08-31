@@ -83,7 +83,15 @@
   // during the time when sounds weren't playing (which was a concern of one poster, I think).
   //
   // I call this situation tolerable for now, and it seems the bug is in SpriteKit's domain.
-  
+  //
+  // Later, another reproducible crash, perhaps related:
+  //
+  //  3) If I trigger a memory warning while the app is backgrounded, then (in some situations) the view
+  //     controller frees up the title scene (_titleScene ivar), which then triggers a crash in SpriteKit
+  //     library code ([SKSoundSource purgeCompletionBuffers]).
+  //
+  // I have not played with this one yet.
+
   return YES;
 }
 
@@ -146,13 +154,13 @@
     _flViewController.skView.paused = YES;
   }
 
-  // commented out: See notes in applicationWillFinishLoadingWithOptions:.
+  // commented out: See notes in applicationWillFinishLaunchingWithOptions:.
   //[[AVAudioSession sharedInstance] setActive:NO error:nil];
 }
 
 - (void)applicationDidBecomeActive:(UIApplication *)application
 {
-  // commented out: See notes in applicationWillFinishLoadingWithOptions:.
+  // commented out: See notes in applicationWillFinishLaunchingWithOptions:.
   //[[AVAudioSession sharedInstance] setActive:YES error:nil];
 
   // note: See notes in applicationWillResignActive:.
@@ -164,7 +172,7 @@
 
 - (void)applicationDidEnterBackground:(UIApplication *)application
 {
-  // commented in for now: See notes in applicationWillFinishLoadingWithOptions:.
+  // commented in for now: See notes in applicationWillFinishLaunchingWithOptions:.
   [[AVAudioSession sharedInstance] setActive:NO error:nil];
 }
 
