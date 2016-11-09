@@ -151,7 +151,8 @@ public:
     return valueCardinality_;
   }
   std::vector<int> inputValuesFirst() const {
-    return std::move(FLTruthTable::inputValuesFirst(inputSize_));
+    // noob: Don't use std::move; it prevents RVO in this situation.
+    return FLTruthTable::inputValuesFirst(inputSize_);
   }
   bool inputValuesSuccessor(std::vector<int>& inputValues) const {
     return FLTruthTable::inputValuesSuccessor(inputValues, valueCardinality_);

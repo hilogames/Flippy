@@ -38,7 +38,8 @@ vector<int>
 FLTruthTable::inputValuesFirst(int inputSize)
 {
   vector<int> inputValues(static_cast<size_t>(inputSize), 0);
-  return std::move(inputValues);
+  // noob: Don't use std::move; it prevents NRVO in this situation.
+  return inputValues;
 }
 
 bool
