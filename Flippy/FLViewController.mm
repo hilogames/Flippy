@@ -1490,17 +1490,15 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   [aboutItems addObject:sourceCodeLabel];
   
   _aboutItemsHeight = FLAboutItemPad * 2.0f;
-  for (id aboutItem in aboutItems) {
-    CGSize aboutItemSize = [aboutItem size];
-    _aboutItemsHeight += aboutItemSize.height + FLAboutItemPad;
+  for (SKSpriteNode *aboutItem in aboutItems) {
+    _aboutItemsHeight += aboutItem.size.height + FLAboutItemPad;
   }
   CGFloat aboutItemPositionY = _aboutItemsHeight / 2.0f - FLAboutItemPad;
-  for (id aboutItem in aboutItems) {
+  for (SKSpriteNode *aboutItem in aboutItems) {
     [aboutItem setAnchorPoint:CGPointMake(0.5f, 1.0f)];
     [aboutItem setPosition:CGPointMake(0.0f, aboutItemPositionY)];
     [aboutContentNode addChild:aboutItem];
-    CGSize aboutItemSize = [aboutItem size];
-    aboutItemPositionY -= (aboutItemSize.height + FLAboutItemSpacer);
+    aboutItemPositionY -= (aboutItem.size.height + FLAboutItemSpacer);
   }
 
   [_aboutOverlay hlSetGestureTarget:_aboutOverlay];

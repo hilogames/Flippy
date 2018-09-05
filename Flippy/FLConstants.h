@@ -20,7 +20,7 @@ typedef NS_ENUM(NSInteger, FLChallengeLevelsInfoKey) {
   FLChallengeLevelsRecordDefaults,
 };
 
-FOUNDATION_EXPORT int FLChallengeLevelsCount();
+FOUNDATION_EXPORT int FLChallengeLevelsCount(void);
 
 /**
  * Returns information about a level in a challenge game.  See
@@ -41,13 +41,13 @@ FOUNDATION_EXPORT NSString *FLInterfaceBoldFontName;
 /**
  * Standard application colors.
  */
-FOUNDATION_EXPORT SKColor *FLInterfaceColorDark();
-FOUNDATION_EXPORT SKColor *FLInterfaceColorMedium();
-FOUNDATION_EXPORT SKColor *FLInterfaceColorLight();
-FOUNDATION_EXPORT SKColor *FLInterfaceColorSunny();
-FOUNDATION_EXPORT SKColor *FLInterfaceColorGood();
-FOUNDATION_EXPORT SKColor *FLInterfaceColorMaybe();
-FOUNDATION_EXPORT SKColor *FLInterfaceColorBad();
+FOUNDATION_EXPORT SKColor *FLInterfaceColorDark(void);
+FOUNDATION_EXPORT SKColor *FLInterfaceColorMedium(void);
+FOUNDATION_EXPORT SKColor *FLInterfaceColorLight(void);
+FOUNDATION_EXPORT SKColor *FLInterfaceColorSunny(void);
+FOUNDATION_EXPORT SKColor *FLInterfaceColorGood(void);
+FOUNDATION_EXPORT SKColor *FLInterfaceColorMaybe(void);
+FOUNDATION_EXPORT SKColor *FLInterfaceColorBad(void);
 
 /**
  * Creates and returns an HLLabelButtonNode with a background, size, font,
@@ -58,7 +58,7 @@ FOUNDATION_EXPORT SKColor *FLInterfaceColorBad();
  * another for also configuring sizes and fonts.  For now, all callers
  * want the full package.
  */
-FOUNDATION_EXPORT HLLabelButtonNode *FLInterfaceLabelButton();
+FOUNDATION_EXPORT HLLabelButtonNode *FLInterfaceLabelButton(void);
 
 /**
  * Interface standards for dealing with DSMultilineLabelNodes.
@@ -78,6 +78,6 @@ typedef NS_ENUM(NSInteger, FLGameType) {
 };
 
 FOUNDATION_EXPORT NSString * const FLGameTypeChallengeTag;
-FOUNDATION_EXPORT NSString *FLGameTypeChallengeTitle();
+FOUNDATION_EXPORT NSString *FLGameTypeChallengeTitle(void);
 FOUNDATION_EXPORT NSString * const FLGameTypeSandboxTag;
-FOUNDATION_EXPORT NSString *FLGameTypeSandboxTitle();
+FOUNDATION_EXPORT NSString *FLGameTypeSandboxTitle(void);

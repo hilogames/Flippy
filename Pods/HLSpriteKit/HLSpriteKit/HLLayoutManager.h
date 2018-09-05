@@ -113,7 +113,7 @@
  node responds to `size`, then that property is used; if the node is an SKLabelNode, then
  the frame size is returned; otherwise, the size is considered to be zero.
 */
-CGSize HLLayoutManagerGetNodeSize(id node);
+extern CGSize HLLayoutManagerGetNodeSize(id node);
 
 /**
  Convenience method providing a standard way to calculate the required width of a node for

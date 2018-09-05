@@ -63,7 +63,18 @@ enum {
 - (CGSize)size
 {
   SKNode *contentNode = [self childNodeWithName:@"content"];
-  return [(id)contentNode size];
+  SEL selector = @selector(size);
+  NSMethodSignature *sizeMethodSignature = [contentNode methodSignatureForSelector:selector];
+  if (!sizeMethodSignature
+      || strcmp(sizeMethodSignature.methodReturnType, @encode(CGSize)) != 0) {
+    return CGSizeZero;
+  }
+  NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:sizeMethodSignature];
+  [invocation setSelector:selector];
+  [invocation invokeWithTarget:contentNode];
+  CGSize contentNodeSize;
+  [invocation getReturnValue:&contentNodeSize];
+  return contentNodeSize;
 }
 
 - (void)setZPositionScale:(CGFloat)zPositionScale
@@ -150,7 +161,18 @@ enum {
 - (CGSize)size
 {
   SKNode *contentNode = [self childNodeWithName:@"content"];
-  return [(id)contentNode size];
+  SEL selector = @selector(size);
+  NSMethodSignature *sizeMethodSignature = [contentNode methodSignatureForSelector:selector];
+  if (!sizeMethodSignature
+      || strcmp(sizeMethodSignature.methodReturnType, @encode(CGSize)) != 0) {
+    return CGSizeZero;
+  }
+  NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:sizeMethodSignature];
+  [invocation setSelector:selector];
+  [invocation invokeWithTarget:contentNode];
+  CGSize contentNodeSize;
+  [invocation getReturnValue:&contentNodeSize];
+  return contentNodeSize;
 }
 
 - (void)setZPositionScale:(CGFloat)zPositionScale

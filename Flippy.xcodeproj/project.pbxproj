@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		7EC55D6AFCDDCB27F3B0024E /* libPods-Flippy.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E38BB7A8F21EE422D9E05726 /* libPods-Flippy.a */; };
+		B0A5377C31A668467C1EF252 /* libPods-Flippy.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 84CE567DE0EDCD5FE3268854 /* libPods-Flippy.a */; };
 		CB049D0B1A1E5CF800E5095F /* launch-image.jpg in Resources */ = {isa = PBXBuildFile; fileRef = CB049D0A1A1E5CF800E5095F /* launch-image.jpg */; };
 		CB05B3B0196B353A00FF58A5 /* railDestruction.sks in Resources */ = {isa = PBXBuildFile; fileRef = CB05B3AE196B353A00FF58A5 /* railDestruction.sks */; };
 		CB05B3B1196B353A00FF58A5 /* sleeperDestruction.sks in Resources */ = {isa = PBXBuildFile; fileRef = CB05B3AF196B353A00FF58A5 /* sleeperDestruction.sks */; };
@@ -92,7 +92,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		0E26A1CC5842D2D6A69C2939 /* Pods-Flippy.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Flippy.release.xcconfig"; path = "Pods/Target Support Files/Pods-Flippy/Pods-Flippy.release.xcconfig"; sourceTree = "<group>"; };
+		7CCD77B64BF9AEA294C3E089 /* Pods-Flippy.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Flippy.release.xcconfig"; path = "Pods/Target Support Files/Pods-Flippy/Pods-Flippy.release.xcconfig"; sourceTree = "<group>"; };
+		84CE567DE0EDCD5FE3268854 /* libPods-Flippy.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Flippy.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		8820C4D2612FFA36117EBEA3 /* Pods-Flippy.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Flippy.debug.xcconfig"; path = "Pods/Target Support Files/Pods-Flippy/Pods-Flippy.debug.xcconfig"; sourceTree = "<group>"; };
 		CB0464A318AA6F7F00ABCA03 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		CB049D0A1A1E5CF800E5095F /* launch-image.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "launch-image.jpg"; sourceTree = "<group>"; };
 		CB05B3AE196B353A00FF58A5 /* railDestruction.sks */ = {isa = PBXFileReference; lastKnownFileType = file.sks; path = railDestruction.sks; sourceTree = "<group>"; };
@@ -186,8 +188,6 @@
 		CBF7299F1A82AD8A00F3FFA3 /* DSMultilineLabelNode.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DSMultilineLabelNode.m; sourceTree = "<group>"; };
 		CBFCCE5F1A1BDB6600A598E5 /* FLApplication.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLApplication.h; sourceTree = "<group>"; };
 		CBFCCE601A1BDB6600A598E5 /* FLApplication.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FLApplication.m; sourceTree = "<group>"; };
-		D8D553652305AF6F8063F695 /* Pods-Flippy.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Flippy.debug.xcconfig"; path = "Pods/Target Support Files/Pods-Flippy/Pods-Flippy.debug.xcconfig"; sourceTree = "<group>"; };
-		E38BB7A8F21EE422D9E05726 /* libPods-Flippy.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Flippy.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -207,22 +207,13 @@
 				CBB4B7FD183C00E1003C3444 /* UIKit.framework in Frameworks */,
 				CBB4B7FF183C00E1003C3444 /* SpriteKit.framework in Frameworks */,
 				CBB4B7F9183C00E1003C3444 /* Foundation.framework in Frameworks */,
-				7EC55D6AFCDDCB27F3B0024E /* libPods-Flippy.a in Frameworks */,
+				B0A5377C31A668467C1EF252 /* libPods-Flippy.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		4ED7E1C4DCA5F97D4E71C794 /* Pods */ = {
-			isa = PBXGroup;
-			children = (
-				D8D553652305AF6F8063F695 /* Pods-Flippy.debug.xcconfig */,
-				0E26A1CC5842D2D6A69C2939 /* Pods-Flippy.release.xcconfig */,
-			);
-			name = Pods;
-			sourceTree = "<group>";
-		};
 		CB05B3B6196B35A200FF58A5 /* Saves */ = {
 			isa = PBXGroup;
 			children = (
@@ -324,8 +315,8 @@
 				CB8E4CB11A2503BA00330611 /* Flippy Tests */,
 				CBB4B7F7183C00E1003C3444 /* Frameworks */,
 				CB4E6A49197CAEA600385300 /* HLProject.xcconfig */,
-				4ED7E1C4DCA5F97D4E71C794 /* Pods */,
 				CBB4B7F6183C00E1003C3444 /* Products */,
+				FE4F1B2567E92C5CBAE62A49 /* Pods */,
 			);
 			sourceTree = "<group>";
 		};
@@ -346,7 +337,7 @@
 				CBB4B7FA183C00E1003C3444 /* CoreGraphics.framework */,
 				CBB4B7FC183C00E1003C3444 /* UIKit.framework */,
 				CBB4B7FE183C00E1003C3444 /* SpriteKit.framework */,
-				E38BB7A8F21EE422D9E05726 /* libPods-Flippy.a */,
+				84CE567DE0EDCD5FE3268854 /* libPods-Flippy.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -412,6 +403,15 @@
 			name = "Supporting Files";
 			sourceTree = "<group>";
 		};
+		FE4F1B2567E92C5CBAE62A49 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				8820C4D2612FFA36117EBEA3 /* Pods-Flippy.debug.xcconfig */,
+				7CCD77B64BF9AEA294C3E089 /* Pods-Flippy.release.xcconfig */,
+			);
+			name = Pods;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -437,12 +437,10 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = CBB4B831183C00E1003C3444 /* Build configuration list for PBXNativeTarget "Flippy" */;
 			buildPhases = (
-				692B5FB16969F57485BBD241 /* Check Pods Manifest.lock */,
+				A3620232ABF57BAF80190931 /* [CP] Check Pods Manifest.lock */,
 				CBB4B7F1183C00E1003C3444 /* Sources */,
 				CBB4B7F2183C00E1003C3444 /* Frameworks */,
 				CBB4B7F3183C00E1003C3444 /* Resources */,
-				1C15A9F32EFDB8C3A4ED2969 /* Copy Pods Resources */,
-				B6B2FEA90675EB633D961E99 /* Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -460,7 +458,7 @@
 			isa = PBXProject;
 			attributes = {
 				CLASSPREFIX = FL;
-				LastUpgradeCheck = 0810;
+				LastUpgradeCheck = 0940;
 				ORGANIZATIONNAME = "Hilo Games";
 				TargetAttributes = {
 					CB8E4CAF1A2503BA00330611 = {
@@ -558,49 +556,22 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		1C15A9F32EFDB8C3A4ED2969 /* Copy Pods Resources */ = {
+		A3620232ABF57BAF80190931 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
 			);
-			name = "Copy Pods Resources";
+			name = "[CP] Check Pods Manifest.lock";
 			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-Flippy-checkManifestLockResult.txt",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${SRCROOT}/Pods/Target Support Files/Pods-Flippy/Pods-Flippy-resources.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-		692B5FB16969F57485BBD241 /* Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "Check Pods Manifest.lock";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_ROOT}/../Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [[ $? != 0 ]] ; then\n    cat << EOM\nerror: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\nEOM\n    exit 1\nfi\n";
-			showEnvVarsInLog = 0;
-		};
-		B6B2FEA90675EB633D961E99 /* Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "Embed Pods Frameworks";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${SRCROOT}/Pods/Target Support Files/Pods-Flippy/Pods-Flippy-frameworks.sh\"\n";
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
@@ -726,13 +697,17 @@
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
 				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
 				CLANG_WARN_EMPTY_BODY = YES;
 				CLANG_WARN_ENUM_CONVERSION = YES;
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
@@ -767,13 +742,17 @@
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
 				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
 				CLANG_WARN_EMPTY_BODY = YES;
 				CLANG_WARN_ENUM_CONVERSION = YES;
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
@@ -795,7 +774,7 @@
 		};
 		CBB4B832183C00E1003C3444 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = D8D553652305AF6F8063F695 /* Pods-Flippy.debug.xcconfig */;
+			baseConfigurationReference = 8820C4D2612FFA36117EBEA3 /* Pods-Flippy.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ANALYZER_SECURITY_FLOATLOOPCOUNTER = YES;
@@ -839,7 +818,7 @@
 		};
 		CBB4B833183C00E1003C3444 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 0E26A1CC5842D2D6A69C2939 /* Pods-Flippy.release.xcconfig */;
+			baseConfigurationReference = 7CCD77B64BF9AEA294C3E089 /* Pods-Flippy.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ANALYZER_SECURITY_FLOATLOOPCOUNTER = YES;

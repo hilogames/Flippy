@@ -1636,6 +1636,11 @@ struct PointerPairHash
       NSString *importPath = [importDirectory stringByAppendingPathComponent:[toolTag stringByAppendingPathExtension:@"archive"]];
       NSString *description;
       NSArray *links;
+      // note: Got a crash here in the wild, with missing file.  I couldn't see what file was missing
+      // (because it was stripped from the log), but presumably it was an export or a deletions.
+      // I'm noticing that deletions toolbar isn't updated if it's showing when deletions are added;
+      // perhaps a deletion slot was purged somehow.  Regardless, we could just decide to be defensive
+      // here: If it's not found, we don't need to throw an exception, but can just cancel the pan.
       NSArray *newSegmentNodes = [self FL_segmentsReadArchiveWithPath:importPath description:&description links:&links];
 
       // Remove any disallowed segment types.

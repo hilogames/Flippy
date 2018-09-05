@@ -10,6 +10,7 @@
 
 #import "HLError.h"
 #import "HLLabelButtonNode.h"
+#import "HLLayoutManager.h"
 #import "SKNode+HLGestureTarget.h"
 
 enum {
@@ -310,7 +311,7 @@ HLMenuNodeValidateButtonPrototype(SKNode *buttonPrototype, NSString *label)
 
     [_buttonsNode addChild:buttonNode];
 
-    CGSize buttonSize = [(id)buttonNode size];
+    CGSize buttonSize = HLLayoutManagerGetNodeSize(buttonNode);
     if (buttonSize.width > widthMax) {
       widthMax = buttonSize.width;
     }
@@ -326,9 +327,9 @@ HLMenuNodeValidateButtonPrototype(SKNode *buttonPrototype, NSString *label)
   CGFloat y = _size.height * (1.0f - _anchorPoint.y);
   for (SKNode *buttonNode in _buttonsNode.children) {
     [(id)buttonNode setAnchorPoint:CGPointMake(0.5f, 0.5f)];
-    CGFloat buttonHeight = [(id)buttonNode size].height;
-    buttonNode.position = CGPointMake(x, y - buttonHeight * 0.5f);
-    y = y - buttonHeight - _itemSeparatorSize;
+    CGSize buttonSize = HLLayoutManagerGetNodeSize(buttonNode);
+    buttonNode.position = CGPointMake(x, y - buttonSize.height * 0.5f);
+    y = y - buttonSize.height - _itemSeparatorSize;
   }
   [self HL_layoutZ];
 

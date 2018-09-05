@@ -19,7 +19,7 @@ FOUNDATION_EXPORT BOOL FLUserUnlocksUnlocked(NSString *unlockKey);
 
 FOUNDATION_EXPORT void FLUserUnlocksUnlock(NSArray *unlockKeys);
 
-FOUNDATION_EXPORT void FLUserUnlocksResetAll();
+FOUNDATION_EXPORT void FLUserUnlocksResetAll(void);
 FOUNDATION_EXPORT void FLUserUnlocksReset(NSString *unlockKey);
 
 /**
@@ -38,4 +38,4 @@ FOUNDATION_EXPORT id FLUserRecordsLevelGet(NSString *recordKey, int gameLevel);
 FOUNDATION_EXPORT void FLUserRecordsSet(NSString *recordKey, id value);
 FOUNDATION_EXPORT void FLUserRecordsLevelSet(NSString *recordKey, int gameLevel, id value);
 
-FOUNDATION_EXPORT void FLUserRecordsResetAll();
+FOUNDATION_EXPORT void FLUserRecordsResetAll(void);
