@@ -1641,6 +1641,7 @@ struct PointerPairHash
       // I'm noticing that deletions toolbar isn't updated if it's showing when deletions are added;
       // perhaps a deletion slot was purged somehow.  Regardless, we could just decide to be defensive
       // here: If it's not found, we don't need to throw an exception, but can just cancel the pan.
+      // note: March 2020: Got the same missing-file crash again.
       NSArray *newSegmentNodes = [self FL_segmentsReadArchiveWithPath:importPath description:&description links:&links];
 
       // Remove any disallowed segment types.
@@ -2373,18 +2374,24 @@ struct PointerPairHash
 
   // noob: Could make a store to control this, but it would be a weird store, since the
   // references to the sounds don't actually need to be tracked.
+
+  // noob: Also, I'm now realizing much later [2019 using iOS12] that only ONE sound
+  // effect needs to be preloaded.  SKAction will load each sound file from disk every
+  // time it is played, but importantly there is some intialization of the audio system
+  // which happens the very first time ANY sound effect is loaded.
+
   [SKAction playSoundFileNamed:@"wooden-click-1.caf" waitForCompletion:NO];
-  [SKAction playSoundFileNamed:@"wooden-click-2.caf" waitForCompletion:NO];
-  [SKAction playSoundFileNamed:@"wooden-clickity-2.caf" waitForCompletion:NO];
-  [SKAction playSoundFileNamed:@"wooden-clatter-1.caf" waitForCompletion:NO];
-  [SKAction playSoundFileNamed:@"train-whistle-2.caf" waitForCompletion:NO];
-  [SKAction playSoundFileNamed:@"train-stop-hiss.caf" waitForCompletion:NO];
-  [SKAction playSoundFileNamed:@"ka-chick.caf" waitForCompletion:NO];
-  [SKAction playSoundFileNamed:@"train-whistle-tune-1.caf" waitForCompletion:NO];
-  [SKAction playSoundFileNamed:@"pop-2.caf" waitForCompletion:NO];
-  [SKAction playSoundFileNamed:@"plink-1.caf" waitForCompletion:NO];
-  [SKAction playSoundFileNamed:@"plink-2.caf" waitForCompletion:NO];
-  [SKAction playSoundFileNamed:@"brr-bring.caf" waitForCompletion:NO];
+  //  [SKAction playSoundFileNamed:@"wooden-click-2.caf" waitForCompletion:NO];
+  //  [SKAction playSoundFileNamed:@"wooden-clickity-2.caf" waitForCompletion:NO];
+  //  [SKAction playSoundFileNamed:@"wooden-clatter-1.caf" waitForCompletion:NO];
+  //  [SKAction playSoundFileNamed:@"train-whistle-2.caf" waitForCompletion:NO];
+  //  [SKAction playSoundFileNamed:@"train-stop-hiss.caf" waitForCompletion:NO];
+  //  [SKAction playSoundFileNamed:@"ka-chick.caf" waitForCompletion:NO];
+  //  [SKAction playSoundFileNamed:@"train-whistle-tune-1.caf" waitForCompletion:NO];
+  //  [SKAction playSoundFileNamed:@"pop-2.caf" waitForCompletion:NO];
+  //  [SKAction playSoundFileNamed:@"plink-1.caf" waitForCompletion:NO];
+  //  [SKAction playSoundFileNamed:@"plink-2.caf" waitForCompletion:NO];
+  //  [SKAction playSoundFileNamed:@"brr-bring.caf" waitForCompletion:NO];
 
   NSLog(@"FLTrackScene loadSound: loaded in %0.2f seconds", [[NSDate date] timeIntervalSinceDate:startDate]);
 }
