@@ -458,7 +458,7 @@
 			isa = PBXProject;
 			attributes = {
 				CLASSPREFIX = FL;
-				LastUpgradeCheck = 0940;
+				LastUpgradeCheck = 1130;
 				ORGANIZATIONNAME = "Hilo Games";
 				TargetAttributes = {
 					CB8E4CAF1A2503BA00330611 = {
@@ -472,7 +472,7 @@
 			};
 			buildConfigurationList = CBB4B7F0183C00E1003C3444 /* Build configuration list for PBXProject "Flippy" */;
 			compatibilityVersion = "Xcode 3.2";
-			developmentRegion = English;
+			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
@@ -693,6 +693,7 @@
 			baseConfigurationReference = CB4E6A49197CAEA600385300 /* HLProject.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
@@ -738,6 +739,7 @@
 			baseConfigurationReference = CB4E6A49197CAEA600385300 /* HLProject.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
