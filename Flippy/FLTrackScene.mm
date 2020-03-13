@@ -9,6 +9,7 @@
 #import "FLTrackScene.h"
 
 #import "HLSpriteKit.h"
+#import "HLError.h"
 #include <memory>
 #include <tgmath.h>
 
@@ -1636,13 +1637,18 @@ struct PointerPairHash
       NSString *importPath = [importDirectory stringByAppendingPathComponent:[toolTag stringByAppendingPathExtension:@"archive"]];
       NSString *description;
       NSArray *links;
-      // note: Got a crash here in the wild, with missing file.  I couldn't see what file was missing
-      // (because it was stripped from the log), but presumably it was an export or a deletions.
-      // I'm noticing that deletions toolbar isn't updated if it's showing when deletions are added;
-      // perhaps a deletion slot was purged somehow.  Regardless, we could just decide to be defensive
-      // here: If it's not found, we don't need to throw an exception, but can just cancel the pan.
-      // note: March 2020: Got the same missing-file crash again.
       NSArray *newSegmentNodes = [self FL_segmentsReadArchiveWithPath:importPath description:&description links:&links];
+      // note: In the past there was a problem where the deletions toolbar wouldn't update
+      // after adding a new deletion, which would leave a bogus deletion available, which
+      // then would cause a bad path error here.  The update problem has now been fixed,
+      // so in theory we won't get missing segments anymore, but defensive programming
+      // seems appropriate because it happened in the past.
+      if (!newSegmentNodes) {
+        _worldGestureState.panType = FLWorldPanTypeNone;
+        [self FL_messageShow:NSLocalizedString(@"These segments can’t be found.",
+                                               @"Message to user: Shown after invalid import.")];
+        return;
+      }
 
       // Remove any disallowed segment types.
       NSMutableSet *removedSegmentNodePointers = [NSMutableSet set];
@@ -2416,7 +2422,9 @@ struct PointerPairHash
                                       links:(NSArray * __autoreleasing *)links
 {
   if (![[NSFileManager defaultManager] fileExistsAtPath:path]) {
-    [NSException raise:@"FLReadPathInvalid" format:@"Invalid read path %@.", path];
+    HLError(HLLevelError, [NSString stringWithFormat:@"FLTrackScene FL_segmentsReadArchiveWithPath:description:links:"
+            " Could not read segments from archive %@.", path]);
+    return nil;
   }
   
   NSData *archiveData = [NSData dataWithContentsOfFile:path];
@@ -4025,6 +4033,9 @@ writeArchiveWithPath:exportPath
   [self FL_messageShow:[NSString stringWithFormat:NSLocalizedString(@"Exported “%@”.",
                                                                     @"Message to user: Shown after a successful export of {export name}."),
                         trackDescription]];
+  if ([_constructionToolbarState.currentNavigation isEqualToString:@"exports"]) {
+    [self FL_constructionToolbarShowExports:_constructionToolbarState.currentPage animation:HLToolbarNodeAnimationNone];
+  }
 }
 
 - (void)FL_exportDelete:(NSString *)exportName description:(NSString *)trackDescription
@@ -4071,6 +4082,14 @@ writeArchiveWithPath:exportPath
   if ([segmentNodes count] > 1) {
     [self FL_deletionsWriteSegments:segmentNodes segmentPointers:segmentPointers];
     _deleteState.dirtyTextures = YES;
+    if ([_constructionToolbarState.currentNavigation isEqualToString:@"deletions"]) {
+      // note: Page might be too large as a result of the deletion.
+      int pageMax = [self FL_constructionToolbarArchivesPageMax:FLDeletionsDirectoryPath];
+      if (_constructionToolbarState.currentPage > pageMax) {
+        _constructionToolbarState.currentPage = pageMax;
+      }
+      [self FL_constructionToolbarShowDeletions:_constructionToolbarState.currentPage animation:HLToolbarNodeAnimationNone];
+    }
   }
   
   [self FL_trackEraseSegments:segmentNodes animated:YES];
@@ -4111,7 +4130,7 @@ writeArchiveWithPath:exportPath
   NSString *purgeDeletionSlotName = [NSString stringWithFormat:@"track-erase-%d", purgeDeletionSlot];
   NSString *purgeDeletionSlotPath = [FLDeletionsDirectoryPath stringByAppendingPathComponent:[purgeDeletionSlotName stringByAppendingPathExtension:@"archive"]];
   [fileManager removeItemAtPath:purgeDeletionSlotPath error:NULL];
-  
+
   static NSDateFormatter *dateFormatter = nil;
   if (!dateFormatter) {
     dateFormatter = [[NSDateFormatter alloc] init];
