@@ -587,6 +587,24 @@ static NSString * const FLNextLevelMenuSkip = NSLocalizedString(@"Don’t Save",
   [self FL_gameStatusUpdateText];
   [self FL_gameOverlayUpdateGeometry];
 
+  /*
+   March 2020: Two crash reports from the wild from calling this method.  In particular,
+   this method calls HL_showCurrentMenuAnimation, and the crash is coming from the third
+   line of the method, where a new [SKNode node] is created and then added to self.
+   The stack from there is:
+     0   libc++abi.dylib   0x212e69be __dynamic_cast + 46 (private_typeinfo.cpp:573)
+     1   SpriteKit         0x2de351b4 __15-[SKNode scene]_block_invoke + 48 (SKNode.mm:381)
+     2   SpriteKit         0x2ddea6ac SKCNode::walkUp(void (SKCNode*, bool*) block_pointer, bool) + 116 (SKCNode.mm:246)
+     3   SpriteKit         0x2de350fe -[SKNode scene] + 202 (SKNode.mm:380)
+     4   SpriteKit         0x2de357e0 -[SKNode insertChild:atIndex:] + 476 (SKNode.mm:451)
+     5   SpriteKit         0x2de355b6 -[SKNode addChild:] + 146 (SKNode.mm:429)
+   I had to use atos to symbolicate the crash stack before that point, by the way:
+     -[HLMenuNode HL_showCurrentMenuAnimation:] (in Flippy) (HLMenuNode.m:278)
+     -[FLViewController trackSceneDidTapMenuButton:] (in Flippy) (FLViewController.mm:591)
+     -[FLTrackScene handleSimulationToolbarTap:] (in Flippy) (FLTrackScene.mm:1749)
+   Anyway, not sure what's going on.  Maybe the scene has been unpresented by the time we
+   get this call.
+  */
   [_gameMenuNode navigateToTopMenuAnimation:HLMenuNodeAnimationNone];
   [_gameMessageNode hideMessage];
 
