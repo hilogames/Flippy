@@ -57,7 +57,6 @@
 		CB960344196B892E00569870 /* track.atlas in Resources */ = {isa = PBXBuildFile; fileRef = CB960342196B892E00569870 /* track.atlas */; };
 		CBA5ED521906FECD00DBF36E /* gates in Resources */ = {isa = PBXBuildFile; fileRef = CBA5ED511906FECD00DBF36E /* gates */; };
 		CBA5ED541907007800DBF36E /* circuits in Resources */ = {isa = PBXBuildFile; fileRef = CBA5ED531907007800DBF36E /* circuits */; };
-		CBAA13371A1D1ECD00FD90F8 /* LaunchScreen.xib in Resources */ = {isa = PBXBuildFile; fileRef = CBAA13361A1D1ECD00FD90F8 /* LaunchScreen.xib */; };
 		CBB4B7F9183C00E1003C3444 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B7F8183C00E1003C3444 /* Foundation.framework */; };
 		CBB4B7FB183C00E1003C3444 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B7FA183C00E1003C3444 /* CoreGraphics.framework */; };
 		CBB4B7FD183C00E1003C3444 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB4B7FC183C00E1003C3444 /* UIKit.framework */; };
@@ -75,6 +74,7 @@
 		CBD65A1419CB4FCF00F488B2 /* plink-2.caf in Resources */ = {isa = PBXBuildFile; fileRef = CBD65A1219CB4FCF00F488B2 /* plink-2.caf */; };
 		CBD707C418AD0EE00041B170 /* FLTrain.mm in Sources */ = {isa = PBXBuildFile; fileRef = CBD707C318AD0EE00041B170 /* FLTrain.mm */; };
 		CBE687AB1A0BC5AB00072EB0 /* Help.plist in Resources */ = {isa = PBXBuildFile; fileRef = CBE687AA1A0BC5AB00072EB0 /* Help.plist */; };
+		CBEC1AAD2432320800F9DDAC /* Launch Screen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = CBEC1AAC2432320800F9DDAC /* Launch Screen.storyboard */; };
 		CBEE13F018C4DBA400D1D42B /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CB0464A318AA6F7F00ABCA03 /* AVFoundation.framework */; };
 		CBF569811CD39CD40043C216 /* FLTextureStore.m in Sources */ = {isa = PBXBuildFile; fileRef = CBF569801CD39CD40043C216 /* FLTextureStore.m */; };
 		CBF729A01A82AD8A00F3FFA3 /* DSMultilineLabelNode.m in Sources */ = {isa = PBXBuildFile; fileRef = CBF7299F1A82AD8A00F3FFA3 /* DSMultilineLabelNode.m */; };
@@ -156,7 +156,6 @@
 		CB960342196B892E00569870 /* track.atlas */ = {isa = PBXFileReference; lastKnownFileType = folder.skatlas; path = track.atlas; sourceTree = "<group>"; };
 		CBA5ED511906FECD00DBF36E /* gates */ = {isa = PBXFileReference; lastKnownFileType = folder; path = gates; sourceTree = "<group>"; };
 		CBA5ED531907007800DBF36E /* circuits */ = {isa = PBXFileReference; lastKnownFileType = folder; path = circuits; sourceTree = "<group>"; };
-		CBAA13361A1D1ECD00FD90F8 /* LaunchScreen.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = LaunchScreen.xib; sourceTree = "<group>"; };
 		CBB4B7F5183C00E1003C3444 /* Flippy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Flippy.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CBB4B7F8183C00E1003C3444 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		CBB4B7FA183C00E1003C3444 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
@@ -182,6 +181,7 @@
 		CBD707C218AD0EE00041B170 /* FLTrain.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTrain.h; sourceTree = "<group>"; };
 		CBD707C318AD0EE00041B170 /* FLTrain.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FLTrain.mm; sourceTree = "<group>"; };
 		CBE687AA1A0BC5AB00072EB0 /* Help.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Help.plist; sourceTree = "<group>"; };
+		CBEC1AAC2432320800F9DDAC /* Launch Screen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = "Launch Screen.storyboard"; sourceTree = "<group>"; };
 		CBF5697F1CD39CD40043C216 /* FLTextureStore.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FLTextureStore.h; sourceTree = "<group>"; };
 		CBF569801CD39CD40043C216 /* FLTextureStore.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FLTextureStore.m; sourceTree = "<group>"; };
 		CBF7299E1A82AD8A00F3FFA3 /* DSMultilineLabelNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DSMultilineLabelNode.h; sourceTree = "<group>"; };
@@ -396,7 +396,7 @@
 				CBE687AA1A0BC5AB00072EB0 /* Help.plist */,
 				CBB4B803183C00E1003C3444 /* InfoPlist.strings */,
 				CB049D0A1A1E5CF800E5095F /* launch-image.jpg */,
-				CBAA13361A1D1ECD00FD90F8 /* LaunchScreen.xib */,
+				CBEC1AAC2432320800F9DDAC /* Launch Screen.storyboard */,
 				CB485D93196EE0CC00E8646B /* Localizable.strings */,
 				CBB4B806183C00E1003C3444 /* main.m */,
 			);
@@ -531,7 +531,6 @@
 				CB1D39E219F05A3900D829CB /* platform-left-nonatlas.png in Resources */,
 				CBBB184B19C736F30088D345 /* train-whistle-2.caf in Resources */,
 				CB049D0B1A1E5CF800E5095F /* launch-image.jpg in Resources */,
-				CBAA13371A1D1ECD00FD90F8 /* LaunchScreen.xib in Resources */,
 				CB960310196B86FF00569870 /* wooden-click-2.caf in Resources */,
 				CB960335196B88AD00569870 /* cross-nonatlas.png in Resources */,
 				CB960344196B892E00569870 /* track.atlas in Resources */,
@@ -539,6 +538,7 @@
 				CB960336196B88AD00569870 /* curve-nonatlas.png in Resources */,
 				CB96033F196B88AD00569870 /* value-1-nonatlas.png in Resources */,
 				CB960309196B86FF00569870 /* sleeper.png in Resources */,
+				CBEC1AAD2432320800F9DDAC /* Launch Screen.storyboard in Resources */,
 				CB6F6E811A03DAAB003112D8 /* happyBurst.png in Resources */,
 				CB6F6E801A03DAAB003112D8 /* happyBurst.sks in Resources */,
 				CBBB185219C739EF0088D345 /* train-stop-hiss.caf in Resources */,
